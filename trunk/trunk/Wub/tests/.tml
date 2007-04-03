@@ -1,2 +1,0 @@
-# this is a test of .tml loading for hierarchy climbing, test 2
-puts stderr "Loaded tests/.tml"
