@@ -1,0 +1,1 @@
+TCLLIBPATH=/usr/lib/:/usr/local/lib PATH=/usr/local/ActiveTcl-8.5/bin:/usr/local/bin:/usr/bin:/bin:/usr/bin/X11:/usr/games base-tcl8.5-thread-linux-ix86 Site.tcl 2>/tmp/junk

@@ -1,0 +1,48 @@
+/* CSS stylesheet for the Tcler's Wiki by Steve.Cassidy@mq.edu.au */
+/* Tweaks by jcw, 09nov02 - just because it's so terribly easy... */
+
+BODY {
+  color: #000;
+  margin-left: 2%;
+  margin-right: 2%;
+  font-family: "Trebuchet Ms", Verdana, sans-serif;
+}   
+
+H1 { 
+  font-size: xx-large;
+}
+
+H2 {
+  font-size: x-large;
+  color: white;
+  background: yellow;
+}
+
+/* Set the style of links, A:link is the default style */
+A:link { 
+    font-weight: bold;
+    text-decoration: none;
+}
+
+/* These are for links that have been visited or that are clicked on  */
+A:visited, A:active { 
+   font-weight: bold;
+   text-decoration: none;
+}
+
+pre {
+   background-color: white;
+   font-weight: normal;
+   font-family: monospace;
+   color: #7f7f7f;
+}
+
+/* Style for the page footer which uses <p id='footer'>  */
+#footer {
+   height: 31px;
+   background: url("wiki-img.gif") no-repeat top right;
+}
+
+dt {
+   font-weight: bold;
+}
