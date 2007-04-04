@@ -73,10 +73,14 @@ namespace eval Httpd {
     }
 
     # a worker thread has completely processed input, or has hit a socket error
-    proc disconnect {thread error eo} {
+    proc disconnect {thread error {eo ""}} {
 	Debug.socket {Done: $thread '$error' - ($eo)}
 
 	variable worker
+	if {![info exists worker($thread)] || $worker($thread) eq ""} {
+	    # it's already been closed.
+	    return ""
+	}
 	set socket $worker($thread);
 
 	variable sockets
@@ -282,10 +286,16 @@ namespace eval Httpd {
 
 	set sock $argv(-sock)
 	if {[info exists sockets($sock)]} {
-	    puts stderr "Httpd RACE: sockets $sock already exists $sockets($sock)"
-	} else {
-	    set sockets($sock) $tid	;# bi-associate socket and thread
+	    # this can happen if the remote's closed the socket
+	    # and a new connection has arrived on the same socket.
+	    # We assume this has occurred, and call disconnect.
+	    # subsequent disconnects will notice this has occurred
+	    # and abort gracefully.  Still some race potential.
+	    #puts stderr "Httpd RACE: sockets $sock already exists $sockets($sock)"
+	    disconnect $sockets($sock) "forced"
 	}
+
+	set sockets($sock) $tid	;# bi-associate socket and thread
 	set worker($tid) $sock
 
 	# the socket must stay in non-block binary binary-encoding mode
