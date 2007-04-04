@@ -448,7 +448,7 @@ proc disconnect {error {eo {}}} {
 
     array unset ::satisfied; array set ::satisfied {}	;# forget request state
     array unset ::replies; array set ::replies {}	;# forget pending replies
-    unset request
+    catch {unset request}
     set ::gets 0
     set ::pending 0
 
