@@ -233,7 +233,7 @@ proc send {reply {cacheit 1}} {
     } elseif {[dict get $reply -generation] != $::generation} {
 	# this reply belongs to an older, disconnected Httpd generation.
 	# we must discard it, because it was directed to a different client!
-	puts stderr "Send discarded: out of generation ($reply)"
+	puts stderr "Send discarded: out of generation ([set x $reply; dict set x -content <ELIDED>; return $x]) != $::generation"
 	return
     }
     set trx [dict get $reply -transaction]
