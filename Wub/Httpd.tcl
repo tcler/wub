@@ -197,13 +197,13 @@ namespace eval Httpd {
 
     # Exhausted - method called by Listener to report server exhaustion
     proc Exhausted {sock {eo {}} {retry 200}} {
+	Debug.socket {Exhausted $sock $eo $retry}
 	puts $sock "HTTP/1.1 503 Socket Exhaustion" \r\n
 	puts $sock "Date: [Http Now]" \r\n
 	puts $sock "Server: Wub 1.0" \r\n
 	puts $sock "Connection: Close" \r\n
 	puts $sock "Retry-After: $retry" \r\n
 	puts $sock \r\n
-	close $sock
     }
 
     # mkthreads - make and enqueue $incr new threads,
@@ -233,9 +233,41 @@ namespace eval Httpd {
     }
     mkthreads	;# construct initial thread pool
 
+    # exhaustion control
+    variable max_conn 5
+    variable connbyIP; array set connbyIP {}
+    variable sock2IP; array set sock2IP {}
+
     # get - get a thread
-    proc get {} {
+    proc get {sock ipaddr rport} {
 	Debug.socket {get thread for reading}
+
+	# remember client IP for socket
+	variable sock2IP
+	variable connbyIP
+	if {[info exists sock2IP($sock)] && $sock2IP($sock) != $ipaddr} {
+	    # the socket's closed and been reused
+	    # we have to reflect that
+	    Debug.socket {socket $sock reused - $sock2IP($sock)}
+	    incr connbyIP($sock2IP($sock)) -1
+	}
+	set sock2IP($sock) $ipaddr
+
+	# ensure that client is not spamming us.
+	variable max_conn
+	if {[info exists connbyIP($ipaddr)]} {
+	    if {$connbyIP($ipaddr) > $max_conn} {
+		Debug.socket {Too many connections for $ipaddr}
+		error "Too many connections - no more than $max_conn"
+	    } else {
+		incr connbyIP($ipaddr)	;# count connections by ip
+		Debug.socket {incr connections for $ipaddr -> $connbyIP($ipaddr)}
+	    }
+	} else {
+	    Debug.socket {brand new connection for $ipaddr}
+	    set connbyIP($ipaddr) 0
+	}
+	Debug.socket {$connbyIP($ipaddr) connections for $ipaddr}
 
 	# grab a free thread
 	if {[catch {threads get} thread]} {
@@ -269,22 +301,19 @@ namespace eval Httpd {
     proc threaded {tid connect args} {
 	variable sockets
 	variable worker
+	set listener [dict get $args -listener]
 
 	Debug.socket {Connecting $tid $args}
-	#array set argv [list -code 200 content-type text/html]
-	array set argv {}
-
 	set config {}
 	foreach {n v} $args {
-	    set argv($n) $v
 	    # reflect the configuration args in the thread's global
 	    lappend config [string range $n 1 end] $v
 	}
-	lappend config host [$argv(-listener) cget -host]
-	lappend config port [$argv(-listener) cget -port]
-	lappend config server [$argv(-listener) cget -server]
+	lappend config host [$listener cget -host]
+	lappend config port [$listener cget -port]
+	lappend config server [$listener cget -server]
 
-	set sock $argv(-sock)
+	set sock [dict get $args -sock]
 	if {[info exists sockets($sock)]} {
 	    # this can happen if the remote's closed the socket
 	    # and a new connection has arrived on the same socket.
@@ -304,11 +333,11 @@ namespace eval Httpd {
 
 	variable dispatch
 	if {$dispatch ne ""} {
-	    set argv(-dispatch) $dispatch
+	    dict set args -dispatch $dispatch
 	}
-	set argv(-version) 1.1
+	dict set args -version 1.1
 
-	after idle [list ::Httpd::transfer $tid $sock [array get argv] $config] ;# arrange for socket/task connection
+	after idle [list ::Httpd::transfer $tid $sock $args $config] ;# arrange for socket/task connection
     }
 
     namespace export -clear *
