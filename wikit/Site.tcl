@@ -137,7 +137,7 @@ if {$upflag ne ""} {
     Wikit::DoSync $upflag
 }
 
-eval [mk::get wdb.pages!9 page]
+catch {mk::get wdb.pages!9 page}
 
 puts stderr "STARTING BACKENDS"
 package require Backend
