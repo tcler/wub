@@ -700,6 +700,14 @@ proc incoming {req} {
 		do css do $request
 	    }
 
+	    /*.js {
+		# need to silently redirect js files
+		Debug.wikit {css invocation}
+		dict set request -suffix [file join {} {*}[lrange [file split $path] 1 end]]
+		dict set request -prefix "/scripts"
+		do scripts do $request
+	    }
+
 	    /_motd -
 	    /_edit/* -
 	    /_save/* -
