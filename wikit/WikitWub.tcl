@@ -762,5 +762,7 @@ eval $script
 
 Debug off wikit 10
 Debug off direct 10
+Debug on cookies 10
+Debug on socket 10
 
 thread::wait
