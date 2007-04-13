@@ -85,7 +85,7 @@ snit::type Listener {
 	    }
 
 	    # select an Http object to handle incoming
-	    if {[catch {$sockets get sock $ipaddr $rport} http eo]} {
+	    if {[catch {$sockets get $sock $ipaddr $rport} http eo]} {
 		puts stderr "accept failed $http ($eo)"
 		# we have exceeded per-listener pool size
 		catch {
