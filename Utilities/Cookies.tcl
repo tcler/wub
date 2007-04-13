@@ -394,6 +394,7 @@ namespace eval Cookies {
 	    dict set cdict $cname $attrs
 	}
 
+	Debug.cookies {parsed: '$cdict'} 2
 	return $cdict
     }
 
@@ -434,7 +435,7 @@ namespace eval Cookies {
 	}
 
 	set matches [dict keys $cookies [list $domain $path $name]]
-	Debug.cookies {match ($cookies) $args -> $matches}
+	Debug.cookies {match in dict ($cookies) for matching '$args' -> '$matches'}
 
 	return $matches
     }
