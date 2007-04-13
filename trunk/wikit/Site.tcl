@@ -13,6 +13,7 @@ foreach {name val} {
     readonly 0
     wikidb wikit.tkd
     upflag ""
+    history history
 } {
     set $name $val
 }
@@ -27,6 +28,10 @@ if {$profile} {
     set profv [package require profiler]
     puts stderr "Profiler: $profv"
 }
+
+# env handling - remove the linked env
+array set _env [array get ::env]; unset ::env
+array set ::env [array get _env]; unset _env
 
 package require snit 2.0
 
@@ -72,6 +77,20 @@ if {![file exists $docroot]} {
     puts stderr "Not overwriting existing docroot '$docroot'"
 }
 
+# create history directory
+if {![info exists ::env(WIKIT_HIST)]} {
+    if {$history ne ""} {
+	if {[file pathtype $history] ne "absolute"} {
+	    set history [file join $data $history]
+	}
+	set ::env(WIKIT_HIST) $history
+	catch {file mkdir $::env(WIKIT_HIST)}
+    }
+} else {
+    catch {file mkdir $::env(WIKIT_HIST)}
+}
+#puts stderr "History: $::env(WIKIT_HIST)"
+
 # clean up symlinks in docroot
 package require functional
 package require fileutil
@@ -95,6 +114,7 @@ package require Http
 Debug off socket 10
 Debug off http 2
 Debug off cache 10
+Debug off cookies 10
 Debug off dispatch 10
 Debug off wikit 10
 
