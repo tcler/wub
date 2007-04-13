@@ -81,7 +81,9 @@ namespace eval Httpd {
 	    # it's already been closed.
 	    return ""
 	}
+
 	set socket $worker($thread);
+	variable connbyIP; variable sock2IP; incr connbyIP($sock2IP($socket)) -1
 
 	variable sockets
 	if {$sockets($socket) ne $thread} {
@@ -219,7 +221,10 @@ namespace eval Httpd {
 	    variable me
 	    variable thread_path
 	    variable worker
-	    set s "set ::auto_path [list $thread_path] \n set ::thread::parent $me \n $script"
+	    set s "set ::auto_path [list $thread_path]
+		set ::thread::parent $me
+		array set ::env [list [array get ::env]]
+		$script"
 	    for {set i 0} {$i < $incr} {incr i} {
 		set new [::thread::create $s]
 		if {[::thread::preserve $new] != 1} {
@@ -232,6 +237,19 @@ namespace eval Httpd {
 	}
     }
     mkthreads	;# construct initial thread pool
+
+    proc dump {} {
+	variable me
+	set result "Httpd server running in $me\n"
+	variable sockets; append result "sockets: [array get sockets]" \n
+	variable worker; append result "worker threads: [array get worker]"
+	append result " ([threads size] in queue,"
+	variable max; variable incr; append result " [array size worker] in total, up to $max, increments of $incr)" \n
+	variable connbyIP; append result "connbyIP: [array get connbyIP]" \n
+	variable sock2IP; append result "sock2IP: [array get sock2IP]" \n
+	variable dispatch; append result "dispatch: $dispatch" \n
+	return $result
+    }
 
     # exhaustion control
     variable max_conn 5
@@ -255,17 +273,9 @@ namespace eval Httpd {
 
 	# ensure that client is not spamming us.
 	variable max_conn
-	if {[info exists connbyIP($ipaddr)]} {
-	    if {$connbyIP($ipaddr) > $max_conn} {
-		Debug.socket {Too many connections for $ipaddr}
-		error "Too many connections - no more than $max_conn"
-	    } else {
-		incr connbyIP($ipaddr)	;# count connections by ip
-		Debug.socket {incr connections for $ipaddr -> $connbyIP($ipaddr)}
-	    }
-	} else {
-	    Debug.socket {brand new connection for $ipaddr}
-	    set connbyIP($ipaddr) 0
+	if {[incr connbyIP($ipaddr)] > $max_conn} {
+	    Debug.socket {Too many connections for $ipaddr}
+	    error "Too many connections for $ipaddr - no more than $max_conn"
 	}
 	Debug.socket {$connbyIP($ipaddr) connections for $ipaddr}
 
@@ -355,9 +365,9 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     }
 
     Debug off socket 10
-    Debug on http 2
-    Debug on cache 10
-    Debug on dispatch 10
+    Debug off http 2
+    Debug off cache 10
+    Debug off dispatch 10
 
     set listener [Listener %AUTO% -port 8080 -sockets Httpd -httpd {-dispatch "puts"}]
     set forever 0
