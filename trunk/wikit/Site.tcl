@@ -14,6 +14,7 @@ foreach {name val} {
     wikidb wikit.tkd
     upflag ""
     history history
+    utf8 0
 } {
     set $name $val
 }
@@ -153,16 +154,49 @@ if {[mk::view size wdb.pages] == 0} {
     Wikit::FixPageRefs
 }
 
+package require utf8
+if {$utf8} {
+    set size [mk::view size wdb.pages]
+    set bad 0
+    set bogus 0
+    set incr 1
+    for {set i 0} {$i < $size} {incr i $incr} {
+	set incr 1
+	foreach f {name page} {
+	    set data [mk::get wdb.pages!$i $f]
+	    if {$data eq ""} continue
+	    set point [utf8::findbad $data]
+	    if {$point < [string length $data] - 1} {
+		if {$point < 0} {
+		    puts stderr "$f $i completely bogus - $point"
+		    mk::set wdb.pages!$i $f "bogus [incr bogus]"
+		} else {
+		    incr bad
+		    set incr -1
+		    puts stderr "$f $i bad at $point"
+		    incr point
+		    utf8::reportTrouble $i $data $point
+		    mk::set wdb.pages!$i $f [string replace $data $point $point " badutf "]
+		}
+	    }
+	}
+    }
+    puts stderr "BAD: $bad / $size"
+}
+
 if {$upflag ne ""} {
     Wikit::DoSync $upflag
 }
 
 catch {mk::get wdb.pages!9 page}
 
+# make the utf8 regular expression
+set utf8re [::utf8::makeUtf8Regexp]
+
 puts stderr "STARTING BACKENDS"
 package require Backend
 set Backend::incr $backends	;# reduce the backend thread quantum for faster testing
-Backend init scriptdir [file dirname [info script]] scriptname WikitWub.tcl docroot $docroot wikitroot $wikitroot dataroot $data {*}$worker_args
+Backend init scriptdir [file dirname [info script]] scriptname WikitWub.tcl docroot $docroot wikitroot $wikitroot dataroot $data utf8re $utf8re {*}$worker_args
 
 # start Listener
 set listener [Listener %AUTO% -port 8080 -sockets Httpd -httpd {-dispatch "Backend incoming"}]

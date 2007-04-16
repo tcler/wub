@@ -13,6 +13,8 @@ package require struct::queue
 package require Http
 package require Cookies
 
+package require utf8
+
 package provide WikitWub 1.0
 
 # create a queue of pending work
@@ -234,17 +236,36 @@ namespace eval WikitWub {
 	    if {$O != [list $date $who]} {
 		return "
 	<h2>Edit conflict on page $N - [Ref $N $name]</h2>
-	<p><bold>Your changes have NOT been saved</bold>, because
-	someone (at IP address $who) saved
+	<p><bold>Your changes have NOT been saved</bold>,
+	because	someone (at IP address $who) saved
 	a change to this page while you were editing.</p>
-	<p><italic>Please restart a new [Ref /_edit/$N edit] and merge your version,
-	which is shown in full below.</italic></p>
+	<p><italic>Please restart a new [Ref /_edit/$N edit]
+	and merge your version,	which is shown in full below.</italic></p>
 	<hr size=1 />
 	<p><pre>[armour $C]</pre></p>
-	<hr size=1 />
-	<p/>"
+	<hr size=1 />"
 	    }
-	    
+
+	    # newline-normalize content
+	    set C [string map {\r\n \n \r \n} $C]
+
+	    # check the content for utf8 correctness
+	    set point [::utf8::findbad $C]
+	    if {$point < [string length $C] - 1} {
+		if {$point >= 0} {
+		    incr point
+		    set C [string replace $C $point $point "BOGUS"]
+		}
+		return "<h2>Encoding error on page $N - [Ref $N $name]</h2>
+	<p><bold>Your changes have NOT been saved</bold>,
+	because	the content your browser sent contains bogus characters.
+	At character number $point.</p>
+	<p><italic>Please check your browser.</italic></p>
+	<hr size=1 />
+	<p><pre>[armour $C]</pre></p>
+	<hr size=1 />"
+	    }
+
 	    # Only actually save the page if the user selected "save"
 	    if {$save eq "Save" && $nick ne ""} {
 		invalidate $r $N
@@ -267,12 +288,18 @@ namespace eval WikitWub {
 		mk::file commit wdb
 	    }
 	}
+
 	set r [Http Redirect $r "http://[dict get $r host]/$N"]
 	return
     }
 
     proc GetPage {id} {
 	return [mk::get wdb.pages!$id page]
+    }
+
+    # /reload - direct url to reload numbered pages from fs
+    proc /reload {} {
+	foreach {}
     }
 
     # called to generate an edit page
@@ -750,6 +777,7 @@ proc incoming {req} {
     }
 }
 
+# fetch and initialize Wikit
 package require Wikit::Format
 #namespace import Wikit::Format::*
 package require Wikit::Db
@@ -760,9 +788,12 @@ set script [mk::get wdb.pages!9 page]
 #puts stderr "Script: $script"
 eval $script
 
+# move utf8 regexp into utf8 package
+set ::utf8::utf8re $config(utf8re); unset config(utf8re)
+
 Debug off wikit 10
 Debug off direct 10
-Debug on cookies 10
-Debug on socket 10
+Debug off cookies 10
+Debug off socket 10
 
 thread::wait
