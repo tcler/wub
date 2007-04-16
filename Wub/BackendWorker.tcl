@@ -136,11 +136,11 @@ proc incoming {req} {
     }
 }
 
+Debug off http 10
 Debug off direct 10
 Debug off file 10
 Debug off convert 10
-Debug off db 
-Debug off http
+Debug off db 10
 Debug off session 10
 Debug off form 10
 
