@@ -1,13 +1,14 @@
 # HttpdWorker - Httpd Protocol worker thread
 
 # TODO: armour all [chan event]s
+package require Debug
 
 #puts stderr "Starting Httpd Worker [::thread::id]"
 interp bgerror {} bgerror
 proc bgerror {error eo} {
-    puts stderr "Thread [::thread::id]: $error ($eo)"
+    Debug.error {Thread [::thread::id]: $error ($eo)}
     if {[dict get $eo -code] == 1} {
-	disconnect $error [Http ServerError $::request $error $eo]
+	disconnect $error $eo
     }
 }
 
@@ -228,12 +229,12 @@ proc send {reply {cacheit 1}} {
     # fetch transaction from the caller's identity
     if {![dict exists $reply -transaction]} {
 	# can't Send reply: no -transaction associated with request
-	puts stderr "Send discarded: no transaction ($reply)"
+	Debug.error {Send discarded: no transaction ($reply)}
 	return
     } elseif {[dict get $reply -generation] != $::generation} {
 	# this reply belongs to an older, disconnected Httpd generation.
 	# we must discard it, because it was directed to a different client!
-	puts stderr "Send discarded: out of generation ([set x $reply; dict set x -content <ELIDED>; return $x]) != $::generation"
+	Debug.error {Send discarded: out of generation ([set x $reply; dict set x -content <ELIDED>; return $x]) != $::generation}
 	return
     }
     set trx [dict get $reply -transaction]
@@ -243,7 +244,7 @@ proc send {reply {cacheit 1}} {
 	# a duplicate response has been sent - discard this
 	# this could happen if a dispatcher sends a response,
 	# then gets an error.
-	puts stderr "Send discarded: duplicate ($reply)"
+	Debug.error {Send discarded: duplicate ($reply)}
 	return
     }
 
@@ -754,23 +755,35 @@ proc parse {} {
 
     incr ::pending
     set ::gets 0
-    if {([dict get $request -method] eq "POST")} {
-	if {![dict exists $request content-length]} {
-	    # Send 411 for missing Content-Length on POST requests
-	    handle [Http Bad $request "Length Required" 411]
-	} else {
-	    # read the entity
-	    #puts stderr "Entity: $request"
-	    if {[entity]} {
-		#puts stderr "Not Entity: $request"
-		got $request
+    switch -- [dict get $request -method] {
+	POST {
+	    if {![dict exists $request content-length]} {
+		# Send 411 for missing Content-Length on POST requests
+		handle [Http Bad $request "Length Required" 411]
 	    } else {
-		#puts stderr "yes Entity: $request"
+		# read the entity
+		#puts stderr "Entity: $request"
+		if {[entity]} {
+		    #puts stderr "Not Entity: $request"
+		    got $request
+		} else {
+		    #puts stderr "yes Entity: $request"
+		}
 	    }
 	}
-    } else {
-	Debug.http {parse done: $request} 3
-	got $request
+
+	CONNECT {
+	    # stop the bastard SMTP spammers
+	    thread::send -async $::thread::parent [list Httpd block [dict get $request -ipaddr]]
+
+	    handle [Http NotImplemented $request]
+	    disconnect "Bastard Spammer"
+	}
+
+	default {
+	    Debug.http {parse done: $request} 3
+	    got $request
+	}
     }
 }
 
