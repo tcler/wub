@@ -168,16 +168,21 @@ if {$utf8} {
 	    set point [utf8::findbad $data]
 	    if {$point < [string length $data] - 1} {
 		if {$point < 0} {
-		    puts stderr "$f $i completely bogus - $point"
+		    puts stderr "$f $i bogus $point"
 		    mk::set wdb.pages!$i $f "bogus [incr bogus]"
 		} else {
 		    incr bad
-		    set incr -1
-		    puts stderr "$f $i bad at $point"
 		    incr point
-		    utf8::reportTrouble $i $data $point
-		    mk::set wdb.pages!$i $f [string replace $data $point $point " badutf "]
+		    #utf8::reportTrouble $i $data $point
+		    puts stderr "$f $i bad"
+		    utf8::fixBadUtf8 $data
+		    if {0} {
+			set incr -1
+			puts stderr "$f $i bad at $point"
+			mk::set wdb.pages!$i $f [string replace $data $point $point " badutf "]
+		    }
 		}
+		mk::file commit wdb
 	    }
 	}
     }
