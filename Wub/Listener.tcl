@@ -15,7 +15,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 package provide Listener 1.0
 
 package require WubUtils
-package require logger
+package require Debug
 package require snit
 package require Pool
 
@@ -39,15 +39,7 @@ snit::type Listener {
     component sockets -inherit true
     delegate option -maxsize to sockets
 
-    # base logger
-    option -logger ::
-    variable log
-
     option -retryafter 5	;# retry period for socket exhaustion
-
-    method log {cmd args} {
-        ${log}::$cmd {*}$args
-    }
 
     method Count {args} {}
     method CountStart {args} {}
@@ -86,7 +78,7 @@ snit::type Listener {
 
 	    # select an Http object to handle incoming
 	    if {[catch {$sockets get $sock $ipaddr $rport} http eo]} {
-		puts stderr "accept failed $http ($eo)"
+		Debug.error {accept failed $http ($eo)}
 		# we have exceeded per-listener pool size
 		catch {
 		    $option(-type) Exhausted $sock $eo $options(-retryafter)
@@ -109,31 +101,17 @@ snit::type Listener {
 		Debug.socket {accept complete: $http}
 	    }
 	} result eo]} {
-	    ${log}::error "$self accept: $eo"
+	    Debug.error {$self accept: $eo}
 	}
-    }
-
-    method debuglog {on} {
-	if {$on} {
-	    ${log}::enable debug
-	} else {
-	    ${log}::disable debug
-	}
-	
     }
 
     constructor {args} {
 	if {[catch {
 	    $self configurelist $args
 
-	    set log [logger::init $options(-host)$options(-port)]
-	    ${log}::disable debug
-	    #${log}::enable debug
-
 	    if {$options(-sockets) eq ""} {
 		install sockets using $options(-pool) ${self}_pool -maxsize 257 \
 		    -constructor [list $options(-type) %AUTO% \
-				      -logger $log \
 				      -dispatcher $options(-dispatcher)]
 	    } else {
 		# creator supplied a readymade Pool
@@ -165,18 +143,16 @@ snit::type Listener {
 		error "$options(-host):$options(-port) $listen\ncmd=$cmd"
 	    }
 	} error eo]} {
-	    puts stderr "$self constructor err: $eo"
-	    ${log}::error "$self constructor err: $eo"
+	    Debug.error {constructor err: $eo}
 	}
     }
 
     destructor {
-	${log}::notice "Destroying $self"
+	Debug.socket {Destroying $self}
 	catch {close $listen}
 	if {[catch {$sockets destroy} result eo]} {
-	    ${log}::notice "Error destroying socket pool: $result ($eo)"
+	    Debug.error {Error destroying socket pool: $result ($eo)}
 	}
-	catch {${log}::delete}
     }
 }
 
