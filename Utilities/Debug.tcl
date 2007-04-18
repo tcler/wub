@@ -3,24 +3,28 @@ package provide Debug 2.0
 namespace eval Debug {
     variable detail
     variable level 0
+    variable fds
 
     proc noop {args} {}
 
     proc debug {tag message {level 1}} {
 	variable detail
 	if {$detail($tag) >= $level} {
+	    variable fds
+	    set fd $fds($tag)
+
 	    upvar 1 self self
 	    set code [catch {
 		uplevel 1 subst [list $message]
 	    } result eo]
 	    if {$code} {
-		puts -nonewline stderr "@@(DebugError from [info level -1] ($eo)):"
+		puts -nonewline $fd "@@(DebugError from [info level -1] ($eo)):"
 	    }
 
 	    if {[info exists self]} {
-		puts stderr "$tag @@$self: $result"
+		puts $fd "$tag @@$self: $result"
 	    } else {
-		puts stderr "$tag @@$result"
+		puts $fd "$tag @@$result"
 	    }
 
 	} else {
@@ -28,10 +32,12 @@ namespace eval Debug {
 	}
     }
 
+    # names - return names of debug tags
     proc names {} {
 	variable detail
 	return [lsort [array names detail]]
     }
+
     proc 2array {} {
 	variable detail
 	set result {}
@@ -41,7 +47,8 @@ namespace eval Debug {
 	return $result
     }
 
-    proc level {tag {level ""}} {
+    # level - set level and fd for tag
+    proc level {tag {level ""} {fd stderr}} {
 	variable detail
 	if {$level ne ""} {
 	    set detail($tag) $level
@@ -50,15 +57,22 @@ namespace eval Debug {
 	if {![info exists detail($tag)]} {
 	    set detail($tag) 1
 	}
+
+	variable fds
+	set fds($tag) $fd
+
 	return $detail($tag)
     }
 
-    proc on {tag {level ""}} {
-	level $tag $level
+    # turn on debugging for tag
+    proc on {tag {level ""} {fd stderr}} {
+	level $tag $level $fd
 	interp alias {} Debug.$tag {} Debug::debug $tag
     }
-    proc off {tag {level ""}} {
-	level $tag $level
+
+    # turn off debugging for tag
+    proc off {tag {level ""} {fd stderr}} {
+	level $tag $level $fd
 	interp alias {} Debug.$tag {} Debug::noop
     }
 
@@ -66,6 +80,7 @@ namespace eval Debug {
     namespace ensemble create -subcommands {}
 }
 
+Debug on error 0
 Debug off admin
 Debug off cache
 Debug off convert
