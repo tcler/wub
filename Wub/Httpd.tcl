@@ -21,6 +21,11 @@ package require Cache 2.0
 
 package provide Httpd 2.0
 
+proc bgerror {args} {
+    Debug.error {bgerror: $args}
+}
+interp bgerror {} bgerror
+
 namespace eval Httpd {
     variable me [::thread::id]
 
@@ -64,12 +69,32 @@ namespace eval Httpd {
 	}
     }
 
+    proc pool {cmd} {
+	variable worker
+	foreach tid [array names worker] {
+	    ::thread::send -async $tid $cmd
+	}
+    }
+
     # initialisation script for worker threads
     variable script [::fileutil::cat [file join [file dirname [info script]] HttpdWorker.tcl]]
 
     # 
     proc socket {sock} {
 	return $::sockets($sock)
+    }
+
+    proc dump {} {
+	variable me
+	set result "Httpd server running in $me\n"
+	variable sockets; append result "sockets: [array get sockets]" \n
+	variable worker; append result "worker threads: [array get worker]"
+	append result " ([threads size] in queue,"
+	variable max; variable incr; append result " [array size worker] in total, up to $max, increments of $incr)" \n
+	variable connbyIP; append result "connbyIP: [array get connbyIP]" \n
+	variable sock2IP; append result "sock2IP: [array get sock2IP]" \n
+	variable dispatch; append result "dispatch: $dispatch" \n
+	return $result
     }
 
     # a worker thread has completely processed input, or has hit a socket error
@@ -87,18 +112,28 @@ namespace eval Httpd {
 
 	variable sockets
 	if {$sockets($socket) ne $thread} {
-	    puts stderr "Socket/Thread mismatch: $socket/$sockets($socket) - $thread/$worker($thread)"
+	    Debug.error {Socket/Thread mismatch: $socket/$sockets($socket) - $thread/$worker($thread)}
 	}
 
 	unset sockets($socket)	;# we're done with this socket
 	set worker($thread) {}	;# we're done with this thread
 
 	if {[::thread::release $thread] != 1} {
-	    puts stderr "release Thread $thread has been allocated $i times"
+	    Debug.error {release Thread $thread has been allocated $i times}
 	}
 	threads put $thread	;# we're done with this thread
 
 	catch {Backend disconnect $socket} ;# inform backend of disconnection
+
+	# perform quiescent callback
+	variable ignore
+	if {$ignore && [array size sockets] == 0} {
+	    # we're quiescent - perform after idle command
+	    variable quiescent
+	    if {$quiescent ne ""} {
+		eval $quiescent
+	    }
+	}
 
 	return $socket
     }
@@ -198,13 +233,14 @@ namespace eval Httpd {
     }
 
     # Exhausted - method called by Listener to report server exhaustion
-    proc Exhausted {sock {eo {}} {retry 200}} {
+    proc Exhausted {sock {eo {}} {retry 20}} {
 	Debug.socket {Exhausted $sock $eo $retry}
 	puts $sock "HTTP/1.1 503 Socket Exhaustion" \r\n
 	puts $sock "Date: [Http Now]" \r\n
 	puts $sock "Server: Wub 1.0" \r\n
 	puts $sock "Connection: Close" \r\n
 	puts $sock "Retry-After: $retry" \r\n
+	puts $sock "Content-Length: 0"
 	puts $sock \r\n
     }
 
@@ -238,17 +274,26 @@ namespace eval Httpd {
     }
     mkthreads	;# construct initial thread pool
 
-    proc dump {} {
-	variable me
-	set result "Httpd server running in $me\n"
-	variable sockets; append result "sockets: [array get sockets]" \n
-	variable worker; append result "worker threads: [array get worker]"
-	append result " ([threads size] in queue,"
-	variable max; variable incr; append result " [array size worker] in total, up to $max, increments of $incr)" \n
-	variable connbyIP; append result "connbyIP: [array get connbyIP]" \n
-	variable sock2IP; append result "sock2IP: [array get sock2IP]" \n
-	variable dispatch; append result "dispatch: $dispatch" \n
-	return $result
+    # junk - read and discard input from a blocked ipaddress
+    proc junk {sock args} {
+	puts stderr "BLOCKED: $sock [fconfigure $sock -peername]"
+	close $sock
+    }
+
+    # blocked - this ip address is blocked
+    # play around with it a little
+    proc blocked {cmd args} {
+	set sock [dict get $args -sock]
+	chan configure $sock -blocking 0 -translation {binary binary} -encoding binary
+	chan event $sock readable [list ::Httpd::junk $sock];# resume reading
+    }
+
+    variable blocked
+    array set blocked {}
+    proc block {ipaddr} {
+	variable blocked
+	set blocked($ipaddr) [clock seconds]
+	puts stderr "BLOCKING: $ipaddr"
     }
 
     # exhaustion control
@@ -259,6 +304,12 @@ namespace eval Httpd {
     # get - get a thread
     proc get {sock ipaddr rport} {
 	Debug.socket {get thread for reading}
+
+	# check blocked list
+	variable blocked
+	if {[info exists blocked($ipaddr)]} {
+	    return [list Httpd blocked]
+	}
 
 	# remember client IP for socket
 	variable sock2IP
@@ -299,10 +350,26 @@ namespace eval Httpd {
 	    ::thread::transfer $tid $sock
 	    ::thread::send -async $tid [list connect $request $vars $sock]
 	} result eo]} {
-	    puts stderr "Transfer Error: $result ($eo)"
+	    Debug.error {Transfer Error: $result ($eo)}
 	} else {
 	    Debug.socket {Transferred: $result $eo}
 	}
+    }
+
+    variable ignore 0
+    variable quiescent ""
+
+    proc go_idle {{then ""}} {
+	variable ignore 1	;# no more connections
+	variable quiescent $then
+	variable sockets
+	if {[array size sockets] == 0} {
+	    eval $quiescent
+	}
+    }
+
+    proc go_live {} {
+	variable ignore 0
     }
 
     variable dispatch ""
@@ -311,9 +378,23 @@ namespace eval Httpd {
     proc threaded {tid connect args} {
 	variable sockets
 	variable worker
-	set listener [dict get $args -listener]
 
+	set listener [dict get $args -listener]
 	Debug.socket {Connecting $tid $args}
+
+	# the socket must stay in non-block binary binary-encoding mode
+	set sock [dict get $args -sock]
+	chan configure $sock -blocking 0 -translation {binary binary} -encoding binary
+
+	variable ignore
+	if {$ignore} {
+	    # we're shutting down, so ignore new requests
+	    Exhausted $sock
+	    flush $sock
+	    close $sock
+	    return
+	}
+
 	set config {}
 	foreach {n v} $args {
 	    # reflect the configuration args in the thread's global
@@ -323,7 +404,6 @@ namespace eval Httpd {
 	lappend config port [$listener cget -port]
 	lappend config server [$listener cget -server]
 
-	set sock [dict get $args -sock]
 	if {[info exists sockets($sock)]} {
 	    # this can happen if the remote's closed the socket
 	    # and a new connection has arrived on the same socket.
@@ -336,10 +416,6 @@ namespace eval Httpd {
 
 	set sockets($sock) $tid	;# bi-associate socket and thread
 	set worker($tid) $sock
-
-	# the socket must stay in non-block binary binary-encoding mode
-	#chan configure $sock -blocking 0 -translation {binary binary} -encoding binary
-	chan configure $sock -blocking 0 -translation {binary binary} -encoding binary
 
 	variable dispatch
 	if {$dispatch ne ""} {
@@ -358,11 +434,6 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     package require Stdin
     package require Listener
     package require Debug
-
-    interp bgerror {} bgerror
-    proc bgerror {args} {
-	puts stderr "Main: $args"
-    }
 
     Debug off socket 10
     Debug off http 2
