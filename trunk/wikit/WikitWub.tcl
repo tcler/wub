@@ -186,11 +186,11 @@ namespace eval WikitWub {
     proc who {r} {
 	variable cookie
 	set cdict [dict get $r -cookies]
-	set cl [Cookies match $cdict name $cookie]
+	set cl [Cookies match $cdict -name $cookie]
 	if {[llength $cl] != 1} {
 	    return ""
 	}
-	return [dict get [Cookies fetch $cdict name $cookie] -value]
+	return [dict get [Cookies fetch $cdict -name $cookie] -value]
     }
 
     proc invalidate {r url} {
