@@ -181,7 +181,7 @@ namespace eval ::conversions {
 	Debug.convert {tmls $code: $rsp}
 
 	if {[dict get $rsp content-type] ne "application/x-climb-list"} {
-	    puts stderr "template tmls got strange response: $code - $rsp"
+	    Debug.error {template tmls got strange response: $code - $rsp}
 	}
 
 	if {[catch {
