@@ -143,7 +143,7 @@ namespace eval Cache {
 	    if {$name eq $val} {
 		# etag key
 		if {![info exists cache($name)]} {
-		    puts stderr "etag key no matching cache $name"
+		    Debug.error {etag key no matching cache $name}
 		    if {$fix} {
 			unset keys($name)
 		    }
@@ -151,7 +151,7 @@ namespace eval Cache {
 	    } else {
 		# url key
 		if {![info exists cache($val)]} {
-		    puts stderr "url key $name no matching cache $val"
+		    Debug.error {url key $name no matching cache $val}
 		    if {$fix} {
 			unset keys($val)
 		    }
@@ -162,7 +162,7 @@ namespace eval Cache {
 	foreach {name val} [array get cache] {
 	    if {![info exists keys($name)]} {
 		# no etag key for cache
-		puts stderr "orphan cache $name / $cache($name)"
+		Debug.error {orphan cache $name / $cache($name)}
 	    } else {
 	    }
 	}
