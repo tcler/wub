@@ -6,7 +6,7 @@ package require Cookies
 # process background errors by disconnecting
 interp bgerror {} bgerror
 proc bgerror {error eo} {
-    puts stderr "Thread [::thread::id]: $error ($eo)"
+    Debug.error {Thread [::thread::id]: $error ($eo)}
     if {[dict get $eo -code] == 1} {
 	variable R
 	disconnect $error $eo
