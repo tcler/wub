@@ -299,16 +299,45 @@ namespace eval utf8 {
 	return $re
     }
 
-    variable utf8re ""
+    variable utf8re
+    variable utf8str
 
     #puts "utf8re is [string length $utf8re] chars"
 
-    proc findbad {data} {
+    proc fixBadUtf8 {data} {
 	variable utf8re
-	if {$utf8re eq ""} {
+	if {![info exists utf8re]} {
 	    set utf8re [makeUtf8Regexp]
 	}
-	set firstbad "^$utf8re*"
+
+	variable utf8str
+	if {![info exists utf8str]} {
+	    set utf8str $utf8re+
+	}
+
+	set retval {}
+	set i 0
+	foreach pair [regexp -all -indices -inline $utf8str $data] {
+	    foreach {start end} $pair break
+	    append retval [string repeat \ufffd [expr {$start-$i}]] [string range $data $start $end]
+	    set i [expr {$end+1}]
+	}
+	append retval [string repeat \ufffd [expr {[string length $data]-$i}]]
+	return $retval
+    }
+
+    variable firstbad
+    proc findbad {data} {
+	variable utf8re
+	if {![info exists utf8re]} {
+	    set utf8re [makeUtf8Regexp]
+	}
+
+	variable firstbad
+	if {![info exists firstbad]} {
+	    set firstbad "^$utf8re*"
+	}
+
 	set inds {}
 	regexp -indices $firstbad $data inds
 	#puts stderr "inds: $inds"
