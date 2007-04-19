@@ -18,6 +18,7 @@ package require fileutil
 package require Debug
 
 package require Cache 2.0
+package require Honeypot
 
 package provide Httpd 2.0
 
@@ -210,6 +211,9 @@ namespace eval Httpd {
     proc got {tid request} {
 	Debug.http {got: $request} 1
 	set sock [dict get $request -sock]
+
+	# check the incoming ip for bot detection
+	set request [Honeypot bot? $request]
 
 	# dict set request -Query [Query parse $request]	;# parse the query?
 	# Cookie processing for Session

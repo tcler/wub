@@ -226,6 +226,7 @@ proc gzip_it {reply content} {
 #	queues the response for sending by method responder
 proc send {reply {cacheit 1}} {
     Debug.http {[set x $reply; dict set x -content <ELIDED>; return ""]send: $x}
+
     # fetch transaction from the caller's identity
     if {![dict exists $reply -transaction]} {
 	# can't Send reply: no -transaction associated with request
@@ -419,16 +420,25 @@ proc send {reply {cacheit 1}} {
     }
     set ::replies($trx) [list $header $content $close]
     set ::satisfied($trx) 1	;# the request has been satisfied
-    
+
     Debug.http {ADD TRANS: $header ([array names ::replies])}
     # response has been collected and is pending output
     if {[catch {chan event $::sock writable responder}]} {
 	disconnect "Remote closed connection"
     }
 
-    if {$cacheit} {
-	dict set reply -code $code
-	thread::send -async $::thread::parent [list Cache put $reply]
+    # handle bot
+    if {[dict exists $reply -bot_change]} {
+	# this is a newly detected bot - inform parent
+	dict set enbot -bot [dict get $reply -bot]
+	dict set enbot -ipaddr [dict get $reply -ipaddr]
+	thread::send -async $::thread::parent [list Honeypot bot? $enbot]
+    } else {
+	# handle caching (under no circumstances cache bot replies)
+	if {$cacheit} {
+	    dict set reply -code $code
+	    thread::send -async $::thread::parent [list Cache put $reply]
+	}
     }
 }
 
