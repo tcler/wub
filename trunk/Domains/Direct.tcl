@@ -82,7 +82,8 @@ proc page {name alist page {body ""} {ctype "text/html"}} {
 	    dict set response content-length [string length $content]
 	    dict set response -content $content
 	}
-	Debug.direct {Content: '[dict get $response -content]'} 2
+
+	#Debug.direct {Content: '[dict get $response -content]'} 2
 	return $response
     }
 
