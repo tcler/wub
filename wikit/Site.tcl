@@ -4,6 +4,7 @@ lappend auto_path /usr/lib/
 package require Mk4tcl
 
 foreach {name val} {
+    port 8080
     base "/tmp/wiki"
     overwrite 0
     profile 0
@@ -18,13 +19,12 @@ foreach {name val} {
 } {
     set $name $val
 }
-set opts {}
+set host [info hostname]
+catch {source [file join [file dirname [info script]] vars.tcl]}
 foreach {name val} $argv {
-    dict lappend opts [string trim $name -] $val
-}
-dict for {name val} $opts {
     set $name $val
 }
+
 if {$profile} {
     set profv [package require profiler]
     puts stderr "Profiler: $profv"
@@ -50,7 +50,9 @@ if {[info exists starkit::topdir]} {
 	lappend auto_path [file join $topdir $lib]
     }
     lappend auto_path $home
+}
 
+if {![info exists starkit::topdir]} {
     if {$globaldocroot} {
 	set drdir [file join $topdir docroot]
     } else {
@@ -204,7 +206,7 @@ set Backend::incr $backends	;# reduce the backend thread quantum for faster test
 Backend init scriptdir [file dirname [info script]] scriptname WikitWub.tcl docroot $docroot wikitroot $wikitroot dataroot $data utf8re $utf8re {*}$worker_args
 
 # start Listener
-set listener [Listener %AUTO% -port 8080 -sockets Httpd -httpd {-dispatch "Backend incoming"}]
+set listener [Listener %AUTO% -host $host -port $port -sockets Httpd -httpd {-dispatch "Backend incoming"}]
 
 set done 0
 while {!$done} {
