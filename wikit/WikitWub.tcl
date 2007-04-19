@@ -15,6 +15,9 @@ package require Cookies
 
 package require utf8
 
+package require Honeypot
+Honeypot init dir [file join $::config(docroot) captcha]
+
 package provide WikitWub 1.0
 
 # create a queue of pending work
@@ -32,8 +35,78 @@ variable request ""
 # returns a list: /$id (with suffix of @ if the page is new), $name, modification $date
 
 namespace eval WikitWub {
-    variable htmlhead {<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">}
     variable motd ""
+
+    # page sent in response to a search
+    variable search {
+	title: Search
+	<h2 class='title'>Search</h2>
+	<form action='/_search' method='post'>
+	<p>Enter the search phrase:<input name='S' type='text' $search> Append an asterisk (*) to search page contents as well</p>
+	</form>
+	$C
+    }
+
+    # page sent when editing a page
+    variable edit {
+	<h2>[Ref $N]</h2>
+	$login
+	<form method='post' action='/_save/$N'>
+	<textarea rows='30' cols='72' name='C'>[GetPage $N]</textarea>
+	<p />
+	<input type='hidden' name='O' value='[list $date $who]'>
+	<input type='submit' name='save' value='Save' [expr {$nick eq "" ? "disabled" : ""}] />
+	<input type='submit' name='cancel' value='Cancel' /></form>
+    }
+
+    # page sent when constructing a reference page
+    variable refs {
+	<h2>References to [Ref $N]</h2>
+	<ul>$result</ul>
+	<hr noshade />
+	<p id='footer'>[join $menu { - }]</p>
+    }
+
+    variable maxAge "next month"	;# maximum age of login cookie
+    variable cookie "wikit"		;# name of login cookie
+
+    # page sent to enable login
+    variable login {
+	<form>
+	<fieldset><legend>Login</legend>
+	<label for='nickname'>Nickname</label><input type='text' name='nickname'><input type='submit' value='login'>
+	</fieldset>
+	<input type='hidden' name='R' value='[armour [Http Referer $r]]'>
+	</form>
+    }
+
+    # page sent when a browser sent bad utf8
+    variable badutf {
+	<h2>Encoding error on page $N - [Ref $N $name]</h2>
+	<p><bold>Your changes have NOT been saved</bold>,
+	because	the content your browser sent contains bogus characters.
+	At character number $point.</p>
+	<p><italic>Please check your browser.</italic></p>
+	<hr size=1 />
+	<p><pre>[armour $C]</pre></p>
+	<hr size=1 />
+    }
+
+    # page sent when a save causes edit conflict
+    variable conflict {
+	<h2>Edit conflict on page $N - [Ref $N $name]</h2>
+	<p><bold>Your changes have NOT been saved</bold>,
+	because	someone (at IP address $who) saved
+	a change to this page while you were editing.</p>
+	<p><italic>Please restart a new [Ref /_edit/$N edit]
+	and merge your version,	which is shown in full below.</italic></p>
+	<hr size=1 />
+	<p><pre>[armour $C]</pre></p>
+	<hr size=1 />
+    }
+
+    # converter from x-system to html-fragment
+    # arranges for headers metadata
     proc .text/x-system.text/x-html-fragment {rsp} {
 	# split out headers
 	set headers ""
@@ -57,13 +130,17 @@ namespace eval WikitWub {
 		    -content $content \
 		    content-type text/x-html-fragment]
     }
-    variable language "en"
 
+    variable htmlhead {<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">}
+    variable language "en"	;# language for HTML
+
+    # header sent with each page
     variable head {
 	<meta name='robots' content='noindex,nofollow' />
 	<style type='text/css' media='all'>@import url(/wikit.css);</style>
     }
 
+    # convertor for x-html-fragment to html
     proc .text/x-html-fragment.text/html {rsp} {
 	set rspcontent [dict get $rsp -content]
 
@@ -85,12 +162,14 @@ namespace eval WikitWub {
 
 	    # add in some wikit-wide headers
 	    variable head
+	    variable protected
 	    append content $head
 
 	    append content </head> \n
 
 	    append content <body> \n
 	    append content $rspcontent
+	    append content [Honeypot link /$protected(HoneyPot)]
 	    append content </body> \n
 	    append content </html> \n
 	}
@@ -101,6 +180,7 @@ namespace eval WikitWub {
 		    content-type text/html]
     }
 
+    # /rev - revisions - not implemented
     proc /rev {args} {
 	upvar 1 response r
 	set r [Http NotImplemented $r]
@@ -121,14 +201,11 @@ namespace eval WikitWub {
 
     variable protected
     variable menus
-    array set protected {Home 0 About 1 Search 2 Help 3 Changes 4 HoneyPot 7 TOC 6 Init 9}
+    array set protected {Home 0 About 1 Search 2 Help 3 Changes 4 HoneyPot 5 TOC 6 Init 9}
     foreach {n v} [array get protected] {
 	set protected($v) $n
 	set menus($v) [Ref $v $n]
     }
-
-    variable maxAge "next month"
-    variable cookie "wikit"
 
     proc /login {{nickname ""} {R ""}} {
 	upvar 1 response r
@@ -140,7 +217,7 @@ namespace eval WikitWub {
 	if {$nickname eq ""} {
 	    # this is a call to /login with no args,
 	    # in order to generate the /login page
-	    return "<form><fieldset><legend>Login</legend><label for='nickname'>Nickname</label><input type='text' name='nickname'><input type='submit' value='login'></fieldset><input type='hidden' name='R' value='[armour [Http Referer $r]]'></form>"
+	    variable login; return [subst $login]
 	}
 
 	if {[dict exists $r -cookies]} {
@@ -213,6 +290,10 @@ namespace eval WikitWub {
 	    set r [Http NotFound $r]
 	    return
 	}
+	if {$N >= [mk::view size wdb.pages]} {
+	    set r [Http NotFound $r]
+	    return
+	}
 
 	set r [Http NoCache $r]
 	if {[catch {
@@ -234,16 +315,8 @@ namespace eval WikitWub {
 	} {
 	    # added 2002-06-13 - edit conflict detection
 	    if {$O != [list $date $who]} {
-		return "
-	<h2>Edit conflict on page $N - [Ref $N $name]</h2>
-	<p><bold>Your changes have NOT been saved</bold>,
-	because	someone (at IP address $who) saved
-	a change to this page while you were editing.</p>
-	<p><italic>Please restart a new [Ref /_edit/$N edit]
-	and merge your version,	which is shown in full below.</italic></p>
-	<hr size=1 />
-	<p><pre>[armour $C]</pre></p>
-	<hr size=1 />"
+		variable conflict
+		return [subst $conflict]
 	    }
 
 	    # newline-normalize content
@@ -256,14 +329,8 @@ namespace eval WikitWub {
 		    incr point
 		    set C [string replace $C $point $point "BOGUS"]
 		}
-		return "<h2>Encoding error on page $N - [Ref $N $name]</h2>
-	<p><bold>Your changes have NOT been saved</bold>,
-	because	the content your browser sent contains bogus characters.
-	At character number $point.</p>
-	<p><italic>Please check your browser.</italic></p>
-	<hr size=1 />
-	<p><pre>[armour $C]</pre></p>
-	<hr size=1 />"
+		variable badutf
+		return [subst $badutf]
 	    }
 
 	    # Only actually save the page if the user selected "save"
@@ -315,6 +382,10 @@ namespace eval WikitWub {
 	    set r [Http Forbidden $r]
 	    return
 	}
+	if {$N >= [mk::view size wdb.pages]} {
+	    set r [Http NotFound $r]
+	    return
+	}
 
 	# is the caller logged in?
 	set nick [who $r]
@@ -331,16 +402,7 @@ namespace eval WikitWub {
 	set who_nick ""
 	regexp {^(.+)[,@]} $who - who_nick
 
-	set result "
-	<h2>[Ref $N]</h2>
-	$login
-	<form method='post' action='/_save/$N'>
-	 <textarea rows='30' cols='72' name='C'>[GetPage $N]</textarea>
-	 <p />
-	<input type='hidden' name='O' value='[list $date $who]'>
-	<input type='submit' name='save' value='Save' [expr {$nick eq "" ? "disabled" : ""}] />
-	<input type='submit' name='cancel' value='Cancel'] />
-	</form>"
+	variable edit; set result [subst $edit]
 
 	if {$date != 0} {
 	    append result "<italic>Last saved on <bold>[clock format $date -gmt 1 -format {%e %b %Y, %R GMT}]</bold></italic>"
@@ -359,7 +421,7 @@ namespace eval WikitWub {
 	catch {set motd [::fileutil::cat [file join $::config(docroot) motd]]}
 
 	upvar 1 response r
-	invalidate $r 4	;# make it show up
+	invalidate $r 4	;# make the new motd show up
 
 	set R [Http Referer $r]
 	if {$R eq ""} {
@@ -375,6 +437,10 @@ namespace eval WikitWub {
 	#set N [dict get $r -suffix]
 	Debug.wikit {/ref $N}
 	if {![string is integer -strict $N]} {
+	    set r [Http NotFound $r]
+	    return
+	}
+	if {$N >= [mk::view size wdb.pages]} {
 	    set r [Http NotFound $r]
 	    return
 	}
@@ -405,12 +471,7 @@ namespace eval WikitWub {
 	foreach m {Search Changes About Home} {
 	    lappend menu $menus($protected($m))
 	}
-
-	return "
-	<h2>References to [Ref $N]</h2>
-	<ul>$result</ul>
-	<hr noshade />
-	<p id='footer'>[join $menu { - }]</p>"
+	variable refs; return [subst $refs]
     }
 
     proc locate {page} {
@@ -436,8 +497,7 @@ namespace eval WikitWub {
 		# where AbCdEf -> *[Aa]b*[Cc]d*[Ee]f*
 		# skip this if the search has brackets (WHY?)
 		if {[string first "\[" $page] < 0} {
-		    regsub -all {[A-Z]} $page \
-			{*\\[&[string tolower &]\]} temp
+		    regsub -all {[A-Z]} $page {*\\\[&[string tolower &]\]} temp
 		    set temp "[subst -novariable $temp]*"
 		    set N [mk::select wdb.pages -glob name $temp -min date 1]
 		}
@@ -453,7 +513,7 @@ namespace eval WikitWub {
 	set ::Wikit::searchLong [regexp {^(.*)\*$} $page x ::Wikit::searchKey]
 	Debug.wikit {locate - kw search}
 	return 2	;# the search page
-
+	
 	# these two globals (searchKey and searchLong) control the
 	# representation of page 2 - they will cause it to return
 	# a list of matches
@@ -490,7 +550,7 @@ namespace eval WikitWub {
 	
 	foreach i $rows {
 	    # these are fake pages, don't list them
-	    if {$i == 2 || $i == 4} continue
+	    if {$i == 2 || $i == 4 || $i == 5} continue
 
 	    ::Wikit::pagevars $i date name
 	    # these are fake pages, don't list them
@@ -546,18 +606,14 @@ namespace eval WikitWub {
 		    set search ""
 		    set C ""
 		}
-
-		set result "title: Search
-		    <h2 class='title'>Search</h2>
-		    <form action='/_search' method='post'>
-		    <p>Enter the search phrase:<input name='S' type='text' $search> Append an asterisk (*) to search page contents as well</p>
-		    </form>
-		    $C
-		"
+		variable search; set result [subst $search]
 		dict set r content-type text/x-system
 
 		return [Http NoCache [Http Ok $r $result text/x-system]]
 	    }
+	}
+	if {$N >= [mk::view size wdb.pages]} {
+	    return [Http NotFound $r]
 	}
 
 	Debug.wikit {located: $N}
@@ -707,6 +763,42 @@ proc incoming {req} {
 	dict set request -prefix "/$fn"
 	Debug.wikit {invocation: fn:$fn suffix:$suffix}
 
+	# check that this isn't a known bot
+	if {[dict exists $request -bot] && $path ne "/_captcha"} {
+	    Debug.wikit {Honeypot: it's a bot, and not /_captcha}
+	    # Known bot: everything but /_captcha gets redirected to /_honeypot
+	    if {
+		$path eq "/$::WikitWub::protected(HoneyPot)"
+		|| $path eq "/_honeypot"
+	    } {
+		Debug.wikit {Honeypot: it's a bot, and going to /_honeypot}
+		set path /_honeypot
+		dict set request -prefix $path
+		dict set request -suffix _honeypot
+		set fn _honeypot
+	    } else {
+		# redirect everything else to /_honeypot
+		Debug.wikit {Honeypot: it's a bot, and we're redirecting to /_honeypot}
+		set url "http://[dict get $request host]/_honeypot"
+		set response [Http Relocated $request $url]
+		dict set response -transaction [dict get $request -transaction]
+		dict set response -generation [dict get $request -generation]
+		::thread::send -async [dict get $request -worker] [list send $response]
+		set request [dict create]	;# go idle
+		continue	;# process next request
+	    }
+	} else {
+	    # not a known bot, until it touches Honeypot
+	    if {$path eq "/$::WikitWub::protected(HoneyPot)"} {
+		Debug.wikit {Honeypot: Triggered the Trap}
+		# silent redirect to /_honeypot
+		set path /_honeypot
+		dict set request -prefix $path
+		dict set request -suffix _honeypot
+		set fn _honeypot
+	    }
+	}
+
 	switch -glob -- $path {
 	    /*.jpg -
 	    /*.gif -
@@ -727,12 +819,22 @@ proc incoming {req} {
 		do css do $request
 	    }
 
+	    /robots.txt -
 	    /*.js {
 		# need to silently redirect js files
 		Debug.wikit {css invocation}
 		dict set request -suffix [file join {} {*}[lrange [file split $path] 1 end]]
 		dict set request -prefix "/scripts"
 		do scripts do $request
+	    }
+
+	    /_honeypot -
+	    /_captcha {
+		# handle the honeypot - either a bot has just fallen in,
+		# or a known bot is being sent there.
+		Debug.wikit {honeypot $path - $fn}
+		dict set request -suffix [string trimleft $fn _]
+		do ::honeypot do $request
 	    }
 
 	    /_motd -
@@ -743,6 +845,8 @@ proc incoming {req} {
 	    /_search/* -
 	    /_search -
 	    /_login {
+		# These are wiki-local restful command URLs,
+		# we process them via the wikit Direct domain
 		Debug.wikit {direct invocation}
 		dict set request -suffix [string trimleft $fn _]
 		set qd [Query add [Query parse $request] N $suffix]
@@ -765,6 +869,7 @@ proc incoming {req} {
 		do WikitWub do $request $fn
 	    }
 	}
+
 	Debug.wikit {Got Response:[set x $response; dict set x -content <ELIDED>; return $x]} 4
 
 	# send response
