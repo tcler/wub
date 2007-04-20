@@ -38,7 +38,7 @@ namespace eval WikitWub {
     variable motd ""
 
     # page sent in response to a search
-    variable search {
+    variable searchT {
 	title: Search
 	<h2 class='title'>Search</h2>
 	<form action='/_search' method='post'>
@@ -606,7 +606,7 @@ namespace eval WikitWub {
 		    set search ""
 		    set C ""
 		}
-		variable search; set result [subst $search]
+		variable searchT; set result [subst $searchT]
 		dict set r content-type text/x-system
 
 		return [Http NoCache [Http Ok $r $result text/x-system]]
