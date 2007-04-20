@@ -624,7 +624,8 @@ namespace eval WikitWub {
 	}
 
 	set refs [mk::select wdb.refs to $N]
-        switch [llength $refs] {
+	Debug.wikit {[llength $refs] backrefs to $N}
+        switch -- [llength $refs] {
 	    0 {
 		set backRef ""
 		set Refs ""
@@ -639,6 +640,7 @@ namespace eval WikitWub {
 		set backRef /_ref/$N
 		set Refs "[llength $refs] [Ref $backRef References]"
 		set Title [Ref $backRef $name]
+		Debug.wikit {backrefs: backRef:'$backRef' Refs:'$Refs' Title:'$Title'} 10
 	    }
 	}
 
@@ -678,11 +680,14 @@ namespace eval WikitWub {
 	}
 	lassign [::Wikit::StreamToHTML $C / ::WikitWub::InfoProc] C U
 
-	# get the page title
-	if {![regsub {^<p>(<img src=".*?")>} $C [Ref \1 $backRef] C]} {
-	    set Title "<h2 class='title'>$Title</h2>"
-	} else {
-	    set Title ""
+	set Title "<h2 class='title'>$Title</h2>"
+	if {0} {
+	    # get the page title
+	    if {![regsub {^<p>(<img src=".*?")>} $C [Ref 0 $backRef] C]} {
+		set Title "<h2 class='title'>$Title</h2>"
+	    } else {
+		set Title ""
+	    }
 	}
 
 	set result {title: [armour $name]
@@ -896,7 +901,7 @@ eval $script
 # move utf8 regexp into utf8 package
 set ::utf8::utf8re $config(utf8re); unset config(utf8re)
 
-Debug off wikit 10
+Debug on wikit 10
 Debug off direct 10
 Debug off cookies 10
 Debug off socket 10
