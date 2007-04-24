@@ -506,6 +506,12 @@ proc got {req} {
 	}
     }
 
+    # fix up non-standard X-Forwarded-For field
+    if {[dict exists $req x-forwarded-for]} {
+	dict set req -x-forwarding [dict get? $req -ipaddr]
+	dict set req -ipaddr [string trim [lindex [split $req x-forwarded-for ,] 0]]
+    }
+
     dict set req -transaction [incr ::transaction]
 
     # inform parent of parsing completion
@@ -727,7 +733,7 @@ proc parse {} {
 	    # if request-line specified an absolute URL host/port
 	    dict set request -host $::host
 	    dict set request -port $::port
-	    dict set request host "$host:$port"
+	    dict set request host [join {*}[list $host $port] :]
 	} else {
 	    # no absolute URL was specified by the request-line
 	    # use the Host field to determine the host
