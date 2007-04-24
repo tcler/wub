@@ -352,7 +352,9 @@ namespace eval Httpd {
 
 	# ensure that client is not spamming us.
 	variable max_conn
-	if {[incr connbyIP($ipaddr)] > $max_conn} {
+	if {$ipaddr ne "127.0.0.1"
+	    && [incr connbyIP($ipaddr)] > $max_conn
+	} {
 	    Debug.socket {Too many connections for $ipaddr}
 	    error "Too many connections for $ipaddr - no more than $max_conn"
 	}
