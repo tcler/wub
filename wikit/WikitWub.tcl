@@ -486,7 +486,8 @@ namespace eval WikitWub {
 
 	set N [mk::select wdb.pages name $page -min date 1]
 	switch [llength $N] {
-	    1 { # uniquely identified, done
+	    1 {
+		# uniquely identified, done
 		Debug.wikit {locate - unique by name - $N}
 		return $N
 	    }
@@ -805,6 +806,7 @@ proc incoming {req} {
 	}
 
 	switch -glob -- $path {
+	    /*.php -
 	    /cgi-bin/* {
 		set ip [dict get $request -ipaddr]
 		if {$ip eq "127.0.0.1"
