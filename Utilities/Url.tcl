@@ -73,6 +73,12 @@ namespace eval Url {
     proc url {x} {
 	Debug.url {Url url $x}
 
+	# minimize -port
+	if {[dict exists $x -port]
+	    && ([dict get $x -port] eq "" || [dict get $x -port] eq "80")} {
+	    dict unset x -port
+	}
+
 	foreach {part pre post} {
 	    -scheme "" :
 	    -host // ""
