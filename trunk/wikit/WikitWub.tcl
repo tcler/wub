@@ -805,6 +805,16 @@ proc incoming {req} {
 	}
 
 	switch -glob -- $path {
+	    /cgi-bin/* {
+		set ip [dict get $request -ipaddr]
+		if {$ip eq "127.0.0.1"
+		    && [dict exists $request x-forwarded-for]
+		} {
+		    set ip [lindex [split [dict get $request x-forwarded-for] ,] 0]
+		}
+		thread::send -async $::thread::parent [list block $ip]
+	    }
+
 	    /*.jpg -
 	    /*.gif -
 	    /*.png -
