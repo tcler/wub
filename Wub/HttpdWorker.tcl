@@ -509,7 +509,7 @@ proc got {req} {
     # fix up non-standard X-Forwarded-For field
     if {[dict exists $req x-forwarded-for]} {
 	dict set req -x-forwarding [dict get? $req -ipaddr]
-	dict set req -ipaddr [string trim [lindex [split $req x-forwarded-for ,] 0]]
+	dict set req -ipaddr [string trim [lindex [split [dict get $req x-forwarded-for] ,] 0]]
     }
 
     dict set req -transaction [incr ::transaction]
