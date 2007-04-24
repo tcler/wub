@@ -431,7 +431,13 @@ proc send {reply {cacheit 1}} {
     if {[dict exists $reply -bot_change]} {
 	# this is a newly detected bot - inform parent
 	dict set enbot -bot [dict get $reply -bot]
-	dict set enbot -ipaddr [dict get $reply -ipaddr]
+	set ip [dict get $reply -ipaddr]
+	if {$ip eq "127.0.0.1"
+	    && [dict exists $reply x-forwarded-for]
+	} {
+	    set ip [lindex [split [dict get $reply x-forwarded-for] ,] 0]
+	}
+	dict set enbot -ipaddr $ip
 	thread::send -async $::thread::parent [list Honeypot bot? $enbot]
     } else {
 	# handle caching (under no circumstances cache bot replies)
