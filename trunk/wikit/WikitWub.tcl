@@ -812,7 +812,15 @@ proc incoming {req} {
 		} {
 		    set ip [lindex [split [dict get $request x-forwarded-for] ,] 0]
 		}
-		thread::send -async $::thread::parent [list block $ip]
+		thread::send -async $::thread::parent [list Httpd block $ip]
+
+		# send the bot a 404
+		set response [Http NotFound $request]
+		dict set response -transaction [dict get $request -transaction]
+		dict set response -generation [dict get $request -generation]
+		::thread::send -async [dict get $request -worker] [list send $response]
+		set request [dict create]	;# go idle
+		continue	;# process next request
 	    }
 
 	    /*.jpg -
