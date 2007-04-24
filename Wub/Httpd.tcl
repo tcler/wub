@@ -212,6 +212,14 @@ namespace eval Httpd {
 	Debug.http {got: $request} 1
 	set sock [dict get $request -sock]
 
+	# check the incoming ip for blocked
+	if {[blocked? [dict get? $request -ipaddr]]} {
+	    dict set request connection close
+	    ::thread::send -async $tid [list send [Http NotFound $request]]
+	    #::thread::send -async $tid [list disconnect "Blocked"]
+	    return
+	}
+
 	# check the incoming ip for bot detection
 	set request [Honeypot bot? $request]
 
@@ -234,6 +242,17 @@ namespace eval Httpd {
 		::thread::send -async $tid [list send $request]
 	    }
 	}
+    }
+
+    # NotFound - generic 'go away bot' page
+    proc NotFound  {sock {eo {}}} {
+	Debug.socket {Exhausted $sock $eo $retry}
+	puts $sock "HTTP/1.1 404 Bot Be Gone" \r\n
+	puts $sock "Date: [Http Now]" \r\n
+	puts $sock "Server: Wub 1.0" \r\n
+	puts $sock "Connection: Close" \r\n
+	puts $sock "Content-Length: 0"
+	puts $sock \r\n
     }
 
     # Exhausted - method called by Listener to report server exhaustion
@@ -300,6 +319,11 @@ namespace eval Httpd {
 	puts stderr "BLOCKING: $ipaddr"
     }
 
+    proc blocked? {ipaddr} {
+	variable blocked
+	return [info exists blocked($ipaddr)]
+    }
+
     # exhaustion control
     variable max_conn 5
     variable connbyIP; array set connbyIP {}
@@ -311,7 +335,7 @@ namespace eval Httpd {
 
 	# check blocked list
 	variable blocked
-	if {[info exists blocked($ipaddr)]} {
+	if {[blocked? $ipaddr]} {
 	    return [list Httpd blocked]
 	}
 
