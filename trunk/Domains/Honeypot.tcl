@@ -52,6 +52,12 @@ namespace eval Honeypot {
     # in order to fetch/store bot related data about the client's ipaddr.
     proc bot? {req} {
 	set ipaddr [dict get $req -ipaddr]
+	if {$ipaddr eq "127.0.0.1"
+	    && [dict exists $req x-forwarded-for]
+	} {
+	    set ipaddr [lindex [split [dict get $req x-forwarded-for] ,] 0]
+	}
+
 	variable bots
 
 	if {[dict exists $req -bot]} {
