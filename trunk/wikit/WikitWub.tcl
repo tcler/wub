@@ -903,7 +903,7 @@ proc incoming {req} {
 	    }
 	}
 
-	Debug.wikit {Got Response:[set x $response; dict set x -content <ELIDED>; return $x]} 4
+	Debug.wikit {Got Response:[set x $response; dict set x -entity <ELIDED>; dict set x -content <ELIDED>; return $x]} 4
 
 	# send response
 	do convert do $response	;# convert page
