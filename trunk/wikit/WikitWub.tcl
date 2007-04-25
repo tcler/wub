@@ -883,7 +883,7 @@ proc incoming {req} {
 	    / {
 		# need to silently redirect welcome file
 		Debug.wikit {welcome invocation}
-		dict set request -suffix /welcome.html
+		dict set request -suffix welcome.html
 		dict set request -prefix /html
 		do html do $request
 	    }
