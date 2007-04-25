@@ -196,7 +196,7 @@ namespace eval WikitWub {
 		set name $page
 	    }
 	}
-	return "<a href='/[string trimleft rel='nofollow' $url /]'>[armour $name]</a>"
+	return "<a rel='nofollow' href='/[string trimleft $url /]'>[armour $name]</a>"
     }
 
     variable protected
