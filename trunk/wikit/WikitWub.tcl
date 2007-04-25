@@ -741,7 +741,7 @@ proc do {args} {
 Direct wikit -namespace ::WikitWub -ctype "text/x-html-fragment"
 Convert convert -namespace ::WikitWub
 
-foreach {dom expiry} {css {tomorrow} images {next week} templates 0 scripts {tomorrow} img {next week}} {
+foreach {dom expiry} {css {tomorrow} images {next week} scripts {tomorrow} img {next week} html 0} {
     File $dom -root [file join $config(docroot) $dom] -expires $expiry
 }
 
@@ -880,6 +880,13 @@ proc incoming {req} {
 		do wikit do $request
 	    }
 
+	    / {
+		# need to silently redirect welcome file
+		Debug.wikit {welcome invocation}
+		dict set request -suffix [file join {} {*}[lrange [file split $path] 1 end]]
+		dict set request -prefix "/html/welcome.html"
+		do html do $request
+	    }
 	    / {
 		Debug.wikit {/ invocation}
 		dict set request -suffix 0
