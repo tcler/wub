@@ -22,6 +22,8 @@ package require Honeypot
 
 package provide Httpd 2.0
 
+variable server_id "Wub [package present Httpd]" ;# name of this server
+
 proc bgerror {args} {
     Debug.error {bgerror: $args}
 }
@@ -95,6 +97,11 @@ namespace eval Httpd {
 	variable connbyIP; append result "connbyIP: [array get connbyIP]" \n
 	variable sock2IP; append result "sock2IP: [array get sock2IP]" \n
 	variable dispatch; append result "dispatch: $dispatch" \n
+	variable ignore;
+	if {$ignore} {
+	    variable quiescent
+	    append result "Going Idle to perform '$quiescent'"
+	}
 	return $result
     }
 
@@ -126,13 +133,14 @@ namespace eval Httpd {
 
 	catch {Backend disconnect $socket} ;# inform backend of disconnection
 
-	# perform quiescent callback
+	# perform quiescent callback if we're idle
 	variable ignore
 	if {$ignore && [array size sockets] == 0} {
 	    # we're quiescent - perform after idle command
 	    variable quiescent
 	    if {$quiescent ne ""} {
-		eval $quiescent
+		uplevel #0 $quiescent
+		set quiescent ""
 	    }
 	}
 
@@ -249,7 +257,7 @@ namespace eval Httpd {
 	Debug.socket {Exhausted $sock $eo $retry}
 	puts $sock "HTTP/1.1 404 Bot Be Gone" \r\n
 	puts $sock "Date: [Http Now]" \r\n
-	puts $sock "Server: Wub 1.0" \r\n
+	puts $sock "Server: $::server_id" \r\n
 	puts $sock "Connection: Close" \r\n
 	puts $sock "Content-Length: 0"
 	puts $sock \r\n
@@ -260,7 +268,7 @@ namespace eval Httpd {
 	Debug.socket {Exhausted $sock $eo $retry}
 	puts $sock "HTTP/1.1 503 Socket Exhaustion" \r\n
 	puts $sock "Date: [Http Now]" \r\n
-	puts $sock "Server: Wub 1.0" \r\n
+	puts $sock "Server: $::server_id" \r\n
 	puts $sock "Connection: Close" \r\n
 	puts $sock "Retry-After: $retry" \r\n
 	puts $sock "Content-Length: 0"
@@ -299,7 +307,7 @@ namespace eval Httpd {
 
     # junk - read and discard input from a blocked ipaddress
     proc junk {sock args} {
-	puts stderr "BLOCKED: $sock [fconfigure $sock -peername]"
+	Debug.block {BLOCKED: $sock [fconfigure $sock -peername]} 3
 	close $sock
     }
 
@@ -316,7 +324,7 @@ namespace eval Httpd {
     proc block {ipaddr} {
 	variable blocked
 	set blocked($ipaddr) [clock seconds]
-	puts stderr "BLOCKING: $ipaddr"
+	Debug.block {BLOCKING: $ipaddr}
     }
 
     proc blocked? {ipaddr} {
@@ -330,6 +338,8 @@ namespace eval Httpd {
     variable sock2IP; array set sock2IP {}
 
     # get - get a thread
+    # error if some problem arises, causing Listener
+    # to report 'busy' to client.
     proc get {sock ipaddr rport} {
 	Debug.socket {get thread for reading}
 
@@ -355,6 +365,7 @@ namespace eval Httpd {
 	if {$ipaddr ne "127.0.0.1"
 	    && [incr connbyIP($ipaddr)] > $max_conn
 	} {
+	    # sadly we can't do this if we're reverse-proxied
 	    Debug.socket {Too many connections for $ipaddr}
 	    error "Too many connections for $ipaddr - no more than $max_conn"
 	}
@@ -389,20 +400,25 @@ namespace eval Httpd {
     variable ignore 0
     variable quiescent ""
 
+    # go_idle - stop accepting new connections, go idle
+    # when idle, evaluate the script in variable quiescent
     proc go_idle {{then ""}} {
 	variable ignore 1	;# no more connections
 	variable quiescent $then
 	variable sockets
 	if {[array size sockets] == 0} {
-	    eval $quiescent
+	    uplevel #0 $quiescent
+	    set quiescent ""
 	}
     }
 
+    # go_live - start accepting new connections again
     proc go_live {} {
 	variable ignore 0
     }
 
     variable dispatch ""
+    variable server_port ;# server's port (if different from Listener's)
 
     # threaded - cmd prefix for connecting Listener to thread
     proc threaded {tid connect args} {
@@ -430,9 +446,21 @@ namespace eval Httpd {
 	    # reflect the configuration args in the thread's global
 	    lappend config [string range $n 1 end] $v
 	}
+
 	lappend config host [$listener cget -host]
-	lappend config port [$listener cget -port]
 	lappend config server [$listener cget -server]
+
+	# get port on which connection arrived
+	# this may differ from Listener's port if reverse proxying
+	# or transparent ip-level forwarding is performed
+	variable server_port
+	if {[info exists server_port]} {
+	    # use defined server port
+	    lappend config port $server_port
+	} else {
+	    # use listener's port
+	    lappend config port [$listener cget -port]
+	}
 
 	if {[info exists sockets($sock)]} {
 	    # this can happen if the remote's closed the socket
@@ -451,7 +479,7 @@ namespace eval Httpd {
 	if {$dispatch ne ""} {
 	    dict set args -dispatch $dispatch
 	}
-	dict set args -version 1.1
+	dict set args -version 1.1	;# HTTP/1.1
 
 	after idle [list ::Httpd::transfer $tid $sock $args $config] ;# arrange for socket/task connection
     }
@@ -459,6 +487,8 @@ namespace eval Httpd {
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
+
+Debug on block 10
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
     package require Stdin
