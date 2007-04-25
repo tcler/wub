@@ -4,7 +4,7 @@ lappend auto_path /usr/lib/
 package require Mk4tcl
 
 foreach {name val} {
-    port 8080
+    listener_port 8080
     base "/tmp/wiki"
     overwrite 0
     profile 0
@@ -19,13 +19,17 @@ foreach {name val} {
 } {
     set $name $val
 }
-set host [info hostname]
-catch {source [file join [file dirname [info script]] vars.tcl]}
+set host [info hostname]	;# default host name
+catch {
+    # allow site configuration (script not under SVN control)
+    source [file join [file dirname [info script]] vars.tcl]
+}
 foreach {name val} $argv {
-    set $name $val
+    set $name $val	;# set global config vars
 }
 
 if {$profile} {
+    # run the profiler if required
     set profv [package require profiler]
     puts stderr "Profiler: $profv"
 }
@@ -97,7 +101,6 @@ if {![info exists ::env(WIKIT_HIST)]} {
 # clean up symlinks in docroot
 package require functional
 package require fileutil
-
 foreach file [::fileutil::find $docroot  [lambda {file} {
     return [expr {[file type [file join [pwd] $file]] eq "link"}]
 }]] {
@@ -120,6 +123,7 @@ Debug off cache 10
 Debug off cookies 10
 Debug off dispatch 10
 Debug off wikit 10
+Debug on block 10
 
 set worker_args [list profile $profile wikidb $wikidb]
 
@@ -139,13 +143,15 @@ if {$profile} {
     ::profiler::resume
 }
 
+# load Wikit packages
 package require Wikit::Format
 namespace import Wikit::Format::*
-
 package require Wikit::Db
 
+# initialize wikit DB
 Wikit::WikiDatabase [file join $wikitroot $wikidb] wdb 1
 
+# prime wikit db if needed
 if {[mk::view size wdb.pages] == 0} {
     # copy first 10 pages of the default datafile 
     set fd [open [file join $home doc wikidoc.tkd]]
@@ -156,6 +162,7 @@ if {[mk::view size wdb.pages] == 0} {
     Wikit::FixPageRefs
 }
 
+# cleanse bad utf8 characters if requested
 package require utf8
 if {$utf8} {
     set size [mk::view size wdb.pages]
@@ -195,9 +202,12 @@ if {$upflag ne ""} {
     Wikit::DoSync $upflag
 }
 
-catch {mk::get wdb.pages!9 page}
+catch {
+    # perform wikit specific processing
+    mk::get wdb.pages!9 page
+}
 
-# make the utf8 regular expression
+# make the utf8 regular expression to save thread startup lag
 set utf8re [::utf8::makeUtf8Regexp]
 
 puts stderr "STARTING BACKENDS"
@@ -206,7 +216,11 @@ set Backend::incr $backends	;# reduce the backend thread quantum for faster test
 Backend init scriptdir [file dirname [info script]] scriptname WikitWub.tcl docroot $docroot wikitroot $wikitroot dataroot $data utf8re $utf8re {*}$worker_args
 
 # start Listener
-set listener [Listener %AUTO% -host $host -port $port -sockets Httpd -httpd {-dispatch "Backend incoming"}]
+if {[info exists server_port]} {
+    # the listener and server ports differ
+    set ::Httpd::server_port $server_port
+}
+set listener [Listener %AUTO% -host $host -port $listener_port -sockets Httpd -httpd {-dispatch "Backend incoming"}]
 
 set done 0
 while {!$done} {
