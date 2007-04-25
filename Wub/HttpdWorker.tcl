@@ -291,7 +291,7 @@ proc send {reply {cacheit 1}} {
     # format up the headers
     if {$code != 100} {
 	append header "Date: [Http Now]" \r\n
-	append header "Server: $::server" \r\n
+	append header "Server: $::server_id" \r\n
     }
 
     # format up and send each cookie
