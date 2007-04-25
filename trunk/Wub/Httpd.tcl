@@ -22,8 +22,6 @@ package require Honeypot
 
 package provide Httpd 2.0
 
-variable server_id "Wub [package present Httpd]" ;# name of this server
-
 proc bgerror {args} {
     Debug.error {bgerror: $args}
 }
@@ -461,6 +459,7 @@ namespace eval Httpd {
 	    # use listener's port
 	    lappend config port [$listener cget -port]
 	}
+	lappend config server_id $::server_id
 
 	if {[info exists sockets($sock)]} {
 	    # this can happen if the remote's closed the socket
