@@ -216,11 +216,12 @@ set Backend::incr $backends	;# reduce the backend thread quantum for faster test
 Backend init scriptdir [file dirname [info script]] scriptname WikitWub.tcl docroot $docroot wikitroot $wikitroot dataroot $data utf8re $utf8re {*}$worker_args
 
 # start Listener
+set server_id "Wub [package present Httpd]" ;# name of this server
 if {[info exists server_port]} {
     # the listener and server ports differ
     set ::Httpd::server_port $server_port
 }
-set listener [Listener %AUTO% -host $host -port $listener_port -sockets Httpd -httpd {-dispatch "Backend incoming"}]
+set listener [Listener %AUTO% -server $server_id -host $host -port $listener_port -sockets Httpd -httpd {-dispatch "Backend incoming"}]
 
 set done 0
 while {!$done} {
