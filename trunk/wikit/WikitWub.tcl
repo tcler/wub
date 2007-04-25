@@ -52,7 +52,7 @@ namespace eval WikitWub {
 	<h2>[Ref $N]</h2>
 	$login
 	<form method='post' action='/_save/$N'>
-	<textarea rows='30' cols='72' name='C'>[GetPage $N]</textarea>
+	<textarea rows='30' cols='72' name='C' style='width:100%'>[GetPage $N]</textarea>
 	<p />
 	<input type='hidden' name='O' value='[list $date $who]'>
 	<input type='submit' name='save' value='Save' [expr {$nick eq "" ? "disabled" : ""}] />
@@ -498,7 +498,7 @@ namespace eval WikitWub {
 		# where AbCdEf -> *[Aa]b*[Cc]d*[Ee]f*
 		# skip this if the search has brackets (WHY?)
 		if {[string first "\[" $page] < 0} {
-		    regsub -all {[A-Z]} $page {*\\\[&[string tolower &]\]} temp
+		    regsub -all {[A-Z]} $page {*\\[&[string tolower &]\]} temp
 		    set temp "[subst -novariable $temp]*"
 		    set N [mk::select wdb.pages -glob name $temp -min date 1]
 		}
