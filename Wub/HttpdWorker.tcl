@@ -418,6 +418,10 @@ proc send {reply {cacheit 1}} {
     if {[dict exists $reply content-length] && ([dict get $reply content-length] != [string length $content])} {
 	error "Content length [dict get $reply content-length] != [string length $content]"
     }
+
+    if {![info exists content]} {
+	set content ""	;# this shouldn't happen.
+    }
     set ::replies($trx) [list $header $content $close]
     set ::satisfied($trx) 1	;# the request has been satisfied
 
