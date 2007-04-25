@@ -22,7 +22,7 @@ package provide Listener 1.0
 snit::type Listener {
     variable listen	;# socket upon which to accept connections
 
-    option -server $::server_id		;# server name
+    option -server [info host]		;# server name
     option -host [info hostname]	;# host name
     option -port 8015	;# port for listener to listen on
     option -myaddr 0	;# ip address to listen on
