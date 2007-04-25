@@ -541,6 +541,9 @@ namespace eval Http {
 	dict set rsp location $to
 	dict set rsp -code $code
 	dict set rsp -rtype $title
+
+	dict set rsp -dynamic 1	;# don't cache redirections
+
 	return $rsp
     }
 
