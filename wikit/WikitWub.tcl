@@ -883,11 +883,12 @@ proc incoming {req} {
 	    / {
 		# need to silently redirect welcome file
 		Debug.wikit {welcome invocation}
-		dict set request -suffix [file join {} {*}[lrange [file split $path] 1 end]]
-		dict set request -prefix "/html/welcome.html"
+		dict set request -suffix /welcome.html
+		dict set request -prefix /html
 		do html do $request
 	    }
-	    / {
+
+	    //// {
 		Debug.wikit {/ invocation}
 		dict set request -suffix 0
 		dict set request -Query [Query parse $request]
