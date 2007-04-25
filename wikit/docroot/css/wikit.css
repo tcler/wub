@@ -14,8 +14,6 @@ H1 {
 
 H2 {
   font-size: x-large;
-  color: white;
-  background: yellow;
 }
 
 /* Set the style of links, A:link is the default style */
@@ -30,17 +28,20 @@ A:visited, A:active {
    text-decoration: none;
 }
 
+/* Set a background colour for <pre> sections and show text in red      */
+/* note that NS4.x and earlier don't show the background colour for the */
+/* full width of the page, just for where there's text                  */
 pre {
-   background-color: white;
-   font-weight: normal;
+   background-color: #E0E0E0;
+   font-weight: bold;
    font-family: monospace;
-   color: #7f7f7f;
+   color: #802020;
 }
 
 /* Style for the page footer which uses <p id='footer'>  */
 #footer {
    height: 31px;
-   background: url("wiki-img.gif") no-repeat top right;
+   background: url("/wiki-img.gif") no-repeat top right;
 }
 
 dt {
