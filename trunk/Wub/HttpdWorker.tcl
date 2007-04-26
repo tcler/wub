@@ -779,6 +779,11 @@ proc parse {} {
 	error "Test background error handling"
     }
 
+    # remove 'netscape extension' length= from if-modified-since
+    if {[dict exists $request if-modified-since]} {
+	dict set request if-modified-since [lindex [split [dict get $request if-modified-since] {;}] 0]
+    }
+
     incr ::pending
     set ::gets 0
     switch -- [dict get $request -method] {
