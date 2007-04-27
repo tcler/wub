@@ -80,7 +80,7 @@ namespace eval Debug {
     namespace ensemble create -subcommands {}
 }
 
-Debug on error 0
+Debug on error 1
 Debug off admin
 Debug off cache
 Debug off convert
