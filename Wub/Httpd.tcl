@@ -253,24 +253,24 @@ namespace eval Httpd {
     # NotFound - generic 'go away bot' page
     proc NotFound  {sock {eo {}}} {
 	Debug.socket {Exhausted $sock $eo $retry}
-	puts $sock "HTTP/1.1 404 Bot Be Gone" \r\n
-	puts $sock "Date: [Http Now]" \r\n
-	puts $sock "Server: $::server_id" \r\n
-	puts $sock "Connection: Close" \r\n
-	puts $sock "Content-Length: 0"
-	puts $sock \r\n
+	puts $sock "HTTP/1.1 404 Bot Be Gone\r"
+	puts $sock "Date: [Http Now]\r"
+	puts $sock "Server: $::server_id\r"
+	puts $sock "Connection: Close\r"
+	puts $sock "Content-Length: 0\r"
+	puts $sock \r
     }
 
     # Exhausted - method called by Listener to report server exhaustion
     proc Exhausted {sock {eo {}} {retry 20}} {
 	Debug.socket {Exhausted $sock $eo $retry}
-	puts $sock "HTTP/1.1 503 Socket Exhaustion" \r\n
-	puts $sock "Date: [Http Now]" \r\n
-	puts $sock "Server: $::server_id" \r\n
-	puts $sock "Connection: Close" \r\n
-	puts $sock "Retry-After: $retry" \r\n
-	puts $sock "Content-Length: 0"
-	puts $sock \r\n
+	puts $sock "HTTP/1.1 503 Socket Exhaustion\r"
+	puts $sock "Date: [Http Now]\r"
+	puts $sock "Server: $::server_id\r"
+	puts $sock "Connection: Close\r"
+	puts $sock "Retry-After: $retry\r"
+	puts $sock "Content-Length: 0\r"
+	puts $sock \r
     }
 
     # mkthreads - make and enqueue $incr new threads,
