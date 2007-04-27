@@ -74,6 +74,14 @@ namespace eval Cache {
 	}
     }
 
+    # clear the whole cache
+    proc clear {} {
+	variable keys
+	foreach key [array get keys http:*] {
+	    delete $key
+	}
+    }
+
     proc put {req} {
 	Debug.cache {put: ([dumpMsg $req])}
 	if {[exists? [dict get $req -url]]} {
