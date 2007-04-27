@@ -645,6 +645,17 @@ namespace eval WikitWub {
 	    }
 	}
 
+	# get the contents
+	if {$N == 4} {
+	    variable motd
+	    set C [::Wikit::TextToStream "${motd}[::Wikit::RecentChanges wdb]"]
+	    set date [clock seconds]
+	} else {
+	    set C [::Wikit::TextToStream [GetPage $N]]
+	}
+	lassign [::Wikit::StreamToHTML $C / ::WikitWub::InfoProc] C U
+
+	# arrange the page's tail
 	set updated ""
 	if {$date != 0} {
 	    set update [clock format $date -gmt 1 -format {%e %b %Y, %R GMT}]
@@ -671,15 +682,6 @@ namespace eval WikitWub {
 		}
 	    }
 	}
-
-	# get the contents
-	if {$N == 4} {
-	    variable motd
-	    set C [::Wikit::TextToStream "${motd}[::Wikit::RecentChanges wdb]"]
-	} else {
-	    set C [::Wikit::TextToStream [GetPage $N]]
-	}
-	lassign [::Wikit::StreamToHTML $C / ::WikitWub::InfoProc] C U
 
 	set Title "<h2 class='title'>$Title</h2>"
 	if {0} {
