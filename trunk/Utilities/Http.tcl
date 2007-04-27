@@ -177,7 +177,8 @@ namespace eval Http {
 	} elseif {[catch {clock scan $date \
 			-format {%a, %d %b %Y %T GMT} \
 			-gmt true} result eo]} {
-	    error "DateInSeconds '$date', ($result)"
+	    #error "DateInSeconds '$date', ($result)"
+	    return 0	;# oldest possible date
 	} else {
 	    return $result
 	}
