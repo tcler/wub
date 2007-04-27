@@ -134,7 +134,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 
     interp bgerror {} bgerror
     proc bgerror {args} {
-	puts stderr "Main: $args"
+	Debug.error {$args}
     }
 
     Debug off socket 10
