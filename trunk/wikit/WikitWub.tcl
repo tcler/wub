@@ -903,12 +903,12 @@ proc incoming {req} {
 	    }
 	}
 
-	Debug.wikit {Got Response:[set x $response; dict set x -entity <ELIDED>; dict set x -content <ELIDED>; return $x]} 4
-
 	# send response
 	do convert do $response	;# convert page
 	dict set response -transaction [dict get $request -transaction]
 	dict set response -generation [dict get $request -generation]
+
+	Debug.log {[set x $response; dict set x -entity <ELIDED>; dict set x -content <ELIDED>; return $x]}
 
 	::thread::send -async [dict get $request -worker] [list send $response]
 	set request [dict create]	;# go idle
@@ -929,7 +929,8 @@ eval $script
 # move utf8 regexp into utf8 package
 set ::utf8::utf8re $config(utf8re); unset config(utf8re)
 
-Debug on wikit 10
+Debug on log 10
+Debug off wikit 10
 Debug off direct 10
 Debug off cookies 10
 Debug off socket 10
