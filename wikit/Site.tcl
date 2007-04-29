@@ -31,7 +31,7 @@ foreach {name val} $argv {
 
 # set the character encoding
 if {[info exists encoding]} {
-    system encoding $encoding
+    encoding system $encoding
 }
 
 if {$profile} {
