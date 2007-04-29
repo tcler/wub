@@ -16,6 +16,7 @@ foreach {name val} {
     upflag ""
     history history
     utf8 0
+    encoding utf-8
 } {
     set $name $val
 }
@@ -26,6 +27,11 @@ catch {
 }
 foreach {name val} $argv {
     set $name $val	;# set global config vars
+}
+
+# set the character encoding
+if {[info exists encoding]} {
+    system encoding $encoding
 }
 
 if {$profile} {
