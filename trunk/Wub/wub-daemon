@@ -9,12 +9,13 @@ NAME=wub
 DESC="Wub Web Server"
 TCLSH=/usr/bin/tclsh
 STARTER="daemon"
+WUBDIR="/tmp/wikit"
 
 test -x $DAEMON || exit 0
 
 # Include tclhttpd defaults if available
-if [ -f /etc/default/wikit ] ; then
-	. /etc/default/wikit
+if [ -f /etc/default/wub ] ; then
+	. /etc/default/wub
 fi
 
 set -e
@@ -23,8 +24,9 @@ case "$1" in
   start)
 	echo -n "Starting $DESC with $STARTER: "
 	if [ $STARTER = "daemon" ]; then
-	    /usr/bin/daemon --name=wikit \
-		--chdir /usr/local/wikit \
+	    /usr/bin/daemon --name=wub \
+		--chdir /usr/local/wub/wikit \
+		--verbose=10 \
 		--user=www-data.www-data --umask=005 \
 		--respawn --inherit \
 		--errlog=daemon.err --output=daemon.debug --dbglog=daemon.debug \
