@@ -1,3 +1,8 @@
+# Direct.tcl - direct domain handler, like tclhttpd's
+#
+# TODO: wildcard dispatch, /photo/1234 handled by photo::/*, etc.
+#  consider using the namespace unknown better for this.
+
 package provide Direct 1.0
 package require Query
 package require Debug
