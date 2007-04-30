@@ -1,24 +1,54 @@
 package provide Stdin 1.0
 
-proc Stdin {{prompt "% "}} {
-    global Stdin
+namespace eval Stdin {
+    variable command
+    variable prompt "% "
 
-    if {[eof stdin]} {
-	fileevent stdin readable {}
-	return
+    proc exit {} {
+	upvar stdin stdin
+	close $stdin
     }
 
-    append Stdin(command) [gets stdin]
-    if {[info complete $Stdin(command)]} {
-	if {[catch {uplevel \#0  $Stdin(command)} result eo]} {
-	    puts -nonewline "$result ($eo)\n$prompt"
-	} else {
-	    puts -nonewline "$result\n$prompt"
+    proc cmd {stdin stdout} {
+	if {[eof $stdin]} {
+	    fileevent $stdin readable {}
+	    return
 	}
-	flush stdout
-	set Stdin(command) ""
-    } else {
-	append Stdin(command) \n
+
+	variable command
+	variable prompt
+	append command($stdin,command) [gets $stdin]
+	if {[info complete $command($stdin,command)]} {
+	    if {[catch {eval $command($stdin,command)} result eo]} {
+		puts -nonewline $stdout "$result ($eo)\n$prompt"
+	    } else {
+		puts -nonewline $stdout "$result\n$prompt"
+	    }
+	    flush $stdout
+	    set command($stdin,command) ""
+	} else {
+	    append command($stdin,command) \n
+	}
     }
+
+    proc accept {sock addr port} {
+	if {$addr ne "127.0.0.1"} {
+	    close $sock
+	} else {
+	    fconfigure $sock -buffering line
+	    puts $sock "Command Shell"
+	    fileevent $sock readable [list ::Stdin::cmd $sock $sock]
+	}
+    }
+
+    proc start {{stdin stdin} {stdout stdout}} {
+	if {$stdin ne "stdin"} {
+	    socket -server ::Stdin::accept -myaddr localhost $stdin
+	} else {
+	    fileevent $stdin readable [list ::Stdin::cmd $stdin $stdout]
+	}
+    }
+
+    namespace export -clear *
+    namespace ensemble create -subcommands {}
 }
-fileevent stdin readable Stdin
