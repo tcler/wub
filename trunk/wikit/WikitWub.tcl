@@ -73,7 +73,7 @@ namespace eval WikitWub {
     # page sent to enable login
     variable login {
 	<p>You must have a nickname to post here</p>
-	<form>
+	<form action='/_login' method='post'>
 	<fieldset><legend>Login</legend>
 	<label for='nickname'>Nickname </label><input type='text' name='nickname'><input type='submit' value='login'>
 	</fieldset>
