@@ -17,6 +17,7 @@ foreach {name val} {
     history history
     utf8 0
     encoding utf-8
+    cmdport 8082
 } {
     set $name $val
 }
@@ -119,6 +120,12 @@ package require Mime
 Mime::Init -dsname [file join $data ext2mime.tie]
 
 package require Stdin
+if {$cmdport eq ""} {
+    Stdin start	;# start a command shell on stdin
+} else {
+    Stdin start $cmdport ;# start a command shell on localhost,$cmdport
+}
+
 package require Listener
 package require Httpd 2.0
 package require Http
