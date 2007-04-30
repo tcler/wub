@@ -9,7 +9,6 @@ NAME=wub
 DESC="Wub Web Server"
 TCLSH=/usr/bin/tclsh
 STARTER="daemon"
-WUBDIR="/tmp/wikit"
 
 test -x $DAEMON || exit 0
 
@@ -26,12 +25,11 @@ case "$1" in
 	if [ $STARTER = "daemon" ]; then
 	    /usr/bin/daemon --name=wub \
 		--chdir /usr/local/wub/wikit \
-		--verbose=10 \
+		--verbose=10 --debug=2 --dbglog=/tmp/wub.daemon \
 		--user=www-data.www-data --umask=005 \
-		--respawn --inherit \
-		--errlog=daemon.err --output=daemon.debug --dbglog=daemon.debug \
-		--core \
-		-- $TCLSH $DAEMON $DAEMON_OPTS
+		--respawn --inherit --core \
+		--errlog=/tmp/wub.err --output=/tmp/wub.out \
+		--command="$DAEMON $DAEMON_OPTS"
 	else
 	    start-stop-daemon --start --quiet --background \
 		--chuid www-data:www-data \
@@ -74,8 +72,7 @@ case "$1" in
 
   *)
 	N=/etc/init.d/$NAME
-	# echo "Usage: $N {start|stop|restart|reload|force-reload}" >&2
-	echo "Usage: $N {start|stop|restart|force-reload}" >&2
+	echo "Usage: $N {start|stop|restart}" >&2
 	exit 1
 	;;
 esac
