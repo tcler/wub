@@ -50,7 +50,7 @@ namespace eval WikitWub {
     # page sent when editing a page
     variable edit {
 	<h2>[Ref $N]</h2>
-	$login
+	$Login
 	<form method='post' action='/_save/$N'>
 	<textarea rows='30' cols='72' name='C' style='width:100%'>[GetPage $N]</textarea>
 	<p />
@@ -72,11 +72,12 @@ namespace eval WikitWub {
 
     # page sent to enable login
     variable login {
+	<p>You must have a nickname to post here</p>
 	<form>
 	<fieldset><legend>Login</legend>
-	<label for='nickname'>Nickname</label><input type='text' name='nickname'><input type='submit' value='login'>
+	<label for='nickname'>Nickname </label><input type='text' name='nickname'><input type='submit' value='login'>
 	</fieldset>
-	<input type='hidden' name='R' value='[armour [Http Referer $r]]'>
+	<input type='hidden' name='R' value='[armour $R]'>
 	</form>
     }
 
@@ -217,6 +218,7 @@ namespace eval WikitWub {
 	if {$nickname eq ""} {
 	    # this is a call to /login with no args,
 	    # in order to generate the /login page
+	    set R [Http Referer $r]
 	    variable login; return [subst $login]
 	}
 
@@ -253,11 +255,12 @@ namespace eval WikitWub {
 	set cdict [Cookies add $cdict -path / -name $cookie -value $nickname {*}$age]
 	dict set r -cookies $cdict
 	if {$R eq ""} {
-	    set url "http://[dict get $r host]/0"
-	    set r [Http Redirect $r $url]
-	} else {
-	    set r [Http Redirect $r $R]
+	    set R [Http Referer $r]
+	    if {$R eq ""} {
+		set R "http://[dict get $r host]/0"
+	    }
 	}
+	set r [Http Redirect $r $R]
     }
 
     proc who {r} {
@@ -390,11 +393,13 @@ namespace eval WikitWub {
 	# is the caller logged in?
 	set nick [who $r]
 	if {$nick eq ""} {
-	    set login "<p>You must <a href='/_login'>login</a> to post<p>"
+	    variable login
+	    set R ""	;# make it return here
+	    set Login [subst $login]
 	    # TODO KBK: Perhaps allow anon edits with a CAPTCHA?
 	    # Or at least give a link to the page that gets the cookie back.
 	} else {
-	    set login ""
+	    set Login ""
 	}
 
 	::Wikit::pagevars $N name date who
