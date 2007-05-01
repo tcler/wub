@@ -52,7 +52,7 @@ namespace eval WikitWub {
 	<p>$C</p>
 	<hr noshade />
 	<p id='footer'>[join $menu { - }]
-	<form action='/_search' method='post'><input name='S' type='text'></form>
+	<form action='/_search' method='post' value='Search'><input name='S' type='text'></form>
 	</p>
     }
 
@@ -336,7 +336,11 @@ namespace eval WikitWub {
 	# a list of matches
     }
 
-    proc /search {S} {
+    proc /search {{S ""} args} {
+	if {$S eq "" && [llength $args] > 0} {
+	    set S [lindex $args 0]
+	}
+
 	Debug.wikit {/search: '$S'}
 	dict set request -suffix $S
 	dict set request -prefix "/$S"
@@ -715,7 +719,7 @@ namespace eval WikitWub {
 
 	variable menus
 	lappend menu "Go to [Ref 0]"
-	foreach m {About Changes Help Search} {
+	foreach m {About Changes Search Help} {
 	    if {$N != $protected($m)} {
 		lappend menu $menus($protected($m))
 	    }
