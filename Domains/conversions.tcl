@@ -65,11 +65,12 @@ namespace eval ::conversions {
 	set headers {}
 	foreach line $body {
 	    set line [string trim $line]
-	    if {$line eq ""} continue
 	    if {[string match <* $line]} break
 
-	    # this is a header line
 	    incr start
+	    if {$line eq ""} continue
+
+	    # this is a header line
 	    set val [lassign [split $line :] tag]
 	    dict lappend rsp -headers "<$tag>[string trim [join $val]]</$tag>"
 	}
