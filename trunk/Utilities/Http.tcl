@@ -147,16 +147,29 @@ namespace eval Http {
 
     # categorise headers
     variable headers
-    foreach n {accept accept-charset accept-encoding accept-language authorization expect from host if-match if-modified-since if-none-match if-range if-unmodified-since max-forwards proxy-authorization referer te user-agent keep-alive cookie} {
+    variable rq_headers {
+	accept accept-charset accept-encoding accept-language authorization
+	expect from host if-match if-modified-since if-none-match if-range
+	if-unmodified-since max-forwards proxy-authorization referer te
+	user-agent keep-alive cookie
+    }
+    foreach n $rq_headers {
 	set headers($n) rq
     }
-    foreach n {accept-ranges age etag location proxy-authenticate retry-after server vary www-authenticate} {
+    variable rs_headers {
+	accept-ranges age etag location proxy-authenticate retry-after
+	server vary www-authenticate
+    }
+    foreach n $rs_headers {
 	set headers($n) rs
     }
-    foreach n {allow content-encoding content-language content-length content-location content-md5 content-range content-type expires last-modified} {
-	set headers($n) e
+    variable e_headers {
+	allow content-encoding content-language content-length 
+	content-location content-md5 content-range content-type
+	expires last-modified cache-control connection date pragma
+	trailer transfer-encoding upgrade via warning
     }
-    foreach n {cache-control connection date pragma trailer transfer-encoding upgrade via warning} {
+    foreach n $e_headers {
 	set headers($n) e
     }
 
