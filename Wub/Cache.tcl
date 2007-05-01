@@ -115,12 +115,17 @@ namespace eval Cache {
 	    return $req
 	}
 
-	set cached $req
-	foreach f {set-cookie -cookies -listener
-	    -sock -method -transaction -ipaddr -worker
-	} {
-	    catch {dict unset cached $f}	;# do not cache field
+	set cached [dict subset $req {*}$::Http::rs_headers -content -gzip -code -url]
+	Debug.cache {stripped cache entry: $cached} 5
+	if {0} {
+	    # not strong enough
+	    foreach f {set-cookie -cookies -listener
+		-sock -method -transaction -ipaddr -worker
+	    } {
+		catch {dict unset cached $f}	;# do not cache field
+	    }
 	}
+
 	dict set cached -refcount 2
 	dict set cached -when [clock seconds]
 
