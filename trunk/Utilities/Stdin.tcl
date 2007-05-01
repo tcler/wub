@@ -9,6 +9,10 @@ namespace eval Stdin {
 	close $stdin
     }
 
+    proc puts {args} {
+	return $args
+    }
+
     proc cmd {stdin stdout} {
 	if {[eof $stdin]} {
 	    fileevent $stdin readable {}
@@ -19,10 +23,10 @@ namespace eval Stdin {
 	variable prompt
 	append command($stdin,command) [gets $stdin]
 	if {[info complete $command($stdin,command)]} {
-	    if {[catch {eval $command($stdin,command)} result eo]} {
-		puts -nonewline $stdout "$result ($eo)\n$prompt"
+	    if {[catch {namespace eval ::Stdin $command($stdin,command)} result eo]} {
+		::puts -nonewline $stdout "$result ($eo)\n$prompt"
 	    } else {
-		puts -nonewline $stdout "$result\n$prompt"
+		::puts -nonewline $stdout "$result\n$prompt"
 	    }
 	    flush $stdout
 	    set command($stdin,command) ""
@@ -36,7 +40,7 @@ namespace eval Stdin {
 	    close $sock
 	} else {
 	    fconfigure $sock -buffering line
-	    puts $sock "Command Shell"
+	    ::puts $sock "Command Shell"
 	    fileevent $sock readable [list ::Stdin::cmd $sock $sock]
 	}
     }
