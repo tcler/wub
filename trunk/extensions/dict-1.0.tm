@@ -33,11 +33,17 @@ extend dict {
 
     # modify a dict var with the args-dict given
     proc modify {var args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
 	upvar 1 $var dvar
 	set dvar [dict merge $dvar $args]
     }
 
     proc defaults {var args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
 	upvar 1 $var dvar
 	foreach {name val} $args {
 	    dict set? dvar $name $val
@@ -58,6 +64,9 @@ extend dict {
 
     # return dict keys, sorted by some subkey value
     proc subkeysort {dict subkey args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
 	# build a key/value list where value is extracted from subdict
 	set kl {}
 	dict for {key val} $dict {
@@ -75,6 +84,9 @@ extend dict {
 
     # strip a set of keys from a dict
     proc strip {var args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
 	upvar 1 $var dvar
 	foreach key $args {
 	    dict unset dvar $key
@@ -83,6 +95,9 @@ extend dict {
 
     # cache - use a dict as a cache for the value of the $args-expression
     proc cache {dict name args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
 	upvar dict dict
 	if {[info exists $dict $name]} {
 	    return [dict get $dict $name]
@@ -94,8 +109,11 @@ extend dict {
 
     # subset - return the dict subset specified by args
     proc subset {dict args} {
-	dict filter $x script {k v} {
-	    return [expr {$k in $args}]
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
 	}
+	return [dict filter $dict script {k v} {
+	    expr {$k in $args}
+	}]
     }
 }
