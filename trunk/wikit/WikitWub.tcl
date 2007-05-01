@@ -39,12 +39,21 @@ namespace eval WikitWub {
 
     # page sent in response to a search
     variable searchT {
-	title: Search
-	<h2 class='title'>Search</h2>
 	<form action='/_search' method='post'>
 	<p>Enter the search phrase:<input name='S' type='text' $search> Append an asterisk (*) to search page contents as well</p>
 	</form>
 	$C
+    }
+
+    # page template for standard page decoration
+    variable pageT {
+	title: [armour $name]
+	$Title
+	<p>$C</p>
+	<hr noshade />
+	<p id='footer'>[join $menu { - }]
+	<form action='/_search' method='post'><input name='S' type='text'></form>
+	</p>
     }
 
     # page sent when editing a page
@@ -114,15 +123,18 @@ namespace eval WikitWub {
 	set body [split [dict get $rsp -content] \n]
 	set start 0
 	set headers {}
+
 	foreach line $body {
 	    set line [string trim $line]
-	    if {$line eq ""} continue
 	    if {[string match <* $line]} break
 
-	    # this is a header line
 	    incr start
+	    if {$line eq ""} continue
+
+	    # this is a header line
 	    set val [lassign [split $line :] tag]
 	    dict lappend rsp -headers "<$tag>[string trim [join $val]]</$tag>"
+	    Debug.convert {.text/x-system.text/x-html-fragment '$tag:$val' - $start}
 	}
 
 	set content "[join [lrange $body $start end] \n]\n"
@@ -278,12 +290,59 @@ namespace eval WikitWub {
 	::thread::send -async $::thread::parent [list Cache delete http://[dict get $r host]/$url]
     }
 
+    proc locate {page {exact 1}} {
+	Debug.wikit {locate '$page'}
+	variable cnt
+	
+	# try exact match on page name
+	if {[string is integer -strict $page]} {
+	    Debug.wikit {locate - is integer $page}
+	    return $page
+	}
+
+	set N [mk::select wdb.pages name $page -min date 1]
+	switch [llength $N] {
+	    1 {
+		# uniquely identified, done
+		Debug.wikit {locate - unique by name - $N}
+		return $N
+	    }
+	    
+	    0 {
+		# no match on page name,
+		# do a glob search over names,
+		# where AbCdEf -> *[Aa]b*[Cc]d*[Ee]f*
+		# skip this if the search has brackets (WHY?)
+		if {[string first "\[" $page] < 0} {
+		    regsub -all {[A-Z]} $page {*\\[&[string tolower &]\]} temp
+		    set temp "[subst -novariable $temp]*"
+		    set N [mk::select wdb.pages -glob name $temp -min date 1]
+		}
+		if {[llength $N] == 1} {
+		    # glob search was unambiguous
+		    Debug.wikit {locate - unique by title search - $N}
+		    return $N
+		}
+	    }
+	}
+
+	# ambiguous match or no match - make it a keyword search
+	set ::Wikit::searchLong [regexp {^(.*)\*$} $page x ::Wikit::searchKey]
+	Debug.wikit {locate - kw search}
+	return 2	;# the search page
+	
+	# these two globals (searchKey and searchLong) control the
+	# representation of page 2 - they will cause it to return
+	# a list of matches
+    }
+
     proc /search {S} {
 	Debug.wikit {/search: '$S'}
 	dict set request -suffix $S
 	dict set request -prefix "/$S"
 	upvar 1 response r
-	set r [WikitWub do $r $S]
+	set ::Wikit::searchLong [regexp {^(.*)\*$} $S x ::Wikit::searchKey]
+	set r [WikitWub do $r 2]
     }
 
     proc /save {N C O save} {
@@ -479,52 +538,6 @@ namespace eval WikitWub {
 	variable refs; return [subst $refs]
     }
 
-    proc locate {page} {
-	Debug.wikit {locate '$page'}
-	variable cnt
-
-	# try exact match on page name
-	if {[string is integer -strict $page]} {
-	    Debug.wikit {locate - is integer $page}
-	    return $page
-	}
-
-	set N [mk::select wdb.pages name $page -min date 1]
-	switch [llength $N] {
-	    1 {
-		# uniquely identified, done
-		Debug.wikit {locate - unique by name - $N}
-		return $N
-	    }
-	    
-	    0 {
-		# no match on page name,
-		# do a glob search over names,
-		# where AbCdEf -> *[Aa]b*[Cc]d*[Ee]f*
-		# skip this if the search has brackets (WHY?)
-		if {[string first "\[" $page] < 0} {
-		    regsub -all {[A-Z]} $page {*\\[&[string tolower &]\]} temp
-		    set temp "[subst -novariable $temp]*"
-		    set N [mk::select wdb.pages -glob name $temp -min date 1]
-		}
-		if {[llength $N] == 1} {
-		    # glob search was unambiguous
-		    Debug.wikit {locate - unique by title search - $N}
-		    return $N
-		}
-	    }
-	}
-
-	# ambiguous match or no match - make it a keyword search
-	set ::Wikit::searchLong [regexp {^(.*)\*$} $page x ::Wikit::searchKey]
-	Debug.wikit {locate - kw search}
-	return 2	;# the search page
-	
-	# these two globals (searchKey and searchLong) control the
-	# representation of page 2 - they will cause it to return
-	# a list of matches
-    }
-
     proc InfoProc {ref} {
 	set id [::Wikit::LookupPage $ref wdb]
 	::Wikit::pagevars $id date name
@@ -592,43 +605,70 @@ namespace eval WikitWub {
 	if {![string is integer -strict $term]} {
 	    set N [locate $term]
 	    if {$N == "2"} {
+		# locate has given up - can't find a page - go to search
 		return [Http Redirect $r "http://[dict get $r host]/2" "" "" S $term]
 	    } elseif {$N ne $term} {
 		# we really should redirect
 		return [Http Redirect $r "http://[dict get $r host]/$N"]
 	    }
-	} else {
-	    set N $term	;# it's a simple single page
-	    if {$N == 2} {
-		# it's a search - get the search term
+	}
+
+	# term is a simple integer - a page number
+	set N $term	;# it's a simple single page
+	set date [clock seconds]	;# default date is now
+	set name ""	;# no default page name
+	set who ""	;# no default editor
+	set cacheit 1	;# default is to cache
+
+	switch -- $N {
+	    2 {
+		# search page
 		set qd [dict get? $r -Query]
 		if {[Query exists $qd S]
 		    && [set term [Query value $qd S]] ne ""
 		} {
+		    # search page with search term supplied
 		    set search "value='[armour $term]'"
 		    set C [::Wikit::TextToStream [search $term]]
 		    lassign [::Wikit::StreamToHTML $C / ::WikitWub::InfoProc] C U
 		} else {
+		    # send a search page
 		    set search ""
 		    set C ""
 		}
-		variable searchT; set result [subst $searchT]
-		dict set r content-type text/x-system
 
-		return [Http NoCache [Http Ok $r $result text/x-system]]
+		variable searchT; set C [subst $searchT]
+		set name "Search"
+		set cacheit 0
 	    }
-	}
-	if {$N >= [mk::view size wdb.pages]} {
-	    return [Http NotFound $r]
+
+	    4 {
+		# Recent Changes page
+		variable motd
+		set C [::Wikit::TextToStream "${motd}[::Wikit::RecentChanges wdb]"]
+		lassign [::Wikit::StreamToHTML $C / ::WikitWub::InfoProc] C U
+
+		set name "Recent Changes"
+	    }
+
+	    default {
+		# simple page - non search term
+		if {$N >= [mk::view size wdb.pages]} {
+		    return [Http NotFound $r]
+		}
+		# set up a few standard URLs an strings
+		if {[catch {::Wikit::pagevars $N name date who}]} {
+		    return [Http NotFound $r]
+		}
+		# fetch page contents
+		set C [::Wikit::TextToStream [GetPage $N]]
+		lassign [::Wikit::StreamToHTML $C / ::WikitWub::InfoProc] C U
+	    }
 	}
 
 	Debug.wikit {located: $N}
 
-	# set up a few standard URLs an strings
-	if {[catch {::Wikit::pagevars $N name date who}]} {
-	    return [Http NotFound $r]
-	}
-
+	# set up backrefs
 	set refs [mk::select wdb.refs to $N]
 	Debug.wikit {[llength $refs] backrefs to $N}
         switch -- [llength $refs] {
@@ -650,16 +690,6 @@ namespace eval WikitWub {
 	    }
 	}
 
-	# get the contents
-	if {$N == 4} {
-	    variable motd
-	    set C [::Wikit::TextToStream "${motd}[::Wikit::RecentChanges wdb]"]
-	    set date [clock seconds]
-	} else {
-	    set C [::Wikit::TextToStream [GetPage $N]]
-	}
-	lassign [::Wikit::StreamToHTML $C / ::WikitWub::InfoProc] C U
-
 	# arrange the page's tail
 	set updated ""
 	if {$date != 0} {
@@ -667,7 +697,10 @@ namespace eval WikitWub {
 	    set updated "Updated $update"
 	}
 
-	if {[regexp {^(.+)[,@]} $who - who_nick] && $who_nick ne ""} {
+	if {$who ne "" &&
+	    [regexp {^(.+)[,@]} $who - who_nick]
+	    && $who_nick ne ""
+	} {
 	    append updated " by $who_nick"
 	}
 	set menu [list $updated]
@@ -678,13 +711,13 @@ namespace eval WikitWub {
 		lappend menu [Ref /_edit/$N Edit]
 		lappend menu [Ref /_rev/$N Revisions]
 	    }
+	}
 
-	    variable menus
-	    lappend menu "Go to [Ref 0]"
-	    foreach m {About Search Changes Help} {
-		if {$N != $protected($m)} {
-		    lappend menu $menus($protected($m))
-		}
+	variable menus
+	lappend menu "Go to [Ref 0]"
+	foreach m {About Changes Help Search} {
+	    if {$N != $protected($m)} {
+		lappend menu $menus($protected($m))
 	    }
 	}
 
@@ -698,17 +731,13 @@ namespace eval WikitWub {
 	    }
 	}
 
-	set result {title: [armour $name]
-	$Title
-	$index
-	<p>$C</p>
-	<hr noshade />
-	<p id='footer'>[join $menu { - }]</p>}
-
-	# is this a search? add index
-	set index ""
-	set r [Http CacheableContent $r $date [subst $result] text/x-system]
-	return [Http DCache $r]
+	variable pageT
+	if {$cacheit} {
+	    set r [Http CacheableContent $r $date [subst $pageT] text/x-system]
+	    return [Http DCache $r]
+	} else {
+	    return [Http NoCache [Http Ok $r [subst $pageT] text/x-system]]
+	}
     }
 
     namespace export -clear *
@@ -939,6 +968,7 @@ set ::utf8::utf8re $config(utf8re); unset config(utf8re)
 Debug on log 10
 Debug off wikit 10
 Debug off direct 10
+Debug off convert 10
 Debug off cookies 10
 Debug off socket 10
 
