@@ -147,6 +147,9 @@ namespace eval Http {
 
     # categorise headers
     variable headers
+    variable notmod_headers {
+	date expires cache-control vary etag content-location
+    }
     variable rq_headers {
 	accept accept-charset accept-encoding accept-language authorization
 	expect from host if-match if-modified-since if-none-match if-range
@@ -528,9 +531,20 @@ namespace eval Http {
 	catch {dict unset rsp content-type}
 	catch {dict unset rsp -content}
 
-	dict set rsp -code 304
-	dict set rsp -rtype NotModified
-	return $rsp
+	# the response MUST NOT include other entity-headers
+	# than Date, Expires, Cache-Control, Vary, Etag, Content-Location
+	set result [dict filter $rsp key -*]
+
+	variable rq_headers
+	set result [dict merge $result [dict subset $rsp $rq_headers]]
+
+	variable notmod_headers
+	set result [dict merge $result [dict subset $rsp $notmod_headers]]
+
+	dict set result -code 304
+	dict set result -rtype NotModified
+
+	return $result
     }
 
     # internal redirection generator
