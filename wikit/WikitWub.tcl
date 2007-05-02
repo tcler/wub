@@ -530,7 +530,7 @@ namespace eval WikitWub {
 	    lassign $x name from
 	    ::Wikit::pagevars $from who date
 	    append result <li>[::Wikit::GetTimeStamp $date]
-	    append result " . . . [Ref $from] . . . $who"
+	    append result " . . . [Ref $from] . . . $who</li>"
 	}
 
 	variable protected
@@ -887,7 +887,7 @@ proc incoming {req} {
 	    /robots.txt -
 	    /*.js {
 		# need to silently redirect js files
-		Debug.wikit {css invocation}
+		Debug.wikit {script invocation}
 		dict set request -suffix [file join {} {*}[lrange [file split $path] 1 end]]
 		dict set request -prefix "/scripts"
 		do scripts do $request
@@ -964,7 +964,7 @@ Wikit::BuildTitleCache
 
 set script [mk::get wdb.pages!9 page]
 #puts stderr "Script: $script"
-eval $script
+catch {eval $script}
 
 # move utf8 regexp into utf8 package
 set ::utf8::utf8re $config(utf8re); unset config(utf8re)
