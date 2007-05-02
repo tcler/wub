@@ -12,8 +12,8 @@ namespace eval Cache {
 
 	# cache check freshness against request's modification time
 	set since [Http DateInSeconds [dict get $req if-modified-since]]
-	set result [expr {$since < [dict get $cached -when]}]
-	Debug.cache {unmodified? $since < [dict get $cached -when] -> $result}
+	set result [expr {$since >= [dict get $cached -when]}]
+	Debug.cache {unmodified? $since >= [dict get $cached -when] -> $result}
 	return $result
     }
 
@@ -303,14 +303,11 @@ namespace eval Cache {
 	    # NB: the expires field is set in $req
 	} else {
 	    # deliver cached content in lieue of processing
-	    Debug.cache {cached content for $url}
 	    dict set req last-modified [Http Date [dict get $cached -when]]
 
 	    set req [dict merge $req $cached]
 	    set req [Http CacheableContent $req [dict get $cached -when]]
-	    if {[dict get $cached -code] eq 404} {
-		dict set req -code 404	;# we can cache 404s
-	    }
+	    Debug.cache {cached content for $url ($req)}
 	    return $req
 	}
 
