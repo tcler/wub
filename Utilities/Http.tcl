@@ -317,7 +317,9 @@ namespace eval Http {
 	    dict set rsp content-type $ctype
 	}
 
-	dict set rsp -code 200
+	if {![dict exists $rsp -code]} {
+	    dict set rsp -code 200
+	}
 	dict set rsp -rtype CacheableContent
 	return $rsp
     }
