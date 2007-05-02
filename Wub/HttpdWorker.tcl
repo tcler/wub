@@ -152,6 +152,7 @@ proc responder {} {
     # we only consider closing if all pending requests
     # have been satisfied.
     if {$close} {
+	Debug.close {close requested on $sock - sending header}
 	append head "Connection: close" \r\n	;# send a close just in case
 	# Once the header's been sent, we're committed to closing
     }
@@ -287,6 +288,7 @@ proc send {reply {cacheit 1}} {
 
     set header "HTTP/[dict get $reply -version] $code $errmsg\r\n"
     set close [expr {[dict get $reply -version] < 1.1}]	;# don't honour 1.0 keep-alives
+    Debug.close {version [dict get $reply -version] implies close=$close}
 
     # format up the headers
     if {$code != 100} {
@@ -404,6 +406,7 @@ proc send {reply {cacheit 1}} {
 	if {$nl eq "connection"} {
 	    foreach ct [split $v ,] {
 		if {[string trim $ct] eq "close"} {
+		    Debug.close {Tagging $sock for closing because connection field requested it. '$v'}
 		    set close 1
 		}
 	    }
@@ -455,14 +458,18 @@ proc send {reply {cacheit 1}} {
 # disconnect - a fatal socket-level error has occurred
 # close everything, report the failure to parent
 proc disconnect {error {eo {}}} {
-    variable request
-
-    Debug.socket {disconnect: '$error' ($request)}
     foreach timer [Timer info instances] {
 	$timer cancel
     }
 
-    catch {close $::sock}	;# remove socket
+    variable request
+    Debug.socket {disconnect: '$error' ($request)}
+    Debug.close {disconnecting: '$error' ($eo)}
+
+    ;# remove socket
+    if {[catch {close $::sock} r eo]} {
+	Debug.close {closing error: '$r' ($eo)}
+    }
 
     # inform parent of disconnect - this thread will now be recycled
     ::thread::send -async $::thread::parent [list ::Httpd::disconnect [::thread::id] $error $eo]
@@ -896,6 +903,7 @@ proc connect {req vars socket} {
     Debug.socket {[::thread::id] connected}
 }
 
+Debug on close 10
 # now we're able to process commands
 #puts stderr "Started Httpd Worker [::thread::id]"
 thread::wait
