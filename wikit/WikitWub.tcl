@@ -17,6 +17,7 @@ package require utf8
 
 package require Honeypot
 Honeypot init dir [file join $::config(docroot) captcha]
+catch {source [file join [file dirname [info script]] pest.tcl}
 
 package provide WikitWub 1.0
 
@@ -789,6 +790,8 @@ catch {
     set ::WikitWub::motd [::fileutil::cat [file join $config(docroot) motd]]
 }
 
+proc pest {req} {return 0}
+
 proc incoming {req} {
     inQ put $req
 
@@ -835,7 +838,7 @@ proc incoming {req} {
 	    }
 	} else {
 	    # not a known bot, until it touches Honeypot
-	    if {$path eq "/$::WikitWub::protected(HoneyPot)"} {
+	    if {$path eq "/$::WikitWub::protected(HoneyPot)" || [pest $req]} {
 		Debug.wikit {Honeypot: Triggered the Trap}
 		# silent redirect to /_honeypot
 		set path /_honeypot
