@@ -228,6 +228,8 @@ proc gzip_it {reply content} {
 proc send {reply {cacheit 1}} {
     Debug.http {[set x $reply; dict set x -content <ELIDED>; return ""]send: $x}
 
+    set sock [dict get $reply -sock]
+
     # fetch transaction from the caller's identity
     if {![dict exists $reply -transaction]} {
 	# can't Send reply: no -transaction associated with request
@@ -903,7 +905,7 @@ proc connect {req vars socket} {
     Debug.socket {[::thread::id] connected}
 }
 
-Debug on close 10
+Debug off close 10
 # now we're able to process commands
 #puts stderr "Started Httpd Worker [::thread::id]"
 thread::wait
