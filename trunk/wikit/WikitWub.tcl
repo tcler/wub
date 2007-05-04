@@ -53,7 +53,7 @@ namespace eval WikitWub {
 	<p>$C</p>
 	<hr noshade />
 	<p id='footer'>[join $menu { - }]
-	<form action='/_search' method='post' value='Search'><input name='S' type='text'></form>
+	<form action='/_search' method='post'><input name='S' type='text' value='Search'></form>
 	</p>
     }
 
