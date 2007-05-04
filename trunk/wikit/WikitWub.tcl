@@ -850,6 +850,8 @@ proc incoming {req} {
 
 	switch -glob -- $path {
 	    /*.php -
+	    /*.wmv -
+	    /*.exe -
 	    /cgi-bin/* {
 		set ip [dict get $request -ipaddr]
 		if {$ip eq "127.0.0.1"
