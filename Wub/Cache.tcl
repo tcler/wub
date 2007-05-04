@@ -153,7 +153,7 @@ namespace eval Cache {
 	variable keys
 	variable cache
 	set check 1
-	while {check} {
+	while {$check} {
 	    set check 0
 	    foreach {name val} [array get keys] {
 		if {$name eq $val} {
