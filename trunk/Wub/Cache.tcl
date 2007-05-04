@@ -193,7 +193,7 @@ namespace eval Cache {
 			error {etag and cache name mismatch}
 		    }
 		} r eo]} {
-		    debug.error {cache consistency: $eo}
+		    Debug.error {cache consistency: $eo}
 			if {$fix} {
 			    unset cache($name)
 			    incr check
