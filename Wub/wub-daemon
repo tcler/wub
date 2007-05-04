@@ -25,7 +25,7 @@ case "$1" in
 	if [ $STARTER = "daemon" ]; then
 	    /usr/bin/daemon --name=wub \
 		--chdir /usr/local/wub/wikit \
-		--verbose=10 --debug=2 --dbglog=/tmp/wub.daemon \
+		--dbglog=/tmp/wub.daemon \
 		--user=www-data.www-data --umask=005 \
 		--respawn --inherit --core \
 		--errlog=/tmp/wub.err --output=/tmp/wub.out \
