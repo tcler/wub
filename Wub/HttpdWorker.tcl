@@ -511,6 +511,8 @@ proc got {req} {
     catch {rxtimer cancel}
     chan event $::sock readable {}	;# suspend reading
 
+    dict set req -received [clock seconds]
+
     # rename fields whose names are the same in request/response
     foreach n {cache-control} {
 	if {[dict exists $req $n]} {
@@ -520,7 +522,9 @@ proc got {req} {
     }
 
     # fix up non-standard X-Forwarded-For field
-    if {[dict exists $req x-forwarded-for]} {
+    if {[dict exists $req x-forwarded-for]
+	&& ![string match "127.0.0.1" [dict get $req x-forwarded-for]]
+    } {
 	dict set req -x-forwarding [dict get? $req -ipaddr]
 	dict set req -ipaddr [string trim [lindex [split [dict get $req x-forwarded-for] ,] 0]]
     }
