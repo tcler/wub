@@ -17,7 +17,7 @@ package require utf8
 
 package require Honeypot
 Honeypot init dir [file join $::config(docroot) captcha]
-catch {source [file join [file dirname [info script]] pest.tcl}
+catch {source [file join [file dirname [info script]]] pest.tcl
 
 package provide WikitWub 1.0
 
@@ -418,7 +418,7 @@ namespace eval WikitWub {
 		}
 
 		set who $nick@[dict get $r -ipaddr]
-		::Wikit::SavePage $N $C $who $name
+		::Wikit::SavePage $N [string map {"Robert Abitbol" unperson} $C] $who $name
 		mk::file commit wdb
 	    }
 	}
