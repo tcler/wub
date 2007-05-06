@@ -17,7 +17,7 @@ package require utf8
 
 package require Honeypot
 Honeypot init dir [file join $::config(docroot) captcha]
-catch {source [file join [file dirname [info script]]] pest.tcl
+catch {source [file join [file dirname [info script]] pest.tcl]}
 
 package provide WikitWub 1.0
 
