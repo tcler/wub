@@ -97,6 +97,9 @@ namespace eval Cache {
 
     proc put {req} {
 	Debug.cache {put: ([dumpMsg $req])}
+	if {[dict get $req -code] != 200} {
+	    return $req
+	}
 
 	# whatever the eventual cache status, must remove old matches
 	invalidate [dict get $req -url] ;# invalidate by -url
