@@ -226,7 +226,8 @@ proc gzip_it {reply content} {
 # Side Effects:
 #	queues the response for sending by method responder
 proc send {reply {cacheit 1}} {
-    Debug.http {[set x $reply; dict set x -content <ELIDED>; return ""]send: $x}
+    #Debug.http {[set x $reply; dict set x -content <ELIDED>; return ""]send: $x}
+    Debug.log {[set x $response; dict set x -entity <ELIDED>; dict set x -content <ELIDED>; return $x]}
 
     set sock [dict get $reply -sock]
 
@@ -288,7 +289,8 @@ proc send {reply {cacheit 1}} {
 	set reply [Http NoCache $reply]
     }
 
-    set header "HTTP/[dict get $reply -version] $code $errmsg\r\n"
+    #set header "HTTP/[dict get $reply -version] $code $errmsg\r\n"
+    set header "HTTP/1.1 $code $errmsg\r\n"
     set close [expr {[dict get $reply -version] < 1.1}]	;# don't honour 1.0 keep-alives
     Debug.close {version [dict get $reply -version] implies close=$close}
 
