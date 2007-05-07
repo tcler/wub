@@ -12,6 +12,7 @@ package require Url
 package require struct::queue
 package require Http
 package require Cookies
+package require WikitRss
 
 package require utf8
 
@@ -42,7 +43,7 @@ namespace eval WikitWub {
 
     # page sent in response to a search
     variable searchT {
-	<form action='/_search' method='post'>
+	<form action='/_search' method='get'>
 	<p>Enter the search phrase:<input name='S' type='text' $search> Append an asterisk (*) to search page contents as well</p>
 	</form>
 	$C
@@ -55,7 +56,7 @@ namespace eval WikitWub {
 	<p>$C</p>
 	<hr noshade />
 	<p id='footer'>[join $menu { - }]
-	<form action='/_search' method='post'><input name='S' type='text' value='Search'></form>
+	<form action='/_search' method='get'><input name='S' type='text' value='Search'></form>
 	</p>
     }
 
@@ -925,6 +926,27 @@ proc incoming {req} {
 		do wikit do $request
 	    }
 
+	    /rss.xml {
+		# These are wiki-local restful command URLs,
+		# we process them via the wikit Direct domain
+		Debug.wikit {rss invocation}
+		set code [catch {WikitRss rss} r eo]
+		Debug.wikit {rss result $code ($eo)}
+		switch -- $code {
+		    1 {
+			set response [Http ServerError $request $r $eo]
+		    }
+
+		    default {
+			set response $request
+			dict set response -dynamic 1
+			dict set response -code $code
+			dict set response content-type text/xml
+			dict set response -content $r
+		    }
+		}
+	    }
+
 	    / {
 		# need to silently redirect welcome file
 		Debug.wikit {welcome invocation}
@@ -971,6 +993,9 @@ catch {eval $script}
 
 # move utf8 regexp into utf8 package
 set ::utf8::utf8re $config(utf8re); unset config(utf8re)
+
+# initialize RSS feeder
+WikitRss init wdb "Tcler's Wiki" http://wiki.tcl.tk/
 
 Debug on log 10
 Debug off wikit 10
