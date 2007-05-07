@@ -226,8 +226,7 @@ proc gzip_it {reply content} {
 # Side Effects:
 #	queues the response for sending by method responder
 proc send {reply {cacheit 1}} {
-    #Debug.http {[set x $reply; dict set x -content <ELIDED>; return ""]send: $x}
-    Debug.log {[set x $response; dict set x -entity <ELIDED>; dict set x -content <ELIDED>; return $x]}
+    Debug.log {[set x $reply; dict set x -entity <ELIDED>; dict set x -content <ELIDED>; return $x]}
 
     set sock [dict get $reply -sock]
 
@@ -911,6 +910,7 @@ proc connect {req vars socket} {
     Debug.socket {[::thread::id] connected}
 }
 
+Debug on log 10
 Debug off close 10
 # now we're able to process commands
 #puts stderr "Started Httpd Worker [::thread::id]"
