@@ -13,3 +13,5 @@ package ifneeded Wikit::Search 1.0 [list source [file join $dir search.tcl]]
 package ifneeded Wikit::Utils 1.0 [list source [file join $dir utils.tcl]]
 
 package ifneeded Web 1.0 [list source [file join $dir web.tcl]]
+
+package ifneeded WikitRss 1.0 [list source [file join $dir WikitRss.tcl]]
