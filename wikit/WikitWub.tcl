@@ -17,6 +17,8 @@ package require utf8
 
 package require Honeypot
 Honeypot init dir [file join $::config(docroot) captcha]
+
+proc pest {req} {return 0}
 catch {source [file join [file dirname [info script]] pest.tcl]}
 
 package provide WikitWub 1.0
@@ -790,8 +792,6 @@ catch {
     set ::WikitWub::motd [::fileutil::cat [file join $config(docroot) motd]]
 }
 
-proc pest {req} {return 0}
-
 proc incoming {req} {
     inQ put $req
 
@@ -952,8 +952,6 @@ proc incoming {req} {
 	do convert do $response	;# convert page
 	dict set response -transaction [dict get $request -transaction]
 	dict set response -generation [dict get $request -generation]
-
-	Debug.log {[set x $response; dict set x -entity <ELIDED>; dict set x -content <ELIDED>; return $x]}
 
 	::thread::send -async [dict get $request -worker] [list send $response]
 	set request [dict create]	;# go idle
