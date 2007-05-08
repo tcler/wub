@@ -6,6 +6,7 @@ package require Debug
 #puts stderr "Starting Httpd Worker [::thread::id]"
 interp bgerror {} bgerror
 proc bgerror {error eo} {
+    #puts stderr "Thread [::thread::id] ERROR: $error ($eo)"
     Debug.error {Thread [::thread::id]: $error ($eo)}
     if {[dict get $eo -code] == 1} {
 	disconnect $error $eo
@@ -166,10 +167,16 @@ proc responder {} {
     # screws up the content-length and confuses the client
     # which doesn't then pick up the next response
     # in the pipeline
-    puts -nonewline $sock $content	;# send the content
-    chan flush $sock
-    Debug.socket {SENT content [string length $content] '$content'} 10
-    incr ::pending -1		;# count one fewer request pending
+    if {[catch {
+	puts -nonewline $sock $content	;# send the content
+	chan flush $sock
+    } r eo]} {
+	set close 1
+	Debug.socket {FAILED send content '$r' ($eo)}
+    } else {
+	Debug.socket {SENT content (close: $close) [string length $content] '$content'} 10
+    }
+   incr ::pending -1		;# count one fewer request pending
 
     # close the connection - the client's been notified
     if {$close} {
