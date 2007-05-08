@@ -408,6 +408,7 @@ namespace eval WikitWub {
 		invalidate $r $N
 		invalidate $r 4
 		invalidate $r _ref/$N
+		invalidate $r rss.xml
 
 		# if this page did not exist before:
 		# remove all referencing pages.
@@ -929,9 +930,9 @@ proc incoming {req} {
 	    /rss.xml {
 		# These are wiki-local restful command URLs,
 		# we process them via the wikit Direct domain
-		Debug.wikit {rss invocation}
+		Debug.rss {rss invocation}
 		set code [catch {WikitRss rss} r eo]
-		Debug.wikit {rss result $code ($eo)}
+		Debug.rss {rss result $code ($eo)}
 		switch -- $code {
 		    1 {
 			set response [Http ServerError $request $r $eo]
@@ -939,8 +940,7 @@ proc incoming {req} {
 
 		    default {
 			set response $request
-			dict set response -dynamic 1
-			dict set response -code $code
+			dict set response -code 200
 			dict set response content-type text/xml
 			dict set response -content $r
 		    }
@@ -998,10 +998,15 @@ set ::utf8::utf8re $config(utf8re); unset config(utf8re)
 WikitRss init wdb "Tcler's Wiki" http://wiki.tcl.tk/
 
 Debug on log 10
+Debug on log 10
+
 Debug off wikit 10
 Debug off direct 10
 Debug off convert 10
 Debug off cookies 10
 Debug off socket 10
+
+catch {source [file join [file dirname [info script]] local.tcl]} r eo
+Debug.log {LOCAL: '$r' ($eo)}
 
 thread::wait

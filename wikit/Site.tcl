@@ -63,6 +63,11 @@ if {[info exists starkit::topdir]} {
     lappend auto_path $home
 }
 
+package require Listener
+package require Httpd 2.0
+package require Http
+package require Debug 2.0
+
 if {![info exists starkit::topdir]} {
     if {$globaldocroot} {
 	set drdir [file join $topdir docroot]
@@ -71,8 +76,6 @@ if {![info exists starkit::topdir]} {
     }
     puts stderr "drdir:$drdir topdir:$topdir home:$home"
 }
-
-package require Debug 2.0
 
 # create data and sessionroot dirs
 catch {file mkdir [set data [file join $base data]]}
@@ -126,9 +129,9 @@ if {$cmdport eq ""} {
     Stdin start $cmdport ;# start a command shell on localhost,$cmdport
 }
 
-package require Listener
-package require Httpd 2.0
-package require Http
+Debug on error 100
+Debug on log 10
+Debug on block 10
 
 Debug off socket 10
 Debug off http 2
@@ -136,7 +139,6 @@ Debug off cache 10
 Debug off cookies 10
 Debug off dispatch 10
 Debug off wikit 10
-Debug on block 10
 
 set worker_args [list profile $profile wikidb $wikidb]
 
@@ -223,7 +225,8 @@ catch {
 # make the utf8 regular expression to save thread startup lag
 set utf8re [::utf8::makeUtf8Regexp]
 
-puts stderr "STARTING BACKENDS"
+Debug.log {STARTING BACKENDS}
+
 package require Backend
 set Backend::incr $backends	;# reduce the backend thread quantum for faster testing
 Backend init scriptdir [file dirname [info script]] scriptname WikitWub.tcl docroot $docroot wikitroot $wikitroot dataroot $data utf8re $utf8re {*}$worker_args
@@ -236,9 +239,13 @@ if {[info exists server_port]} {
 }
 set listener [Listener %AUTO% -server $server_id -host $host -port $listener_port -sockets Httpd -httpd {-dispatch "Backend incoming"}]
 
+catch {source [file join [file dirname [info script]] local.tcl]} r eo
+Debug.log {Site LOCAL: '$r' ($eo)}
+
 set done 0
 while {!$done} {
     #puts stderr "Waiting at top level"
     vwait done
 }
-puts stderr "Shutdown top level"
+
+Debug.log {Shutdown top level}
