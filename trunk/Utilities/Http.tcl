@@ -538,10 +538,10 @@ namespace eval Http {
 	set result [dict filter $rsp key -*]
 
 	variable rq_headers
-	set result [dict merge $result [dict subset $rsp $rq_headers]]
+	set result [dict merge $result [Dict subset $rsp $rq_headers]]
 
 	variable notmod_headers
-	set result [dict merge $result [dict subset $rsp $notmod_headers]]
+	set result [dict merge $result [Dict subset $rsp $notmod_headers]]
 
 	dict set result -code 304
 	dict set result -rtype NotModified

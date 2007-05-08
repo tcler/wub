@@ -275,7 +275,7 @@ snit::type Convert {
 		#dict set rsp -code 0
 	    }
 	}
-	Debug.convert {template return code: [dict get? $rsp -code] dynamic: [dict get $rsp -dynamic] -content: '[dict get $rsp -content]'}
+	Debug.convert {template return code: [Dict get? $rsp -code] dynamic: [dict get $rsp -dynamic] -content: '[dict get $rsp -content]'}
 
 	# remember interpreter for next time this
 	# transaction needs one
@@ -290,7 +290,7 @@ snit::type Convert {
 
 	# if the template didn't set its own content,
 	# use the template subst result
-	if {([dict get? $rsp -content] eq "")} {
+	if {([Dict get? $rsp -content] eq "")} {
 	    dict set rsp -content $result
 	}
 
@@ -333,7 +333,7 @@ snit::type Convert {
 
 	set code [catch {
 	    # run specified template over response
-	    if {[dict get? $rsp -template_file] ne ""} {
+	    if {[Dict get? $rsp -template_file] ne ""} {
 		# apply template
 		set rsp [$self template $rsp]
 	    }

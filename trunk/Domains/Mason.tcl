@@ -105,7 +105,7 @@ package require Html
 	    dict set response -content $result	;# fold subst result back into response
 	}
 
-	Debug.mason {Mason Template return code: $code dynamic: [dict get? $response -dynamic] content: '$result'}
+	Debug.mason {Mason Template return code: $code dynamic: [Dict get? $response -dynamic] content: '$result'}
 
 	return $response
     }
@@ -131,7 +131,7 @@ package require Html
 	Debug.mason {Mason: [dumpMsg $req]}
 
 	dict set req -mason $self
-	set http [dict get? $req -http]
+	set http [Dict get? $req -http]
 	set suffix [string trimleft [dict get $req -suffix] /]
 
 	set ext [file extension $suffix]	;# file extent
@@ -239,7 +239,7 @@ package require Html
 		    dict lappend req -cache [dict get $req -uri]
 
 		    set req [$self mason $req]	;# recurse to find ./index.html
-		    if {[dict get? $req -code] != 404} {
+		    if {[Dict get? $req -code] != 404} {
 			return $req
 		    }
 		}
@@ -337,7 +337,7 @@ package require Html
 	Debug.dispatch {MASON Respond $rsp}
 
 	# filter/reprocess this response
-	if {[string match 2* [dict get? $rsp -code]] &&
+	if {[string match 2* [Dict get? $rsp -code]] &&
 	    ($options(-wrapper) ne "") &&
 	    [dict exists $rsp -content] &&
 	    ([set wrapper [$self findUp $rsp $options(-wrapper)]] ne "")

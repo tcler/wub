@@ -321,23 +321,23 @@ namespace eval Form {
 	    set class Form
 	}
 
-	foreach p [dict get? $form -proc] {
+	foreach p [Dict get? $form -proc] {
 	    lassign $p name args body
 	    Debug.form {form defining proc: $name}
 	    if {$name ne "" && [info procs $name] eq {}} {
 		proc ::$name $args $body
 	    }
 
-	    if {[dict get? $form -fields] eq ""} {
+	    if {[Dict get? $form -fields] eq ""} {
 		# if no fields are defined, then the -proc *is* the form
-		set html [dict get? $form -prolog]
+		set html [Dict get? $form -prolog]
 		append html [$::name]
-		foreach include [dict get? $form -load] {
-		    set loaded [load [file join [dict get? $form -path] $include]]
-		    dict set loaded -record [dict get? $form -record]
+		foreach include [Dict get? $form -load] {
+		    set loaded [load [file join [Dict get? $form -path] $include]]
+		    dict set loaded -record [Dict get? $form -record]
 		    append html [html $loaded {*}$args] \n
 		}
-		append html [dict get? $form -epilog]
+		append html [Dict get? $form -epilog]
 		return $html
 	    } else {
 		if {[dict exists $form -domain]} {
@@ -359,9 +359,9 @@ namespace eval Form {
 		return "<form class='$class' action='[lindex [dict get $form -action] 0]' method='[lindex [dict get $form -method] 0]'>\n"
 	    }]
 
-	    [join [dict get? $form -prolog]]
+	    [join [Dict get? $form -prolog]]
 	    [htmlfields form $form {*}$record]
-	    [join [dict get? $form -epilog]]
+	    [join [Dict get? $form -epilog]]
 
 	    [if {[dict exists $form -submit]} {
 		return "<input type='submit' value='[lindex [dict get $form -submit] 0]'>"

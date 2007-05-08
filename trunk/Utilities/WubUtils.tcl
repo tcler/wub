@@ -1,6 +1,6 @@
 package require extend 1.0
 package require file
-package require dict
+package require Dict
 package require memoize
 
 package provide WubUtils 1.0

@@ -65,10 +65,10 @@ namespace eval Cache {
 	    set ckey $keys($key) ;# key under which the cached value is stored
 	    variable cache
 	    if {[info exists cache($ckey)]} {
-		Debug.cache {found cache: etag:[dict get? $cache($ckey) etag] url:[dict get? $cache($ckey) -url]}
+		Debug.cache {found cache: etag:[Dict get? $cache($ckey) etag] url:[Dict get? $cache($ckey) -url]}
 		set cached $cache($ckey)
-		invalidate [dict get? $cached etag]
-		invalidate [dict get? $cached -url]
+		invalidate [Dict get? $cached etag]
+		invalidate [Dict get? $cached -url]
 	    }
 	    invalidate $key	;# remove offered key
 	}
@@ -86,7 +86,7 @@ namespace eval Cache {
 	Debug.cache {fetch: ([dumpMsg $req])}
 	variable keys
 	variable cache
-	if {[exists? [dict get? $req etag]]} {
+	if {[exists? [Dict get? $req etag]]} {
 	    return $cache($keys([string trim [dict get $req etag] \"]))
 	} elseif {[exists? [dict get $req -url]]} {
 	    return $cache($keys([dict get $req -url]))
@@ -103,10 +103,10 @@ namespace eval Cache {
 
 	# whatever the eventual cache status, must remove old matches
 	invalidate [dict get $req -url] ;# invalidate by -url
-	invalidate [dict get? $req etag] ;# invalidate by etag
+	invalidate [Dict get? $req etag] ;# invalidate by etag
 
 	# allow application to avoid caching by setting -dynamic
-	if {[dict get? $req -dynamic] ne ""} {
+	if {[Dict get? $req -dynamic] ne ""} {
 	    return $req
 	}
 
@@ -123,8 +123,8 @@ namespace eval Cache {
 	}
 
 	# subset the cacheable request with just those fields needed
-	set cached [dict subset $req -content -gzip -code -url]
-	set cached [dict merge $cached [dict subset $req {*}$::Http::rs_headers]]
+	set cached [Dict subset $req -content -gzip -code -url]
+	set cached [dict merge $cached [Dict subset $req {*}$::Http::rs_headers]]
 
 	# add new fields for server cache control
 	dict set cached -refcount 2
@@ -187,10 +187,10 @@ namespace eval Cache {
 			error {orphan cache by name '$name' / $cache($name)}
 		    }
 		    if {![exists? [dict get $val -url]]} {
-			error {orphan cache by url '[dict get? $val -url]' / $name - '$cache($name)'}
+			error {orphan cache by url '[Dict get? $val -url]' / $name - '$cache($name)'}
 		    }
 		    if {![exists? [dict get $val etag]]} {
-			error {orphan cache by etag '[dict get? $val etag]' / $name - '$cache($name)'}
+			error {orphan cache by etag '[Dict get? $val etag]' / $name - '$cache($name)'}
 		    }
 		    if {[string trim [dict get $val etag] \"] ne $name} {
 			error {etag and cache name mismatch}
@@ -212,8 +212,8 @@ namespace eval Cache {
     proc check {req} {
 	Debug.cache {check [dict get $req -url]: ([dumpMsg $req])}
 	# first query cache to see if there's even a matching entry
-	set etag [dict get? $req etag]
-	set url [dict get? $req -url]
+	set etag [Dict get? $req etag]
+	set url [Dict get? $req -url]
 	if {$etag ne "" && ![exists? $etag]} {
 	    Debug.cache {etag '$etag' given, but not in cache}
 	    return {}	;# we don't have a copy matching etag
@@ -228,7 +228,7 @@ namespace eval Cache {
 	variable obey_CC
 	variable CC
 	if {$CC && 
-	    "no-cache" in [split [dict get? $req pragma] ,]
+	    "no-cache" in [split [Dict get? $req pragma] ,]
 	} {
 	    # ignore no-cache, because we're the server, and in the best
 	    # position to judge the freshness of our content.
