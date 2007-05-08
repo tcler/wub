@@ -151,4 +151,4 @@ namespace eval WikitRss {
     namespace ensemble create -subcommands {}
 }
 
-Debug on rss 10
+Debug off rss 10
