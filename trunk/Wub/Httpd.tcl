@@ -28,6 +28,9 @@ proc bgerror {args} {
 }
 interp bgerror {} bgerror
 
+proc pest {req} {return 0}
+catch {source [file join [file dirname [info script]] pest.tcl]}
+
 namespace eval Httpd {
     variable me [::thread::id]
 
@@ -234,8 +237,10 @@ namespace eval Httpd {
 	# Cookie processing for Session
 	# Session handling
 	# check Cache for match
-	set cached [Cache check $request]
-	if {[dict size $cached] > 0} {
+	
+	if {![pest $request]
+	    && [dict size [set cached [Cache check $request]]] > 0
+	} {
 	    # reply from cache
 	    dict set cached -transaction [dict get $request -transaction]
 	    dict set cached -generation [dict get $request -generation]
