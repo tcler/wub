@@ -939,10 +939,7 @@ proc incoming {req} {
 		    }
 
 		    default {
-			set response $request
-			dict set response -code 200
-			dict set response content-type text/xml
-			dict set response -content $r
+			set response [Http CacheableContent $request [clock seconds] $r text/xml]
 		    }
 		}
 	    }
