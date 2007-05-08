@@ -23,6 +23,7 @@ package require Honeypot
 package provide Httpd 2.0
 
 proc bgerror {args} {
+    #puts stderr "bgERROR: $args"
     Debug.error {bgerror: $args}
 }
 interp bgerror {} bgerror

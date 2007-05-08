@@ -134,6 +134,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 
     interp bgerror {} bgerror
     proc bgerror {args} {
+	#puts stderr "ERROR: $args"
 	Debug.error {$args}
     }
 

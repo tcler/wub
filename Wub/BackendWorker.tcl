@@ -1,6 +1,7 @@
 interp bgerror {} bgerror
 proc bgerror {error eo} {
-    Debug.error {Thread [::thread::id]: $error ($eo)}
+    #puts stderr "Thread [::thread::id] ERROR: $error ($eo)"
+    Debug.error {Thread [::thread::id] ERROR: $error ($eo)}
     if {[dict get $eo -code] == 1} {
 	disconnect $error [Http ServerError $::request $error $eo]
     }
