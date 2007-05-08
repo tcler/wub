@@ -15,4 +15,14 @@ extend namespace {
 	}
 	return $result
     }
+
+    proc vdump {namespace} {
+	foreach v [info vars $namespace::*] {
+	    if {[catch {set x $v}]} {
+		puts 'array $v - [array get $v]'
+	    } else {
+		puts "$v - '$x'"
+	    }
+	}
+    }
 }

@@ -269,7 +269,7 @@ proc chunks {} {
 
 	if {$size == 0} {
 	    # server signals we've read all the chunks
-	    set ce [dict get? $R content-encoding]
+	    set ce [Dict get? $R content-encoding]
 	    switch -- $ce {
 		gzip {
 		    # the chunked entity was further gzip-encoded

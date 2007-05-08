@@ -1,7 +1,7 @@
 # Url - support for URL manipulation
 
 package provide Url 1.0
-package require dict
+package require Dict
 
 namespace eval Url {
     # normalize -- 
@@ -179,7 +179,7 @@ namespace eval Url {
 	if {$args eq {}} {
 	    set args {-scheme -authority -host -port -query -fragment -path -url -uri}
 	}
-	return [dict subset $dict {*}$args]
+	return [Dict subset $dict {*}$args]
     }
 
     # assemble: given a dict containing URL components, assemble a URL
@@ -188,9 +188,9 @@ namespace eval Url {
 	if {$args eq {}} {
 	    set args {-fragment -authority -query}
 	}
-	catch {dict defaults dict -scheme http}
-	catch {dict strip dict {*}$strip}	;# remove extraneous fields
-	dict with [dict trimkey [subset $dict]] {
+	catch {Dict defaults dict -scheme http}
+	catch {Dict strip dict {*}$strip}	;# remove extraneous fields
+	dict with [Dict trimkey [subset $dict]] {
 	    set result ${scheme}://
 	    if {[info exists authority]} {
 		append result $authority

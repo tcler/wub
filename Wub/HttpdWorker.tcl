@@ -260,7 +260,7 @@ proc send {reply {cacheit 1}} {
     }
 
     # allow domains to set their own http header tags
-    foreach {n v} [dict get? $reply -meta] {
+    foreach {n v} [Dict get? $reply -meta] {
 	dict set reply $n $v
     }
 
@@ -375,7 +375,7 @@ proc send {reply {cacheit 1}} {
     }
 
     # add in Auth header elements - TODO
-    foreach challenge [dict get? $reply -auth] {
+    foreach challenge [Dict get? $reply -auth] {
 	append header "WWW-Authenticate: $challenge" \r\n
     }
 
@@ -533,7 +533,7 @@ proc got {req} {
     if {[dict exists $req x-forwarded-for]
 	&& ![string match "127.0.0.1" [dict get $req x-forwarded-for]]
     } {
-	dict set req -x-forwarding [dict get? $req -ipaddr]
+	dict set req -x-forwarding [Dict get? $req -ipaddr]
 	dict set req -ipaddr [string trim [lindex [split [dict get $req x-forwarded-for] ,] 0]]
     }
 

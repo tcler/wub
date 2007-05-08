@@ -1,9 +1,7 @@
-package require extend
-
-package provide dict 1.0
+package provide Dict 1.0
 
 # Extra useful dict commands
-extend dict {
+namespace eval Dict {
 
     # return a dict element, or {} if it doesn't exist
     proc get? {dict args} {
@@ -116,4 +114,7 @@ extend dict {
 	    expr {$k in $args}
 	}]
     }
+
+    namespace export -clear *
+    namespace ensemble create -subcommands {}
 }

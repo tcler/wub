@@ -220,7 +220,7 @@ namespace eval Httpd {
 	set sock [dict get $request -sock]
 
 	# check the incoming ip for blocked
-	if {[blocked? [dict get? $request -ipaddr]]} {
+	if {[blocked? [Dict get? $request -ipaddr]]} {
 	    dict set request connection close
 	    ::thread::send -async $tid [list send [Http NotFound $request]]
 	    #::thread::send -async $tid [list disconnect "Blocked"]

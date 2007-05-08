@@ -155,7 +155,7 @@ namespace eval Session {
 
 	variable sv
 
-	set id [dict get? $args id]
+	set id [Dict get? $args id]
 	if {$id eq ""} {
 	    # supply a new unique session id
 	    set id [string range [rand] 2 end]
@@ -165,7 +165,7 @@ namespace eval Session {
 	    dict set args id $id
 	}
 
-	set key [dict get? $args key]
+	set key [Dict get? $args key]
 	if {$key eq ""} {
 	    # generate a random key
 	    set key [lindex [string range [rand] 2 end]]

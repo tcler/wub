@@ -125,14 +125,14 @@ package require Mime
 	set result [dict create]
 	foreach x [list [file join $basedir $glob] [file join $basedir ${glob}.$ext]] {
 	    if {[file exists $x]} {
-		dict modify result {*}[f2dict $glob $x $baseurl]
+		Dict modify result {*}[f2dict $glob $x $baseurl]
 	    }
 	}
 
 	Debug.file {handle? $basedir - $glob [glob -nocomplain -directory $basedir -tails $glob]}
 	foreach fname [glob -nocomplain -directory $basedir -tails ${glob}.*] {
 	    set file [file join $basedir $fname]
-	    dict modify result {*}[f2dict $fname $file $baseurl]
+	    Dict modify result {*}[f2dict $fname $file $baseurl]
 	}
 
 	return $result

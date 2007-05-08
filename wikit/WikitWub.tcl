@@ -632,7 +632,7 @@ namespace eval WikitWub {
 	switch -- $N {
 	    2 {
 		# search page
-		set qd [dict get? $r -Query]
+		set qd [Dict get? $r -Query]
 		if {[Query exists $qd S]
 		    && [set term [Query value $qd S]] ne ""
 		} {
@@ -805,7 +805,7 @@ proc incoming {req} {
 	set request $req
 
 	set path [dict get $request -path]
-	dict set request -cookies [Cookies parse4server [dict get? $request cookie]]
+	dict set request -cookies [Cookies parse4server [Dict get? $request cookie]]
 
 	# get a plausible prefix/suffix split
 	Debug.wikit {incoming path: $path}
