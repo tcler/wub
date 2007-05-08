@@ -379,7 +379,7 @@ namespace eval Http {
     }
 
     proc ServerError {rsp message {eo ""}} {
-	puts stderr "Server Error: $message ($eo)"
+	Debug.log {Server Error: '$message' ($eo)} 2
 	set content ""
 	if {$eo ne ""} {
 	    append content "<table border='1' width='80%'>" \n
