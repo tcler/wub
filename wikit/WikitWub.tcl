@@ -55,8 +55,8 @@ namespace eval WikitWub {
 	$Title
 	<p>$C</p>
 	<hr noshade />
-	<p id='footer'>[join $menu { - }]
-	<form action='/_search' method='get'><input name='S' type='text' value='Search'></form>
+	<p id='footer'>[join $menu { - }]</p>
+	<p><form action='/_search' method='get'><input name='S' type='text' value='Search'></form>
 	</p>
     }
 
