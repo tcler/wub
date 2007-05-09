@@ -678,7 +678,7 @@ namespace eval WikitWub {
 		    }
 		    .tk {
 			set C [::Wikit::TextToStream [GetPage $N]]
-			lassign [::Wikit::StreamToTk $C /] C U
+			lassign [::Wikit::StreamToTk $C ::WikitWub::InfoProc] C U
 		    }
 		    .str {
 			set C [::Wikit::TextToStream [GetPage $N]]
