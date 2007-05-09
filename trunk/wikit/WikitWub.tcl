@@ -676,6 +676,10 @@ namespace eval WikitWub {
 			set C [GetPage $N]
 			return [Http NoCache [Http Ok $r $C text/plain]]
 		    }
+		    .tk {
+			set C [::Wikit::TextToStream [GetPage $N]]
+			lassign [::Wikit::StreamToTk $C /] C U
+		    }
 		    .str {
 			set C [::Wikit::TextToStream [GetPage $N]]
 			return [Http NoCache [Http Ok $r $C text/plain]]
