@@ -611,7 +611,7 @@ namespace eval WikitWub {
 
     proc do {r term} {
 	# handle searches
-	if {![string is integer -strict $term]} {
+	if {![string is integer -strict [file rootname $term]]} {
 	    set N [locate $term]
 	    if {$N == "2"} {
 		# locate has given up - can't find a page - go to search
@@ -623,7 +623,8 @@ namespace eval WikitWub {
 	}
 
 	# term is a simple integer - a page number
-	set N $term	;# it's a simple single page
+	set N [file rootname $term]	;# it's a simple single page
+	set ext [file extension $term]	;# file extension?
 	set date [clock seconds]	;# default date is now
 	set name ""	;# no default page name
 	set who ""	;# no default editor
@@ -670,8 +671,13 @@ namespace eval WikitWub {
 		    return [Http NotFound $r]
 		}
 		# fetch page contents
-		set C [::Wikit::TextToStream [GetPage $N]]
-		lassign [::Wikit::StreamToHTML $C / ::WikitWub::InfoProc] C U
+		if {$ext ne ".txt"} {
+		    set C [::Wikit::TextToStream [GetPage $N]]
+		    lassign [::Wikit::StreamToHTML $C / ::WikitWub::InfoProc] C U
+		} else {
+		    set C [GetPage $N]
+		    return [Http NoCache [Http Ok $r $C text/plain]]
+		}
 	    }
 	}
 
@@ -724,7 +730,7 @@ namespace eval WikitWub {
 
 	variable menus
 	lappend menu "Go to [Ref 0]"
-	foreach m {About Changes Search Help} {
+	foreach m {About Changes Help} {
 	    if {$N != $protected($m)} {
 		lappend menu $menus($protected($m))
 	    }
