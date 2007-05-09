@@ -671,12 +671,19 @@ namespace eval WikitWub {
 		    return [Http NotFound $r]
 		}
 		# fetch page contents
-		if {$ext ne ".txt"} {
-		    set C [::Wikit::TextToStream [GetPage $N]]
-		    lassign [::Wikit::StreamToHTML $C / ::WikitWub::InfoProc] C U
-		} else {
-		    set C [GetPage $N]
-		    return [Http NoCache [Http Ok $r $C text/plain]]
+		switch -- $ext {
+		    .txt {
+			set C [GetPage $N]
+			return [Http NoCache [Http Ok $r $C text/plain]]
+		    }
+		    .str {
+			set C [::Wikit::TextToStream [GetPage $N]]
+			return [Http NoCache [Http Ok $r $C text/plain]]
+		    }
+		    default {
+			set C [::Wikit::TextToStream [GetPage $N]]
+			lassign [::Wikit::StreamToHTML $C / ::WikitWub::InfoProc] C U
+		    }
 		}
 	    }
 	}
