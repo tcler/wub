@@ -482,7 +482,7 @@ proc disconnect {error {eo {}}} {
     }
 
     # inform parent of disconnect - this thread will now be recycled
-    ::thread::send -async $::thread::parent [list ::Httpd::disconnect [::thread::id] $error $eo]
+    ::thread::send -async $::thread::parent [list ::Httpd::disconnect [::thread::id] $::sock $error $eo]
 
     array unset ::satisfied; array set ::satisfied {}	;# forget request state
     array unset ::replies; array set ::replies {}	;# forget pending replies
