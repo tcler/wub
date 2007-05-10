@@ -341,15 +341,16 @@ namespace eval Httpd {
 
     # act2list - make a nested list from an activity list
     proc act2list {act} {
-	set headers {date start age ipaddr connected transfer parsed ripped disconnect errors}
+	set headers {date start thread age ipaddr connected transfer parsed ripped disconnect errors}
 	set result [list $headers]
 	foreach a [lsort -index 2 -dictionary $act] {
 	    set a [lassign $a name -> start]
-	    lassign $start start ipaddr
+	    lassign $start start ipaddr thread
 
 	    catch {unset vals}
 	    set vals(name) $name
 	    set vals(ipaddr) $ipaddr
+	    set vals(thread) $thread
 	    set s [expr {$start / 1000000}]
 	    set vals(date) [clock format $s -format {%d/%m/%Y}]
 	    set vals(start) [clock format $s -format {%T}]
@@ -495,7 +496,7 @@ namespace eval Httpd {
 	    Debug.log {activity: $activity($sock)}
 	    unset activity($sock)
 	}
-	lappend activity($sock) allocated [list [clock microseconds] $ipaddr]
+	lappend activity($sock) allocated [list [clock microseconds] $ipaddr $thread]
 
 	return [list Httpd threaded $thread]
     }
