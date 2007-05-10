@@ -590,7 +590,7 @@ namespace eval Httpd {
 	    # subsequent disconnects will notice this has occurred
 	    # and abort gracefully.  Still some race potential.
 	    #puts stderr "Httpd RACE: sockets $sock already exists $sockets($sock)"
-	    disconnect $sockets($sock) "forced"
+	    disconnect $sockets($sock) $sock "forced"
 	}
 
 	set sockets($sock) $tid	;# bi-associate socket and thread
