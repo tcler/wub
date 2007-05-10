@@ -167,7 +167,7 @@ package require Wikit::Db
 Wikit::WikiDatabase [file join $wikitroot $wikidb] wdb 1
 
 # prime wikit db if needed
-if {[mk::view size wdb.pages] == 0} {
+if {0 && [mk::view size wdb.pages] == 0} {
     # copy first 10 pages of the default datafile 
     set fd [open [file join $home doc wikidoc.tkd]]
     mk::file load wdb $fd
