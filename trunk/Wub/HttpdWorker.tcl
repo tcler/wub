@@ -70,9 +70,9 @@ variable maxurilen 1024	;# maximum URI length
 variable maxentity -1		;# maximum entity size
 
 package require Timer
-Timer txtimer; variable txtime 30000	;# inter-write timeout
+Timer txtimer; variable txtime 10000	;# inter-write timeout
 Timer rxtimer; variable rxtime 5000	;# inter-read timeout
-variable enttime 30000	;# entity inter-read timeout
+variable enttime 10000	;# entity inter-read timeout
 
 # transmission state
 variable satisfied; array set satisfied {}	;# array of requests satisfied
