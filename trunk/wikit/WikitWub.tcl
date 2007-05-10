@@ -895,7 +895,8 @@ proc incoming {req} {
 	    /favicon.ico {
 		Debug.wikit {image invocation}
 		# need to silently redirect image files
-		dict set request -suffix [file join {} {*}[lrange [file split $path] 1 end]]
+		set suffix [file join {} {*}[lrange [file split $path] 1 end]]
+		dict set request -suffix $suffix
 		dict set request -prefix "/images"
 		do images do $request
 	    }
@@ -903,7 +904,8 @@ proc incoming {req} {
 	    /*.css {
 		# need to silently redirect css files
 		Debug.wikit {css invocation}
-		dict set request -suffix [file join {} {*}[lrange [file split $path] 1 end]]
+		set suffix [file join {} {*}[lrange [file split $path] 1 end]]
+		dict set request -suffix $suffix
 		dict set request -prefix "/css"
 		do css do $request
 	    }
@@ -912,7 +914,8 @@ proc incoming {req} {
 	    /*.js {
 		# need to silently redirect js files
 		Debug.wikit {script invocation}
-		dict set request -suffix [file join {} {*}[lrange [file split $path] 1 end]]
+		set suffix [file join {} {*}[lrange [file split $path] 1 end]]
+		dict set request -suffix $suffix
 		dict set request -prefix "/scripts"
 		do scripts do $request
 	    }
