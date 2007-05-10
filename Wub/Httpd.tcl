@@ -19,6 +19,7 @@ package require Debug
 
 package require Cache 2.0
 package require Honeypot
+package require Html
 
 package provide Httpd 2.0
 
@@ -45,6 +46,7 @@ namespace eval Httpd {
     # log the last packet parse time per socket.
     variable activity
     array set activity {}
+    variable actlog {}
 
     # create a queue of free threads
     ::struct::queue threads
@@ -142,8 +144,10 @@ namespace eval Httpd {
 
 	catch {Backend disconnect $socket} ;# inform backend of disconnection
 
-	variable activity
-	Debug.log {activity: $activity($socket) disconnected [clock microseconds]}
+	variable activity; variable actlog
+	lappend activity($socket) disconnect [clock microseconds]
+	lappend actlog [list $socket {*}$activity($socket)]
+	Debug.log {activity: $activity($socket)}
 	unset activity($socket)
 
 	# perform quiescent callback if we're idle
@@ -326,6 +330,70 @@ namespace eval Httpd {
     }
     mkthreads	;# construct initial thread pool
 
+    # act2list - make a nested list from an activity list
+    proc act2list {act} {
+	Debug.log {alist: $act}
+	set headers {start ipaddr connected transfer parsed ripped disconnect errors}
+	set result [list $headers]
+	foreach a [lsort -index 2 -dictionary $act] {
+	    set a [lassign $a name -> start]
+
+	    catch {unset vals}
+	    set vals(name) $name
+	    set vals(start) [clock format [expr {$start / 1000000}] -format {%d/%m/%Y %T}]
+
+	    foreach {n v} $a {
+		switch $n {
+		    parsed {
+			#lappend vals(urls) [lindex $v 2]
+			set vals(ipaddr) [lindex $v 1]
+		    }
+		    transfer {
+			if {[llength $v] > 1} {
+			    lappend vals(errors) [lrange $v 1 end]
+			}
+		    }
+		}
+		lappend vals($n) [expr {([lindex $v 0] - $start) / 1000}]
+	    }
+
+	    set row {}
+	    foreach n $headers {
+		if {[info exists vals($n)]} {
+		    if {$n eq "parsed"} {
+			lappend row "[lindex $vals($n) 0]-[lindex $vals($n) end]"
+		    } else {
+			lappend row [armour $vals($n)]
+		    }
+		} else {
+		    lappend row {}
+		}
+	    }
+	    lappend result $row
+	}
+	Debug.log {alist result: $result}
+	return $result
+    }
+
+    proc activity_current {} {
+	variable activity
+	set act {}
+	foreach {n v} [array get activity] {
+	    lappend act [list $n {*}$v]
+	}
+	return [act2list $act]
+    }
+
+    proc activity_log {} {
+	variable actlog
+	return [act2list $actlog]
+    }
+
+    proc activity_clear {} {
+	variable actlog
+	set actlog {}
+    }
+
     # junk - read and discard input from a blocked ipaddress
     proc junk {sock args} {
 	Debug.block {BLOCKED: $sock [fconfigure $sock -peername]} 3
@@ -402,9 +470,11 @@ namespace eval Httpd {
 	    error "Thread $thread has been allocated $i times"
 	}
 
-	variable activity
+	variable activity; variable actlog
 	if {[info exists activity($sock)]} {
-	    Debug.log {activity: $activity($sock) ripped [clock microseconds]}
+	    lappend activity($sock) ripped [clock microseconds]
+	    lappend actlog [list $socket {*}$activity($socket)]
+	    Debug.log {activity: $activity($sock)}
 	    unset activity($sock)
 	}
 	lappend activity($sock) allocated [clock microseconds]
@@ -420,10 +490,10 @@ namespace eval Httpd {
 	    ::thread::send -async $tid [list connect $request $vars $sock]
 	} result eo]} {
 	    Debug.error {Transfer Error: $result ($eo)}
-	    variable activity; lappend activity($sock) transfer_failed [list [clock microseconds] $result $eo]
+	    variable activity; lappend activity($sock) transfer [list [clock microseconds] $result $eo]
 	} else {
 	    Debug.socket {Transferred: $result $eo}
-	    variable activity; lappend activity($sock) transferred [clock microseconds]
+	    variable activity; lappend activity($sock) transfer [clock microseconds]
 	}
     }
 
