@@ -124,8 +124,7 @@ namespace eval Httpd {
 	}
 
 	variable activity
-	dict set activity($sock) -disconnected [clock microseconds]
-	Debug.log {activity: $activity($sock)}
+	Debug.log {activity: $activity($sock) disconnected [clock microseconds]}
 	unset activity($sock)
 
 	set socket $worker($thread);
@@ -236,8 +235,8 @@ namespace eval Httpd {
 	Debug.http {got: $request} 1
 	set sock [dict get $request -sock]
 
-	variable activity
-	dict set activity($sock) -parsed [clock microseconds]
+	variable activity;
+	lappend activity($sock) parsed [list [clock microseconds] [Dict get? $request -ipaddr] [Dict get? $request -url]]
 
 	# check the incoming ip for blockage
 	if {[blocked? [Dict get? $request -ipaddr]]} {
@@ -404,10 +403,10 @@ namespace eval Httpd {
 
 	variable activity
 	if {[info exists activity($sock)]} {
-	    Debug.log {activity: [array get activity($sock)]}
+	    Debug.log {activity: $activity($sock) ripped [clock microseconds]}
 	    unset activity($sock)
 	}
-	dict set activity($sock) -allocated [clock microseconds]
+	lappend activity($sock) allocated [clock microseconds]
 
 	return [list Httpd threaded $thread]
     }
@@ -420,12 +419,10 @@ namespace eval Httpd {
 	    ::thread::send -async $tid [list connect $request $vars $sock]
 	} result eo]} {
 	    Debug.error {Transfer Error: $result ($eo)}
-	    variable activity
-	    dict set activity($sock) -transfer_failed [list [clock microseconds] $result $eo]
+	    variable activity; lappend activity($sock) transfer_failed [list [clock microseconds] $result $eo]
 	} else {
 	    Debug.socket {Transferred: $result $eo}
-	    variable activity
-	    dict set activity($sock) -transferred [clock microseconds]
+	    variable activity; lappend activity($sock) transferred [clock microseconds]
 	}
     }
 
@@ -473,8 +470,7 @@ namespace eval Httpd {
 	    return
 	}
 
-	variable activity
-	dict set activity($sock) -connected [clock microseconds]
+	variable activity; lappend activity($sock) connected [clock microseconds]
 
 	set config {}
 	foreach {n v} $args {
