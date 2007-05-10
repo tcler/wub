@@ -87,6 +87,9 @@ application/x-patch		patch
 audio/basic                    au snd          
 audio/x-aiff                   aif aiff aifc
 audio/x-wav                    wav             
+
+image/vnd.microsoft.icon       ico
+image/png                      png
 image/gif                      gif GIF        
 image/ief                      ief             
 image/jpeg                     jpeg jpg jpe
@@ -100,15 +103,18 @@ image/x-rgb                    rgb
 image/x-xbitmap                xbm             
 image/x-xpixmap                xpm             
 image/x-xwindowdump            xwd             
+
 message/external-body
 message/news
 message/partial
 message/rfc822
+
 multipart/alternative
 multipart/appledouble
 multipart/digest
 multipart/mixed
 multipart/parallel
+
 text/html                      html htm
 text/plain                     txt
 text/richtext                  rtx             
@@ -117,14 +123,15 @@ text/x-setext                  etx
 text/xml		       xml
 application/xhtml+xml    xhtml
 text/css                       css
+
 video/mpeg                     mpeg mpg mpe    
 video/quicktime                qt mov          
 video/x-msvideo                avi             
 video/x-sgi-movie              movie           
+
 text/vnd.wap.wml                wml
 text/vnd.wap.wmlscript          wmls
 application/vnd.wap.wmlc        wmlc
 application/vnd.wap.wmscriptc   wmlsc
 image/vnd.wap.wbmp              wbmp
 audio/mpeg	mp3
-
