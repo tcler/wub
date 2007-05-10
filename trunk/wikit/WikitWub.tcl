@@ -197,6 +197,41 @@ namespace eval WikitWub {
 		    content-type text/html]
     }
 
+    proc /activity {{L "current"} {F "html"} args} {
+	upvar 1 response r
+	set r [Http NoCache $r]
+
+	# generate an activity page
+	if {$L eq "log"} {
+	    set act [::thread::send $::thread::parent {Httpd activity_log}]
+	} else {
+	    set act [::thread::send $::thread::parent {Httpd activity_current}]
+	}
+
+	switch -- $F {
+	    csv {
+		package require csv
+		foreach a $act {
+		    append result [::csv::joinlist $a] \n
+		}
+		dict set r content-type text/plain
+	    }
+
+	    html -
+	    default {
+		set result "<table border='1'>\n"
+		dict set r content-type text/html
+		append result <tr><th> [join [lindex $act 0] </th>\n<th>] </th></tr> \n
+		foreach a [lrange $act 1 end] {
+		    append result <tr><td> [join $a </td>\n<td>] </td></tr> \n
+		}
+		append result </table>
+	    }
+	}
+	puts stderr "ACTIVITY: $result"
+	return $result
+    }
+
     # /rev - revisions - not implemented
     proc /rev {args} {
 	upvar 1 response r
@@ -936,6 +971,7 @@ proc incoming {req} {
 	    /_ref/* -
 	    /_search/* -
 	    /_search -
+	    /_activity -
 	    /_login {
 		# These are wiki-local restful command URLs,
 		# we process them via the wikit Direct domain
