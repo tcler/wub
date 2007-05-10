@@ -41,13 +41,18 @@ namespace eval Httpd {
     variable sockets
     array set sockets {}
 
+    # activity array - packet activity per socket
+    # log the last packet parse time per socket.
+    variable activity
+    array set activity {}
+
     # create a queue of free threads
     ::struct::queue threads
 
     # array of known threads
     variable worker
     array set worker {}
-    variable max 257	;# maximum number of threads
+    variable max 20	;# maximum number of threads
     variable incr 5	;# number of threads to add on exhaustion
 
     # evalfor - evaluate args in thread for given $sock
@@ -98,6 +103,7 @@ namespace eval Httpd {
 	variable max; variable incr; append result " [array size worker] in total, up to $max, increments of $incr)" \n
 	variable connbyIP; append result "connbyIP: [array get connbyIP]" \n
 	variable sock2IP; append result "sock2IP: [array get sock2IP]" \n
+	variable activity; append result "activity: [array get activity]" \n
 	variable dispatch; append result "dispatch: $dispatch" \n
 	variable ignore;
 	if {$ignore} {
@@ -116,6 +122,11 @@ namespace eval Httpd {
 	    # it's already been closed.
 	    return ""
 	}
+
+	variable activity
+	dict set activity($sock) -disconnected [clock microseconds]
+	Debug.log {activity: $activity($sock)}
+	unset activity($sock)
 
 	set socket $worker($thread);
 	variable connbyIP; variable sock2IP; incr connbyIP($sock2IP($socket)) -1
@@ -218,11 +229,17 @@ namespace eval Httpd {
     }
 
     # got - worker thread has parsed one request
+    # now the dispatcher process (this one) decides how to process
+    # the request.
+    # By default, it invokes the -dispatch script on the request.
     proc got {tid request} {
 	Debug.http {got: $request} 1
 	set sock [dict get $request -sock]
 
-	# check the incoming ip for blocked
+	variable activity
+	dict set activity($sock) -parsed [clock microseconds]
+
+	# check the incoming ip for blockage
 	if {[blocked? [Dict get? $request -ipaddr]]} {
 	    dict set request connection close
 	    ::thread::send -async $tid [list send [Http NotFound $request]]
@@ -233,11 +250,11 @@ namespace eval Httpd {
 	# check the incoming ip for bot detection
 	set request [Honeypot bot? $request]
 
-	# dict set request -Query [Query parse $request]	;# parse the query?
+	# dict set request -Query [Query parse $request] ;# parse the query?
 	# Cookie processing for Session
 	# Session handling
+
 	# check Cache for match
-	
 	if {![pest $request]
 	    && [dict size [set cached [Cache check $request]]] > 0
 	} {
@@ -370,7 +387,7 @@ namespace eval Httpd {
 	    && [incr connbyIP($ipaddr)] > $max_conn
 	} {
 	    # sadly we can't do this if we're reverse-proxied
-	    Debug.socket {Too many connections for $ipaddr}
+	    Debug.log {Too many connections for $ipaddr}
 	    error "Too many connections for $ipaddr - no more than $max_conn"
 	}
 	Debug.socket {$connbyIP($ipaddr) connections for $ipaddr}
@@ -385,6 +402,13 @@ namespace eval Httpd {
 	    error "Thread $thread has been allocated $i times"
 	}
 
+	variable activity
+	if {[info exists activity($sock)]} {
+	    Debug.log {activity: [array get activity($sock)]}
+	    unset activity($sock)
+	}
+	dict set activity($sock) -allocated [clock microseconds]
+
 	return [list Httpd threaded $thread]
     }
 
@@ -396,8 +420,12 @@ namespace eval Httpd {
 	    ::thread::send -async $tid [list connect $request $vars $sock]
 	} result eo]} {
 	    Debug.error {Transfer Error: $result ($eo)}
+	    variable activity
+	    dict set activity($sock) -transfer_failed [list [clock microseconds] $result $eo]
 	} else {
 	    Debug.socket {Transferred: $result $eo}
+	    variable activity
+	    dict set activity($sock) -transferred [clock microseconds]
 	}
     }
 
@@ -444,6 +472,9 @@ namespace eval Httpd {
 	    close $sock
 	    return
 	}
+
+	variable activity
+	dict set activity($sock) -connected [clock microseconds]
 
 	set config {}
 	foreach {n v} $args {
