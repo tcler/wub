@@ -123,11 +123,8 @@ namespace eval Httpd {
 	    return ""
 	}
 
-	variable activity
-	Debug.log {activity: $activity($sock) disconnected [clock microseconds]}
-	unset activity($sock)
-
 	set socket $worker($thread);
+
 	variable connbyIP; variable sock2IP; incr connbyIP($sock2IP($socket)) -1
 
 	variable sockets
@@ -144,6 +141,10 @@ namespace eval Httpd {
 	threads put $thread	;# we're done with this thread
 
 	catch {Backend disconnect $socket} ;# inform backend of disconnection
+
+	variable activity
+	Debug.log {activity: $activity($socket) disconnected [clock microseconds]}
+	unset activity($socket)
 
 	# perform quiescent callback if we're idle
 	variable ignore
