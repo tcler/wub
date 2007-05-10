@@ -25,11 +25,11 @@ case "$1" in
 	if [ $STARTER = "daemon" ]; then
 	    /usr/bin/daemon --name=wub \
 		--chdir /usr/local/wub/wikit \
-		--dbglog=/tmp/wub.daemon \
+		--dbglog=/var/log/wub/wub.daemon \
 		--user=www-data.www-data --umask=005 \
 		--respawn --inherit --core \
 		--verbose=10 --debug=10 \
-		--errlog=/tmp/wub.err --output=/tmp/wub.out \
+		--errlog=/var/log/wub/wub.err --output=/var/log/wub/wub.out \
 		--command="$DAEMON $DAEMON_OPTS"
 	else
 	    start-stop-daemon --start --quiet --background \
