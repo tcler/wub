@@ -470,6 +470,7 @@ namespace eval Httpd {
 	} {
 	    # sadly we can't do this if we're reverse-proxied
 	    Debug.log {Too many connections for $ipaddr}
+	    incr connbyIP($ipaddr) -1
 	    error "Too many connections for $ipaddr - no more than $max_conn"
 	}
 	Debug.socket {$connbyIP($ipaddr) connections for $ipaddr}
