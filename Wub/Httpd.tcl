@@ -367,6 +367,7 @@ namespace eval Httpd {
 		    }
 		}
 		lappend vals($n) [expr {(([lindex $v 0] - $start) / 1000)/1000.0}]s
+		set last [lindex $v 0]
 	    }
 	    set vals(age) [expr {(([clock microseconds] - $last)/1000)/1000.0}]s
 
