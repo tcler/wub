@@ -345,16 +345,18 @@ namespace eval Httpd {
 	set result [list $headers]
 	foreach a [lsort -index 2 -dictionary $act] {
 	    set a [lassign $a name -> start]
+	    lassign $start start ipaddr
 
 	    catch {unset vals}
 	    set vals(name) $name
+	    set vals(ipaddr) $ipaddr
 	    set vals(start) [clock format [expr {$start / 1000000}] -format {%d/%m/%Y %T}]
 
 	    foreach {n v} $a {
 		switch $n {
 		    parsed {
 			#lappend vals(urls) [lindex $v 2]
-			set vals(ipaddr) [lindex $v 1]
+			#set vals(ipaddr) [lindex $v 1]
 		    }
 		    transfer {
 			if {[llength $v] > 1} {
@@ -489,7 +491,7 @@ namespace eval Httpd {
 	    Debug.log {activity: $activity($sock)}
 	    unset activity($sock)
 	}
-	lappend activity($sock) allocated [clock microseconds]
+	lappend activity($sock) allocated [list [clock microseconds] $ipaddr]
 
 	return [list Httpd threaded $thread]
     }
