@@ -47,6 +47,7 @@ namespace eval Httpd {
     variable activity
     array set activity {}
     variable actlog {}
+    variable actsize 0
 
     # create a queue of free threads
     ::struct::queue threads
@@ -116,10 +117,13 @@ namespace eval Httpd {
     }
 
     # a worker thread has completely processed input, or has hit a socket error
-    proc disconnect {thread error {eo ""}} {
-	Debug.socket {Done: $thread '$error' - ($eo)}
+    proc disconnect {thread sock error {eo ""}} {
+	Debug.socket {Done: $thread $sock '$error' - ($eo)}
 
 	variable worker
+	if {$sock ne $worker($thread)} {
+	    Debug.error {COLLISION: $thread socket $worker($thread) != $sock}
+	}
 	if {![info exists worker($thread)] || $worker($thread) eq ""} {
 	    # it's already been closed.
 	    return ""
@@ -144,9 +148,14 @@ namespace eval Httpd {
 
 	catch {Backend disconnect $socket} ;# inform backend of disconnection
 
-	variable activity; variable actlog
+	variable activity; variable actlog; variable actsize
 	lappend activity($socket) disconnect [clock microseconds]
-	lappend actlog [list $socket {*}$activity($socket)]
+	if {$actsize > 0} {
+	    lappend actlog [list $socket {*}$activity($socket)]
+	    if {[llength $actlog] > $actsize} {
+		set actlog [lrange $actlog 10 end]
+	    }
+	}
 	Debug.log {activity: $activity($socket)}
 	unset activity($socket)
 
@@ -361,7 +370,7 @@ namespace eval Httpd {
 	    foreach n $headers {
 		if {[info exists vals($n)]} {
 		    if {$n eq "parsed"} {
-			lappend row "[lindex $vals($n) 0]-[lindex $vals($n) end]"
+			lappend row "[llength $vals($n): [lindex $vals($n) 0]-[lindex $vals($n) end]"
 		    } else {
 			lappend row [armour $vals($n)]
 		    }
@@ -470,10 +479,15 @@ namespace eval Httpd {
 	    error "Thread $thread has been allocated $i times"
 	}
 
-	variable activity; variable actlog
+	variable activity; variable actlog; variable actsize
 	if {[info exists activity($sock)]} {
 	    lappend activity($sock) ripped [clock microseconds]
-	    lappend actlog [list $socket {*}$activity($socket)]
+	    if {$actsize > 0} {
+		lappend actlog [list $socket {*}$activity($socket)]
+		if {[llength $actlog] > $actsize} {
+		    set actlog [lrange $actlog 10 end]
+		}
+	    }
 	    Debug.log {activity: $activity($sock)}
 	    unset activity($sock)
 	}
