@@ -228,7 +228,6 @@ namespace eval WikitWub {
 		append result </table>
 	    }
 	}
-	puts stderr "ACTIVITY: $result"
 	return $result
     }
 
