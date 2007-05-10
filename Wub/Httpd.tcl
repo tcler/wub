@@ -369,7 +369,7 @@ namespace eval Httpd {
 	    foreach n $headers {
 		if {[info exists vals($n)]} {
 		    if {$n eq "parsed"} {
-			lappend row "[llength $vals($n): [lindex $vals($n) 0]-[lindex $vals($n) end]"
+			lappend row "[llength $vals($n)]: [lindex $vals($n) 0]-[lindex $vals($n) end]"
 		    } else {
 			lappend row [armour $vals($n)]
 		    }
