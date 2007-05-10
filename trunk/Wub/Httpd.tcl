@@ -341,7 +341,7 @@ namespace eval Httpd {
 
     # act2list - make a nested list from an activity list
     proc act2list {act} {
-	set headers {start ipaddr connected transfer parsed ripped disconnect errors}
+	set headers {date start age ipaddr connected transfer parsed ripped disconnect errors}
 	set result [list $headers]
 	foreach a [lsort -index 2 -dictionary $act] {
 	    set a [lassign $a name -> start]
@@ -350,8 +350,10 @@ namespace eval Httpd {
 	    catch {unset vals}
 	    set vals(name) $name
 	    set vals(ipaddr) $ipaddr
-	    set vals(start) [clock format [expr {$start / 1000000}] -format {%d/%m/%Y %T}]
-
+	    set s [expr {$start / 1000000}]
+	    set vals(date) [clock format $s -format {%d/%m/%Y}]
+	    set vals(start) [clock format $s -format {%T}]
+	    set last [clock microseconds]
 	    foreach {n v} $a {
 		switch $n {
 		    parsed {
@@ -364,8 +366,9 @@ namespace eval Httpd {
 			}
 		    }
 		}
-		lappend vals($n) [expr {([lindex $v 0] - $start) / 1000}]
+		lappend vals($n) [expr {(([lindex $v 0] - $start) / 1000)/1000.0}]s
 	    }
+	    set vals(age) [expr {(([clock microseconds] - $last)/1000)/1000.0}]s
 
 	    set row {}
 	    foreach n $headers {
