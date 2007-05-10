@@ -341,7 +341,6 @@ namespace eval Httpd {
 
     # act2list - make a nested list from an activity list
     proc act2list {act} {
-	Debug.log {alist: $act}
 	set headers {start ipaddr connected transfer parsed ripped disconnect errors}
 	set result [list $headers]
 	foreach a [lsort -index 2 -dictionary $act] {
@@ -380,7 +379,6 @@ namespace eval Httpd {
 	    }
 	    lappend result $row
 	}
-	Debug.log {alist result: $result}
 	return $result
     }
 
