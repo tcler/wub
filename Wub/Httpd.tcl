@@ -436,7 +436,7 @@ namespace eval Httpd {
     }
 
     # exhaustion control
-    variable max_conn 5
+    variable max_conn 10
     variable connbyIP; array set connbyIP {}
     variable sock2IP; array set sock2IP {}
 
