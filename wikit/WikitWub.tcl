@@ -63,7 +63,6 @@ namespace eval WikitWub {
     # page sent when editing a page
     variable edit {
 	<h2>[Ref $N]</h2>
-	$Login
 	<form method='post' action='/_save/$N'>
 	<textarea rows='30' cols='72' name='C' style='width:100%'>[GetPage $N]</textarea>
 	<p />
@@ -500,8 +499,7 @@ namespace eval WikitWub {
 	    set Login [subst $login]
 	    # TODO KBK: Perhaps allow anon edits with a CAPTCHA?
 	    # Or at least give a link to the page that gets the cookie back.
-	} else {
-	    set Login ""
+	    return $Login
 	}
 
 	::Wikit::pagevars $N name date who
@@ -510,7 +508,7 @@ namespace eval WikitWub {
 	regexp {^(.+)[,@]} $who - who_nick
 
 	variable edit; set result [subst $edit]
-
+	
 	if {$date != 0} {
 	    append result "<italic>Last saved on <bold>[clock format $date -gmt 1 -format {%e %b %Y, %R GMT}]</bold></italic>"
 	}
