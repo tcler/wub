@@ -122,7 +122,7 @@ namespace eval WikitWub {
     proc .text/x-system.text/x-html-fragment {rsp} {
 	# split out headers
 	set headers ""
-	set body [split [dict get $rsp -content] \n]
+	set body [split [string trimleft [dict get $rsp -content] \n] \n]
 	set start 0
 	set headers {}
 
