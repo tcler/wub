@@ -844,6 +844,12 @@ catch {
     set ::WikitWub::motd [::fileutil::cat [file join $config(docroot) motd]]
 }
 
+# disconnected - courtesy indication
+# we've been disconnected
+proc disconnected {sock} {
+    # we're pretty well stateless
+}
+
 proc incoming {req} {
     inQ put $req
 
