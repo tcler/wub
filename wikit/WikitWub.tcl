@@ -789,11 +789,12 @@ namespace eval WikitWub {
 	}
 
 	variable pageT
+	set page [string trimleft [subst $pageT] \n]
 	if {$cacheit} {
-	    set r [Http CacheableContent $r $date [subst $pageT] text/x-system]
+	    set r [Http CacheableContent $r $date $page text/x-system]
 	    return [Http DCache $r]
 	} else {
-	    return [Http NoCache [Http Ok $r [subst $pageT] text/x-system]]
+	    return [Http NoCache [Http Ok $r $page text/x-system]]
 	}
     }
 
