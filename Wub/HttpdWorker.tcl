@@ -449,7 +449,8 @@ proc send {reply {cacheit 1}} {
 	# this is a newly detected bot - inform parent
 	dict set enbot -bot [dict get $reply -bot]
 	set ip [dict get $reply -ipaddr]
-	if {$ip eq "127.0.0.1"
+	if {
+	    $ip eq "127.0.0.1"
 	    && [dict exists $reply x-forwarded-for]
 	} {
 	    set ip [lindex [split [dict get $reply x-forwarded-for] ,] 0]
@@ -530,11 +531,12 @@ proc got {req} {
     }
 
     # fix up non-standard X-Forwarded-For field
-    if {[dict exists $req x-forwarded-for]
-	&& ![string match "127.0.0.1" [dict get $req x-forwarded-for]]
-    } {
-	dict set req -x-forwarding [Dict get? $req -ipaddr]
-	dict set req -ipaddr [string trim [lindex [split [dict get $req x-forwarded-for] ,] 0]]
+    if {[dict exists $req x-forwarded-for]} {
+	set xff [string trim [lindex [split [dict get $req x-forwarded-for] ,] 0]]
+	if {![Http nonRouting? $xff]} {
+	    dict set req -x-forwarding [Dict get? $req -ipaddr]
+	    dict set req -ipaddr $xff
+	}
     }
 
     dict set req -transaction [incr ::transaction]
