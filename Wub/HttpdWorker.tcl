@@ -225,6 +225,14 @@ proc gzip_it {reply content} {
     return [list $reply $content]
 }
 
+proc closing {} {
+    variable sock
+    if {[chan eof $sock]} {
+	# remote end closed - just forget it
+	disconnect "Remote closed connection" 
+    }
+}
+
 # Send - queue up a transaction response
 #
 # Arguments:
@@ -425,10 +433,12 @@ proc send {reply {cacheit 1}} {
 
     # record transaction reply and kick off the responder
     if {$close} {
-	catch {chan event $sock readable {}}	;# we're not accepting more input
+	catch {chan event $sock readable closing}	;# we're not accepting more input
     }
 
-    if {[dict exists $reply content-length] && ([dict get $reply content-length] != [string length $content])} {
+    if {[dict exists $reply content-length]
+	&& [dict get $reply content-length] != [string length $content]
+    } {
 	error "Content length [dict get $reply content-length] != [string length $content]"
     }
 
@@ -449,8 +459,7 @@ proc send {reply {cacheit 1}} {
 	# this is a newly detected bot - inform parent
 	dict set enbot -bot [dict get $reply -bot]
 	set ip [dict get $reply -ipaddr]
-	if {
-	    $ip eq "127.0.0.1"
+	if {$ip eq "127.0.0.1"
 	    && [dict exists $reply x-forwarded-for]
 	} {
 	    set ip [lindex [split [dict get $reply x-forwarded-for] ,] 0]
@@ -505,11 +514,15 @@ proc handle {req} {
 
     catch {rxtimer cancel}
     chan event $::sock readable {}	;# suspend reading
-    dict set req connection close
-    send $req			;# send our own reply
+    if {[catch {
+	dict set req connection close
+	send $req			;# send our own reply
 
-    clean
-    chan event $::sock readable get	;# resume reading
+	clean
+	chan event $::sock readable get	;# resume reading
+    } r eo]} {
+	Debug.error {'handle' error: '$r' ($eo)}
+    }
     return -code return 0
 }
 
@@ -520,31 +533,36 @@ proc got {req} {
     catch {rxtimer cancel}
     chan event $::sock readable {}	;# suspend reading
 
-    dict set req -received [clock seconds]
+    if {[catch {
+	dict set req -received [clock seconds]
 
-    # rename fields whose names are the same in request/response
-    foreach n {cache-control} {
-	if {[dict exists $req $n]} {
-	    dict set req -$n [dict get $req $n]
-	    dict unset req $n
+	# rename fields whose names are the same in request/response
+	foreach n {cache-control} {
+	    if {[dict exists $req $n]} {
+		dict set req -$n [dict get $req $n]
+		dict unset req $n
+	    }
 	}
+
+	# fix up non-standard X-Forwarded-For field
+	if {[dict exists $req x-forwarded-for]} {
+	    set xff [string trim [lindex [split [dict get $req x-forwarded-for] ,] 0]]
+	    if {![Http nonRouting? $xff]} {
+		dict set req -x-forwarding [Dict get? $req -ipaddr]
+		dict set req -ipaddr $xff
+	    }
+	}
+
+	dict set req -transaction [incr ::transaction]
+
+	# inform parent of parsing completion
+	::thread::send -async $::thread::parent [list ::Httpd::got [::thread::id] $req]
+
+	clean
+    } r eo]} {
+	Debug.error {'get' error: '$r' ($eo)}
     }
 
-    # fix up non-standard X-Forwarded-For field
-    if {[dict exists $req x-forwarded-for]} {
-	set xff [string trim [lindex [split [dict get $req x-forwarded-for] ,] 0]]
-	if {![Http nonRouting? $xff]} {
-	    dict set req -x-forwarding [Dict get? $req -ipaddr]
-	    dict set req -ipaddr $xff
-	}
-    }
-
-    dict set req -transaction [incr ::transaction]
-
-    # inform parent of parsing completion
-    ::thread::send -async $::thread::parent [list ::Httpd::got [::thread::id] $req]
-
-    clean
     chan event $::sock readable get	;# resume reading
     return -code return 0
 }
@@ -852,14 +870,14 @@ proc get {} {
     Debug.socket {get: $request} 10
     
     if {[catch {chan gets $sock line} result eo]} {
-	disconnect $request $eo	;# inform parent that we're done
+	disconnect $result $eo	;# inform parent that we're done
     }
 
     if {$result == -1} {
 	catch {chan event $sock readable {}}	;# completed reading
 	if {[chan eof $sock]} {
 	    # remote end closed - just forget it
-	    disconnect "Remote closed connection" $request 
+	    disconnect "Remote closed connection"
 	} else {
 	    if {$::maxline && ([chan pending input $sock] > $::maxline)} {
 		handle [Http Bad $request "Line too long"]
@@ -874,7 +892,9 @@ proc get {} {
 	if {[dict exists $request -header]} {
 	    # \n terminates the header - go parse it
 	    chan event $sock readable {}	;# completed reading
-	    parse
+	    if {[catch {parse} r eo]} {
+		Debug.error {parse error: '$r' ($eo)}
+	    }
 	} else {
 	    return	;# this is a leading empty line, ignore it:
 	    # rfc2616 4.1: In the interest of robustness,
