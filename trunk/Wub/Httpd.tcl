@@ -250,18 +250,24 @@ namespace eval Httpd {
 	set sock [dict get $request -sock]
 
 	variable activity;
-	lappend activity($sock) parsed [list [clock microseconds] [Dict get? $request -ipaddr] [Dict get? $request -url]]
 
 	# check the incoming ip for blockage
 	if {[blocked? [Dict get? $request -ipaddr]]} {
 	    dict set request connection close
 	    ::thread::send -async $tid [list send [Http NotFound $request]]
 	    #::thread::send -async $tid [list disconnect "Blocked"]
+	    lappend activity($sock) parsed [list [clock microseconds] *[Dict get? $request -ipaddr] [Dict get? $request -url]]
 	    return
 	}
 
 	# check the incoming ip for bot detection
 	set request [Honeypot bot? $request]
+
+	if {[dict exists $request -bot]} {
+	    lappend activity($sock) parsed [list [clock microseconds] @[Dict get? $request -ipaddr] [Dict get? $request -url]]
+	} else {
+	    lappend activity($sock) parsed [list [clock microseconds] [Dict get? $request -ipaddr] [Dict get? $request -url]]
+	}
 
 	# dict set request -Query [Query parse $request] ;# parse the query?
 	# Cookie processing for Session
