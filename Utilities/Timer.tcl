@@ -16,6 +16,10 @@ package require snit
 	}
     }
 
+    method dump {} {
+	return [list $timer]
+    }
+
     method running? {} {
 	if {[catch {after info $timer} info]} {
 	    return 0
@@ -24,6 +28,8 @@ package require snit
 	}
     }
 
+    variable cmd
+
     # start a new timer
     method after {when what} {
 	uplevel 1 $self cancel
@@ -31,6 +37,7 @@ package require snit
 	    # still have a timer running - cancel it
 	    $self cancel
 	}
+	variable cmd $what
 	set timer [after $when $what]
 
 	#upvar 1 self owner
