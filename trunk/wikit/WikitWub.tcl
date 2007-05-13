@@ -9,6 +9,7 @@ package require fileutil
 
 package require Debug
 package require Url
+package require Query
 package require struct::queue
 package require Http
 package require Cookies
@@ -647,7 +648,7 @@ namespace eval WikitWub {
 	    set N [locate $term]
 	    if {$N == "2"} {
 		# locate has given up - can't find a page - go to search
-		return [Http Redirect $r "http://[dict get $r host]/2" "" "" S $term]
+		return [Http Redirect $r "http://[dict get $r host]/2" "" "" S [Query decode $term]]
 	    } elseif {$N ne $term} {
 		# we really should redirect
 		return [Http Redirect $r "http://[dict get $r host]/$N"]
