@@ -77,15 +77,17 @@ namespace eval Backend {
 	if {[dict exists $req -session_id]} {
 	    # do we have a session tied thread?
 	    set session [dict get $req -session_id]
-	    if {[info exists ::session2tid($session)]} {
-		set thread $::session2tid($session)
+	    variable session2tid
+	    if {[info exists session2tid($session)]} {
+		set thread $session2tid($session)
 	    }
 	}
 
 	set sock [dict get $req -sock]
-	if {![info exists thread] && [info exists ::sock2tid($sock)]} {
+	variable sock2tid
+	if {![info exists thread] && [info exists sock2tid($sock)]} {
 	    # do we have a socket tied thread?
-	    set thread $::sock2tid($sock)
+	    set thread $sock2tid($sock)
 	} else {
 	    # need to grab a free thread
 	    if {[catch {threads get} thread]} {
@@ -99,8 +101,28 @@ namespace eval Backend {
 	    }
 	}
 
-	set ::sock2tid($sock) $thread
+	variable sock2tid
+	set sock2tid($sock) $thread
 	::thread::send -async $thread [list incoming $req]
+    }
+
+    proc disconnect {sock} {
+	variable sock2tid
+	if {[info exists sock2tid($sock)]} {
+	    # remove the socket->thread association
+	    set thread $sock2tid($sock)
+	    unset sock2tid($sock)
+
+	    # inform the backend worker
+	    dict unset req -worker
+	    ::thread::send -async $thread [list disconnected $req]
+
+	    # replace the thread in its queue
+	    if {[::thread::release $thread] != 1} {
+		Debug.error {release Thread $thread has been allocated $i times}
+	    }
+	    threads put $thread	;# we're done with this thread
+	}
     }
 
     variable thisdir [file dirname [file normalize [info script]]]
