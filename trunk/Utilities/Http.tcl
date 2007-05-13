@@ -747,7 +747,7 @@ namespace eval Http {
 	    return 1
 	}
 	if {[string match "172.*" $ip]} {
-	    set sip [lindex [string split $ip .] 1]
+	    set sip [lindex [split $ip .] 1]
 	    if {$sip >= 16 && $sip <= 31} {
 		return 1
 	    }
