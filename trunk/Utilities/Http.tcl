@@ -738,6 +738,23 @@ namespace eval Http {
 	return $rsp
     }
 
+    # nonRouting - predicate to determine if an IP address is routable
+    proc nonRouting? {ip} {
+	if {$ip eq "127.0.0.1"
+	    || [string match "192.168.*" $ip]
+	    || [string match "10.*" $ip]
+	} {
+	    return 1
+	}
+	if {[string match "172.*" $ip]} {
+	    set sip [lindex [string split $ip .] 1]
+	    if {$sip >= 16 && $sip <= 31} {
+		return 1
+	    }
+	}
+	return 0
+    }
+
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
