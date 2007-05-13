@@ -37,7 +37,7 @@ package require snit
 	    # still have a timer running - cancel it
 	    $self cancel
 	}
-	variable cmd $what
+	set cmd $what
 	set timer [after $when $what]
 
 	#upvar 1 self owner
