@@ -50,8 +50,7 @@ namespace eval WikitWub {
     }
 
     # page template for standard page decoration
-    variable pageT {
-	title: [armour $name]
+    variable pageT {title: [armour $name]
 	$Title
 	<p>$C</p>
 	<hr noshade />
