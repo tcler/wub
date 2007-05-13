@@ -516,7 +516,7 @@ proc handle {req} {
     chan event $::sock readable {}	;# suspend reading
     if {[catch {
 	dict set req connection close
-	if {![info exists $req -transaction]} {
+	if {![dict exists $req -transaction]} {
 	    dict set req -transaction [incr ::transaction]
 	}
 	send $req			;# send our own reply
