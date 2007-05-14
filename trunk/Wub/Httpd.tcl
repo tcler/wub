@@ -97,12 +97,61 @@ namespace eval Httpd {
 	return $::sockets($sock)
     }
 
+    proc state {} {
+	variable activity; array set A [array get activity]
+	variable sockets; array set S [array get sockets]
+	variable worker; array set W [array get worker]
+	variable sock2IP; array set S2I [array get sock2IP]
+	
+	set result {}
+	foreach {sock tid} [array get S] {
+	    # get backend thread if possible
+	    if {[catch {Backend s2be $sock} be]} {
+		set be ""
+	    }
+
+	    # socket to IP
+	    if {[info exists S2I($sock)]} {
+		set ip $S2I($sock)
+	    } else {
+		set ip ""
+	    }
+	    
+	    # check worker/socket
+	    if {$W($tid) ne $sock} {
+		set w $W($tid)
+	    } else {
+		set w ""
+		unset W($tid)
+	    }
+	    
+	    if {[info exists A($sock)]} {
+		set time [expr {[lindex $A($sock) 1 0] / 1000000}]
+		set start [list [clock format $time -format {%d/%m/%Y}] [clock format $time -format {%T}]]
+
+		set time [expr {[lindex $A($sock) end 0] / 1000000}]
+		set end [list [clock format $time -format {%d/%m/%Y}] [clock format $time -format {%T}]]
+
+		set log {}
+		foreach {n v} $A($sock) {
+		    if {$n eq "parsed"} {
+			lappend log [lindex $v 2]
+		    }
+		}
+	    } else {
+		set start ""; set end ""; set log ""
+	    }
+	    lappend result [list $sock $tid $be $ip $w $start $end $log]
+	}
+	return $result
+    }
+
     proc dump {} {
 	variable me
 	set result "Httpd server running in $me\n"
 	variable sockets; append result "sockets: [array get sockets]" \n
 	variable worker; append result "worker threads: [array get worker]"
-	append result " ([threads size] in queue,"
+	append result " ([threads size] in idle queue,"
 	variable max; variable incr; append result " [array size worker] in total, up to $max, increments of $incr)" \n
 	variable connbyIP; append result "connbyIP: [array get connbyIP]" \n
 	variable sock2IP; append result "sock2IP: [array get sock2IP]" \n

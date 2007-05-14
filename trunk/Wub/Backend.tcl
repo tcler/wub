@@ -26,6 +26,15 @@ namespace eval Backend {
     # a script to get a thread going
     variable script ""
 
+    # return the be process associated with a socket
+    proc s2be {sock} {
+	variable sock2tid
+	if {[info exists sock2tid($sock)]} {
+	} else {
+	    return ""
+	}
+    }
+
     proc destroy {} {
 	threads destroy	;# destroy thread queue
 
