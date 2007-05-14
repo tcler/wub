@@ -225,10 +225,10 @@ proc gzip_it {reply content} {
     return [list $reply $content]
 }
 
-proc closing {} {
-    variable sock
+proc closing {sock} {
     if {[chan eof $sock]} {
 	# remote end closed - just forget it
+	catch {gets $sock}
 	catch {close $sock}
 	disconnect "Remote closed connection" 
     }
@@ -434,7 +434,8 @@ proc send {reply {cacheit 1}} {
 
     # record transaction reply and kick off the responder
     if {$close} {
-	catch {chan event $sock readable closing}	;# we're not accepting more input
+	chan configure $sock -blocking 0
+	catch {chan event $sock readable "closing $sock"}	;# we're not accepting more input
     }
 
     if {[dict exists $reply content-length]
