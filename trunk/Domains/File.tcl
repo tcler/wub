@@ -144,7 +144,7 @@ package require Mime
 	    && (![dict exists $req -dynamic] || ![dict get $req -dynamic])
 	} {
 	    set since [Http DateInSeconds [dict get $req if-modified-since]]
-	    if {[file mtime $path] < $since} {
+	    if {[file mtime $path] <= $since} {
 		Debug.file {NotModified: $path - [Http Date [file mtime $path]] < [dict get $req if-modified-since]}
 		Debug.file {if-modified-since: not modified}
 		return [list [Http NotModified $req] 1]
@@ -159,7 +159,8 @@ package require Mime
 	set suffix [dict get $req -suffix]
 	set ext [file extension $suffix]
 	set path [file join $options(-root) $suffix]
-	
+	#dict set req -path $path
+
 	Debug.file {file: $suffix - $path - [dict get $req -path]}
 
 	if {($ext ne "")
