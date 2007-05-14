@@ -127,7 +127,7 @@ namespace eval Cache {
 	    -content -gzip -code -url
 	    content-encoding content-language content-length
 	    content-location content-md5 content-type
-	    expires last-modified}]
+	    expires last-modified cache-control}]
 	set cached [dict merge $cached [Dict subset $req {*}$::Http::rs_headers]]
 
 	# add new fields for server cache control
