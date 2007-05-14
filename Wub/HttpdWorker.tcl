@@ -229,7 +229,6 @@ proc closing {sock} {
     if {[chan eof $sock]} {
 	# remote end closed - just forget it
 	catch {gets $sock}
-	catch {close $sock}
 	disconnect "Remote closed connection" 
     }
 }
