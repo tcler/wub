@@ -134,6 +134,7 @@ namespace eval Httpd {
 		set end [list [clock format $time -format {%d/%m/%Y}] [clock format $time -format {%T}]]
 
 		catch {unset urls}; array set urls {}
+		set log {}
 		foreach {n v} $A($sock) {
 		    if {$n eq "parsed"} {
 			set url [Url parse [lindex $v 2]]
