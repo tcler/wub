@@ -98,6 +98,7 @@ namespace eval Httpd {
     }
 
     proc state {} {
+	package require Url
 	variable activity; array set A [array get activity]
 	variable sockets; array set S [array get sockets]
 	variable worker; array set W [array get worker]
@@ -132,12 +133,15 @@ namespace eval Httpd {
 		set time [expr {[lindex $A($sock) end 0] / 1000000}]
 		set end [list [clock format $time -format {%d/%m/%Y}] [clock format $time -format {%T}]]
 
-		set log {}
+		catch {unset urls}; array set urls {}
 		foreach {n v} $A($sock) {
 		    if {$n eq "parsed"} {
-			lappend log [lindex $v 2]
+			set url [Url parse [lindex $v 2]]
+			incr urls([dict get $url -path]) 1
+			lappend log [dict get $url -path]
 		    }
 		}
+		#set log [array names urls]
 	    } else {
 		set start ""; set end ""; set log ""
 	    }
