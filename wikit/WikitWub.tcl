@@ -197,6 +197,20 @@ namespace eval WikitWub {
 		    content-type text/html]
     }
 
+    proc /state {} {
+	upvar 1 response r
+	set r [Http NoCache $r]
+	set state [::thread::send $::thread::parent {Httpd state}]
+	set result "<table border='1'>\n"
+	append result <tr><th> [join {socket thread backend ip conflict start end log} </th><th>] </th></tr> \n
+	foreach row $state {
+	    append result <tr><td> [join $row </td><td>] </td></tr> \n
+	}
+	append result </table> \n
+
+	return $result
+    }
+
     proc /activity {{L "current"} {F "html"} args} {
 	upvar 1 response r
 	set r [Http NoCache $r]
@@ -977,6 +991,7 @@ proc incoming {req} {
 	    /_search/* -
 	    /_search -
 	    /_activity -
+	    /_state -
 	    /_login {
 		# These are wiki-local restful command URLs,
 		# we process them via the wikit Direct domain
