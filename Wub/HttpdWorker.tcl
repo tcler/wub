@@ -229,6 +229,7 @@ proc closing {} {
     variable sock
     if {[chan eof $sock]} {
 	# remote end closed - just forget it
+	catch {close $sock}
 	disconnect "Remote closed connection" 
     }
 }
@@ -488,7 +489,7 @@ proc disconnect {error {eo {}}} {
 
     ;# remove socket
     if {[catch {close $::sock} r eo]} {
-	Debug.close {closing error: '$r' ($eo)}
+	Debug.error {closing error: '$r' ($eo)}
     }
 
     # inform parent of disconnect - this thread will now be recycled
@@ -512,8 +513,8 @@ proc clean {} {
 proc handle {req} {
     Debug.socket {handle: $req}
 
-    catch {rxtimer cancel}
     chan event $::sock readable {}	;# suspend reading
+    catch {rxtimer cancel}
     if {[catch {
 	dict set req connection close
 	if {![dict exists $req -transaction]} {
@@ -522,10 +523,10 @@ proc handle {req} {
 	send $req			;# send our own reply
 
 	clean
-	chan event $::sock readable get	;# resume reading
     } r eo]} {
 	Debug.error {'handle' error: '$r' ($eo)}
     }
+    chan event $::sock readable get	;# resume reading
     return -code return 0
 }
 
@@ -534,6 +535,7 @@ proc got {req} {
     Debug.socket {got: $req}
 
     catch {rxtimer cancel}
+
     chan event $::sock readable {}	;# suspend reading
 
     if {[catch {
@@ -598,6 +600,9 @@ proc identity {length} {
 }
 
 proc chunk {} {
+    if {[file eof $::sock]} {
+	disconnect
+    }
 }
 
 # Start reading an entity from the client.
@@ -643,8 +648,8 @@ proc entity {} {
 	dict set request -te $tels
 	dict set request -te_params [array get params]
 
-	if {"chunked" in $tels} {
-
+	if {0 && "chunked" in $tels} {
+	    # not handling chunks
 	    start_transfer
 	    dict set request -entity "" ;# clear any old entity
 	    chan event $::sock readable chunk
