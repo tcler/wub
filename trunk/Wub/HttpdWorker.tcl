@@ -4,7 +4,6 @@
 package require Debug
 
 #puts stderr "Starting Httpd Worker [::thread::id]"
-interp bgerror {} bgerror
 proc bgerror {error eo} {
     #puts stderr "Thread [::thread::id] ERROR: $error ($eo)"
     Debug.error {Thread [::thread::id]: $error ($eo)}
@@ -12,6 +11,7 @@ proc bgerror {error eo} {
 	disconnect $error $eo
     }
 }
+interp bgerror {} ::bgerror
 
 #puts stderr "Thread: [::thread::id]";
 interp alias {} armour {} string map {& &amp; < &lt; > &gt; \" &quot; ' &#39;}
@@ -96,6 +96,22 @@ proc detach {sock} {
 
 variable response	-1	;# last response sent
 
+proc readable {sock args} {
+    variable readable "$sock $args"
+    if {[catch {chan event $sock readable $args} r eo]} {
+	Debug.error "readable: '$r' ($eo)"
+	disconnect $r $eo
+    }
+}
+
+proc writable {sock args} {
+    variable writable "$sock $args"
+    if {[catch {chan event $sock writable $args} r eo]} {
+	Debug.error "writable: '$r' ($eo)"
+	disconnect $r $eo
+    }
+}
+
 # responder --
 #	deliver in-sequence transaction responses
 #
@@ -116,7 +132,7 @@ proc responder {} {
 	Debug.http {No replies} 4
 
 	# turn off responder until there are more responses
-	chan event $sock writable {}
+	writable $sock
 
 	txtimer after $::txtime [list timeout "responder idle"]
 	return	;# there are no pending replies - idle transmitter
@@ -136,7 +152,7 @@ proc responder {} {
 
 	Debug.http {$next doesn't follow $response in [array names replies]}
 
-	chan event $sock writable {}	;# disable responder
+	writable $sock	;# disable responder
 	txtimer after $::txtime [list timeout "responder pending"]
 	return
     }
@@ -182,7 +198,7 @@ proc responder {} {
     if {$close} {
 	disconnect "Disconnect"
     } else {
-	chan event $sock writable responder	;# keep trying to send replies
+	writable $sock responder	;# keep trying to send replies
     }
 
     Debug.http {Sent: $response} 2
@@ -226,10 +242,17 @@ proc gzip_it {reply content} {
 }
 
 proc closing {sock} {
-    if {[chan eof $sock]} {
+    if {[catch {chan eof $sock} r] || $r} {
 	# remote end closed - just forget it
-	catch {gets $sock}
 	disconnect "Remote closed connection" 
+    } else {
+	if {[catch {
+	    chan configure $sock -blocking 0
+	    read $sock
+	} r eo]} {
+	    Debug.error "trying to close: '$r' ($eo)"
+	    disconnect "Remote closed connection" 
+	}
     }
 }
 
@@ -434,7 +457,7 @@ proc send {reply {cacheit 1}} {
     # record transaction reply and kick off the responder
     if {$close} {
 	chan configure $sock -blocking 0
-	catch {chan event $sock readable "closing $sock"}	;# we're not accepting more input
+	readable $sock closing $sock	;# we're not accepting more input
     }
 
     if {[dict exists $reply content-length]
@@ -450,10 +473,9 @@ proc send {reply {cacheit 1}} {
     set ::satisfied($trx) 1	;# the request has been satisfied
 
     Debug.http {ADD TRANS: $header ([array names ::replies])}
+
     # response has been collected and is pending output
-    if {[catch {chan event $::sock writable responder}]} {
-	disconnect "Remote closed connection"
-    }
+    writable $::sock responder
 
     # handle bot
     if {[dict exists $reply -bot_change]} {
@@ -513,20 +535,21 @@ proc clean {} {
 proc handle {req} {
     Debug.socket {handle: $req}
 
-    chan event $::sock readable {}	;# suspend reading
+    readable $::sock	;# suspend reading
     catch {rxtimer cancel}
     if {[catch {
 	dict set req connection close
 	if {![dict exists $req -transaction]} {
 	    dict set req -transaction [incr ::transaction]
 	}
-	send $req			;# send our own reply
-
+	dict set req -generation $::generation
+	send $req 0			;# send our own reply
 	clean
     } r eo]} {
 	Debug.error {'handle' error: '$r' ($eo)}
     }
-    chan event $::sock readable get	;# resume reading
+
+    readable $::sock get	;# resume reading
     return -code return 0
 }
 
@@ -536,8 +559,7 @@ proc got {req} {
 
     catch {rxtimer cancel}
 
-    chan event $::sock readable {}	;# suspend reading
-
+    readable $::sock	;# suspend reading
     if {[catch {
 	dict set req -received [clock seconds]
 
@@ -562,13 +584,12 @@ proc got {req} {
 
 	# inform parent of parsing completion
 	::thread::send -async $::thread::parent [list ::Httpd::got [::thread::id] $req]
-
 	clean
     } r eo]} {
 	Debug.error {'get' error: '$r' ($eo)}
     }
+    readable $::sock get	;# resume reading
 
-    chan event $::sock readable get	;# resume reading
     return -code return 0
 }
 
@@ -588,7 +609,7 @@ proc identity {length} {
     dict append request -entity [read $::sock [dict get $::request -left]]
 
     if {[string bytelength [dict get $request -entity]] == $length} {
-	chan event $::sock readable {}	;# disable reading
+	readable $::sock	;# disable reading
 	# completed entity - invoke continuation
 	foreach te [dict get $request -te] {
 	    $te
@@ -601,7 +622,7 @@ proc identity {length} {
 
 proc chunk {} {
     if {[file eof $::sock]} {
-	disconnect
+	disconnect chunk
     }
 }
 
@@ -652,7 +673,7 @@ proc entity {} {
 	    # not handling chunks
 	    start_transfer
 	    dict set request -entity "" ;# clear any old entity
-	    chan event $::sock readable chunk
+	    readable $::sock chunk
 
 	    return
 	} else {
@@ -689,7 +710,7 @@ proc entity {} {
     rxtimer after $::enttime [list timeout "entity timeout"]
     start_transfer
     dict set request -entity "" ;# clear any old entity
-    chan event $::sock readable [list identity $length]
+    readable $::sock identity $length
 
     return 0	;# we'll be handling the channel
 }
@@ -882,7 +903,7 @@ proc get {} {
     }
 
     if {$result == -1} {
-	catch {chan event $sock readable {}}	;# completed reading
+	readable $sock	;# completed reading
 	if {[chan eof $sock]} {
 	    # remote end closed - just forget it
 	    disconnect "Remote closed connection"
@@ -899,7 +920,7 @@ proc get {} {
     if {[string trim $line] eq ""} {
 	if {[dict exists $request -header]} {
 	    # \n terminates the header - go parse it
-	    chan event $sock readable {}	;# completed reading
+	    readable $sock	;# completed reading
 	    if {[catch {parse} r eo]} {
 		Debug.error {parse error: '$r' ($eo)}
 	    }
@@ -943,7 +964,7 @@ proc connect {req vars socket} {
     variable request $req	;# remember the request
 
     rxtimer after $::txtime [list timeout "first-read timeout"]
-    chan event $socket readable get
+    readable $socket get
     Debug.socket {[::thread::id] connected}
 }
 
