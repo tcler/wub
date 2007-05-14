@@ -30,6 +30,7 @@ namespace eval Backend {
     proc s2be {sock} {
 	variable sock2tid
 	if {[info exists sock2tid($sock)]} {
+	    return $sock2tid($sock)
 	} else {
 	    return ""
 	}
@@ -110,7 +111,6 @@ namespace eval Backend {
 	    }
 	}
 
-	variable sock2tid
 	set sock2tid($sock) $thread
 	::thread::send -async $thread [list incoming $req]
     }
