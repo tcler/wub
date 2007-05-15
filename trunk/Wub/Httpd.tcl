@@ -181,6 +181,9 @@ namespace eval Httpd {
 	    # it's already been closed and the socket reassigned,
 	    # but the worker thread has just noticed
 	    Debug.error {COLLISION: $thread socket '$worker($thread)' != '$sock'}
+	    if {$worker($thread) eq ""} {
+		return ""	;# this has been thoroughly expunged
+	    }
 	} elseif {$sockets($sock) eq $thread} {
 	    # this is a genuine disconnection by sock->thread && thread->sock
 	    # we undo the socket->ip and socket->thread mappings
@@ -205,7 +208,8 @@ namespace eval Httpd {
 	}
 
 	set worker($thread) {}	;# we're done with this thread
-	if {[::thread::release $thread] != 1} {
+	set i [::thread::release $thread]
+	if {$i != 1} {
 	    Debug.error {release Thread $thread has been allocated $i times}
 	}
 	threads put $thread	;# we're done with this thread
