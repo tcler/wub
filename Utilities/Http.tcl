@@ -742,7 +742,7 @@ namespace eval Http {
 
     # nonRouting - predicate to determine if an IP address is routable
     proc nonRouting? {ip} {
-	return [expr {[::ip::type $ip] ne "normal"}]
+	return [expr {$ip eq "unknown" || [::ip::type $ip] ne "normal"}]
 
 	# this stuff is redundant now.
 	if {$ip eq "127.0.0.1"
