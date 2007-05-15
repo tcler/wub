@@ -333,7 +333,7 @@ namespace eval Httpd {
 	# provide for a request callout - called with each parsed request
 	variable rqCallOut
 	if {[llength $rqCallOut] != 0} {
-	    {*}$rqCallOut $request
+	    catch {set request [{*}$rqCallOut $request]}
 	}
 
 	# check Cache for match
