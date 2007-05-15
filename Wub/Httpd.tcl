@@ -34,7 +34,7 @@ catch {source [file join [file dirname [info script]] pest.tcl]}
 
 namespace eval Httpd {
     variable me [::thread::id]
-
+    variable rqCallOut {}
     variable thread_path $auto_path	;# path for worker threads
     lappend thread_path ../Utilities/ ../extensions/ ../Utilities/zlib/
 
@@ -329,6 +329,12 @@ namespace eval Httpd {
 	# dict set request -Query [Query parse $request] ;# parse the query?
 	# Cookie processing for Session
 	# Session handling
+
+	# provide for a request callout - called with each parsed request
+	variable rqCallOut
+	if {[llength $rqCallOut] != 0} {
+	    {*}$rqCallOut $request
+	}
 
 	# check Cache for match
 	if {![pest $request]
