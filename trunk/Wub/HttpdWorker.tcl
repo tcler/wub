@@ -6,6 +6,7 @@ package require Debug
 #puts stderr "Starting Httpd Worker [::thread::id]"
 proc bgerror {error eo} {
     #puts stderr "Thread [::thread::id] ERROR: $error ($eo)"
+    variable bgerror; lappend bgerror [list [clock seconds] $error $eo]
     Debug.error {Thread [::thread::id]: $error ($eo)}
     if {[dict get $eo -code] == 1} {
 	disconnect $error $eo
@@ -533,7 +534,8 @@ proc clean {} {
 
 # handle - 
 proc handle {req} {
-    Debug.socket {handle: $req}
+    Debug.error {handle: $req}
+    variable request $req
 
     readable $::sock	;# suspend reading
     catch {rxtimer cancel}
@@ -733,7 +735,7 @@ proc parse {} {
     variable request
     Debug.socket {parse: $request} 3
     set header [dict get $request -header]
-    dict unset request -header
+    #dict unset request -header	;# delete header
 
     # parse header body
     set key ""
@@ -845,7 +847,7 @@ proc parse {} {
     # completed request header decode - now dispatch on the URL
 
     #puts stderr "PARSE: $request"
-    if {[dict get $request -uri] eq "/error"} {
+    if {[dict get $request -uri] eq "/_error"} {
 	error "Test background error handling"
     }
 
