@@ -434,6 +434,7 @@ namespace eval Http {
 
 	dict set rsp -code 501
 	dict set rsp -rtype NotImplemented
+	dict set rsp -error $message
 	return $rsp
     }
 
