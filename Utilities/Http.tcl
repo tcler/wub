@@ -1,3 +1,5 @@
+package require ip
+
 package provide Http 2.1
 
 proc Trace {{skip 1}} {
@@ -740,6 +742,9 @@ namespace eval Http {
 
     # nonRouting - predicate to determine if an IP address is routable
     proc nonRouting? {ip} {
+	return [expr {[::ip::type $ip] ne "normal"}]
+
+	# this stuff is redundant now.
 	if {$ip eq "127.0.0.1"
 	    || [string match "192.168.*" $ip]
 	    || [string match "10.*" $ip]
