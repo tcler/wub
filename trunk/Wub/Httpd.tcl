@@ -175,43 +175,42 @@ namespace eval Httpd {
 	Debug.socket {Done: $thread $sock '$error' - ($eo)}
 
 	variable worker
-	if {$sock ne $worker($thread)} {
-	    Debug.error {COLLISION: $thread socket $worker($thread) != $sock}
-	}
-	if {![info exists worker($thread)] || $worker($thread) eq ""} {
-	    # it's already been closed.
-	    return ""
-	}
-
-	set socket $worker($thread);
-
-	variable connbyIP; variable sock2IP; incr connbyIP($sock2IP($socket)) -1
-
 	variable sockets
-	if {$sockets($socket) ne $thread} {
-	    Debug.error {Socket/Thread mismatch: $socket/$sockets($socket) - $thread/$worker($thread)}
+
+	if {$sock ne $worker($thread)} {
+	    # it's already been closed and the socket reassigned,
+	    # but the worker thread has just noticed
+	    Debug.error {COLLISION: $thread socket '$worker($thread)' != '$sock'}
+	} elseif {$sockets($sock) eq $thread} {
+	    # this is a genuine disconnection by sock->thread && thread->sock
+	    # we undo the socket->ip and socket->thread mappings
+	    variable connbyIP; variable sock2IP;
+	    incr connbyIP($sock2IP($sock)) -1
+	    unset sockets($sock)	;# we're done with this socket	
+
+	    # log the disconnection
+	    variable activity; variable actlog; variable actsize
+	    lappend activity($sock) disconnect [clock microseconds]
+	    if {$actsize > 0} {
+		lappend actlog [list $sock {*}$activity($sock)]
+		if {[llength $actlog] > $actsize} {
+		    set actlog [lrange $actlog 10 end]
+		}
+	    }
+	    Debug.log {activity: $activity($sock)}
+	    unset activity($sock)
+	} else {
+	    # thread->sock is right, sock->thread is not
+	    Debug.error {Socket/Thread mismatch '$sock': $socket/$sockets($sock) - $thread/$worker($thread)}
 	}
 
-	unset sockets($socket)	;# we're done with this socket
 	set worker($thread) {}	;# we're done with this thread
-
 	if {[::thread::release $thread] != 1} {
 	    Debug.error {release Thread $thread has been allocated $i times}
 	}
 	threads put $thread	;# we're done with this thread
 
-	catch {Backend disconnect $socket} ;# inform backend of disconnection
-
-	variable activity; variable actlog; variable actsize
-	lappend activity($socket) disconnect [clock microseconds]
-	if {$actsize > 0} {
-	    lappend actlog [list $socket {*}$activity($socket)]
-	    if {[llength $actlog] > $actsize} {
-		set actlog [lrange $actlog 10 end]
-	    }
-	}
-	Debug.log {activity: $activity($socket)}
-	unset activity($socket)
+	catch {Backend disconnect $sock} ;# inform backend of disconnection
 
 	# perform quiescent callback if we're idle
 	variable ignore
@@ -224,7 +223,7 @@ namespace eval Httpd {
 	    }
 	}
 
-	return $socket
+	return $sock
     }
 
     # _reply - format up a reply if needed
@@ -612,6 +611,26 @@ namespace eval Httpd {
 	set sock [dict get $args -sock]
 	chan configure $sock -blocking 0 -translation {binary binary} -encoding binary
 
+	# clean up after sockets which have closed before a thread realises
+	if {[info exists sockets($sock)]} {
+	    # this can happen if the remote's closed the socket
+	    # and a new connection has arrived on the same socket.
+	    set otid $sockets($sock)
+
+	}
+
+	# connect the socket with its new thread
+	set sockets($sock) $tid	;# bi-associate socket and thread
+	set worker($tid) $sock
+
+	if {[info exists otid]} {
+	    # call disconnect on old socket owner.
+	    # subsequent disconnects will notice this has occurred
+	    # and abort gracefully.  Still some race potential.
+	    # argh - what happens if the thread already knows?
+	    thread::send $otid {disconnect forced}
+	}
+
 	variable ignore
 	if {$ignore} {
 	    # we're shutting down, so ignore new requests
@@ -644,19 +663,6 @@ namespace eval Httpd {
 	    lappend config port [$listener cget -port]
 	}
 	lappend config server_id $::server_id
-
-	if {[info exists sockets($sock)]} {
-	    # this can happen if the remote's closed the socket
-	    # and a new connection has arrived on the same socket.
-	    # We assume this has occurred, and call disconnect.
-	    # subsequent disconnects will notice this has occurred
-	    # and abort gracefully.  Still some race potential.
-	    #puts stderr "Httpd RACE: sockets $sock already exists $sockets($sock)"
-	    disconnect $sockets($sock) $sock "forced"
-	}
-
-	set sockets($sock) $tid	;# bi-associate socket and thread
-	set worker($tid) $sock
 
 	variable dispatch
 	if {$dispatch ne ""} {
