@@ -82,8 +82,11 @@ variable pending 0			;# currently unsatisfied requests
 variable gets 0
 
 proc timeout {args} {
-    if {!$::pending && !$::gets && ![array size ::replies]} {
-	Debug.socket {Timeout $args - pending:$::pending gets:$::gets replies:[array size ::replies]} 2
+    if {!$::pending
+	&& !$::gets
+	&& ![array size ::replies]
+    } {
+	Debug.error {Timeout $args - pending:$::pending gets:$::gets replies:[array size ::replies]} 2
 	disconnect "Idle Time-out"
     }
 }
@@ -547,6 +550,7 @@ proc handle {req} {
 	dict set req -generation $::generation
 	send $req 0			;# send our own reply
 	clean
+	disconnect [dict $req -error]
     } r eo]} {
 	Debug.error {'handle' error: '$r' ($eo)}
     }
@@ -740,7 +744,7 @@ proc parse {} {
     # parse header body
     set key ""
     foreach line [lrange $header 1 end] {
-	if {[string index $line 0] in " \t"} {
+	if {[string index $line 0] in {" " \t}} {
 	    # header continuation line
 	    # add to the key we're currently assembling
 	    if {$key eq ""} {
@@ -760,7 +764,8 @@ proc parse {} {
 
 	    # limit size of each field
 	    if {$::maxfield
-		&& ([string length [dict get $request $key]] > $::maxfield)} {
+		&& [string length [dict get $request $key]] > $::maxfield
+	    } {
 		handle [Http Bad $request "Illegal header: '$line'"]
 	    }
 	}
@@ -768,12 +773,11 @@ proc parse {} {
 
     # we have completely parsed the header body.
 
-    # parse requestuest-line
-    set line [lindex $header 0]
-    #puts stderr "Header: $line"
-
-    lassign [split $line] head(-method) head(-uri) head(-version)
-    set head(-method) [string toupper $head(-method)]
+    # parse request-line
+    set line [split [lindex $header 0]]
+    set head(-method) [string toupper [lindex $line 0]]
+    set head(-version) [lindex $line end]
+    set head(-uri) [join [lrange $line 1 end-1]]
 
     if {[string match HTTP/* $head(-version)]} {
 	set head(-version) [lindex [split $head(-version) /] 1]
@@ -781,7 +785,9 @@ proc parse {} {
 	# check URI length (per rfc2616 3.2.1
 	# A server SHOULD return 414 (Requestuest-URI Too Long) status
 	# if a URI is longer than the server can handle (see section 10.4.15).)
-	if {$::maxurilen && ([string length $head(-uri)] > $::maxurilen)} {
+	if {$::maxurilen
+	    && [string length $head(-uri)] > $::maxurilen
+	} {
 	    # send a 414 back
 	    handle [Http Bad $request "URI too long '$head(-uri)'" 414]
 	}
@@ -792,7 +798,7 @@ proc parse {} {
 	set request [dict merge $request [array get head]]
     } else {
 	# Could check for FTP requestuests, etc, here...
-	dict set request -error $line
+	dict set request -error_line $line
 	handle [Http Bad $request "Method not supported" 405]
     }
 
@@ -900,7 +906,9 @@ proc get {} {
 
     Debug.socket {get: $request} 10
     
-    if {[catch {chan gets $sock line} result eo]} {
+    if {[catch {
+	chan gets $sock line
+    } result eo]} {
 	disconnect $result $eo	;# inform parent that we're done
     }
 
@@ -910,7 +918,9 @@ proc get {} {
 	    # remote end closed - just forget it
 	    disconnect "Remote closed connection"
 	} else {
-	    if {$::maxline && ([chan pending input $sock] > $::maxline)} {
+	    if {$::maxline
+		&& [chan pending input $sock] > $::maxline
+	    } {
 		handle [Http Bad $request "Line too long"]
 	    }
 	}
