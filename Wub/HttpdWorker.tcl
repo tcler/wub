@@ -6,7 +6,7 @@ package require Debug
 #puts stderr "Starting Httpd Worker [::thread::id]"
 proc bgerror {error eo} {
     #puts stderr "Thread [::thread::id] ERROR: $error ($eo)"
-    variable bgerror; lappend bgerror [list [clock seconds] $error $eo]
+    lappend ::bgerror [list [clock seconds] $error $eo]
     Debug.error {Thread [::thread::id]: $error ($eo)}
     if {[dict get $eo -code] == 1} {
 	disconnect $error $eo
@@ -82,11 +82,11 @@ variable pending 0			;# currently unsatisfied requests
 variable gets 0
 
 proc timeout {args} {
+    Debug.error {Timeout $args - pending:$::pending gets:$::gets replies:[array size ::replies]} 2
     if {!$::pending
 	&& !$::gets
 	&& ![array size ::replies]
     } {
-	Debug.error {Timeout $args - pending:$::pending gets:$::gets replies:[array size ::replies]} 2
 	disconnect "Idle Time-out"
     }
 }
@@ -532,6 +532,7 @@ proc disconnect {error {eo {}}} {
 
 # clean - clean up the request - remove all protocol elements
 proc clean {} {
+    lappend ::req_log $request
     variable request $::prototype
 }
 
@@ -543,14 +544,14 @@ proc handle {req} {
     readable $::sock	;# suspend reading
     catch {rxtimer cancel}
     if {[catch {
-	dict set req connection close
-	if {![dict exists $req -transaction]} {
-	    dict set req -transaction [incr ::transaction]
+	dict set request connection close
+	if {![dict exists $request -transaction]} {
+	    dict set request -transaction [incr ::transaction]
 	}
-	dict set req -generation $::generation
-	send $req 0			;# send our own reply
+	dict set request -generation $::generation
+	send $request 0			;# send our own reply
 	clean
-	disconnect [dict $req -error]
+	disconnect [dict $request -error]
     } r eo]} {
 	Debug.error {'handle' error: '$r' ($eo)}
     }
@@ -561,35 +562,36 @@ proc handle {req} {
 
 # we're finished reading the header - inform the parent that work is needed
 proc got {req} {
+    catch {rxtimer cancel}
     Debug.socket {got: $req}
 
-    catch {rxtimer cancel}
+    variable request $req
 
     readable $::sock	;# suspend reading
     if {[catch {
-	dict set req -received [clock seconds]
+	dict set request -received [clock seconds]
 
 	# rename fields whose names are the same in request/response
 	foreach n {cache-control} {
-	    if {[dict exists $req $n]} {
-		dict set req -$n [dict get $req $n]
-		dict unset req $n
+	    if {[dict exists $request $n]} {
+		dict set request -$n [dict get $request $n]
+		dict unset request $n
 	    }
 	}
 
 	# fix up non-standard X-Forwarded-For field
-	if {[dict exists $req x-forwarded-for]} {
-	    set xff [string trim [lindex [split [dict get $req x-forwarded-for] ,] 0]]
+	if {[dict exists $request x-forwarded-for]} {
+	    set xff [string trim [lindex [split [dict get $request x-forwarded-for] ,] 0]]
 	    if {![Http nonRouting? $xff]} {
-		dict set req -x-forwarding [Dict get? $req -ipaddr]
-		dict set req -ipaddr $xff
+		dict set request -x-forwarding [Dict get? $request -ipaddr]
+		dict set request -ipaddr $xff
 	    }
 	}
 
-	dict set req -transaction [incr ::transaction]
+	dict set request -transaction [incr ::transaction]
 
 	# inform parent of parsing completion
-	::thread::send -async $::thread::parent [list ::Httpd::got [::thread::id] $req]
+	::thread::send -async $::thread::parent [list ::Httpd::got [::thread::id] $request]
 	clean
     } r eo]} {
 	Debug.error {'get' error: '$r' ($eo)}
