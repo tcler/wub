@@ -82,11 +82,11 @@ variable pending 0			;# currently unsatisfied requests
 variable gets 0
 
 proc timeout {args} {
-    Debug.error {Timeout $args - pending:$::pending gets:$::gets replies:[array size ::replies]} 2
     if {!$::pending
 	&& !$::gets
 	&& ![array size ::replies]
     } {
+	Debug.error {Timeout $args - pending:$::pending gets:$::gets replies:[array size ::replies]} 2
 	disconnect "Idle Time-out"
     }
 }
@@ -931,8 +931,8 @@ proc get {} {
 	return
     }
 
-    set line [string trim $line " \r"]
-    if {$line eq ""} {
+    set line [string trim $line "\r"]
+    if {[string trim $line] eq ""} {
 	if {[dict exists $request -header]} {
 	    # \n terminates the header - go parse it
 	    readable $sock	;# completed reading
