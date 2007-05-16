@@ -71,8 +71,8 @@ variable maxurilen 1024	;# maximum URI length
 variable maxentity -1		;# maximum entity size
 
 package require Timer
-Timer txtimer; variable txtime 10000	;# inter-write timeout
-Timer rxtimer; variable rxtime 5000	;# inter-read timeout
+Timer txtimer; variable txtime 20000	;# inter-write timeout
+Timer rxtimer; variable rxtime 10000	;# inter-read timeout
 variable enttime 10000	;# entity inter-read timeout
 
 # transmission state
@@ -532,7 +532,7 @@ proc disconnect {error {eo {}}} {
 
 # clean - clean up the request - remove all protocol elements
 proc clean {} {
-    lappend ::req_log $request
+    lappend ::req_log $::request
     variable request $::prototype
 }
 
@@ -551,7 +551,7 @@ proc handle {req} {
 	dict set request -generation $::generation
 	send $request 0			;# send our own reply
 	clean
-	disconnect [dict $request -error]
+	disconnect [Dict get? $request -error]
     } r eo]} {
 	Debug.error {'handle' error: '$r' ($eo)}
     }
@@ -801,7 +801,7 @@ proc parse {} {
     } else {
 	# Could check for FTP requestuests, etc, here...
 	dict set request -error_line $line
-	handle [Http Bad $request "Method not supported" 405]
+	handle [Http Bad $request "Method not supported ([array get head])" 405]
     }
 
     # Send 505 for protocol != HTTP/1.0 or HTTP/1.1
@@ -930,8 +930,9 @@ proc get {} {
 	rxtimer after $::enttime timeout "pre-read timeout"
 	return
     }
-    
-    if {[string trim $line] eq ""} {
+
+    set line [string trim $line " \r"]
+    if {$line eq ""} {
 	if {[dict exists $request -header]} {
 	    # \n terminates the header - go parse it
 	    readable $sock	;# completed reading
