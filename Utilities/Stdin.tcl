@@ -35,6 +35,17 @@ namespace eval Stdin {
 	}
     }
 
+    proc dump {thread} {
+	lassign [thread::send $thread {
+	    list [set request] [set sock] [chan eof $::sock] [chan event $sock readable] [chan event $sock writable]
+	}] request sock eof readable writable
+	return "request: $request sock:$sock eof:$eof readable:$readable writable:$writable"
+    }
+
+    proc ::Stdin::closeit {thread} {
+	thread::send $thread {disconnect "operator forced"}
+    }
+
     proc accept {sock addr port} {
 	if {$addr ne "127.0.0.1"} {
 	    close $sock
