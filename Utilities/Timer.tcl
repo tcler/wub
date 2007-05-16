@@ -31,17 +31,27 @@ package require snit
     variable cmd
 
     # start a new timer
-    method after {when what} {
+    method after {when args} {
 	uplevel 1 $self cancel
 	if {$timer ne ""} {
 	    # still have a timer running - cancel it
 	    $self cancel
 	}
-	set cmd $what
-	set timer [after $when $what]
+	set cmd $args
+	set timer [after $when {*}$args]
 
 	#upvar 1 self owner
 	#Debug.http {Timer $self for '$owner' after $when '$what' -> $timer}
 	#Debug.http {Timer $self [info level -1]}
     }
+}
+
+if {[info exists argv0] && ($argv0 eq [info script])} {
+    Timer T
+    T after 3000 {puts moop}
+    T cancel
+    T after 3000 {puts moop}
+    puts [T dump]
+    set forever 0
+    vwait forever
 }
