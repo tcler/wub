@@ -138,7 +138,7 @@ proc responder {} {
 	# turn off responder until there are more responses
 	writable $sock
 
-	txtimer after $::txtime [list timeout "responder idle"]
+	txtimer after $::txtime timeout "responder idle"
 	return	;# there are no pending replies - idle transmitter
     }
 
@@ -157,7 +157,7 @@ proc responder {} {
 	Debug.http {$next doesn't follow $response in [array names replies]}
 
 	writable $sock	;# disable responder
-	txtimer after $::txtime [list timeout "responder pending"]
+	txtimer after $::txtime timeout "responder pending"
 	return
     }
 
@@ -624,7 +624,7 @@ proc identity {length} {
 	}
 	got $request
     } else {
-	rxtimer after $::enttime [list timeout "identity timeout"]
+	rxtimer after $::enttime timeout "identity timeout"
     }
 }
 
@@ -715,7 +715,7 @@ proc entity {} {
     }
 
     # start the copy of POST data
-    rxtimer after $::enttime [list timeout "entity timeout"]
+    rxtimer after $::enttime timeout "entity timeout"
     start_transfer
     dict set request -entity "" ;# clear any old entity
     readable $::sock identity $length
@@ -927,7 +927,7 @@ proc get {} {
 	    }
 	}
 
-	rxtimer after $::enttime [list timeout "pre-read timeout"]
+	rxtimer after $::enttime timeout "pre-read timeout"
 	return
     }
     
@@ -946,7 +946,7 @@ proc get {} {
 	}
     } else {
 	# accumulate header lines
-	rxtimer after $::rxtime [list timeout "inter-read timeout"]
+	rxtimer after $::rxtime timeout "inter-read timeout"
 	dict lappend request -header $line
 	if {$::maxhead && ([llength [dict get $request -header]] > $::maxhead)} {
 	    handle [Http Bad $request "Header too Large"]
@@ -977,7 +977,7 @@ proc connect {req vars socket} {
     variable prototype $req	;# set a clean prototype
     variable request $req	;# remember the request
 
-    rxtimer after $::txtime [list timeout "first-read timeout"]
+    rxtimer after $::txtime timeout "first-read timeout"
     readable $socket get
     Debug.socket {[::thread::id] connected}
 }
