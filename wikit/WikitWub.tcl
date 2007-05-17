@@ -851,7 +851,7 @@ proc do {args} {
 Direct wikit -namespace ::WikitWub -ctype "text/x-html-fragment"
 Convert convert -namespace ::WikitWub
 
-foreach {dom expiry} {css {tomorrow} images {next week} scripts {tomorrow} img {next week} html 0} {
+foreach {dom expiry} {css {tomorrow} images {next week} scripts {tomorrow} img {next week} html 0 binary 0} {
     File $dom -root [file join $config(docroot) $dom] -expires $expiry
 }
 
