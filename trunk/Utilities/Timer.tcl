@@ -29,6 +29,12 @@ package require snit
     }
 
     variable cmd
+    variable at
+
+    # restart timer
+    method restart {} {
+	$self after $at {*}$cmd
+    }
 
     # start a new timer
     method after {when args} {
@@ -37,12 +43,9 @@ package require snit
 	    # still have a timer running - cancel it
 	    $self cancel
 	}
+	set at $when
 	set cmd $args
 	set timer [after $when {*}$args]
-
-	#upvar 1 self owner
-	#Debug.http {Timer $self for '$owner' after $when '$what' -> $timer}
-	#Debug.http {Timer $self [info level -1]}
     }
 }
 
