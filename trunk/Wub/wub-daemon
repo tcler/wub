@@ -28,7 +28,6 @@ case "$1" in
 		--dbglog=/var/log/wub/wub.daemon \
 		--user=www-data.www-data --umask=005 \
 		--respawn --inherit --core \
-		--verbose=10 --debug=10 \
 		--errlog=/var/log/wub/wub.err --output=/var/log/wub/wub.out \
 		--command="$DAEMON $DAEMON_OPTS"
 	else
