@@ -87,7 +87,7 @@ proc timeout {timer args} {
 	&& !$::gets
 	&& ![array size ::replies]
     } {
-	Debug.error {Timeout $args - pending:$::pending gets:$::gets replies:[array size ::replies]} 2
+	#Debug.error {Timeout $args - pending:$::pending gets:$::gets replies:[array size ::replies]} 2
 	disconnect "Idle Time-out"
     } else {
 	$timer restart
