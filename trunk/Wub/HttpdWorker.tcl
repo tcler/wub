@@ -548,7 +548,7 @@ proc handle {req} {
     if {[catch {
 	dict set request connection close
 	if {![dict exists $request -transaction]} {
-	    dict set request -transaction [incr ::transaction]
+	    dict set request -transaction $::transaction
 	}
 	dict set request -generation $::generation
 	send $request 0			;# send our own reply
@@ -614,25 +614,45 @@ proc identity {length} {
     variable request
     rxtimer cancel
 
-    # read as much of the entity as is available
-    dict set request -left [expr {$length - [string bytelength [dict get $request -entity]]}]
-    dict append request -entity [read $::sock [dict get $::request -left]]
+    if {[catch {
+	# read as much of the entity as is available
+	dict set request -left [expr {$length - [string bytelength [dict get $request -entity]]}]
+	dict append request -entity [read $::sock [dict get $::request -left]]
 
-    if {[string bytelength [dict get $request -entity]] == $length} {
-	readable $::sock	;# disable reading
-	# completed entity - invoke continuation
-	foreach te [dict get $request -te] {
-	    $te
+	if {[string bytelength [dict get $request -entity]] == $length} {
+	    readable $::sock	;# disable reading
+	    # completed entity - invoke continuation
+	    foreach te [Dict get? $request -te] {
+		$te
+	    }
+	    got $request
+	} else {
+	    rxtimer after $::enttime timeout rxtimer "identity timeout"
 	}
-	got $request
-    } else {
-	rxtimer after $::enttime timeout rxtimer "identity timeout"
+    } r eo]} {
+	Debug.error {identity error '$r' ($eo)}
     }
 }
 
 proc chunk {} {
     if {[file eof $::sock]} {
 	disconnect chunk
+    }
+}
+
+proc start_transfer {} {
+    variable request
+
+    # start the transmission of POST entity, if necessary/possible
+    if {
+	[dict get $request -version] >= 1.1
+	&& [dict exists $request expect]
+	&& [string match *100-continue* [string tolower [dict get $request expect]]]
+    } {
+	# the client wants us to tell it to continue
+	# before reading the body.
+	# Do so, then proceed to read
+	puts -nonewline $::sock "HTTP/1.1 100 Continue\r\n"
     }
 }
 
@@ -723,19 +743,6 @@ proc entity {} {
     readable $::sock identity $length
 
     return 0	;# we'll be handling the channel
-}
-
-proc start_transfer {} {
-    variable request
-    # start the transmission of POST entity, if necessary/possible
-    if {([dict get $request -version] >= 1.1) && [dict exists $request expect]} {
-	if {[string match *100-continue* [string tolower [dict get $request expect]]]} {
-	    # the client wants us to tell it to continue
-	    # before reading the body.
-	    # Do so, then proceed to read
-	    puts -nonewline $::sock "HTTP/1.1 100 Continue\r\n"
-	}
-    }
 }
 
 # Parse the entire header in {$req -header}
