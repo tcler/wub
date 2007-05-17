@@ -181,12 +181,12 @@ proc responder {} {
 	    chan flush $sock
 	    incr ::pending -1		;# count one fewer request pending
 	    writable $sock responder	;# keep trying to send replies
-	} r eo]} {
-	    Debug.error {FAILED send '$r' ($eo)}
-	    disconnect "Disconnect"
-	} else {
-	    Debug.socket {SENT content (close: $close) [string length $content] '$content'} 10
 	}
+    } r eo]} {
+	Debug.error {FAILED send '$r' ($eo)}
+	disconnect "Disconnect"
+    } else {
+	Debug.socket {SENT content (close: $close) [string length $content] '$content'} 10
     }
 }
 
@@ -533,10 +533,11 @@ proc handle {req} {
 	dict set request -generation $::generation
 	send $request 0			;# send our own reply
 	clean
-	disconnect [Dict get? $request -error]
     } r eo]} {
 	Debug.error {'handle' error: '$r' ($eo)}
     }
+
+    disconnect [Dict get? $request -error]
 
     readable $::sock get	;# resume reading
     return -code return 0
@@ -579,8 +580,6 @@ proc got {req} {
 	Debug.error {'get' error: '$r' ($eo)}
     }
     readable $::sock get	;# resume reading
-
-    return -code return 0
 }
 
 # gzip - 
@@ -830,7 +829,9 @@ proc parse {} {
     # includes a Connection header MUST, for each connection-token in this
     # field, remove and ignore any header field(s) from the message with
     # the same name as the connection-token.
-    if {([dict get $request -version] < 1.1) && [dict exists $request connection]} {
+    if {[dict get $request -version] < 1.1
+	&& [dict exists $request connection]
+    } {
 	foreach token [split [dict get $request connection] ","] {
 	    catch {dict unset request [string trim $token]}
 	}
@@ -915,12 +916,8 @@ proc get {} {
 	if {[chan eof $sock]} {
 	    # remote end closed - just forget it
 	    disconnect "Remote closed connection"
-	} else {
-	    if {$::maxline
-		&& [chan pending input $sock] > $::maxline
-	    } {
-		handle [Http Bad $request "Line too long"]
-	    }
+	} elseif {$::maxline && [chan pending input $sock] > $::maxline} {
+	    handle [Http Bad $request "Line too long"]
 	}
 
 	rxtimer after $::enttime timeout rxtimer "pre-read timeout"
@@ -967,6 +964,7 @@ proc connect {req vars socket} {
 	set ::sock $socket
 	set ::response -1
     }
+
     variable {*}$vars	;# instantiate variables
     dict set req -worker [::thread::id]
     dict set req -entity {}
