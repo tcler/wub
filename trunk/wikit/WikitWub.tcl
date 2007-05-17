@@ -964,6 +964,15 @@ proc incoming {req} {
 		do css do $request
 	    }
 
+	    /*.gz {
+		# need to silently redirect gz files
+		Debug.wikit {binary invocation}
+		set suffix [file join {} {*}[lrange [file split $path] 1 end]]
+		dict set request -suffix $suffix
+		dict set request -prefix "/binary"
+		do scripts do $request
+	    }
+
 	    /robots.txt -
 	    /*.js {
 		# need to silently redirect js files
