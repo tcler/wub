@@ -81,13 +81,15 @@ variable replies; array set replies {}	;# array of replies pending
 variable pending 0			;# currently unsatisfied requests
 variable gets 0
 
-proc timeout {args} {
+proc timeout {timer args} {
     if {!$::pending
 	&& !$::gets
 	&& ![array size ::replies]
     } {
 	Debug.error {Timeout $args - pending:$::pending gets:$::gets replies:[array size ::replies]} 2
 	disconnect "Idle Time-out"
+    } else {
+	$timer restart
     }
 }
 
@@ -138,7 +140,7 @@ proc responder {} {
 	# turn off responder until there are more responses
 	writable $sock
 
-	txtimer after $::txtime timeout "responder idle"
+	txtimer after $::txtime timeout txtimer "responder idle"
 	return	;# there are no pending replies - idle transmitter
     }
 
@@ -157,7 +159,7 @@ proc responder {} {
 	Debug.http {$next doesn't follow $response in [array names replies]}
 
 	writable $sock	;# disable responder
-	txtimer after $::txtime timeout "responder pending"
+	txtimer after $::txtime timeout txtimer "responder pending"
 	return
     }
 
@@ -624,7 +626,7 @@ proc identity {length} {
 	}
 	got $request
     } else {
-	rxtimer after $::enttime timeout "identity timeout"
+	rxtimer after $::enttime timeout rxtimer "identity timeout"
     }
 }
 
@@ -715,7 +717,7 @@ proc entity {} {
     }
 
     # start the copy of POST data
-    rxtimer after $::enttime timeout "entity timeout"
+    rxtimer after $::enttime timeout rxtimer "entity timeout"
     start_transfer
     dict set request -entity "" ;# clear any old entity
     readable $::sock identity $length
@@ -927,7 +929,7 @@ proc get {} {
 	    }
 	}
 
-	rxtimer after $::enttime timeout "pre-read timeout"
+	rxtimer after $::enttime timeout rxtimer "pre-read timeout"
 	return
     }
 
@@ -947,7 +949,7 @@ proc get {} {
 	}
     } else {
 	# accumulate header lines
-	rxtimer after $::rxtime timeout "inter-read timeout"
+	rxtimer after $::rxtime timeout rxtimer "inter-read timeout"
 	dict lappend request -header $line
 	if {$::maxhead && ([llength [dict get $request -header]] > $::maxhead)} {
 	    handle [Http Bad $request "Header too Large"]
@@ -978,7 +980,7 @@ proc connect {req vars socket} {
     variable prototype $req	;# set a clean prototype
     variable request $req	;# remember the request
 
-    rxtimer after $::txtime timeout "first-read timeout"
+    rxtimer after $::txtime timeout rxtimer "first-read timeout"
     readable $socket get
     Debug.socket {[::thread::id] connected}
 }
