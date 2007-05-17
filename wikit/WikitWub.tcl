@@ -970,7 +970,7 @@ proc incoming {req} {
 		set suffix [file join {} {*}[lrange [file split $path] 1 end]]
 		dict set request -suffix $suffix
 		dict set request -prefix "/binary"
-		do scripts do $request
+		do binary do $request
 	    }
 
 	    /robots.txt -
