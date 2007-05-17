@@ -2,6 +2,7 @@
 
 # TODO: armour all [chan event]s
 package require Debug
+package require spiders
 
 #puts stderr "Starting Httpd Worker [::thread::id]"
 proc bgerror {error eo} {
@@ -871,6 +872,13 @@ proc parse {} {
     # remove 'netscape extension' length= from if-modified-since
     if {[dict exists $request if-modified-since]} {
 	dict set request if-modified-since [lindex [split [dict get $request if-modified-since] {;}] 0]
+    }
+
+    # block spiders by UA
+    if {[info exists ::spiders([Dict get? user-agent $request])]} {
+	thread::send -async $::thread::parent [list Httpd block [dict get $request -ipaddr]]
+	handle [Http NotImplemented $request]
+	disconnect "Bastard Spammer UA"
     }
 
     incr ::pending

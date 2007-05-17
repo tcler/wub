@@ -37,9 +37,9 @@ namespace eval Stdin {
 
     proc dump {thread} {
 	lassign [thread::send $thread {
-	    list [set request] [set sock] [chan eof $::sock] [chan event $sock readable] [chan event $sock writable]
-	}] request sock eof readable writable
-	return "request: $request sock:$sock eof:$eof readable:$readable writable:$writable"
+	    list [set request] [set sock] [chan eof $::sock] [chan event $sock readable] [chan event $sock writable] [set pending] [set gets] [array size replies] [set response]
+	}] request sock eof readable writable pending gets replies response
+	return "request: $request sock:$sock eof:$eof readable:$readable writable:$writable pending:$pending gets:$gets replies:$replies response:$response"
     }
 
     proc ::Stdin::closeit {thread} {
