@@ -132,83 +132,62 @@ proc responder {} {
     variable replies
     variable sock
     Debug.http {RESPONDER $sock: [array names replies]} 4
-    catch {txtimer cancel}
-
-    if {![array size replies]} {
-	# we've no more responses queued
-	Debug.http {No replies} 4
-
-	# turn off responder until there are more responses
-	writable $sock
-
-	txtimer after $::txtime timeout txtimer "responder idle"
-	return	;# there are no pending replies - idle transmitter
-    }
-
-    # determine next available response in transaction# order
-    set next [lindex [lsort -integer [array names replies]] 0]
-
-    # ensure we don't send responses out of sequence
-    variable response
-    if {$next != ($response + 1)} {
-	# something's blocking the response pipeline
-	# we don't have a response for the next transaction.
-
-	# we have to wait until all the preceding transactions
-	# have something to send
-
-	Debug.http {$next doesn't follow $response in [array names replies]}
-
-	writable $sock	;# disable responder
-	txtimer after $::txtime timeout txtimer "responder pending"
-	return
-    }
-
-    # we're going to respond to the next transaction in trx order
-    # unpack and consume the reply from replies queue
-    lassign $replies($next) head content close
-
-    # remove this response from the pending response structure
-    set response $next	;# move to next response
-    unset replies($next)	;# consume next reply
-
-    # connection close required?
-    # we only consider closing if all pending requests
-    # have been satisfied.
-    if {$close} {
-	Debug.close {close requested on $sock - sending header}
-	append head "Connection: close" \r\n	;# send a close just in case
-	# Once the header's been sent, we're committed to closing
-    }
-
-    # send the header
-    puts -nonewline $sock "$head\r\n"	;# send headers with terminating nl
-    Debug.socket {SENT: $sock $head'} 4
-
-    # send the content/file (if any)
-    # note: we must *not* send a trailing newline, as this
-    # screws up the content-length and confuses the client
-    # which doesn't then pick up the next response
-    # in the pipeline
     if {[catch {
-	puts -nonewline $sock $content	;# send the content
-	chan flush $sock
-    } r eo]} {
-	set close 1
-	Debug.socket {FAILED send content '$r' ($eo)}
-    } else {
-	Debug.socket {SENT content (close: $close) [string length $content] '$content'} 10
-    }
-   incr ::pending -1		;# count one fewer request pending
+	catch {txtimer cancel}
 
-    # close the connection - the client's been notified
-    if {$close} {
-	disconnect "Disconnect"
-    } else {
-	writable $sock responder	;# keep trying to send replies
-    }
+	# determine next available response in transaction# order
+	set next [lindex [lsort -integer [array names replies]] 0]
 
-    Debug.http {Sent: $response} 2
+	# ensure we don't send responses out of sequence
+	variable response
+	if {$next eq {} || $next > ($response + 1)} {
+	    # something's blocking the response pipeline
+	    # we don't have a response for the next transaction.
+	    
+	    # we have to wait until all the preceding transactions
+	    # have something to send
+	    Debug.http {no pending or '$next' doesn't follow '$response'}
+	    
+	    writable $sock	;# disable responder
+	    txtimer after $::txtime timeout txtimer "responder pending"
+	} else {
+	    # we're going to respond to the next transaction in trx order
+	    # unpack and consume the reply from replies queue
+	    lassign $replies($next) head content close
+
+	    # remove this response from the pending response structure
+	    set response $next	;# move to next response
+	    unset replies($next)	;# consume next reply
+
+	    # connection close required?
+	    # we only consider closing if all pending requests
+	    # have been satisfied.
+	    if {$close} {
+		Debug.close {close requested on $sock - sending header}
+		append head "Connection: close" \r\n	;# send a close just in case
+		# Once the header's been sent, we're committed to closing
+	    }
+
+	    # send the header
+	    puts -nonewline $sock "$head\r\n"	;# send headers with terminating nl
+	    Debug.socket {SENT: $sock $head'} 4
+	    
+	    # send the content/file (if any)
+	    # note: we must *not* send a trailing newline, as this
+	    # screws up the content-length and confuses the client
+	    # which doesn't then pick up the next response
+	    # in the pipeline
+	    puts -nonewline $sock $content	;# send the content
+	    chan flush $sock
+	    incr ::pending -1		;# count one fewer request pending
+	    writable $sock responder	;# keep trying to send replies
+	} r eo]} {
+	    Debug.error {FAILED send '$r' ($eo)}
+	    disconnect "Disconnect"
+	} else {
+	    Debug.socket {SENT content (close: $close) [string length $content] '$content'} 10
+	}
+    }
 }
 
 # expunge - remove metadata from reply dict
@@ -470,7 +449,7 @@ proc send {reply {cacheit 1}} {
     if {[dict exists $reply content-length]
 	&& [dict get $reply content-length] != [string length $content]
     } {
-	error "Content length [dict get $reply content-length] != [string length $content]"
+	Debug.error {Content length [dict get $reply content-length] != [string length $content]}
     }
 
     if {![info exists content]} {
@@ -875,7 +854,7 @@ proc parse {} {
     }
 
     # block spiders by UA
-    if {[info exists ::spiders([Dict get? user-agent $request])]} {
+    if {[info exists ::spiders([Dict get? $request user-agent])]} {
 	thread::send -async $::thread::parent [list Httpd block [dict get $request -ipaddr]]
 	handle [Http NotImplemented $request]
 	disconnect "Bastard Spammer UA"
