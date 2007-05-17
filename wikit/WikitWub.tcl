@@ -851,7 +851,7 @@ proc do {args} {
 Direct wikit -namespace ::WikitWub -ctype "text/x-html-fragment"
 Convert convert -namespace ::WikitWub
 
-foreach {dom expiry} {css {tomorrow} images {next week} scripts {tomorrow} img {next week} html 0 binary 0} {
+foreach {dom expiry} {css {tomorrow} images {next week} scripts {tomorrow} img {next week} html 0 bin 0} {
     File $dom -root [file join $config(docroot) $dom] -expires $expiry
 }
 
@@ -966,11 +966,11 @@ proc incoming {req} {
 
 	    /*.gz {
 		# need to silently redirect gz files
-		Debug.wikit {binary invocation}
+		Debug.wikit {bin invocation}
 		set suffix [file join {} {*}[lrange [file split $path] 1 end]]
 		dict set request -suffix $suffix
-		dict set request -prefix "/binary"
-		do binary do $request
+		dict set request -prefix "/bin"
+		do bin do $request
 	    }
 
 	    /robots.txt -
