@@ -83,6 +83,7 @@ variable pending 0			;# currently unsatisfied requests
 variable gets 0
 
 proc timeout {timer args} {
+    lappend ::request -timeout $args
     if {!$::pending
 	&& !$::gets
 	&& ![array size ::replies]
@@ -203,6 +204,7 @@ proc expunge {reply} {
 
 # gzip_it - return reply with gzipped content
 proc gzip_it {reply content} {
+    Debug.error {gzip_it $reply}
     if {[dict exists $reply -gzip]} {
 	# permit cache to supply pre-gzipped content
 	set content [dict get $reply -gzip]
@@ -370,7 +372,7 @@ proc send {reply {cacheit 1}} {
 		    if {[dict exists $reply accept-encoding]
 			&& ![dict exists $reply content-encoding]} {
 			foreach en [split [dict get $reply accept-encoding] ","] {
-			    lassign [split $en ";"] en
+			    lassign [split $en ";"] en pref
 			    set en [string trim $en]
 			    if {$en in $::te_encodings} {
 				switch $en {
@@ -901,8 +903,6 @@ proc get {} {
     variable sock
     variable request
 
-    incr ::gets
-
     Debug.socket {get: $request} 10
     
     if {[catch {
@@ -939,6 +939,8 @@ proc get {} {
 	    # received where a Request-Line is expected.
 	}
     } else {
+	incr ::gets
+
 	# accumulate header lines
 	rxtimer after $::rxtime timeout rxtimer "inter-read timeout"
 	dict lappend request -header $line
