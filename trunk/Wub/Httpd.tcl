@@ -408,6 +408,23 @@ namespace eval Httpd {
     }
     mkthreads	;# construct initial thread pool
 
+    proc inactive {{time 60}} {
+	set time [expr {$time * 1000000}]
+	set result {}
+	set now [clock microseconds]
+
+	variable activity
+	foreach {s v} [array get activity] {
+	    set thread [lindex $v 1 2]
+	    set start [lindex $v 1 0]
+	    set last [lindex $v end 0]
+	    if {($now - $last) > $time} {
+		lappend result $thread
+	    }
+	}
+	return $result
+    }
+
     # act2list - make a nested list from an activity list
     proc act2list {act} {
 	set headers {date start thread age ipaddr connected transfer parsed ripped disconnect errors}
