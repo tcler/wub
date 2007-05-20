@@ -171,6 +171,7 @@ proc responder {} {
 
 	    # send the header
 	    puts -nonewline $sock "$head\r\n"	;# send headers with terminating nl
+	    set ::sent $head
 	    Debug.socket {SENT: $sock $head'} 4
 	    
 	    # send the content/file (if any)
