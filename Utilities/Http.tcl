@@ -460,7 +460,7 @@ namespace eval Http {
 	return $rsp
     }
 
-    proc NotFound {rsp {content ""} {ctype "text/x-system"}} {
+    proc NotFound {rsp {content ""} {ctype "x-text/system"}} {
 	if {$content ne ""} {
 	    dict set rsp content-type $ctype
 	    dict set rsp -content $content
@@ -472,7 +472,7 @@ namespace eval Http {
 		<h1>$uri Not Found</h1>
 		<p>The entity '$uri' doesn't exist.</p>
 	    "
-	    dict set rsp content-type text/x-system
+	    dict set rsp content-type x-text/system
 	}
 
 	dict set rsp -code 404
@@ -485,7 +485,7 @@ namespace eval Http {
 	    dict set rsp content-type $ctype
 	    dict set rsp -content $content
 	} else {
-	    dict set rsp content-type "text/x-system"
+	    dict set rsp content-type "x-text/system"
 	    dict set rsp -content "title:Access Forbidden
 	<h1>Access Forbidden</h1>
 	<p>You are not permitted to access this page.</p>
@@ -510,7 +510,7 @@ namespace eval Http {
 	return $rsp
     }
 
-    proc Conflict {rsp {content ""} {ctype "text/x-system"}} {
+    proc Conflict {rsp {content ""} {ctype "x-text/system"}} {
 	if {$content ne ""} {
 	    dict set rsp content-type $ctype
 	    dict set rsp -content $content
@@ -521,7 +521,7 @@ namespace eval Http {
 	return $rsp
     }
 
-    proc PreconditionFailed {rsp {content ""} {ctype "text/x-system"}} {
+    proc PreconditionFailed {rsp {content ""} {ctype "x-text/system"}} {
 	if {$content ne ""} {
 	    dict set rsp content-type $ctype
 	    dict set rsp -content $content
