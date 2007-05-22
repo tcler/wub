@@ -245,7 +245,7 @@ package require Mime
 
 		# allow client caching
 		# do respond CacheableContent $req
-		return [Http CacheableContent [Http Cache $req $options(-expires)] [clock seconds] [$self dirList $req] text/x-system]
+		return [Http CacheableContent [Http Cache $req $options(-expires)] [clock seconds] [$self dirList $req] x-text/system]
 	    }
 	    
 	    default {
@@ -353,7 +353,7 @@ package require Mime
 
 		# allow client caching
 		# do respond CacheableContent $req
-		return [Http CacheableContent [Http Cache $req] [clock seconds] [$self dirList $req] text/x-system]
+		return [Http CacheableContent [Http Cache $req] [clock seconds] [$self dirList $req] x-text/system]
 	    }
 	    
 	    default {
