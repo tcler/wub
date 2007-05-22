@@ -83,7 +83,7 @@ variable pending 0			;# currently unsatisfied requests
 variable gets 0
 
 proc timeout {timer args} {
-    lappend ::request -timeout $args
+    dict set ::request -timeout $args
     if {!$::pending
 	&& !$::gets
 	&& ![array size ::replies]
