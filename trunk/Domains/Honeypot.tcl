@@ -208,4 +208,4 @@ namespace eval Honeypot {
 }
 
 # create a direct domain to handle the honeypot
-Direct honeypot -namespace ::Honeypot -ctype "text/x-system"
+Direct honeypot -namespace ::Honeypot -ctype "x-text/system"

@@ -10,7 +10,7 @@ package provide WubTest 1.0
 	do respond Ok $req "title: System Text Test
 	<h1>Test system text conversion</h1>
  	<p>The server should convert this to legal html</p>	" \
-	    "text/x-system"
+	    "x-text/system"
     }
 
     method /error {req} {

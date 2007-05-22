@@ -55,7 +55,7 @@ namespace eval ::conversions {
 	}
     }
 
-    proc .text/x-system.text/x-html-fragment {rsp} {
+    proc .x-text/system.text/x-html-fragment {rsp} {
 	set rsp [Http loadContent $rsp] ;# read -fd content if any
 
 	# split out headers
@@ -242,7 +242,7 @@ namespace eval ::conversions {
     }
 
     # convert a directory list
-    proc .multipart/x-dirlist.text/x-system {rsp} {
+    proc .multipart/x-dirlist.x-text/system {rsp} {
 	set suffix [file dirname [dict get $rsp -suffix]]
 	set prefix [dict get $rsp -prefix]
 	set root [dict get $rsp -root]
@@ -319,7 +319,7 @@ namespace eval ::conversions {
 
 	return [dict replace $rsp \
 		    -content $result \
-		    content-type text/x-system-text]
+		    content-type x-text/system]
     }
 }
 
