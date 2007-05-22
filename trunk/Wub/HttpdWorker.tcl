@@ -183,6 +183,9 @@ proc responder {} {
 	    chan flush $sock
 	    incr ::pending -1		;# count one fewer request pending
 	    writable $sock responder	;# keep trying to send replies
+	    if {$close} {
+		disconnect "Normal termination"
+	    }
 	}
     } r eo]} {
 	Debug.error {FAILED send '$r' ($eo)}
