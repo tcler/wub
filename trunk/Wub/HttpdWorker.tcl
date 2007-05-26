@@ -547,9 +547,9 @@ proc handle {req} {
 	Debug.error {'handle' error: '$r' ($eo)}
     }
 
-    disconnect [Dict get? $request -error]
+    disconnect [Dict get? $request -error] $::request
 
-    readable $::sock get	;# resume reading
+    #readable $::sock get	;# resume reading to get the EOF
     return -code return 0
 }
 
