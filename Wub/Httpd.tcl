@@ -204,7 +204,7 @@ namespace eval Httpd {
 	    unset activity($sock)
 	} else {
 	    # thread->sock is right, sock->thread is not
-	    Debug.error {Socket/Thread mismatch '$sock': $socket/$sockets($sock) - $thread/$worker($thread)}
+	    Debug.error {Socket/Thread mismatch '$sock': $sockets($sock) - $thread/$worker($thread)}
 	}
 
 	set worker($thread) {}	;# we're done with this thread
