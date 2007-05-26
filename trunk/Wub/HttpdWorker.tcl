@@ -7,7 +7,8 @@ package require spiders
 #puts stderr "Starting Httpd Worker [::thread::id]"
 proc bgerror {error eo} {
     #puts stderr "Thread [::thread::id] ERROR: $error ($eo)"
-    lappend ::bgerror [list [clock seconds] $error $eo]
+    dict lappend ::request bgerror [list [clock seconds] $error $eo]
+
     Debug.error {Thread [::thread::id]: $error ($eo)}
     if {[dict get $eo -code] == 1} {
 	disconnect $error $eo
@@ -85,7 +86,6 @@ variable gets 0
 proc timeout {timer args} {
     dict set ::request -timeout $args
     if {!$::pending
-	&& !$::gets
 	&& ![array size ::replies]
     } {
 	#Debug.error {Timeout $args - pending:$::pending gets:$::gets replies:[array size ::replies]} 2
@@ -105,7 +105,7 @@ proc detach {sock} {
 variable response	-1	;# last response sent
 
 proc readable {sock args} {
-    variable readable "$sock $args"
+    dict set ::request -readable $args
     if {[catch {chan event $sock readable $args} r eo]} {
 	Debug.error "readable: '$r' ($eo)"
 	disconnect $r $eo
@@ -113,7 +113,7 @@ proc readable {sock args} {
 }
 
 proc writable {sock args} {
-    variable writable "$sock $args"
+    dict set ::request -writable $args
     if {[catch {chan event $sock writable $args} r eo]} {
 	Debug.error "writable: '$r' ($eo)"
 	disconnect $r $eo
@@ -133,6 +133,10 @@ proc responder {} {
     variable replies
     variable sock
     Debug.http {RESPONDER $sock: [array names replies]} 4
+    if {[eof $sock]} {
+	disconnect "Lost connection on transmit"
+	return
+    }
     if {[catch {
 	catch {txtimer cancel}
 
