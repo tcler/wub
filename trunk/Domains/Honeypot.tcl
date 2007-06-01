@@ -81,17 +81,14 @@ namespace eval Honeypot {
     }
 
     # /captcha - an active domain which returns the cached captcha image
-    proc /captcha {} {
-	upvar 1 response r
-	set r [Http NoCache $r]	;# ensure this is dynamic
-
+    proc /captcha {r} {
 	# cache the captcha in the client's space, why should we
 	# pay for their lameness?
 	#set r [Http Cache $r {next month} private]
 
 	lassign [dict get $r -bot] captcha captchaf when
-	dict set r content-type "image/jpg"
-	return [::fileutil::cat -encoding binary -translation binary -eofchar "" -- $captchaf]
+	set image [::fileutil::cat -encoding binary -translation binary -eofchar "" -- $captchaf]
+	return [Http NoCache [Http Ok $r $image image/jpg]]
     }
 
     variable text
@@ -105,7 +102,7 @@ namespace eval Honeypot {
 
     proc captcha {captchaf} {
 	variable length
-	set captcha [passgen Generate len $length punctuation,min 0 LETTERS "BCDEFGHJKLMNPTUWYZ" numbers "6789" letters "abcdefhijkmnpuwyz" punctuation "%"]
+	set captcha [passgen Generate len $length punctuation,min 0 LETTERS "BCDEFHJKLMNPTUWYZ" numbers "6789" letters "abcdefhijkmnpuwyz" punctuation "%"]
 
 	# generate captcha image and remember its path
 	::captcha $captcha file $captchaf size 360x240
@@ -122,10 +119,7 @@ namespace eval Honeypot {
     # text explaining the trap, inviting release, and poisoning
     # address harvester dbs.
 
-    proc /honeypot {{c ""} {redo 0}} {
-	upvar 1 response r
-	set r [Http NoCache $r]	;# ensure this is dynamic
-
+    proc /honeypot {r {c ""} {redo 0}} {
 	# cache the honeypot in the client's space, why should we
 	# pay for their lameness?
 	# TODO: if they ignore this, we should penalise them.
@@ -148,7 +142,7 @@ namespace eval Honeypot {
 
 		catch {file delete $captchaf}
 		variable released
-		return [subst $released]
+		return [Http Ok $r [subst $released]]
 	    } elseif {$redo > 0 && $redo < 5} {
 		set captcha [captcha $captchaf]
 		dict set r -bot [list $captcha $captchaf $when]
@@ -169,7 +163,7 @@ namespace eval Honeypot {
 	# generate a bunch of plausible-looking emailto: links
 	# to poison any address harvesters' dbs, to show we care.
 	variable honeypot
-	return [subst $honeypot]
+	return [Http NoCache [Http Ok $r [subst $honeypot]]]
     }
 
     # this is text subst'd and returned upon release
