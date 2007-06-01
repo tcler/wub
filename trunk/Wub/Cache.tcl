@@ -100,6 +100,11 @@ namespace eval Cache {
 	if {[dict get $req -code] != 200} {
 	    return $req
 	}
+	set ctype [dict get $req content-type]
+	if {[string match x-*/* $ctype]
+	    || [string match */x-* $ctype]} {
+	    return $req
+	}
 
 	# whatever the eventual cache status, must remove old matches
 	invalidate [dict get $req -url] ;# invalidate by -url
