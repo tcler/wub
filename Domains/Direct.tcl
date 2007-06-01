@@ -36,7 +36,7 @@ proc page {name alist page {body ""} {ctype "text/html"}} {
 	    return [Http NotFound $response]
 	}
 
-	set params [info args $cmd]
+	set params [lrange [info args $cmd] 1 end]
 	array set used {}
 	set needargs 0
 	set argl {}
@@ -81,12 +81,8 @@ proc page {name alist page {body ""} {ctype "text/html"}} {
 
 	catch {dict unset response -content}
 	Debug.direct {calling $cmd $argl} 2
-	set content [$cmd {*}$argl]
-
-	if {![dict exists $response -content]} {
-	    dict set response content-length [string length $content]
-	    dict set response -content $content
-	}
+	puts stderr "RAAAR: '$cmd' '$response' '$argl'"
+	set response [dict merge $response [$cmd $response {*}$argl]]
 
 	#Debug.direct {Content: '[dict get $response -content]'} 2
 	return $response
