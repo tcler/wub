@@ -85,9 +85,7 @@ variable gets 0
 
 proc timeout {timer args} {
     dict set ::request -timeout $args
-    if {!$::pending
-	&& ![array size ::replies]
-    } {
+    if {![array size ::replies]} {
 	#Debug.error {Timeout $args - pending:$::pending gets:$::gets replies:[array size ::replies]} 2
 	disconnect "Idle Time-out"
     } else {
