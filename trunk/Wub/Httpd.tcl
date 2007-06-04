@@ -510,10 +510,10 @@ namespace eval Httpd {
 
     variable blocked
     array set blocked {}
-    proc block {ipaddr} {
+    proc block {ipaddr {reason ""}} {
 	variable blocked
-	set blocked($ipaddr) [clock seconds]
-	Debug.block {BLOCKING: $ipaddr}
+	set blocked($ipaddr) [list [clock seconds] $reason]
+	Debug.block {BLOCKING: $ipaddr $reason}
     }
 
     proc blocked? {ipaddr} {

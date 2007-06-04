@@ -866,7 +866,7 @@ proc parse {} {
 
     # block spiders by UA
     if {[info exists ::spiders([Dict get? $request user-agent])]} {
-	thread::send -async $::thread::parent [list Httpd block [dict get $request -ipaddr]]
+	thread::send -async $::thread::parent [list Httpd block [dict get $request -ipaddr] "spider UA"]
 	handle [Http NotImplemented $request]
 	disconnect "Bastard Spammer UA"
     }
@@ -892,7 +892,7 @@ proc parse {} {
 
 	CONNECT {
 	    # stop the bastard SMTP spammers
-	    thread::send -async $::thread::parent [list Httpd block [dict get $request -ipaddr]]
+	    thread::send -async $::thread::parent [list Httpd block [dict get $request -ipaddr] "CONNECT method"]
 
 	    handle [Http NotImplemented $request]
 	    disconnect "Bastard Spammer"
