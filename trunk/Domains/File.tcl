@@ -234,7 +234,7 @@ package require Mime
 		    dict set req -path [file join $path index.*]
 		    
 		    # re-dispatch to allow caching, etc
-		    do redispatch $req
+		    return [Http Redirect $req [Url uri $req]]
 		}
 		
 		# remember cache dependency on dir
