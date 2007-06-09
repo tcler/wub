@@ -95,7 +95,7 @@ namespace eval E2M {
 	    set reread 1
 	}
 
-	set tie [::tie::tie e2m -open $dstype $dsname {expand}$dsargs]
+	set tie [::tie::tie e2m -open $dstype $dsname {*}$dsargs]
 
 	if {$reread} {
 	    variable default
@@ -105,7 +105,7 @@ namespace eval E2M {
 	}
 
 	::tie::untie e2m $tie
-	set tie [::tie::tie e2m -save $dstype $dsname {expand}$dsargs]
+	set tie [::tie::tie e2m -save $dstype $dsname {*}$dsargs]
 
 	variable initialized 1	;# so we know we've been initialized
     }
