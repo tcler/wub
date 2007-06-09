@@ -102,7 +102,7 @@ namespace eval Backend {
 	    # need to grab a free thread
 	    if {[catch {threads get} thread]} {
 		if {[catch {mkthreads}]} {
-		    [Httpd Exhausted $sock]
+		    Httpd Exhausted $sock
 		}
 		set thread [threads get]	;# try again - propagate error
 	    }
