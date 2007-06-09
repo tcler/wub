@@ -373,7 +373,18 @@ proc send {reply {cacheit 1}} {
 			dict unset reply -map	;# remove map - it's done
 			catch {dict unset reply -gzip}	;# remove gzip form, if any.
 		    }
-		    
+
+		    # handle charset for text/* types
+		    if {[string match text/* [Dict get? $reply content-type]]} {
+			if {[dict exists $reply -charset]} {
+			    set charset [dict get $reply -charset]
+			} else {
+			    set charset utf-8
+			}
+			set content [encoding convertto $charset $content]
+			dict append reply content-type "; charset=$charset"
+		    }
+
 		    # handle encoding
 		    if {[dict exists $reply accept-encoding]
 			&& ![dict exists $reply content-encoding]} {
@@ -418,16 +429,6 @@ proc send {reply {cacheit 1}} {
     }
 
     dict set reply etag "\"[::thread::id].[clock microseconds]\""
-
-    if {[dict exists $reply content-type]} {
-	# handle charset
-	if {[dict exists $reply -charset]} {
-	    set charset [dict get $reply -charset]
-	} else {
-	    set charset [encoding system]
-	}
-	dict append reply content-type "; charset=$charset"
-    }
 
     # strip http fields which don't have relevance in response
     dict for {n v} $reply {
