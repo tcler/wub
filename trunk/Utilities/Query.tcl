@@ -17,7 +17,7 @@ namespace eval Query {
 	variable map
 	variable dmap
 
-	set dmap {+ " " %0D%0A \n %% %}
+	set dmap {+ " " %0D%0A \n %0d%0a \n %% %}
 	set map {% %%}
 
 	# set up non-alpha map
