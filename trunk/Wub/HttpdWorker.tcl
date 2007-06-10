@@ -375,14 +375,16 @@ proc send {reply {cacheit 1}} {
 		    }
 
 		    # handle charset for text/* types
-		    if {[string match text/* [Dict get? $reply content-type]]} {
+		    lassign [split [Dict get? $reply content-type] {;}] ct
+		    if {[string match text/* $ct]} {
 			if {[dict exists $reply -charset]} {
 			    set charset [dict get $reply -charset]
 			} else {
 			    set charset utf-8
 			}
 			set content [encoding convertto $charset $content]
-			dict append reply content-type "; charset=$charset"
+			dict set reply content-type "$ct; charset=$charset"
+			#dict append reply content-type "; charset=$charset"
 		    }
 
 		    # handle encoding
