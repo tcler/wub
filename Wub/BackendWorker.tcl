@@ -2,9 +2,7 @@ interp bgerror {} bgerror
 proc bgerror {error eo} {
     #puts stderr "Thread [::thread::id] ERROR: $error ($eo)"
     Debug.error {Thread [::thread::id] ERROR: $error ($eo)}
-    if {[dict get $eo -code] == 1} {
-	disconnect $error [Http ServerError $::request $error $eo]
-    }
+    catch {disconnect $error $eo}
 }
 
 package require Debug
@@ -42,7 +40,7 @@ package require Direct
 Direct direct -namespace ::DirectTest
 
 foreach {d ns} {login ::Login A ::Admin} {
-    Direct $d -namespace $ns 
+    Direct $d -namespace $ns
 }
 
 proc do {args} {
@@ -68,72 +66,77 @@ proc do {args} {
 }
 
 proc incoming {req} {
-    inQ put $req
+    if {[catch {
+	inQ put $req
 
-    variable response
-    variable request
-    while {([dict size $request] == 0)
-	   && ([catch {inQ get} req eo] == 0)
-       } {
-	set request $req
+	variable response
+	variable request
+	while {([dict size $request] == 0)
+	       && ([catch {inQ get} req eo] == 0)
+	   } {
+	    set request $req
 
-	set path [dict get $request -path]
-	set host [dict get $request -host]
-	dict set request -Query [Query parse $request]	;# parse the query
-	set cookie [Session fetch $request]
+	    set path [dict get $request -path]
+	    set host [dict get $request -host]
+	    dict set request -Query [Query parse $request]	;# parse the query
+	    set cookie [Session fetch $request]
 
-	# get a plausible prefix/suffix split
-	dict set request -suffix [file join {} {*}[lassign [file split $path] -> fn]]
-	dict set request -prefix "/$fn"
-	
-	Debug.dispatch {matching domain: $host,$path - '[file split $path]'}
-	switch -glob -- $host,$path {
-	    *,/favicon.ico {
-		# need to silently redirect /favicon.ico
-		Debug.wiki {favicon hack}
-		dict set request -suffix [file join {} {*}[lrange [file split $path] 1 end]]
-		dict set request -prefix "/images"
-		do images do $request
+	    # get a plausible prefix/suffix split
+	    dict set request -suffix [file join {} {*}[lassign [file split $path] -> fn]]
+	    dict set request -prefix "/$fn"
+
+	    Debug.dispatch {matching domain: $host,$path - '[file split $path]'}
+	    switch -glob -- $host,$path {
+		*,/favicon.ico {
+		    # need to silently redirect /favicon.ico
+		    Debug.wiki {favicon hack}
+		    dict set request -suffix [file join {} {*}[lrange [file split $path] 1 end]]
+		    dict set request -prefix "/images"
+		    do images do $request
+		}
+
+		*,/css/* -
+		*,/images/* -
+		*,/templates/* -
+		*,/scripts/* -
+		*,/direct -
+		*,/includes/* {
+		    Debug.http {matched $path}
+		    dict set request -suffix [file join {*}[lassign [file split $path] -> fn]]
+		    do $fn do $request
+		}
+
+		*,/css -
+		*,/images -
+		*,/templates -
+		*,/scripts -
+		*,/direct -
+		*,/includes {
+		    # redirect any set dir without a trailing /
+		    dict set request -path $path/	;# missing trailing /
+		    do Http Redirect $req [Url uri $request]
+		}
+
+		default {
+		    Debug.http {no match $path}
+		    dict set request -suffix $path
+		    do mason do $request
+		}
 	    }
 
-	    *,/css/* -
-	    *,/images/* -
-	    *,/templates/* -
-	    *,/scripts/* -
-	    *,/direct -
-	    *,/includes/* {
-		Debug.http {matched $path}
-		dict set request -suffix [file join {*}[lassign [file split $path] -> fn]]
-		do $fn do $request
-	    }
+	    set response [Session store $response $cookie]
 
-	    *,/css -
-	    *,/images -
-	    *,/templates -
-	    *,/scripts -
-	    *,/direct -
-	    *,/includes {
-		# redirect any set dir without a trailing /
-		dict set request -path $path/	;# missing trailing /
-		do Http Redirect $req [Url uri $request]
-	    }
+	    # send response
+	    do convert do $response
+	    dict set response -transaction [dict get $request -transaction]
+	    dict set response -generation [dict get $request -generation]
 
-	    default {
-		Debug.http {no match $path}
-		dict set request -suffix $path
-		do mason do $request
-	    }
+	    ::thread::send -async [dict get $request -worker] [list send $response]
+	    set request [dict create]	;# go idle
 	}
-
-	set response [Session store $response $cookie]
-
-	# send response
-	do convert do $response
-	dict set response -transaction [dict get $request -transaction]
-	dict set response -generation [dict get $request -generation]
-
-	::thread::send -async [dict get $request -worker] [list send $response]
-	set request [dict create]	;# go idle
+    } r eo]} {
+	Debug.error {Incoming [::thread::id] ERROR: $r ($eo)}
+	catch {disconnect $r $eo}
     }
 }
 

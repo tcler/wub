@@ -10,9 +10,7 @@ proc bgerror {error eo} {
     dict lappend ::request bgerror [list [clock seconds] $error $eo]
 
     Debug.error {Thread [::thread::id]: $error ($eo)}
-    if {[dict get $eo -code] == 1} {
-	disconnect $error $eo
-    }
+    catch {disconnect $error $eo}
 }
 interp bgerror {} ::bgerror
 
