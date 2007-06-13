@@ -986,6 +986,8 @@ proc connect {req vars socket} {
     Debug.socket {[::thread::id] connected}
 }
 
+proc disconnected {args} {}
+
 Debug on log 10
 Debug off close 10
 # now we're able to process commands
