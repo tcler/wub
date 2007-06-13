@@ -1,5 +1,8 @@
 package provide functional 1.0
 
+# eval+ always tries to compile its argument
+interp alias {} eval+ {} if 1
+
 proc lambda {arglist body {ns {}}} {
     list ::apply [list $arglist $body $ns]
 }

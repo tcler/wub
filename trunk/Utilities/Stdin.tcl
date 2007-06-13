@@ -9,6 +9,24 @@ namespace eval Stdin {
 	close $stdin
     }
 
+    proc backends {cmd} {
+	set result {}
+	foreach tid [array names ::backend::worker] {
+	    catch {::thread::send $tid $cmd} r eo
+	    lappend result [list "$tid: '$r' ($eo)"]
+	}
+	return [join $result \n]
+    }
+
+    proc workers {args} {
+	set result {}
+	foreach tid [array names ::Httpd::worker] {
+	    catch {::thread::send $tid $cmd} r eo
+	    lappend result [list "$tid: '$r' ($eo)"]
+	}
+	return [join $result \n]
+    }
+
     proc puts {args} {
 	return $args
     }
