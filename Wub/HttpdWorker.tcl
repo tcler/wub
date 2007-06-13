@@ -268,7 +268,7 @@ proc send {reply {cacheit 1}} {
     } elseif {[dict get $reply -generation] != $::generation} {
 	# this reply belongs to an older, disconnected Httpd generation.
 	# we must discard it, because it was directed to a different client!
-	Debug.error {Send discarded: out of generation ([set x $reply; dict set x -content <ELIDED>; return $x]) != $::generation}
+	Debug.error {Send discarded: out of generation '[dict get $reply -generation] != $::generation' ([set x $reply; dict set x -content <ELIDED>; dict set x -entity <ELIDED>; return $x])}
 	return
     }
     set trx [dict get $reply -transaction]
@@ -529,7 +529,7 @@ proc clean {} {
 
 # handle - 
 proc handle {req} {
-    Debug.error {handle: $req}
+    Debug.error {handle: ([set x $req; dict set x -content <ELIDED>; dict set x -entity <ELIDED>; return $x]}
     variable request $req
 
     readable $::sock	;# suspend reading
@@ -673,7 +673,7 @@ proc entity {} {
 	    set tel [string trim $tel]
 	    if {$tel ni $te_encodings} {
 		# can't handle a transfer encoded entity
-		handle [Http NotImplemented $request]
+		handle [Http NotImplemented $request "$tel transfer encoding"]
 		# see 3.6 - 14.41 for transfer-encoding
 		# 4.4.2 If a message is received with both a Transfer-EncodIing
 		# header field and a Content-Length header field,
@@ -866,7 +866,7 @@ proc parse {} {
     # block spiders by UA
     if {[info exists ::spiders([Dict get? $request user-agent])]} {
 	thread::send -async $::thread::parent [list Httpd block [dict get $request -ipaddr] "spider UA"]
-	handle [Http NotImplemented $request]
+	handle [Http NotImplemented $request "Spider Service"]
 	disconnect "Bastard Spammer UA"
     }
 
@@ -893,7 +893,7 @@ proc parse {} {
 	    # stop the bastard SMTP spammers
 	    thread::send -async $::thread::parent [list Httpd block [dict get $request -ipaddr] "CONNECT method"]
 
-	    handle [Http NotImplemented $request]
+	    handle [Http NotImplemented $request "Spider Service"]
 	    disconnect "Bastard Spammer"
 	}
 

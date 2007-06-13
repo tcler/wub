@@ -428,7 +428,10 @@ namespace eval Http {
     proc NotImplemented {rsp {message ""}} {
 	if {$message eq ""} {
 	    set message "This function not implemented"
+	} else {
+	    append message " - Not implemented."
 	}
+
 	dict set rsp content-type "text/html"
 	dict set rsp -content "<html>\n<title>Not Implemented</title>\n<body>\n<h1>Not Implemented</h1>\n<p>$message</p>\n</body>\n</html>"
 
