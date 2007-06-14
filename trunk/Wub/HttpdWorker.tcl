@@ -183,12 +183,12 @@ proc responder {} {
 	    incr ::pending -1		;# count one fewer request pending
 	    writable $sock responder	;# keep trying to send replies
 	    if {$close} {
-		disconnect "Normal termination"; return
+		disconnect "Normal termination"
 	    }
 	}
     } r eo]} {
 	Debug.error {FAILED send '$r' ($eo)}
-	disconnect "Disconnect"; return
+	disconnect "Disconnect"
     } else {
 	Debug.socket {SENT content (close: $close) [string length $content] '$content'} 10
     }
