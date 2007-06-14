@@ -85,7 +85,7 @@ proc timeout {timer args} {
     dict set ::request -timeout $args
     if {![array size ::replies]} {
 	#Debug.error {Timeout $args - pending:$::pending gets:$::gets replies:[array size ::replies]} 2
-	disconnect "Idle Time-out"
+	disconnect "Idle Time-out"; return
     } else {
 	$timer restart
     }
@@ -104,7 +104,7 @@ proc readable {sock args} {
     dict set ::request -readable $args
     if {[catch {chan event $sock readable $args} r eo]} {
 	Debug.error "readable: '$r' ($eo)"
-	disconnect $r $eo
+	disconnect $r $eo; return
     }
 }
 
@@ -112,7 +112,7 @@ proc writable {sock args} {
     dict set ::request -writable $args
     if {[catch {chan event $sock writable $args} r eo]} {
 	Debug.error "writable: '$r' ($eo)"
-	disconnect $r $eo
+	disconnect $r $eo; return
     }
 }
 
@@ -130,8 +130,7 @@ proc responder {} {
     variable sock
     Debug.http {RESPONDER $sock: [array names replies]} 4
     if {[eof $sock]} {
-	disconnect "Lost connection on transmit"
-	return
+	disconnect "Lost connection on transmit"; return
     }
     if {[catch {
 	catch {txtimer cancel}
@@ -184,12 +183,12 @@ proc responder {} {
 	    incr ::pending -1		;# count one fewer request pending
 	    writable $sock responder	;# keep trying to send replies
 	    if {$close} {
-		disconnect "Normal termination"
+		disconnect "Normal termination"; return
 	    }
 	}
     } r eo]} {
 	Debug.error {FAILED send '$r' ($eo)}
-	disconnect "Disconnect"
+	disconnect "Disconnect"; return
     } else {
 	Debug.socket {SENT content (close: $close) [string length $content] '$content'} 10
     }
@@ -236,14 +235,14 @@ proc gzip_it {reply content} {
 proc closing {sock} {
     if {[catch {chan eof $sock} r] || $r} {
 	# remote end closed - just forget it
-	disconnect "Remote closed connection" 
+	disconnect "Remote closed connection"; return
     } else {
 	if {[catch {
 	    chan configure $sock -blocking 0
 	    read $sock
 	} r eo]} {
 	    Debug.error "trying to close: '$r' ($eo)"
-	    disconnect "Remote closed connection" 
+	    disconnect "Remote closed connection"; return
 	}
     }
 }
@@ -505,12 +504,9 @@ proc disconnect {error {eo {}}} {
     Debug.close {disconnecting: '$error' ($eo)}
 
     ;# remove socket
-    if {[catch {close $::sock} r eo]} {
-	Debug.error {closing error: '$r' ($eo)}
+    if {[catch {close $::sock} r eoc]} {
+	Debug.error {closing after '$error'/($eo) error: '$r' ($eoc)}
     }
-
-    # inform parent of disconnect - this thread will now be recycled
-    ::thread::send -async $::thread::parent [list ::Httpd::disconnect [::thread::id] $::sock $error $eo]
 
     array unset ::satisfied; array set ::satisfied {}	;# forget request state
     array unset ::replies; array set ::replies {}	;# forget pending replies
@@ -518,7 +514,8 @@ proc disconnect {error {eo {}}} {
     set ::gets 0
     set ::pending 0
 
-    return -code return
+    # inform parent of disconnect - this thread will now be recycled
+    ::thread::send -async $::thread::parent [list ::Httpd::disconnect [::thread::id] $::sock $error $eo]
 }
 
 # clean - clean up the request - remove all protocol elements
@@ -529,7 +526,7 @@ proc clean {} {
 
 # handle - 
 proc handle {req} {
-    Debug.error {handle: ([set x $req; dict set x -content <ELIDED>; dict set x -entity <ELIDED>; return $x]}
+    Debug.error {handle: ([set x $req; dict set x -content <ELIDED>; dict set x -entity <ELIDED>; return $x])}
     variable request $req
 
     readable $::sock	;# suspend reading
@@ -547,9 +544,7 @@ proc handle {req} {
     }
 
     disconnect [Dict get? $request -error] $::request
-
-    #readable $::sock get	;# resume reading to get the EOF
-    return -code return 0
+    return
 }
 
 # we're finished reading the header - inform the parent that work is needed
@@ -624,7 +619,7 @@ proc identity {length} {
 
 proc chunk {} {
     if {[file eof $::sock]} {
-	disconnect chunk
+	disconnect chunk; return
     }
 }
 
@@ -867,7 +862,7 @@ proc parse {} {
     if {[info exists ::spiders([Dict get? $request user-agent])]} {
 	thread::send -async $::thread::parent [list Httpd block [dict get $request -ipaddr] "spider UA"]
 	handle [Http NotImplemented $request "Spider Service"]
-	disconnect "Bastard Spammer UA"
+	disconnect "Bastard Spammer UA"; return
     }
 
     incr ::pending
@@ -894,7 +889,7 @@ proc parse {} {
 	    thread::send -async $::thread::parent [list Httpd block [dict get $request -ipaddr] "CONNECT method"]
 
 	    handle [Http NotImplemented $request "Spider Service"]
-	    disconnect "Bastard Spammer"
+	    disconnect "Bastard Spammer"; return
 	}
 
 	default {
@@ -916,13 +911,14 @@ proc get {} {
 	chan gets $sock line
     } result eo]} {
 	disconnect $result $eo	;# inform parent that we're done
+	return
     }
 
     if {$result == -1} {
 	readable $sock	;# completed reading
 	if {[chan eof $sock]} {
 	    # remote end closed - just forget it
-	    disconnect "Remote closed connection"
+	    disconnect "Remote closed connection"; return
 	} elseif {$::maxline && [chan pending input $sock] > $::maxline} {
 	    handle [Http Bad $request "Line too long"]
 	}
