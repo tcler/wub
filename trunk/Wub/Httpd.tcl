@@ -16,6 +16,7 @@ package require Query
 package require struct::queue
 package require fileutil
 package require Debug
+#package require Access
 
 package require Cache 2.0
 package require Honeypot
@@ -200,7 +201,7 @@ namespace eval Httpd {
 		    set actlog [lrange $actlog 10 end]
 		}
 	    }
-	    Debug.log {activity: $activity($sock)}
+	    Debug.activity {$activity($sock)}
 	    unset activity($sock)
 	} else {
 	    # thread->sock is right, sock->thread is not
@@ -580,7 +581,7 @@ namespace eval Httpd {
 		    set actlog [lrange $actlog 10 end]
 		}
 	    }
-	    Debug.log {activity: $activity($sock)}
+	    Debug.activity {$activity($sock)}
 	    unset activity($sock)
 	}
 	lappend activity($sock) allocated [list [clock microseconds] $ipaddr $thread]
