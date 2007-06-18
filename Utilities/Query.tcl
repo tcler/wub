@@ -591,4 +591,9 @@ if {[info exists argv0] && ([info script] eq $argv0)} {
 	puts stderr "find error '[Query value $query error]'"
 	puts stderr "flattened: [Query flatten $query]"
     }
+
+    # here's something I caught in the wild
+    set q {N {8942 {}} cancel {Cancel {-count 4}} C {{This is a Work-in-progress translation (to Swedish) of the eleven syntactic rules of Tcl. (see [Endekalogue] for other translations). [Category Documentation] |} {-count 1 -bad 163}} O {{1182004521 lars_h@81.231.37.27} {-count 2}}}
+    set metadata [Query metadata $q C]
+    puts stderr "metadata: $metadata"
 }

@@ -18,7 +18,7 @@ namespace eval Stdin {
 	return [join $result \n]
     }
 
-    proc workers {args} {
+    proc workers {cmd} {
 	set result {}
 	foreach tid [array names ::Httpd::worker] {
 	    catch {::thread::send $tid $cmd} r eo
