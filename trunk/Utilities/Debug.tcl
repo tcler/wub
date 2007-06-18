@@ -105,3 +105,4 @@ Debug off vfs
 Debug off wiki
 Debug off wikiload
 Debug off wikisearch
+Debug off activity
