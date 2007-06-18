@@ -128,7 +128,7 @@ namespace eval Backend {
 
 	    # replace the thread in its queue
 	    if {[::thread::release $thread] != 1} {
-		Debug.error {release Thread $thread has been allocated $i times}
+		Debug.error {release Thread $thread has been overallocated}
 	    }
 	    threads put $thread	;# we're done with this thread
 	}

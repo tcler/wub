@@ -3,6 +3,8 @@
 # TODO: armour all [chan event]s
 package require Debug
 package require spiders
+#package require Access
+#Access open
 
 #puts stderr "Starting Httpd Worker [::thread::id]"
 proc bgerror {error eo} {
@@ -256,6 +258,7 @@ proc closing {sock} {
 #	queues the response for sending by method responder
 proc send {reply {cacheit 1}} {
     Debug.log {[set x $reply; dict set x -entity <ELIDED>; dict set x -content <ELIDED>; return $x]}
+    #set reply [Access log $reply]
 
     set sock [dict get $reply -sock]
 
@@ -540,6 +543,8 @@ proc handle {req} {
 	send $request 0			;# send our own reply
 	clean
     } r eo]} {
+	dict set request -handlerr "'$r' ($eo)"
+	#set request [Access log $request]
 	Debug.error {'handle' error: '$r' ($eo)}
     }
 
@@ -576,6 +581,8 @@ proc got {req} {
 	}
 
 	dict set request -transaction [incr ::transaction]
+
+	#set request [Access log $request]	;# log the request
 
 	# inform parent of parsing completion
 	::thread::send -async $::thread::parent [list ::Httpd::got [::thread::id] $request]
@@ -743,6 +750,7 @@ proc parse {} {
 	    # add to the key we're currently assembling
 	    if {$key eq ""} {
 		handle [Http Bad $request "malformed header line '$line'"]
+		return
 	    }
 	    dict append request $key " [string trim $line]"
 	} else {
@@ -761,6 +769,7 @@ proc parse {} {
 		&& [string length [dict get $request $key]] > $::maxfield
 	    } {
 		handle [Http Bad $request "Illegal header: '$line'"]
+		return
 	    }
 	}
     }
@@ -784,6 +793,7 @@ proc parse {} {
 	} {
 	    # send a 414 back
 	    handle [Http Bad $request "URI too long '$head(-uri)'" 414]
+	    return
 	}
 
 	# record header data in request dict
@@ -794,12 +804,14 @@ proc parse {} {
 	# Could check for FTP requestuests, etc, here...
 	dict set request -error_line $line
 	handle [Http Bad $request "Method not supported ([array get head])" 405]
+	return
     }
 
     # Send 505 for protocol != HTTP/1.0 or HTTP/1.1
     if {([dict get $request -version] != 1.1)
 	&& ([dict get $request -version] != 1.0)} {
 	handle [Http Bad $request "HTTP Version not supported" 505]
+	return
     }
 
     # ensure that the client sent a Host: if protocol requires it
@@ -819,6 +831,7 @@ proc parse {} {
 	}
     } elseif {[dict get $request -version] > 1.0} {
 	handle [Http Bad $request "HTTP 1.1 is required to send Host request"]
+	return
     } else {
 	# HTTP 1.0 isn't required to send a Host request
 	if {![dict exists $request -host]} {
@@ -862,7 +875,7 @@ proc parse {} {
     if {[info exists ::spiders([Dict get? $request user-agent])]} {
 	thread::send -async $::thread::parent [list Httpd block [dict get $request -ipaddr] "spider UA"]
 	handle [Http NotImplemented $request "Spider Service"]
-	disconnect "Bastard Spammer UA"; return
+	return
     }
 
     incr ::pending
@@ -872,6 +885,7 @@ proc parse {} {
 	    if {![dict exists $request content-length]} {
 		# Send 411 for missing Content-Length on POST requests
 		handle [Http Bad $request "Length Required" 411]
+		return
 	    } else {
 		# read the entity
 		#puts stderr "Entity: $request"
@@ -889,7 +903,7 @@ proc parse {} {
 	    thread::send -async $::thread::parent [list Httpd block [dict get $request -ipaddr] "CONNECT method"]
 
 	    handle [Http NotImplemented $request "Spider Service"]
-	    disconnect "Bastard Spammer"; return
+	    return
 	}
 
 	default {
