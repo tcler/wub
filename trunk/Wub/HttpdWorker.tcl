@@ -561,7 +561,8 @@ proc got {req} {
 
     readable $::sock	;# suspend reading
     if {[catch {
-	dict set request -received [clock seconds]
+	#dict set request -received [clock seconds]
+	dict set request -received [clock microseconds]
 
 	# rename fields whose names are the same in request/response
 	foreach n {cache-control} {
