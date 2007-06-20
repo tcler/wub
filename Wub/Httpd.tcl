@@ -222,6 +222,7 @@ namespace eval Httpd {
 	if {$ignore && [array size sockets] == 0} {
 	    # we're quiescent - perform after idle command
 	    variable quiescent
+	    Debug.log {Idle task: $quiescent}
 	    if {$quiescent ne ""} {
 		uplevel #0 $quiescent
 		set quiescent ""
@@ -546,7 +547,7 @@ namespace eval Httpd {
 	    # the socket's closed and been reused
 	    # we have to reflect that
 	    Debug.socket {socket $sock reused - $sock2IP($sock)}
-	    incr connbyIP($sock2IP($sock)) -1
+	    #incr connbyIP($sock2IP($sock)) -1 ;# assume it's already accounted
 	}
 	set sock2IP($sock) $ipaddr
 
@@ -610,8 +611,9 @@ namespace eval Httpd {
     # go_idle - stop accepting new connections, go idle
     # when idle, evaluate the script in variable quiescent
     proc go_idle {{then ""}} {
-	variable ignore 1	;# no more connections
 	variable quiescent $then
+	variable ignore 1	;# no more connections
+
 	variable sockets
 	if {[array size sockets] == 0} {
 	    uplevel #0 $quiescent
