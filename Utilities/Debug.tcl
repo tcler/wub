@@ -18,13 +18,13 @@ namespace eval Debug {
 		uplevel 1 subst [list $message]
 	    } result eo]
 	    if {$code} {
-		puts -nonewline $fd "@@(DebugError from [info level -1] ($eo)):"
+		puts -nonewline $fd "@@[string map {\n \\n} (DebugError from [info level -1] ($eo)):]"
 	    }
 
 	    if {[info exists self]} {
-		puts $fd "$tag @@$self: $result"
+		puts $fd "$tag @@$self: [string map {\n \\n} $result]"
 	    } else {
-		puts $fd "$tag @@$result"
+		puts $fd "$tag @@[string map {\n \\n} $result]"
 	    }
 
 	} else {
