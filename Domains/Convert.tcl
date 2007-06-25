@@ -246,7 +246,7 @@ snit::type Convert {
 	catch {dict unset req -code}	;# let subst set -code value
 	if {![dict exists $req content-type]} {
 	    # set default mime type
-	    dict set req content-type text/x-html-fragment
+	    dict set req content-type x-text/html-fragment
 	}
 	$interp eval set ::response [list $req]
 
@@ -408,7 +408,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     package require Compose
 
     namespace eval ::xconversions {
-	proc .text/x-html-fragment.text/html {rsp} {
+	proc .x-text/html-fragment.text/html {rsp} {
 	    set content "<html> \n"
 	    append content "<header><title>Wrapped</title></header>" \n
 	    append content <body> \n
