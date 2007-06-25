@@ -5,7 +5,7 @@ package provide conversions 1.0
 namespace eval ::conversions {
     variable htmlhead {<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">}
 
-    proc .text/x-html-fragment.text/html {rsp} {
+    proc .x-text/html-fragment.text/html {rsp} {
 	set rsp [Http loadContent $rsp] ;# read -fd content if any
 	set rspcontent [dict get $rsp -content]
 
@@ -35,7 +35,7 @@ namespace eval ::conversions {
 		    content-type text/html]
     }
 
-    proc .text/x-stx.text/x-html-fragment {rsp} {
+    proc .x-text/stx.x-text/html-fragment {rsp} {
 	set rsp [Http loadContent $rsp] ;# read -fd content if any
 
 	package require stx2html
@@ -51,11 +51,11 @@ namespace eval ::conversions {
 	} else {
 	    return [dict replace $rsp \
 			-content $result \
-			content-type text/x-html-fragment]
+			content-type x-text/html-fragment]
 	}
     }
 
-    proc .x-text/system.text/x-html-fragment {rsp} {
+    proc .x-text/system.x-text/html-fragment {rsp} {
 	set rsp [Http loadContent $rsp] ;# read -fd content if any
 
 	# split out headers
@@ -79,11 +79,11 @@ namespace eval ::conversions {
 
 	return [dict replace $rsp \
 		    -content $content \
-		    content-type text/x-html-fragment]
+		    content-type x-text/html-fragment]
     }
 
     # convert a form into fragmentary html
-    proc .text/x-form.text/x-html-fragment {rsp} {
+    proc .x-text/form.x-text/html-fragment {rsp} {
 	package require Form
 
 	# grab the form
@@ -98,10 +98,10 @@ namespace eval ::conversions {
 	# process and return the form
 	return [dict replace [Http NoCache $rsp] \
 		    -content [Form html $form] \
-		    content-type text/x-html-fragment]
+		    content-type x-text/html-fragment]
     }
 
-    proc .multipart/x-aggregate.text/x-html-fragment {rsp} {
+    proc .multipart/x-aggregate.x-text/html-fragment {rsp} {
 	Debug.convert {multipart/x-aggregate conversion: $rsp}
 	set rsp [Http loadContent $rsp] ;# read -fd content if any
 
@@ -112,7 +112,7 @@ namespace eval ::conversions {
 	    if {![dict exists $content -content $c]} continue
 
 	    set component [dict get $content -content $c]
-	    dict set component accept text/x-html-fragment
+	    dict set component accept x-text/html-fragment
 	    Debug.convert {multipart/x-aggregate conversion: component $component}
 	    set component [[dict get $rsp -hostobj] call Convert transform $component]
 	    append result [dict get $component -content] \n
@@ -120,7 +120,7 @@ namespace eval ::conversions {
 
 	return [dict replace $rsp \
 		    -content $result \
-		    content-type text/x-html-fragment]
+		    content-type x-text/html-fragment]
     }
 
     variable safe 0		;# make safe interpreters?
@@ -157,7 +157,7 @@ namespace eval ::conversions {
 	# set up response in interp
 	catch {dict unset rsp -code}	;# let subst set -code value
 	dict set rsp -dynamic 1	;# default: not dynamic
-	dict set rsp content-type text/x-html-fragment ;# default mime type
+	dict set rsp content-type x-text/html-fragment ;# default mime type
 
 	$interp eval set ::response [list $rsp]
 
