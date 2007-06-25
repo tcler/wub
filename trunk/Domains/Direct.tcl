@@ -80,7 +80,7 @@ proc page {name alist page {body ""} {ctype "text/html"}} {
 	dict set response -dynamic 1
 
 	catch {dict unset response -content}
-	Debug.direct {calling $cmd $argl} 2
+	Debug.direct {calling $cmd $response $argl} 2
 	#puts stderr "RAAAR: '$cmd' '$response' '$argl'"
 	set response [dict merge $response [$cmd $response {*}$argl]]
 
