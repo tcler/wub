@@ -430,7 +430,10 @@ proc send {reply {cacheit 1}} {
 	}
     }
 
-    dict set reply etag "\"[::thread::id].[clock microseconds]\""
+    if {$cacheit} {
+	# don't generate an etag for non-cached responses
+	dict set reply etag "\"[::thread::id].[clock microseconds]\""
+    }
 
     # strip http fields which don't have relevance in response
     dict for {n v} $reply {
@@ -489,12 +492,10 @@ proc send {reply {cacheit 1}} {
 	}
 	dict set enbot -ipaddr $ip
 	thread::send -async $::thread::parent [list Honeypot bot? $enbot]
-    } else {
+    } elseif {$cacheit} {
 	# handle caching (under no circumstances cache bot replies)
-	if {$cacheit} {
-	    dict set reply -code $code
-	    thread::send -async $::thread::parent [list Cache put $reply]
-	}
+	dict set reply -code $code
+	thread::send -async $::thread::parent [list Cache put $reply]
     }
 }
 
