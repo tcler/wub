@@ -329,6 +329,8 @@ namespace eval Http {
     proc OkResponse {rsp code rtype content ctype} {
 	if {$content ne ""} {
 	    dict set rsp -content $content
+	} elseif {![dict exists $rsp -content]} {
+	    dict set rsp content-length 0
 	}
 
 	if {$ctype eq ""} {
@@ -349,7 +351,9 @@ namespace eval Http {
     }
 
     proc Created {rsp location {content ""} {ctype ""}} {
-	dict set rsp -location $location
+	dict set rsp location $location
+	dict set rsp -content $content
+	dict set rsp content-length [string length $content]
 	return [OkResponse $rsp 201 Created $content $ctype]
     }
 
