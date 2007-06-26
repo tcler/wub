@@ -30,9 +30,9 @@ set te_encodings {}	;# uncomment to stop gzip transfers
 package require WubUtils
 package require Debug
 Debug off url
-Debug off http 1
+Debug off http 10
 Debug off cookies
-Debug off socket 1
+Debug off socket 10
 
 package require Url
 package require Http
@@ -291,8 +291,8 @@ proc send {reply} {
 
     # use -dynamic flag to avoid caching
     set cacheit [expr {
-		       ![dict exists $response -dynamic]
-		       && ![dict get $response -dynamic]
+		       ![dict exists $reply -dynamic]
+		       || ![dict get $reply -dynamic]
 		   }]
 
     # handle Vary field
@@ -441,6 +441,24 @@ proc send {reply} {
 	dict set reply etag "\"[::thread::id].[clock microseconds]\""
     }
 
+    if {[dict exists $reply content-length]
+	&& [dict get $reply content-length] != [string length $content]
+    } {
+	# there is a disparity between the content-length recorded
+	# and the content passed in.
+	set content [string range $content 0 [dict get $reply content-length]]
+	Debug.error {Content length [dict get $reply content-length] != [string length $content]}
+    }
+
+    if {![info exists content]} {
+	set content ""	;# this shouldn't happen.
+    }
+    if {$content eq ""} {
+	# if the content is empty - make sure the headers are consistent
+	dict set reply content-length 0
+	catch {dict unset reply content-type}
+    }
+
     # strip http fields which don't have relevance in response
     dict for {n v} $reply {
 	set nl [string tolower $n]
@@ -466,18 +484,6 @@ proc send {reply} {
 	readable $sock closing $sock	;# we're not accepting more input
     }
 
-    if {[dict exists $reply content-length]
-	&& [dict get $reply content-length] != [string length $content]
-    } {
-	# there is a disparity between the content-length recorded
-	# and the content passed in.
-	set content [string range $content 0 [dict get $reply content-length]]
-	Debug.error {Content length [dict get $reply content-length] != [string length $content]}
-    }
-
-    if {![info exists content]} {
-	set content ""	;# this shouldn't happen.
-    }
     set ::replies($trx) [list $header $content $close]
     set ::satisfied($trx) 1	;# the request has been satisfied
 
