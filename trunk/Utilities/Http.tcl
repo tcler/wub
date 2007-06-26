@@ -350,12 +350,22 @@ namespace eval Http {
 	return [OkResponse $rsp 200 Ok $content $ctype]
     }
 
-    proc Created {rsp location {content ""} {ctype ""}} {
-	dict set rsp location $location
-	dict set rsp -content $content
-	dict set rsp -dynamic 1
-	dict set rsp content-length [string length $content]
-	return [OkResponse $rsp 201 Created $content $ctype]
+    proc Created {rsp location} {
+	dict set rsp -code 201
+	dict set rsp -rtype Created
+	dict set rsp location $location	;# location of created entity
+
+	# unset the content components
+	catch {dict unset rsp -content}
+	catch {dict unset rsp content-type}
+	dict set rsp content-length 0
+
+	dict set rsp -dynamic 1	;# prevent caching
+	dict set rsp -raw 1	;# prevent conversion
+
+	#Debug.log {Created: $rsp} 2
+
+	return $rsp
     }
 
     proc Accepted {rsp {content ""} {ctype ""}} {
