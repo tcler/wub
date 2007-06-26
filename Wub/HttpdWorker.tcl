@@ -256,7 +256,7 @@ proc closing {sock} {
 #
 # Side Effects:
 #	queues the response for sending by method responder
-proc send {reply} {
+proc send {reply {cacheit 1}} {
     Debug.log {[set x $reply; dict set x -entity <ELIDED>; dict set x -content <ELIDED>; return $x]}
     #set reply [Access log $reply]
 
