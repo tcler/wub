@@ -353,6 +353,7 @@ namespace eval Http {
     proc Created {rsp location {content ""} {ctype ""}} {
 	dict set rsp location $location
 	dict set rsp -content $content
+	dict set rsp -dynamic 1
 	dict set rsp content-length [string length $content]
 	return [OkResponse $rsp 201 Created $content $ctype]
     }
