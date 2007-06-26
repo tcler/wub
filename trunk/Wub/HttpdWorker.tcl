@@ -460,6 +460,9 @@ proc send {reply {cacheit 1}} {
     if {[dict exists $reply content-length]
 	&& [dict get $reply content-length] != [string length $content]
     } {
+	# there is a disparity between the content-length recorded
+	# and the content passed in.
+	set content [string range $content 0 [dict get $reply content-length]]
 	Debug.error {Content length [dict get $reply content-length] != [string length $content]}
     }
 
