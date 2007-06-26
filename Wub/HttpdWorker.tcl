@@ -256,7 +256,7 @@ proc closing {sock} {
 #
 # Side Effects:
 #	queues the response for sending by method responder
-proc send {reply {cacheit 1}} {
+proc send {reply} {
     Debug.log {[set x $reply; dict set x -entity <ELIDED>; dict set x -content <ELIDED>; return $x]}
     #set reply [Access log $reply]
 
@@ -288,6 +288,12 @@ proc send {reply {cacheit 1}} {
     foreach {n v} [Dict get? $reply -meta] {
 	dict set reply $n $v
     }
+
+    # use -dynamic flag to avoid caching
+    set cacheit [expr {
+		       ![dict exists $response -dynamic]
+		       && ![dict get $response -dynamic]
+		   }]
 
     # handle Vary field
     if {[dict exists $reply -vary]} {
