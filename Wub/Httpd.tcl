@@ -294,7 +294,7 @@ namespace eval Httpd {
     }
 
     # send - send a request to its associated thread
-    proc send {request} {
+    proc send {request {cacheit 1}} {
 	variable sockets
 	set tid $sockets([dict get $request -sock])
 	::thread::send -async $tid [list send $request]
