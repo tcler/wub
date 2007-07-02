@@ -873,7 +873,8 @@ proc parse {} {
     }
 
     # now parse the request-line URL
-    set request [dict merge $request [Url parse "http://$head(-uri)"]]
+    set url [string map {http://http:// http://} "http://$head(-uri)"]
+    set request [dict merge $request [Url parse $url]]
     dict set request -url [Url url $request]
 
     # completed request header decode - now dispatch on the URL
