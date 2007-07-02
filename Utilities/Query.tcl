@@ -136,7 +136,11 @@ namespace eval Query {
     # cconvert - convert charset to appropriate encoding
     # - try to ensure the correctness of utf-8 input
     proc cconvert {query charset} {
-	set charset [string tolower $charset]
+	if {$charset eq ""} {
+	    set charset utf-8
+	} else {
+	    set charset [string tolower $charset]
+	}
 	Debug.query {cconvert $charset} 6
 	if {$charset in [encoding names]} {
 	    # tcl knows of this encoding - so make the conversion
