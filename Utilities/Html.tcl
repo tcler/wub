@@ -46,9 +46,14 @@ know {[string match <*> [lindex $args 0]]} {
     ::proc ::<$tag> {args} [string map [list @T $tag] {
 	set result {}
 	foreach {n v} [lrange $args 0 end-1] {
-	    lappend result "$n='[armour $v]'"
+	    lappend result "[string trim $n]='[armour [string trim $v]]'"
 	}
-	return "<@T [join ${result}]>[lindex $args end]</@T>"
+	set val [string trim [lindex $args end]]
+	if {$val eq ""} {
+	    return "<@T [join ${result}] />"
+	} else {
+	    return "<@T [join ${result}]>$val</@T>"
+	}
     }]
     return [eval $args]
 }
