@@ -71,3 +71,7 @@ proc hhmts {time} {
     set ::httmts [string trim $time "<!->\n"]
     return $time
 }
+
+proc alias {alias args} {
+    interp alias {} $alias {} {*}$args
+}
