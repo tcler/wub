@@ -274,6 +274,8 @@ namespace eval Http {
 	dict set rsp expires "Sun, 01 Jul 2005 00:00:00 GMT"
 	dict set rsp pragma "no-cache"	;# HTTP/1.0
 	dict set rsp -dynamic 1
+	catch {dict unset rsp -modified}
+	catch {dict unset rsp -depends}
 	#catch {dict unset rsp last-modified}
 	return $rsp
     }
