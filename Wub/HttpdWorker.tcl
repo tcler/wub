@@ -989,6 +989,15 @@ proc get {} {
 proc connect {req vars socket} {
     Debug.socket {[::thread::id] connect $req $vars $socket}
 
+    # some code to detect races (we hope)
+    set chans [chan names sock*]
+    if {[llength $chans] > 1
+	|| ([llength $chans] > 0 && $socket ne "" && $socket ni $chans)
+	|| ([llength $chans] > 0 && $::sock ne "" && $::sock ni $chans)
+    } {
+	Debug.error {HRACE: new req from $socket/$::sock ($chans)}
+    }
+
     array unset ::satisfied	;# forget request state
     array unset ::replies	;# forget pending replies
     set ::pending 0		;# no pending requests
