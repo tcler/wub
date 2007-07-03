@@ -126,7 +126,7 @@ namespace eval Httpd {
 		set w ""
 		unset W($tid)
 	    }
-	    
+
 	    if {[info exists A($sock)]} {
 		set time [expr {[lindex $A($sock) 1 0] / 1000000}]
 		set start [list [clock format $time -format {%d/%m/%Y}] [clock format $time -format {%T}]]
