@@ -993,7 +993,7 @@ proc connect {req vars socket} {
     set chans [chan names sock*]
     if {[llength $chans] > 1
 	|| ([llength $chans] > 0 && $socket ne "" && $socket ni $chans)
-	|| ([llength $chans] > 0 && $::sock ne "" && $::sock ni $chans)
+	|| ([llength $chans] > 0 && $::sock ne -1 && $::sock ni $chans)
     } {
 	Debug.error {HRACE: new req from $socket/$::sock ($chans)}
     }
