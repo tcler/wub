@@ -519,13 +519,13 @@ proc disconnect {error {eo {}}} {
     }
 
     variable request
-    Debug.socket {disconnect: '$error' ($request)}
+    Debug.socket {disconnect: $sock ([chan names sock*]) - '$error' ($request)}
     Debug.close {disconnecting: '$error' ($eo)}
 
     ;# remove socket
-    if {[catch {close $::sock} r eoc]} {
-	Debug.error {closing after '$error'/($eo) error: '$r' ($eoc)}
-    }
+    catch {chan event $sock writable {}}
+    catch {chan event $sock readable {}}
+    catch {close $::sock}
 
     array unset ::satisfied; array set ::satisfied {}	;# forget request state
     array unset ::replies; array set ::replies {}	;# forget pending replies
