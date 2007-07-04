@@ -118,7 +118,9 @@ namespace eval Httpd {
 	    } else {
 		set ip ""
 	    }
-	    
+
+	    #if {![info exists W($tid)]} continue ;# race workaround
+
 	    # check worker/socket
 	    if {$W($tid) ne $sock} {
 		set w $W($tid)

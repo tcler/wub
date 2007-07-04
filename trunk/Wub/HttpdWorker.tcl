@@ -527,11 +527,6 @@ proc disconnect {error {eo {}}} {
     catch {chan event $sock readable {}}
     catch {close $::sock}
 
-    array unset ::satisfied; array set ::satisfied {}	;# forget request state
-    array unset ::replies; array set ::replies {}	;# forget pending replies
-    catch {unset request}
-    set ::gets 0
-    set ::pending 0
     set ::sock -1
 
     # inform parent of disconnect - this thread will now be recycled
@@ -996,11 +991,13 @@ proc connect {req vars socket} {
 	|| ([llength $chans] > 0 && $socket ne "" && $socket ni $chans)
 	|| ([llength $chans] > 0 && $::sock ne -1 && $::sock ni $chans)
     } {
-	Debug.error {HRACE [::thread::id]: new req from $socket/$::sock ($chans)}
+	Debug.error {HRACE [::thread::id]: new req from $socket/$::sock ($chans) - request:[catch {set ::request} xxx; set xxx] - pending: [set ::pending] - satisfied:([array get ::satisfied]) - replies:([array get ::replies])}
     }
 
-    array unset ::satisfied	;# forget request state
-    array unset ::replies	;# forget pending replies
+    array unset ::satisfied; array set ::satisfied {}	;# forget request state
+    array unset ::replies; array set ::replies {}	;# forget pending replies
+    catch {unset request}
+    set ::gets 0
     set ::pending 0		;# no pending requests
 
     if {$socket == $::sock} {
