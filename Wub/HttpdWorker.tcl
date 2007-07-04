@@ -596,6 +596,9 @@ proc got {req} {
     } r eo]} {
 	Debug.error {'get' error: '$r' ($eo)}
     }
+
+    # reset the request dict to this connection prototype
+    set request $::prototype
     readable $::sock get	;# resume reading
 }
 
@@ -974,6 +977,8 @@ proc get {} {
     }
 }
 
+variable prototype {}
+
 # Parent thread will call connect with the pro-forma request
 proc connect {req vars socket} {
     Debug.socket {[::thread::id] connect $req $vars $socket}
@@ -1004,11 +1009,11 @@ proc connect {req vars socket} {
     }
 
     variable {*}$vars	;# instantiate variables
-    dict set req -worker [::thread::id]
-    dict set req -entity {}
 
-    variable request $req	;# remember the request
-
+    # remember the request prototype
+    variable request [dict merge [list -worker [::thread::id]] $req]
+    variable prototype $request
+    
     rxtimer after $::txtime timeout rxtimer "first-read timeout"
     readable $socket get
     Debug.socket {[::thread::id] connected}
