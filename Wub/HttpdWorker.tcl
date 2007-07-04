@@ -95,8 +95,6 @@ proc timeout {timer args} {
 
 # detach - force this thread to detach its socket
 proc detach {sock} {
-    variable prototype
-    unset prototype	;# this means we can't continue without a connection
     ::thread::detach $sock
 }
 
@@ -837,7 +835,7 @@ proc parse {} {
 		dict set request -$f $c
 	    }
 	    dict set request host [join [list [dict get $request -host] [dict get $request -port]] :]
-	    set request [dict merge $request [Url parse http://[dict get $request host]/$head(-uri)]]
+	    set request [dict merge $request [Url parse http://[dict get $request host]$head(-uri)]]
 	}
     } elseif {[dict get $request -version] > 1.0} {
 	handle [Http Bad $request "HTTP 1.1 is required to send Host request"]
@@ -1009,7 +1007,6 @@ proc connect {req vars socket} {
     dict set req -worker [::thread::id]
     dict set req -entity {}
 
-    variable prototype $req	;# set a clean prototype
     variable request $req	;# remember the request
 
     rxtimer after $::txtime timeout rxtimer "first-read timeout"
