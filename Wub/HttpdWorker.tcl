@@ -822,20 +822,13 @@ proc parse {} {
 	return
     }
 
-    # now parse the request-line URL
-    set url [string map {http://http:// http://} "http://$head(-uri)"]
-
     # ensure that the client sent a Host: if protocol requires it
     if {[dict exists $request host]} {
-	set request [dict merge $request [Url parse $url]]
-	dict set request -url [Url url $request]
-	if {[dict exists $request -host]
-	    && [dict get $request -host] ne ""
-	} {
+	# client sent Host: field
+	if {[string match http:* $head(-uri)]} {
 	    # rfc 5.2 1 - a host header field must be ignored
 	    # if request-line specified an absolute URL host/port
-	    dict set request -host [dict get $request -host]
-	    dict set request -port [dict get $request -port]
+	    set request [dict merge $request [Url parse $head(-uri)]]
 	    dict set request host [join [list [dict get $request -host] [dict get $request -port]] :]
 	} else {
 	    # no absolute URL was specified by the request-line
@@ -843,21 +836,23 @@ proc parse {} {
 	    foreach c [split [dict get $request host] :] f {host port} {
 		dict set request -$f $c
 	    }
+	    dict set request host [join [list [dict get $request -host] [dict get $request -port]] :]
+	    set request [dict merge $request [Url parse http://[dict get $request host]/$head(-uri)]]
 	}
     } elseif {[dict get $request -version] > 1.0} {
 	handle [Http Bad $request "HTTP 1.1 is required to send Host request"]
 	return
     } else {
-	# HTTP 1.0 isn't required to send a Host request
+	# HTTP 1.0 isn't required to send a Host request but we still need it
 	set request [dict merge $request [Url parse $url]]
-	dict set request -url [Url url $request]
-
 	if {![dict exists $request -host]} {
 	    # make sure the request has some idea of our host&port
 	    dict set request -host $::host
 	    dict set request -port $::port
+	    dict set request host [join [list [dict get $request -host] [dict get $request -port]] :]
 	}
     }
+    dict set request -url [Url url $request]	;# normalize URL
 
     # rfc2616 14.10:
     # A system receiving an HTTP/1.0 (or lower-version) message that
