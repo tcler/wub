@@ -996,7 +996,7 @@ proc connect {req vars socket} {
 	|| ([llength $chans] > 0 && $socket ne "" && $socket ni $chans)
 	|| ([llength $chans] > 0 && $::sock ne -1 && $::sock ni $chans)
     } {
-	Debug.error {HRACE: new req from $socket/$::sock ($chans)}
+	Debug.error {HRACE [::thread::id]: new req from $socket/$::sock ($chans)}
     }
 
     array unset ::satisfied	;# forget request state
