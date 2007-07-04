@@ -526,11 +526,12 @@ proc disconnect {error {eo {}}} {
     catch {chan event $sock writable {}}
     catch {chan event $sock readable {}}
     catch {close $::sock}
-    
+
+    set osock $sock
     set ::sock -1
 
     # inform parent of disconnect - this thread will now be recycled
-    ::thread::send -async $::thread::parent [list Httpd disconnect [::thread::id] $::sock $error $eo]
+    ::thread::send -async $::thread::parent [list Httpd disconnect [::thread::id] $::osock $error $eo]
 }
 
 # handle - 
