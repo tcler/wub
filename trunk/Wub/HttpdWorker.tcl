@@ -822,14 +822,21 @@ proc parse {} {
 	return
     }
 
+    # now parse the request-line URL
+    set url [string map {http://http:// http://} "http://$head(-uri)"]
+    set request [dict merge $request [Url parse $url]]
+    dict set request -url [Url url $request]
+
     # ensure that the client sent a Host: if protocol requires it
     if {[dict exists $request host]} {
-	if {[dict exists $request -host] && ([dict get $request -host] ne "")} {
+	if {[dict exists $request -host]
+	    && ([dict get $request -host] ne "")
+	} {
 	    # rfc 5.2 1 - a host header field must be ignored
 	    # if request-line specified an absolute URL host/port
-	    dict set request -host $::host
-	    dict set request -port $::port
-	    dict set request host [join {*}[list $host $port] :]
+	    dict set request -host [dict get $request -host]
+	    dict set request -port [dict get $request -port]
+	    dict set request host [join {*}[list [dict get $request -host] [dict get $request -port]] :]
 	} else {
 	    # no absolute URL was specified by the request-line
 	    # use the Host field to determine the host
@@ -862,11 +869,6 @@ proc parse {} {
 	}
 	dict unset request connection
     }
-
-    # now parse the request-line URL
-    set url [string map {http://http:// http://} "http://$head(-uri)"]
-    set request [dict merge $request [Url parse $url]]
-    dict set request -url [Url url $request]
 
     # completed request header decode - now dispatch on the URL
 
