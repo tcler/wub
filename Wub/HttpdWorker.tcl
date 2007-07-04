@@ -836,7 +836,7 @@ proc parse {} {
 	    # if request-line specified an absolute URL host/port
 	    dict set request -host [dict get $request -host]
 	    dict set request -port [dict get $request -port]
-	    dict set request host [join {*}[list [dict get $request -host] [dict get $request -port]] :]
+	    dict set request host [join [list [dict get $request -host] [dict get $request -port]] :]
 	} else {
 	    # no absolute URL was specified by the request-line
 	    # use the Host field to determine the host
