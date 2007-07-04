@@ -831,14 +831,14 @@ proc parse {} {
 	    # rfc 5.2 1 - a host header field must be ignored
 	    # if request-line specified an absolute URL host/port
 	    set request [dict merge $request [Url parse $head(-uri)]]
-	    dict set request host [join [list [dict get $request -host] [dict get $request -port]] :]
+	    dict set request host [join {*}[list [dict get $request -host] [dict get $request -port]] :]
 	} else {
 	    # no absolute URL was specified by the request-line
 	    # use the Host field to determine the host
 	    foreach c [split [dict get $request host] :] f {host port} {
 		dict set request -$f $c
 	    }
-	    dict set request host [join [list [dict get $request -host] [dict get $request -port]] :]
+	    dict set request host [join {*}[list [dict get $request -host] [dict get $request -port]] :]
 	    set request [dict merge $request [Url parse http://[dict get $request host]$head(-uri)]]
 	}
     } elseif {[dict get $request -version] > 1.0} {
@@ -851,7 +851,7 @@ proc parse {} {
 	    # make sure the request has some idea of our host&port
 	    dict set request -host $::host
 	    dict set request -port $::port
-	    dict set request host [join [list [dict get $request -host] [dict get $request -port]] :]
+	    dict set request host [join {*}[list [dict get $request -host] [dict get $request -port]] :]
 	}
     }
     dict set request -url [Url url $request]	;# normalize URL
