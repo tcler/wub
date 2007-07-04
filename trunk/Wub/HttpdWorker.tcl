@@ -527,7 +527,7 @@ proc disconnect {error {eo {}}} {
     catch {chan event $sock readable {}}
     catch {close $::sock}
 
-    set osock $sock
+    set osock $::sock
     set ::sock -1
 
     # inform parent of disconnect - this thread will now be recycled
