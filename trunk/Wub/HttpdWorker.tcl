@@ -532,9 +532,10 @@ proc disconnect {error {eo {}}} {
     catch {unset request}
     set ::gets 0
     set ::pending 0
+    set ::sock -1
 
     # inform parent of disconnect - this thread will now be recycled
-    ::thread::send -async $::thread::parent [list ::Httpd::disconnect [::thread::id] $::sock $error $eo]
+    ::thread::send -async $::thread::parent [list Httpd disconnect [::thread::id] $::sock $error $eo]
 }
 
 # clean - clean up the request - remove all protocol elements
@@ -602,7 +603,7 @@ proc got {req} {
 	#set request [Access log $request]	;# log the request
 
 	# inform parent of parsing completion
-	::thread::send -async $::thread::parent [list ::Httpd::got [::thread::id] $request]
+	::thread::send -async $::thread::parent [list Httpd got [::thread::id] $request]
 	clean
     } r eo]} {
 	Debug.error {'get' error: '$r' ($eo)}
