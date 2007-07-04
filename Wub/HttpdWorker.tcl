@@ -827,14 +827,13 @@ proc parse {} {
 
     # ensure that the client sent a Host: if protocol requires it
     if {[dict exists $request host]} {
+	set request [dict merge $request [Url parse $url]]
+	dict set request -url [Url url $request]
 	if {[dict exists $request -host]
 	    && [dict get $request -host] ne ""
 	} {
 	    # rfc 5.2 1 - a host header field must be ignored
 	    # if request-line specified an absolute URL host/port
-	    set request [dict merge $request [Url parse $url]]
-	    dict set request -url [Url url $request]
-
 	    dict set request -host [dict get $request -host]
 	    dict set request -port [dict get $request -port]
 	    dict set request host [join [list [dict get $request -host] [dict get $request -port]] :]
