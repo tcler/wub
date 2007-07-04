@@ -519,6 +519,8 @@ proc disconnect {error {eo {}}} {
     }
 
     variable request
+    lappend ::req_log $::request
+
     Debug.socket {disconnect: $sock ([chan names sock*]) - '$error' ($request)}
     Debug.close {disconnecting: '$error' ($eo)}
 
@@ -526,19 +528,11 @@ proc disconnect {error {eo {}}} {
     catch {chan event $sock writable {}}
     catch {chan event $sock readable {}}
     catch {close $::sock}
-
-    clean
-
+    
     set ::sock -1
 
     # inform parent of disconnect - this thread will now be recycled
     ::thread::send -async $::thread::parent [list Httpd disconnect [::thread::id] $::sock $error $eo]
-}
-
-# clean - clean up the request - remove all protocol elements
-proc clean {} {
-    lappend ::req_log $::request
-    variable request $::prototype
 }
 
 # handle - 
@@ -600,7 +594,7 @@ proc got {req} {
 
 	# inform parent of parsing completion
 	::thread::send -async $::thread::parent [list Httpd got [::thread::id] $request]
-	clean
+	lappend ::req_log $::request
     } r eo]} {
 	Debug.error {'get' error: '$r' ($eo)}
     }
@@ -992,12 +986,13 @@ proc connect {req vars socket} {
 	|| ([llength $chans] > 0 && $socket ne "" && $socket ni $chans)
 	|| ([llength $chans] > 0 && $::sock ne -1 && $::sock ni $chans)
     } {
-	Debug.error {HRACE [::thread::id]: new req from $socket/$::sock ($chans) - request:[catch {set ::request} xxx; set xxx] - pending: [set ::pending] - satisfied:([array get ::satisfied]) - replies:([array get ::replies])}
+	Debug.error {HRACE [::thread::id]: new req from $socket/$::sock ($chans) - request:[catch {set ::request} xxx; set xxx] - pending: [set ::pending] - satisfied:([array get ::satisfied]) - replies:([array get ::replies]) - req_log: ($::req_log)}
     }
 
     array unset ::satisfied; array set ::satisfied {}	;# forget request state
     array unset ::replies; array set ::replies {}	;# forget pending replies
     catch {unset request}
+    set ::req_log {}
     set ::gets 0
     set ::pending 0		;# no pending requests
 
