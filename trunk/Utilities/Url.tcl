@@ -108,7 +108,9 @@ namespace eval Url {
     }
 
     proc host {x} {
-	if {[dict exists $x -port] && [dict get $x -port] != 80} {
+	if {[dict exists $x -port]
+	    && [dict get $x -port] ne {}
+	    && [dict get $x -port] != 80} {
 	    return "[dict get $x -host]:[dict get $x -port]"
 	} else {
 	    return "[dict get $x -host]"
