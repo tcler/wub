@@ -97,7 +97,7 @@ snit::type Listener {
 		    {*}$options(-httpd) \
 		    -ipaddr $ipaddr \
 		    -rport $rport \
-		    -sock $sock
+		    -socket $sock
 		Debug.socket {accept complete: $http}
 	    }
 	} result eo]} {
