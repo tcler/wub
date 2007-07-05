@@ -207,6 +207,7 @@ namespace eval Query {
 	} elseif {![dict exists $http -entity]} {
 	    set query [dict create]
 	    set count -1
+	    dict set http -entity {}
 	} else {
 	    set query {}
 	    set count 0
@@ -214,7 +215,7 @@ namespace eval Query {
 
 	if {[dict exists $http content-type]} {
 	    set ct [dict get $http content-type]
-	    set entity [dict get $http -entity]
+	    set entity [Dict get? $http -entity]
 	    lassign [qparse $entity $count $ct] query1 count
 	    set query1 [charset $query1]
 	    Debug.query {qparsed $query1}
