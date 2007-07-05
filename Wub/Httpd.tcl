@@ -640,7 +640,7 @@ namespace eval Httpd {
 	Debug.socket {Connecting $tid $args}
 
 	# the socket must stay in non-block binary binary-encoding mode
-	set sock [dict get $args -sock]
+	set sock [dict get $args -socket]
 	chan configure $sock -blocking 0 -translation {binary binary} -encoding binary
 
 	# clean up after sockets which have closed before a thread realises

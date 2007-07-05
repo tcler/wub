@@ -12,7 +12,7 @@ proc bgerror {error eo} {
     dict lappend ::request bgerror [list [clock seconds] $error $eo]
 
     Debug.error {Thread [::thread::id]: $error ($eo)}
-    catch {disconnect $error $eo}
+    catch {disconnect [dict get $::request -sock] $error $eo}
 }
 interp bgerror {} ::bgerror
 
@@ -61,7 +61,6 @@ if {0} {
 variable request ""	;# dict containing request read
 #monitor request	;# monitor request shimmering
 
-variable sock -1		;# socket being supervised by this thread
 variable transaction -1	;# transaction count for current connection
 variable generation 0	;# worker/connection association generation
 
@@ -83,11 +82,11 @@ variable replies; array set replies {}	;# array of replies pending
 variable pending 0			;# currently unsatisfied requests
 variable gets 0
 
-proc timeout {timer args} {
+proc timeout {timer sock args} {
     dict set ::request -timeout $args
     if {![array size ::replies]} {
 	#Debug.error {Timeout $args - pending:$::pending gets:$::gets replies:[array size ::replies]} 2
-	disconnect "Idle Time-out"; return
+	disconnect $sock "Idle Time-out"; return
     } else {
 	$timer restart
     }
@@ -104,7 +103,7 @@ proc readable {sock args} {
     dict set ::request -readable $args
     if {[catch {chan event $sock readable $args} r eo]} {
 	Debug.error "readable: '$r' ($eo)"
-	disconnect $r $eo; return
+	disconnect $sock $r $eo; return
     }
 }
 
@@ -112,7 +111,7 @@ proc writable {sock args} {
     dict set ::request -writable $args
     if {[catch {chan event $sock writable $args} r eo]} {
 	Debug.error "writable: '$r' ($eo)"
-	disconnect $r $eo; return
+	disconnect $sock $r $eo; return
     }
 }
 
@@ -125,12 +124,11 @@ proc writable {sock args} {
 #	Send transaction responses to client
 #	Possibly close socket
 
-proc responder {} {
+proc responder {sock} {
     variable replies
-    variable sock
     Debug.http {RESPONDER $sock: [array names replies]} 4
     if {[eof $sock]} {
-	disconnect "Lost connection on transmit"; return
+	disconnect $sock "Lost connection on transmit"; return
     }
     if {[catch {
 	catch {txtimer cancel}
@@ -149,7 +147,7 @@ proc responder {} {
 	    Debug.http {no pending or '$next' doesn't follow '$response'}
 	    
 	    writable $sock	;# disable responder
-	    txtimer after $::txtime timeout txtimer "responder pending"
+	    txtimer after $::txtime timeout txtimer $sock "responder pending"
 	} else {
 	    # we're going to respond to the next transaction in trx order
 	    # unpack and consume the reply from replies queue
@@ -181,14 +179,14 @@ proc responder {} {
 	    puts -nonewline $sock $content	;# send the content
 	    chan flush $sock
 	    incr ::pending -1		;# count one fewer request pending
-	    writable $sock responder	;# keep trying to send replies
+	    writable $sock responder $sock	;# keep trying to send replies
 	    if {$close} {
-		disconnect "Normal termination"
+		disconnect $sock "Normal termination"
 	    }
 	}
     } r eo]} {
 	Debug.error {FAILED send '$r' ($eo)}
-	disconnect "Disconnect"
+	disconnect $sock "Disconnect - $r" $eo
     } else {
 	Debug.socket {SENT content (close: $close) [string length $content] '$content'} 10
     }
@@ -235,14 +233,14 @@ proc gzip_it {reply content} {
 proc closing {sock} {
     if {[catch {chan eof $sock} r] || $r} {
 	# remote end closed - just forget it
-	disconnect "Remote closed connection"; return
+	disconnect $sock "Remote closed connection"; return
     } else {
 	if {[catch {
 	    chan configure $sock -blocking 0
 	    read $sock
 	} r eo]} {
 	    Debug.error "trying to close: '$r' ($eo)"
-	    disconnect "Remote closed connection"; return
+	    disconnect $sock "Remote closed connection - $r" $eo; return
 	}
     }
 }
@@ -488,7 +486,7 @@ proc send {reply {cacheit 1}} {
     Debug.http {ADD TRANS: $header ([array names ::replies])}
 
     # response has been collected and is pending output
-    writable $::sock responder
+    writable $sock responder $sock
 
     # handle bot
     if {[dict exists $reply -bot_change]} {
@@ -511,7 +509,7 @@ proc send {reply {cacheit 1}} {
 
 # disconnect - a fatal socket-level error has occurred
 # close everything, report the failure to parent
-proc disconnect {error {eo {}}} {
+proc disconnect {sock error {eo {}}} {
     foreach timer [Timer info instances] {
 	$timer cancel
     }
@@ -523,38 +521,35 @@ proc disconnect {error {eo {}}} {
     Debug.close {disconnecting: '$error' ($eo)}
 
     ;# remove socket
-    catch {chan event $::sock writable {}}
-    catch {chan event $::sock readable {}}
-    catch {close $::sock}
-
-    set osock $::sock
-    set ::sock -1
+    catch {chan event $sock writable {}}
+    catch {chan event $sock readable {}}
+    catch {close $sock}
 
     # inform parent of disconnect - this thread will now be recycled
-    ::thread::send -async $::thread::parent [list Httpd disconnect [::thread::id] $osock $error $eo]
+    ::thread::send -async $::thread::parent [list Httpd disconnect [::thread::id] $sock $error $eo]
 }
 
 # handle - 
 proc handle {req} {
     Debug.error {handle: ([set x $req; dict set x -content <ELIDED>; dict set x -entity <ELIDED>; return $x])}
-    variable request $req
 
-    readable $::sock	;# suspend reading
+    set sock [dict get $req -sock]
+    readable $sock	;# suspend reading
     catch {rxtimer cancel}
     if {[catch {
-	dict set request connection close
-	if {![dict exists $request -transaction]} {
-	    dict set request -transaction $::transaction
+	dict set req connection close
+	if {![dict exists $req -transaction]} {
+	    dict set req -transaction $::transaction
 	}
-	dict set request -generation $::generation
-	send $request 0			;# send our own reply
+	dict set req -generation $::generation
+	send $req 0			;# send our own reply
     } r eo]} {
-	dict set request -handlerr "'$r' ($eo)"
-	#set request [Access log $request]
+	dict append req -error "(handler '$r' ($eo))"
+	#set req [Access log $request]
 	Debug.error {'handle' error: '$r' ($eo)}
     }
 
-    disconnect [Dict get? $request -error] $::request
+    disconnect [dict get $req -sock] [Dict get? $req -error] $::req
     return
 }
 
@@ -564,8 +559,9 @@ proc got {req} {
     Debug.socket {got: $req}
 
     variable request $req
+    set sock [dict get $req -sock]
 
-    readable $::sock	;# suspend reading
+    readable $sock	;# suspend reading
     if {[catch {
 	#dict set request -received [clock seconds]
 	dict set request -received [clock microseconds]
@@ -600,7 +596,7 @@ proc got {req} {
 
     # reset the request dict to this connection prototype
     set request $::prototype
-    readable $::sock get	;# resume reading
+    readable $sock get $sock	;# resume reading
 }
 
 # gzip - 
@@ -610,33 +606,33 @@ proc gzip {} {
 }
 
 # read the entity, informing parent when complete
-proc identity {length} {
+proc identity {sock length} {
     variable request
     rxtimer cancel
 
     if {[catch {
 	# read as much of the entity as is available
 	dict set request -left [expr {$length - [string bytelength [dict get $request -entity]]}]
-	dict append request -entity [read $::sock [dict get $::request -left]]
+	dict append request -entity [read $sock [dict get $::request -left]]
 
 	if {[string bytelength [dict get $request -entity]] == $length} {
-	    readable $::sock	;# disable reading
+	    readable $sock	;# disable reading
 	    # completed entity - invoke continuation
 	    foreach te [Dict get? $request -te] {
 		$te
 	    }
 	    got $request
 	} else {
-	    rxtimer after $::enttime timeout rxtimer "identity timeout"
+	    rxtimer after $::enttime timeout rxtimer $sock "identity timeout"
 	}
     } r eo]} {
 	Debug.error {identity error '$r' ($eo)}
     }
 }
 
-proc chunk {} {
-    if {[file eof $::sock]} {
-	disconnect chunk; return
+proc chunk {sock} {
+    if {[file eof $sock]} {
+	disconnect $sock chunk; return
     }
 }
 
@@ -652,13 +648,13 @@ proc start_transfer {} {
 	# the client wants us to tell it to continue
 	# before reading the body.
 	# Do so, then proceed to read
-	puts -nonewline $::sock "HTTP/1.1 100 Continue\r\n"
+	puts -nonewline [dict get $request -sock] "HTTP/1.1 100 Continue\r\n"
     }
 }
 
 # Start reading an entity from the client.
 # On completion use the supplied completion callback
-proc entity {} {
+proc entity {sock} {
     variable request
     if {[dict get $request -method] ne "POST"} {
 	return 1 ;# not a post?  No entity available.
@@ -703,7 +699,7 @@ proc entity {} {
 	    # not handling chunks
 	    start_transfer
 	    dict set request -entity "" ;# clear any old entity
-	    readable $::sock chunk
+	    readable $sock chunk $sock
 
 	    return
 	} else {
@@ -737,16 +733,16 @@ proc entity {} {
     }
 
     # start the copy of POST data
-    rxtimer after $::enttime timeout rxtimer "entity timeout"
+    rxtimer after $::enttime timeout rxtimer $sock "entity timeout"
     start_transfer
     dict set request -entity "" ;# clear any old entity
-    readable $::sock identity $length
+    readable $sock identity $sock $length
 
     return 0	;# we'll be handling the channel
 }
 
 # Parse the entire header in {$req -header}
-proc parse {} {
+proc parse {sock} {
     variable request
     Debug.socket {parse: $request} 3
     set header [dict get $request -header]
@@ -900,7 +896,7 @@ proc parse {} {
 	    } else {
 		# read the entity
 		#puts stderr "Entity: $request"
-		if {[entity]} {
+		if {[entity $sock]} {
 		    #puts stderr "Not Entity: $request"
 		    got $request
 		} else {
@@ -925,9 +921,8 @@ proc parse {} {
 }
 
 # get lines of header until it's complete
-proc get {} {
+proc get {sock} {
     rxtimer cancel
-    variable sock
     variable request
 
     Debug.socket {get: $request} 10
@@ -935,7 +930,7 @@ proc get {} {
     if {[catch {
 	chan gets $sock line
     } result eo]} {
-	disconnect $result $eo	;# inform parent that we're done
+	disconnect $sock $result $eo	;# inform parent that we're done
 	return
     }
 
@@ -943,12 +938,12 @@ proc get {} {
 	readable $sock	;# completed reading
 	if {[chan eof $sock]} {
 	    # remote end closed - just forget it
-	    disconnect "Remote closed connection"; return
+	    disconnect $sock "Remote closed connection"; return
 	} elseif {$::maxline && [chan pending input $sock] > $::maxline} {
 	    handle [Http Bad $request "Line too long"]
 	}
 
-	rxtimer after $::enttime timeout rxtimer "pre-read timeout"
+	rxtimer after $::enttime timeout rxtimer $sock "pre-read timeout"
 	return
     }
 
@@ -957,7 +952,7 @@ proc get {} {
 	if {[dict exists $request -header]} {
 	    # \n terminates the header - go parse it
 	    readable $sock	;# completed reading
-	    if {[catch {parse} r eo]} {
+	    if {[catch {parse $sock} r eo]} {
 		Debug.error {parse error: '$r' ($eo)}
 	    }
 	} else {
@@ -970,7 +965,7 @@ proc get {} {
 	incr ::gets
 
 	# accumulate header lines
-	rxtimer after $::rxtime timeout rxtimer "inter-read timeout"
+	rxtimer after $::rxtime timeout rxtimer $sock "inter-read timeout"
 	dict lappend request -header $line
 	if {$::maxhead && ([llength [dict get $request -header]] > $::maxhead)} {
 	    handle [Http Bad $request "Header too Large"]
@@ -981,16 +976,15 @@ proc get {} {
 variable prototype {}
 
 # Parent thread will call connect with the pro-forma request
-proc connect {req vars socket} {
-    Debug.socket {[::thread::id] connect $req $vars $socket}
+proc connect {req vars sock} {
+    Debug.socket {[::thread::id] connect $req $vars $sock}
 
     # some code to detect races (we hope)
     set chans [chan names sock*]
     if {[llength $chans] > 1
-	|| ([llength $chans] > 0 && $socket ne "" && $socket ni $chans)
-	|| ([llength $chans] > 0 && $::sock ne -1 && $::sock ni $chans)
+	|| ([llength $chans] > 1)
     } {
-	Debug.error {HRACE [::thread::id]: new req from $socket/$::sock ($chans) - request:[catch {set ::request} xxx; set xxx] - pending: [set ::pending] - satisfied:([array get ::satisfied]) - replies:([array get ::replies]) - req_log: ($::req_log)}
+	Debug.error {HRACE [::thread::id]: new req from $sock ($chans) - request:[catch {set ::request} xxx; set xxx] - pending: [set ::pending] - satisfied:([array get ::satisfied]) - replies:([array get ::replies]) - req_log: ($::req_log)}
     }
 
     array unset ::satisfied; array set ::satisfied {}	;# forget request state
@@ -999,28 +993,27 @@ proc connect {req vars socket} {
     set ::req_log {}
     set ::gets 0
     set ::pending 0		;# no pending requests
-
-    if {$socket == $::sock} {
-	dict set req -generation $::generation
-    } else {
-	dict set req -generation [incr ::generation]
-	set ::transaction -1
-	set ::sock $socket
-	set ::response -1
-    }
+    set ::transaction -1
+    set ::response -1
 
     variable {*}$vars	;# instantiate variables
 
     # remember the request prototype
-    variable request [dict merge [list -worker [::thread::id]] $req]
+    variable request $req
+    dict set request -generation [incr ::generation]
+    dict set request -sock $sock
+    dict set request -worker [::thread::id]
     variable prototype $request
-    
-    rxtimer after $::txtime timeout rxtimer "first-read timeout"
-    readable $socket get
+
+    rxtimer after $::txtime timeout rxtimer $sock "first-read timeout"
+    readable $sock get $sock
     Debug.socket {[::thread::id] connected}
 }
 
-proc disconnected {args} {}
+proc disconnected {args} {
+    # do something?
+    Debug.log {got 'disconnected' from parent: $args}
+}
 
 Debug on log 10
 Debug off close 10
