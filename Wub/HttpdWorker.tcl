@@ -523,8 +523,8 @@ proc disconnect {error {eo {}}} {
     Debug.close {disconnecting: '$error' ($eo)}
 
     ;# remove socket
-    catch {chan event $sock writable {}}
-    catch {chan event $sock readable {}}
+    catch {chan event $::sock writable {}}
+    catch {chan event $::sock readable {}}
     catch {close $::sock}
 
     set osock $::sock
