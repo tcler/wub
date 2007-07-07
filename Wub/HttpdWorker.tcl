@@ -8,11 +8,13 @@ package require spiders
 
 #puts stderr "Starting Httpd Worker [::thread::id]"
 proc bgerror {error eo} {
-    #puts stderr "Thread [::thread::id] ERROR: $error ($eo)"
-    dict lappend ::request bgerror [list [clock seconds] $error $eo]
-
     Debug.error {Thread [::thread::id]: $error ($eo)}
-    catch {disconnect [dict get $::request -sock] $error $eo}
+    catch {
+	dict lappend ::request -debug bgerror [list [clock seconds] $error $eo]
+    }
+    catch {
+	Disconnect [dict get $::request -sock] $error $eo
+    }
 }
 interp bgerror {} ::bgerror
 
@@ -25,7 +27,7 @@ if {![catch {package require zlib}]} {
 } else {
     variable te_encodings {}
 }
-set te_encodings {}	;# uncomment to stop gzip transfers
+#set te_encodings {}	;# uncomment to stop gzip transfers
 
 package require WubUtils
 package require Debug
@@ -80,13 +82,13 @@ variable enttime 10000	;# entity inter-read timeout
 variable satisfied; array set satisfied {}	;# array of requests satisfied
 variable replies; array set replies {}	;# array of replies pending
 variable pending 0			;# currently unsatisfied requests
-variable gets 0
+variable response	-1	;# last response sent
 
 proc timeout {timer sock args} {
-    dict set ::request -timeout $args
+    dict set ::request -debug timeout $timer $args
     if {![array size ::replies]} {
-	#Debug.error {Timeout $args - pending:$::pending gets:$::gets replies:[array size ::replies]} 2
-	disconnect $sock "Idle Time-out"; return
+	#Debug.error {Timeout $args - pending:$::pending replies:[array size ::replies]} 2
+	Disconnect $sock "Idle Time-out"; return
     } else {
 	$timer restart
     }
@@ -97,21 +99,21 @@ proc detach {sock} {
     ::thread::detach $sock
 }
 
-variable response	-1	;# last response sent
-
+# readable - make socket readable
 proc readable {sock args} {
-    dict set ::request -readable $args
+    dict set ::request -debug readable $args	;# debugging state
     if {[catch {chan event $sock readable $args} r eo]} {
 	Debug.error "readable: '$r' ($eo)"
-	disconnect $sock $r $eo; return
+	Disconnect $sock $r $eo; return
     }
 }
 
+# writable - make socket writable
 proc writable {sock args} {
-    dict set ::request -writable $args
+    dict set ::request -debug writable $args
     if {[catch {chan event $sock writable $args} r eo]} {
 	Debug.error "writable: '$r' ($eo)"
-	disconnect $sock $r $eo; return
+	Disconnect $sock $r $eo; return
     }
 }
 
@@ -128,8 +130,9 @@ proc responder {sock} {
     variable replies
     Debug.http {RESPONDER $sock: [array names replies]} 4
     if {[eof $sock]} {
-	disconnect $sock "Lost connection on transmit"; return
+	Disconnect $sock "Lost connection on transmit"; return
     }
+
     if {[catch {
 	catch {txtimer cancel}
 
@@ -170,23 +173,25 @@ proc responder {sock} {
 	    puts -nonewline $sock "$head\r\n"	;# send headers with terminating nl
 	    set ::sent $head
 	    Debug.socket {SENT: $sock $head'} 4
-	    
+
 	    # send the content/file (if any)
 	    # note: we must *not* send a trailing newline, as this
 	    # screws up the content-length and confuses the client
 	    # which doesn't then pick up the next response
 	    # in the pipeline
 	    puts -nonewline $sock $content	;# send the content
-	    chan flush $sock
+	    chan flush $sock			;# no, really, send it
+
 	    incr ::pending -1		;# count one fewer request pending
-	    writable $sock responder $sock	;# keep trying to send replies
 	    if {$close} {
-		disconnect $sock "Normal termination"
+		Disconnect $sock "Normal termination"
+	    } else {
+		writable $sock responder $sock	;# keep trying to send replies
 	    }
 	}
     } r eo]} {
 	Debug.error {FAILED send '$r' ($eo)}
-	disconnect $sock "Disconnect - $r" $eo
+	Disconnect $sock "Disconnect - $r" $eo
     } else {
 	Debug.socket {SENT content (close: $close) [string length $content] '$content'} 10
     }
@@ -197,52 +202,106 @@ proc expunge {reply} {
     foreach n [dict keys $reply content-*] {
 	dict unset reply $n
     }
+    if {[dict exists $reply transfer-encoding]} {
+	dict unset reply transfer-encoding
+    }
     if {[dict exists $reply -content]} {
 	dict unset reply -content	;# discard content
     }
     return $reply
 }
 
-# gzip_it - return reply with gzipped content
-proc gzip_it {reply content} {
-    Debug.error {gzip_it $reply}
+# gzip_content - gzip-encode the content
+proc gzip_content {reply} {
     if {[dict exists $reply -gzip]} {
-	# permit cache to supply pre-gzipped content
-	set content [dict get $reply -gzip]
-    } else {
-	# prepend a minimal gzip file header:
-	# signature, deflate compression, no flags, mtime,
-	# xfl=0, os=3
-	set gzip [binary format "H*iH*" "1f8b0800" [clock seconds] "0003"]
-	append gzip [zlib deflate $content 9]
-	
-	# append CRC and ISIZE fields
-	append gzip [zlib crc32 $gzip]
-	append gzip [binary format i [string length $content]]
-	set content $gzip
-	dict set reply -gzip $gzip
+	return $reply	;# it's already been gzipped
     }
 
-    # convert the reply to gzipped content-encoding
-    dict set reply content-encoding gzip
-    dict set reply content-length [string length $content]
+    # prepend a minimal gzip file header:
+    # signature, deflate compression, no flags, mtime,
+    # xfl=0, os=3
+    set content [dict get $reply -content]
+    set gzip [binary format "H*iH*" "1f8b0800" [clock seconds] "0003"]
+    append gzip [zlib deflate $content 9]
 
-    return [list $reply $content]
+    # append CRC and ISIZE fields
+    append gzip [zlib crc32 $gzip]
+    append gzip [binary format i [string length $content]]
+
+    dict set reply -gzip $gzip
+    return $reply
 }
 
 proc closing {sock} {
     if {[catch {chan eof $sock} r] || $r} {
 	# remote end closed - just forget it
-	disconnect $sock "Remote closed connection"; return
-    } else {
-	if {[catch {
+	Disconnect $sock "Remote closed connection"; return
+    } elseif {[catch {
 	    chan configure $sock -blocking 0
 	    read $sock
-	} r eo]} {
-	    Debug.error "trying to close: '$r' ($eo)"
-	    disconnect $sock "Remote closed connection - $r" $eo; return
+    } r eo]} {
+	Debug.error "trying to close: '$r' ($eo)"
+	Disconnect $sock "Remote closed connection - $r" $eo; return
+    }
+}
+
+proc indicate {args} {
+    thread::send -async $::thread::parent $args
+}
+
+# te - find and effect appropriate transfer encoding
+proc te {reply} {
+    # default to identity encoding
+    set content [dict get $reply -content]
+
+    if {![dict exists $reply -gzip]
+	&& "gzip" in $::te_encodings
+    } {
+	set reply [gzip_content $reply]
+    }
+
+    # choose transfer encoding
+    if {[dict exists $reply accept-encoding]
+	&& ![dict exists $reply content-encoding]
+    } {
+	foreach en [split [dict get $reply accept-encoding] ","] {
+	    lassign [split $en ";"] en pref
+	    set en [string trim $en]
+	    if {$en in $::te_encodings} {
+		switch $en {
+		    "gzip" { # substitute the gzipped form
+			if {[dict exists $reply -gzip]} {
+			    set content [dict get $reply -gzip]
+			    dict set reply content-encoding gzip
+			    break
+			}
+		    }
+		}
+	    }
 	}
     }
+    return [list $reply $content]
+}
+
+# charset - ensure correctly encoded content
+proc charset {reply} {
+    if {[dict exists $reply -charset]} {
+	return $reply	;# don't re-encode by charset
+    }
+
+    # handle charset for text/* types
+    lassign [split [Dict get? $reply content-type] {;}] ct
+    if {[string match text/* $ct]} {
+	if {[dict exists $reply -charset]} {
+	    set charset [dict get $reply -charset]
+	} else {
+	    set charset utf-8	;# default charset
+	}
+	dict set reply -charset $charset
+	dict set reply content-type "$ct; charset=$charset"
+	dict set reply -content [encoding convertto $charset [dict get $reply -content]]
+    }
+    return $reply
 }
 
 # Send - queue up a transaction response
@@ -253,7 +312,7 @@ proc closing {sock} {
 # Side Effects:
 #	queues the response for sending by method responder
 proc send {reply {cacheit 1}} {
-    Debug.log {[set x $reply; dict set x -entity <ELIDED>; dict set x -content <ELIDED>; return $x]}
+    Debug.log {Sending: [set x $reply; dict set x -entity <ELIDED>; dict set x -content <ELIDED>; dict set x -gzip <ELIDED>; return $x]}
     #set reply [Access log $reply]
 
     set sock [dict get $reply -sock]
@@ -266,7 +325,7 @@ proc send {reply {cacheit 1}} {
     } elseif {[dict get $reply -generation] != $::generation} {
 	# this reply belongs to an older, disconnected Httpd generation.
 	# we must discard it, because it was directed to a different client!
-	Debug.error {Send discarded: out of generation '[dict get $reply -generation] != $::generation' ([set x $reply; dict set x -content <ELIDED>; dict set x -entity <ELIDED>; return $x])}
+	Debug.error {Send discarded: out of generation '[dict get $reply -generation] != $::generation' ([set x $reply; dict set x -content <ELIDED>; dict set x -entity <ELIDED>; dict set x -gzip <ELIDED>; return $x])}
 	return
     }
     set trx [dict get $reply -transaction]
@@ -280,236 +339,206 @@ proc send {reply {cacheit 1}} {
 	return
     }
 
-    # allow domains to set their own http header tags
-    foreach {n v} [Dict get? $reply -meta] {
-	dict set reply $n $v
-    }
-
-    # use -dynamic flag to avoid caching
-    set cacheit [expr {
-		       ![dict exists $reply -dynamic]
-		       || ![dict get $reply -dynamic]
-		   }]
-
-    # handle Vary field
-    if {[dict exists $reply -vary]} {
-	if {[dict exists $reply -vary *]} {
-	    dict set reply vary "*"
-	} else {
-	    dict set reply vary [join [dict keys [dict get $reply -vary]]]
+    if {[catch {
+	# unpack and consume the reply from replies queue
+	set code [dict get $reply -code]
+	if {$code < 4} {
+	    # this was a tcl code, not an HTTP code
+	    set code 500
 	}
-	dict unset reply -vary
-    }
 
-    set code [dict get $reply -code]
-
-    # unpack and consume the reply from replies queue
-    if {$code < 4} {
-	# this was a tcl code, not an HTTP code
-	set code 500
-    }
-
-    # set the informational error message
-    if {[dict exists $reply -error]} {
-	set errmsg [dict get $reply -error]
-    }
-    if {![info exists errmsg] || ($errmsg eq "")} {
-	set errmsg [Http ErrorMsg $code]
-    }
-
-    if {$code >= 500} {
-	# Errors are completely dynamic - no caching!
-	set reply [Http NoCache $reply]
-    }
-
-    #set header "HTTP/[dict get $reply -version] $code $errmsg\r\n"
-    set header "HTTP/1.1 $code $errmsg\r\n"
-    set close [expr {[dict get $reply -version] < 1.1}]	;# don't honour 1.0 keep-alives
-    Debug.close {version [dict get $reply -version] implies close=$close}
-
-    # format up the headers
-    if {$code != 100} {
-	append header "Date: [Http Now]" \r\n
-	append header "Server: $::server_id" \r\n
-    }
-
-    # format up and send each cookie
-    if {[dict exists $reply -cookies]} {
-	foreach cookie [Cookies format4server [dict get $reply -cookies]] {
-	    append header "set-cookie: $cookie\r\n"
+	# allow domains to set their own http header tags
+	foreach {n v} [Dict get? $reply -meta] {
+	    dict set reply $n $v
 	}
-    }
 
-    # ensure no content data is sent when it's illegal to do so
-    if {[dict exists $reply -content]} {
+	# don't honour 1.0 keep-alives
+	set close [expr {[dict get $reply -version] < 1.1}]
+	Debug.close {version [dict get $reply -version] implies close=$close}
+
+	# handle 'connection: close' indication
+	foreach ct [split [Dict get? $reply connection] ,] {
+	    if {[string tolower [string trim $ct]] eq "close"} {
+		Debug.close {Tagging $sock close at connection:close request}
+		set close 1
+	    }
+	}
+
+	if {$close} {
+	    # we're not accepting more input
+	    # but we defer closing the socket until transmission's complete
+	    chan configure $sock -blocking 0
+	    readable $sock closing $sock
+	}
+
+	# handle Vary field
+	if {[dict exists $reply -vary]} {
+	    if {[dict exists $reply -vary *]} {
+		dict set reply vary "*"
+	    } else {
+		dict set reply vary [join [dict keys [dict get $reply -vary]]]
+	    }
+	    dict unset reply -vary
+	}
+
+	# set the informational error message
+	if {[dict exists $reply -error]} {
+	    set errmsg [dict get $reply -error]
+	}
+	if {![info exists errmsg] || ($errmsg eq "")} {
+	    set errmsg [Http ErrorMsg $code]
+	}
+
+	#set header "HTTP/[dict get $reply -version] $code $errmsg\r\n"
+	set header "HTTP/1.1 $code $errmsg\r\n"
+
+	# format up the headers
+	if {$code != 100} {
+	    append header "Date: [Http Now]" \r\n
+	    append header "Server: $::server_id" \r\n
+	}
+
+	# format up and send each cookie
+	if {[dict exists $reply -cookies]} {
+	    foreach cookie [Cookies format4server [dict get $reply -cookies]] {
+		append header "set-cookie: $cookie\r\n"
+	    }
+	}
+
 	# there is content data
-	if {[dict exists $reply -method]
-	    && ([dict get $reply -method] eq "HEAD")} {
-	    # All responses to the HEAD request method MUST NOT
-	    # include a message-body.
-	    set reply [expunge $reply]
-	} else {
-	    # 1xx (informational),
-	    # 204 (no content),
-	    # and 304 (not modified)
-	    # responses MUST NOT include a message-body
-	    switch -glob -- $code {
-		204 - 304 - 1* {
-		    set reply [expunge $reply]
-		}
+	switch -glob -- $code {
+	    204 - 304 - 1* {
+		# 1xx (informational),
+		# 204 (no content),
+		# and 304 (not modified)
+		# responses MUST NOT include a message-body
+		set reply [expunge $reply]
+		set content ""
+		set cacheit 0	;# can't cache these
+	    }
 
-		default {
-		    set content [dict get $reply -content]
-
-		    # perform post-map on content.
-		    # allows for string substitution of content
-		    # according to the -map dict -
-		    # e.g. [dict lappend reply -map %SESSION% $session]
-		    # will work on content from cache, e.g.
-		    if {[dict exists $reply -map]} {
-			set map {}
-			dict for {key val} [dict get $reply -map] {
-			    lappend map $key [join $val]
-			}
-			set content [string map $map $content]
-			dict unset reply -map	;# remove map - it's done
-			catch {dict unset reply -gzip}	;# remove gzip form, if any.
-		    }
-
-		    # handle charset for text/* types
-		    lassign [split [Dict get? $reply content-type] {;}] ct
-		    if {[string match text/* $ct]} {
-			if {[dict exists $reply -charset]} {
-			    set charset [dict get $reply -charset]
-			} else {
-			    set charset utf-8
-			}
-			set content [encoding convertto $charset $content]
-			dict set reply content-type "$ct; charset=$charset"
-			#dict append reply content-type "; charset=$charset"
-		    }
-
-		    # handle encoding
-		    if {[dict exists $reply accept-encoding]
-			&& ![dict exists $reply content-encoding]} {
-			foreach en [split [dict get $reply accept-encoding] ","] {
-			    lassign [split $en ";"] en pref
-			    set en [string trim $en]
-			    if {$en in $::te_encodings} {
-				switch $en {
-				    "gzip" {
-					lassign [gzip_it $reply $content] reply content
-					break
-				    }
-				}
-			    }
-			}
-		    }
-
+	    default {
+		if {[dict exists $reply -content]} {
+		    # correctly charset-encode content
+		    set reply [charset $reply]
+		
+		    # also gzip content so cache can store that.
+		    lassign [te $reply] reply content
+		    
+		    # ensure content-length is correct
 		    dict set reply content-length [string length $content]
+		} else {
+		    set content ""	;# there is no content
+		    dict set reply content-length 0
+		    set cacheit 0	;# can't cache no content
 		}
 	    }
 	}
+
+	# now attend to caching generated content.
+	if {$cacheit} {
+	    # use -dynamic flag to avoid caching even if it was requested
+	    set cacheit [expr {
+			       ![dict exists $reply -dynamic]
+			       || ![dict get $reply -dynamic]
+			   }]
+	    
+	    if {$cacheit
+		&& [dict exists $reply cache-control]
+	    } {
+		set cacheable [split [dict get $reply cache-control] ,]
+		foreach directive $cacheable {
+		    set body [string trim [join [lassign [split $directive =] d] =]]
+		    set d [string trim $d]
+		    if {$d in {no-cache private}} {
+			set cacheit 0
+			break
+		    }
+		}
+	    }
+
+	    if {$cacheit} {
+		# generate an etag for cacheable responses
+		dict set reply etag "\"[::thread::id].[clock microseconds]\""
+	    }
+	}
+
+	if {$code >= 500} {
+	    # Errors are completely dynamic - no caching!
+	    set cacheit 0
+	}
+
+	if {$content eq ""} {
+	    # if the content is empty - make sure the headers are consistent
+	    dict set reply content-length 0
+	    catch {dict unset reply content-type}
+	    catch {dict unset reply content-encoding}
+	}
+
+	# add in Auth header elements - TODO
+	foreach challenge [Dict get? $reply -auth] {
+	    append header "WWW-Authenticate: $challenge" \r\n
+	}
+
+	if {[dict get $reply -method] eq "HEAD"} {
+	    # All responses to the HEAD request method MUST NOT
+	    # include a message-body but may contain all the content
+	    # header fields.
+	    set content ""
+	}
+
+	if {!$cacheit} {
+	    # dynamic stuff - no caching!
+	    set reply [Http NoCache $reply]
+	}
+
+	# strip http fields which don't have relevance in response
+	dict for {n v} $reply {
+	    set nl [string tolower $n]
+	    if {$nl ni {server date}
+		&& [info exists ::Http::headers($nl)]
+		&& $::Http::headers($nl) ne "rq"
+	    } {
+		append header "$n: $v" \r\n
+	    }
+	}
+
+	# record transaction reply and kick off the responder
+	# response has been collected and is pending output
+	# queue up response for transmission
+	set ::replies($trx) [list $header $content $close]
+	set ::satisfied($trx) 1		;# request has been satisfied
+	writable $sock responder $sock	;# kick off transmitter
+
+	Debug.http {ADD TRANS: $header ([array names ::replies])}
+
+	# global consequences - botting and caching
+	if {[dict exists $reply -bot_change]} {
+	    # this is a newly detected bot - inform parent
+	    dict set enbot -bot [dict get $reply -bot]
+	    set ip [dict get $reply -ipaddr]
+	    if {[::ip::type $ip] ne "normal"
+		&& [dict exists $reply x-forwarded-for]
+	    } {
+		set ip [lindex [split [dict get $reply x-forwarded-for] ,] 0]
+	    }
+	    dict set enbot -ipaddr $ip
+	    indicate Honeypot bot? $enbot
+	} elseif {$cacheit} {
+	    # handle caching (under no circumstances cache bot replies)
+	    dict set reply -code $code
+	    indicate Cache put $reply
+	}
+    } r eo]} {
+	Debug.error {Sending Error: '$r' ($eo)}
     } else {
-	set content ""
-    }
-
-    # add in Auth header elements - TODO
-    foreach challenge [Dict get? $reply -auth] {
-	append header "WWW-Authenticate: $challenge" \r\n
-    }
-
-    # now attend to caching.
-    if {$cacheit && [dict exists $reply cache-control]} {
-	set cacheable [split [dict get $reply cache-control] ,]
-	foreach directive $cacheable {
-	    set body [string trim [join [lassign [split $directive =] d] =]]
-	    set d [string trim $d]
-	    if {$d in {no-cache private}} {
-		set cacheit 0
-		break
-	    }
-	}
-    }
-
-    if {$cacheit} {
-	# don't generate an etag for non-cached responses
-	dict set reply etag "\"[::thread::id].[clock microseconds]\""
-    }
-
-    if {[dict exists $reply content-length]
-	&& [dict get $reply content-length] != [string length $content]
-    } {
-	# there is a disparity between the content-length recorded
-	# and the content passed in.
-	set content [string range $content 0 [dict get $reply content-length]]
-	Debug.error {Content length [dict get $reply content-length] != [string length $content]}
-    }
-
-    if {![info exists content]} {
-	set content ""	;# this shouldn't happen.
-    }
-    if {$content eq ""} {
-	# if the content is empty - make sure the headers are consistent
-	dict set reply content-length 0
-	catch {dict unset reply content-type}
-    }
-
-    # strip http fields which don't have relevance in response
-    dict for {n v} $reply {
-	set nl [string tolower $n]
-	if {($nl ni {server date})
-	    && [info exists ::Http::headers($nl)]
-	    && ($::Http::headers($nl) ne "rq")} {
-	    append header "$n: $v" \r\n
-	}
-
-	if {$nl eq "connection"} {
-	    foreach ct [split $v ,] {
-		if {[string trim $ct] eq "close"} {
-		    Debug.close {Tagging $sock for closing because connection field requested it. '$v'}
-		    set close 1
-		}
-	    }
-	}
-    }
-
-    # record transaction reply and kick off the responder
-    if {$close} {
-	chan configure $sock -blocking 0
-	readable $sock closing $sock	;# we're not accepting more input
-    }
-
-    set ::replies($trx) [list $header $content $close]
-    set ::satisfied($trx) 1	;# the request has been satisfied
-
-    Debug.http {ADD TRANS: $header ([array names ::replies])}
-
-    # response has been collected and is pending output
-    writable $sock responder $sock
-
-    # handle bot
-    if {[dict exists $reply -bot_change]} {
-	# this is a newly detected bot - inform parent
-	dict set enbot -bot [dict get $reply -bot]
-	set ip [dict get $reply -ipaddr]
-	if {$ip eq "127.0.0.1"
-	    && [dict exists $reply x-forwarded-for]
-	} {
-	    set ip [lindex [split [dict get $reply x-forwarded-for] ,] 0]
-	}
-	dict set enbot -ipaddr $ip
-	thread::send -async $::thread::parent [list Honeypot bot? $enbot]
-    } elseif {$cacheit} {
-	# handle caching (under no circumstances cache bot replies)
-	dict set reply -code $code
-	thread::send -async $::thread::parent [list Cache put $reply]
+	#Debug.log {Sent: ($header) ($content)}
     }
 }
 
-# disconnect - a fatal socket-level error has occurred
+# Disconnect - a fatal socket-level error has occurred
 # close everything, report the failure to parent
-proc disconnect {sock error {eo {}}} {
+proc Disconnect {sock error {eo {}}} {
     foreach timer [Timer info instances] {
 	$timer cancel
     }
@@ -517,21 +546,22 @@ proc disconnect {sock error {eo {}}} {
     variable request
     lappend ::req_log $::request
 
-    Debug.socket {disconnect: $sock ([chan names sock*]) - '$error' ($request)}
-    Debug.close {disconnecting: '$error' ($eo)}
+    Debug.socket {Disconnect: $sock ([chan names sock*]) - '$error' ($request)}
+    Debug.close {Disconnecting: '$error' ($eo)}
 
     ;# remove socket
     catch {chan event $sock writable {}}
     catch {chan event $sock readable {}}
     catch {close $sock}
 
-    # inform parent of disconnect - this thread will now be recycled
-    ::thread::send -async $::thread::parent [list Httpd disconnect [::thread::id] $sock $error $eo]
+    # inform parent of Disconnect - this thread will now be recycled
+    indicate Httpd Disconnect [::thread::id] $sock $error $eo
 }
 
-# handle - 
-proc handle {req} {
-    Debug.error {handle: ([set x $req; dict set x -content <ELIDED>; dict set x -entity <ELIDED>; return $x])}
+# Handle - handle a protocol error
+#
+proc Handle {req} {
+    Debug.error {Handle: ([set x $req; dict set x -content <ELIDED>; dict set x -entity <ELIDED>; dict set x -gzip <ELIDED>; return $x])}
 
     set sock [dict get $req -sock]
     readable $sock	;# suspend reading
@@ -546,11 +576,10 @@ proc handle {req} {
     } r eo]} {
 	dict append req -error "(handler '$r' ($eo))"
 	#set req [Access log $request]
-	Debug.error {'handle' error: '$r' ($eo)}
+	Debug.error {'Handle' error: '$r' ($eo)}
     }
 
-    disconnect [dict get $req -sock] [Dict get? $req -error] $::req
-    return
+    #Disconnect [dict get $req -sock] [Dict get? $req -error] $::req
 }
 
 # we're finished reading the header - inform the parent that work is needed
@@ -588,7 +617,7 @@ proc got {req} {
 	#set request [Access log $request]	;# log the request
 
 	# inform parent of parsing completion
-	::thread::send -async $::thread::parent [list Httpd got [::thread::id] $request]
+	indicate Httpd got [::thread::id] $request
 	lappend ::req_log $::request
     } r eo]} {
 	Debug.error {'get' error: '$r' ($eo)}
@@ -632,7 +661,7 @@ proc identity {sock length} {
 
 proc chunk {sock} {
     if {[file eof $sock]} {
-	disconnect $sock chunk; return
+	Disconnect $sock chunk; return
     }
 }
 
@@ -681,7 +710,8 @@ proc entity {sock} {
 	    set tel [string trim $tel]
 	    if {$tel ni $te_encodings} {
 		# can't handle a transfer encoded entity
-		handle [Http NotImplemented $request "$tel transfer encoding"]
+		Handle [Http NotImplemented $request "$tel transfer encoding"]
+		return
 		# see 3.6 - 14.41 for transfer-encoding
 		# 4.4.2 If a message is received with both a Transfer-EncodIing
 		# header field and a Content-Length header field,
@@ -714,7 +744,8 @@ proc entity {sock} {
     # this is a content-length driven entity transfer
     if {![dict exists $request content-length]} {
 	# 411 Length Required
-	handle [Http Bad $request "Length Required" 411]
+	Handle [Http Bad $request "Length Required" 411]
+	return 0
     }
 
     set length [dict get $request content-length]
@@ -729,7 +760,8 @@ proc entity {sock} {
     variable maxentity
     if {($maxentity > 0) && ($length > $maxentity)} {
 	# 413 "Request Entity Too Large"
-	handle [Http Bad $request "Request Entity Too Large" 413]
+	Handle [Http Bad $request "Request Entity Too Large" 413]
+	return 1
     }
 
     # start the copy of POST data
@@ -755,7 +787,7 @@ proc parse {sock} {
 	    # header continuation line
 	    # add to the key we're currently assembling
 	    if {$key eq ""} {
-		handle [Http Bad $request "malformed header line '$line'"]
+		Handle [Http Bad $request "malformed header line '$line'"]
 		return
 	    }
 	    dict append request $key " [string trim $line]"
@@ -774,7 +806,7 @@ proc parse {sock} {
 	    if {$::maxfield
 		&& [string length [dict get $request $key]] > $::maxfield
 	    } {
-		handle [Http Bad $request "Illegal header: '$line'"]
+		Handle [Http Bad $request "Illegal header: '$line'"]
 		return
 	    }
 	}
@@ -798,7 +830,7 @@ proc parse {sock} {
 	    && [string length $head(-uri)] > $::maxurilen
 	} {
 	    # send a 414 back
-	    handle [Http Bad $request "URI too long '$head(-uri)'" 414]
+	    Handle [Http Bad $request "URI too long '$head(-uri)'" 414]
 	    return
 	}
 
@@ -809,14 +841,14 @@ proc parse {sock} {
     } else {
 	# Could check for FTP requestuests, etc, here...
 	dict set request -error_line $line
-	handle [Http Bad $request "Method not supported ([array get head])" 405]
+	Handle [Http Bad $request "Method unsupported ([array get head])" 405]
 	return
     }
 
     # Send 505 for protocol != HTTP/1.0 or HTTP/1.1
     if {([dict get $request -version] != 1.1)
 	&& ([dict get $request -version] != 1.0)} {
-	handle [Http Bad $request "HTTP Version not supported" 505]
+	Handle [Http Bad $request "HTTP Version not supported" 505]
 	return
     }
 
@@ -838,7 +870,7 @@ proc parse {sock} {
 	    set request [dict merge $request [Url parse http://[dict get $request host]$head(-uri)]]
 	}
     } elseif {[dict get $request -version] > 1.0} {
-	handle [Http Bad $request "HTTP 1.1 is required to send Host request"]
+	Handle [Http Bad $request "HTTP 1.1 is required to send Host request"]
 	return
     } else {
 	# HTTP 1.0 isn't required to send a Host request but we still need it
@@ -880,22 +912,20 @@ proc parse {sock} {
 
     # block spiders by UA
     if {[info exists ::spiders([Dict get? $request user-agent])]} {
-	thread::send -async $::thread::parent [list Httpd block [dict get $request -ipaddr] "spider UA"]
-	handle [Http NotImplemented $request "Spider Service"]
+	indicate Httpd block [dict get $request -ipaddr] "spider UA"
+	Handle [Http NotImplemented $request "Spider Service"]
 	return
     }
 
     incr ::pending
-    set ::gets 0
     switch -- [dict get $request -method] {
 	POST {
 	    if {![dict exists $request content-length]} {
 		# Send 411 for missing Content-Length on POST requests
-		handle [Http Bad $request "Length Required" 411]
+		Handle [Http Bad $request "Length Required" 411]
 		return
 	    } else {
 		# read the entity
-		#puts stderr "Entity: $request"
 		if {[entity $sock]} {
 		    #puts stderr "Not Entity: $request"
 		    got $request
@@ -907,9 +937,8 @@ proc parse {sock} {
 
 	CONNECT {
 	    # stop the bastard SMTP spammers
-	    thread::send -async $::thread::parent [list Httpd block [dict get $request -ipaddr] "CONNECT method"]
-
-	    handle [Http NotImplemented $request "Spider Service"]
+	    indicate Httpd block [dict get $request -ipaddr] "CONNECT method"
+	    Handle [Http NotImplemented $request "Spider Service"]
 	    return
 	}
 
@@ -930,7 +959,7 @@ proc get {sock} {
     if {[catch {
 	chan gets $sock line
     } result eo]} {
-	disconnect $sock $result $eo	;# inform parent that we're done
+	Disconnect $sock $result $eo	;# inform parent that we're done
 	return
     }
 
@@ -938,9 +967,10 @@ proc get {sock} {
 	readable $sock	;# completed reading
 	if {[chan eof $sock]} {
 	    # remote end closed - just forget it
-	    disconnect $sock "Remote closed connection"; return
+	    Disconnect $sock "Remote closed connection"; return
 	} elseif {$::maxline && [chan pending input $sock] > $::maxline} {
-	    handle [Http Bad $request "Line too long"]
+	    Handle [Http Bad $request "Line too long"]
+	    return
 	}
 
 	rxtimer after $::enttime timeout rxtimer $sock "pre-read timeout"
@@ -962,13 +992,14 @@ proc get {sock} {
 	    # received where a Request-Line is expected.
 	}
     } else {
-	incr ::gets
-
 	# accumulate header lines
 	rxtimer after $::rxtime timeout rxtimer $sock "inter-read timeout"
 	dict lappend request -header $line
-	if {$::maxhead && ([llength [dict get $request -header]] > $::maxhead)} {
-	    handle [Http Bad $request "Header too Large"]
+	if {$::maxhead
+	    && [llength [dict get $request -header]] > $::maxhead
+	} {
+	    Handle [Http Bad $request "Header too Large"]
+	    return
 	}
     }
 }
@@ -991,7 +1022,6 @@ proc connect {req vars sock} {
     array unset ::replies; array set ::replies {}	;# forget pending replies
     catch {unset request}
     set ::req_log {}
-    set ::gets 0
     set ::pending 0		;# no pending requests
     set ::transaction -1
     set ::response -1
@@ -1010,9 +1040,9 @@ proc connect {req vars sock} {
     Debug.socket {[::thread::id] connected}
 }
 
-proc disconnected {args} {
+proc Disconnected {args} {
     # do something?
-    Debug.log {got 'disconnected' from parent: $args}
+    Debug.log {Disconnected indication from parent: $args}
 }
 
 Debug on log 10

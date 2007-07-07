@@ -12,8 +12,8 @@ namespace eval Cache {
 
 	# cache check freshness against request's modification time
 	set since [Http DateInSeconds [dict get $req if-modified-since]]
-	set result [expr {$since >= [dict get $cached -when]}]
-	Debug.cache {unmodified? $since >= [dict get $cached -when] -> $result}
+	set result [expr {$since >= [dict get $cached -modified]}]
+	Debug.cache {unmodified? $since >= [dict get $cached -modified] -> $result}
 	return $result
     }
 
@@ -134,20 +134,24 @@ namespace eval Cache {
 	Debug.cache {put: ([dumpMsg $req])}
 
 	# whatever the eventual cache status, must remove old matches
-	invalidate [dict get $req -url] ;# invalidate by -url
+	invalidate [dict get $req -url]	;# invalidate by -url
 	invalidate [Dict get? $req etag] ;# invalidate by etag
 
+	# we only cache 200s
 	if {[dict get $req -code] != 200} {
-	    return $req
-	}
-	set ctype [dict get $req content-type]
-	if {[string match x-*/* $ctype]
-	    || [string match */x-* $ctype]} {
 	    return $req
 	}
 
 	# allow application to avoid caching by setting -dynamic
-	if {[Dict get? $req -dynamic] ne ""} {
+	if {[dict exists $req -dynamic]
+	    && [dict get $req -dynamic]
+	} {
+	    return $req
+	}
+
+	set ctype [dict get $req content-type]
+	if {[string match x-*/* $ctype]
+	    || [string match */x-* $ctype]} {
 	    return $req
 	}
 
@@ -164,12 +168,11 @@ namespace eval Cache {
 	}
 
 	# subset the cacheable request with just those fields needed
-	set cached [Dict subset $req {*}{
-	    -content -gzip -code -url
-	    content-encoding content-language content-length
-	    content-location content-md5 content-type
+	set cached [Dict subset $req {
+	    -content -gzip -code -url -charset -modified
+	    content-language content-location content-md5 content-type
 	    expires last-modified cache-control}]
-	set cached [dict merge $cached [Dict subset $req {*}$::Http::rs_headers]]
+	set cached [dict merge $cached [Dict subset $req $::Http::rs_headers]]
 
 	# add new fields for server cache control
 	dict set cached -refcount 2
@@ -190,11 +193,11 @@ namespace eval Cache {
 		set ordered [lrange $ordered 1 end]
 
 		# remove the selected entry
-		if {[catch {
-		    invalidate [dict get $cache($c) -url] ;# invalidate by -url
-		    invalidate [Dict get? $cache($c) etag] ;# invalidate by etag
-		}]} {
-		    break
+		catch { # invalidate by -url
+		    invalidate [dict get $cache($c) -url]
+		}
+		catch { # invalidate by etag
+		    invalidate [Dict get? $cache($c) etag]
 		}
 
 		incr cachesize -1
@@ -299,8 +302,8 @@ namespace eval Cache {
 	# old style no-cache request
 	variable obey_CC
 	variable CC
-	if {$CC && 
-	    "no-cache" in [split [Dict get? $req pragma] ,]
+	if {$CC
+	    && "no-cache" in [split [Dict get? $req pragma] ,]
 	} {
 	    # ignore no-cache, because we're the server, and in the best
 	    # position to judge the freshness of our content.
@@ -309,7 +312,9 @@ namespace eval Cache {
 	}
 
 	# split any cache control into an array
-	if {$CC && [dict exists $req -cache-control]} {
+	if {$CC
+	    && [dict exists $req -cache-control]
+	} {
 	    foreach directive [split [dict get $req -cache-control] ,] {
 		set body [string trim [join [lassign [split $directive =] d] =]]
 		set d [string trim $d]
@@ -329,16 +334,18 @@ namespace eval Cache {
 	}
 
 	# we may respond from cache, we *do* have a cached copy
-	if {[catch {set cached [fetch $req]} cached eo]} {
+	if {[catch {
+	    fetch $req
+	} cached eo]} {
 	    # it's gotta be there!
 	    Debug.error {cache inconsistency - can't fetch existing entry for url:'$url' etag:'$etag' because '$cached' ($eo)}
 	    return {}
 	}
 
 	if {[info exists max_age]
-	    && (([dict $cached -when] - [clock seconds]) > $max_age)
+	    && ([dict $cached -when] - [clock seconds]) > $max_age
 	} {
-	    # invalidate the cache - this client wants newness
+	    # ignore the cache - this client wants newness
 	    Debug.cache {older than max-age $max_age}
 	    return {}
 	}
@@ -349,25 +356,27 @@ namespace eval Cache {
 	}
 
 	# see if we can respond 304
-	if {[dict exists $req if-none-match]} {
-	    if {([dict get $cached etag] in [list {*}[split [dict get $req if-none-match] ","]])} {
-		# rfc2616 14.26 If-None-Match
-		# If any of the entity tags match the entity tag of the entity that
-		# would have been returned in the response to a similar GET request
-		# (without the If-None-Match header) on that resource, or if "*" is
-		# given and any current entity exists for that resource, then the
-		# server MUST NOT perform the requested method, unless required to do
-		# so because the resource's modification date fails to match that
-		# supplied in an If-Modified-Since header field in the request.
-		# Instead, if the request method was GET or HEAD, the server SHOULD
-		# respond with a 304 (Not Modified) response, including the cache-
-		# related header fields (particularly ETag) of one of the entities that
-		# matched. For all other request methods, the server MUST respond with
-		# a status of 412 (Precondition Failed).
-		if {[dict get $req -method] ni {"GET" "HEAD"}} {
-		    return [Http PreconditionFailed $req]
-		}
-	    }
+	if {[dict exists $req if-none-match]
+	    &&
+	    [dict get $cached etag] in [split [dict get $req if-none-match] ","]
+	    && [dict get $req -method] ni {"GET" "HEAD"}
+	} {
+	    # rfc2616 14.26 If-None-Match
+	    # If any of the entity tags match the entity tag of the entity
+	    # that would have been returned in the response to a similar 
+	    # GET request (without the If-None-Match header) on that 
+	    # resource, or if "*" is given and any current entity exists 
+	    # for that resource, then the server MUST NOT perform the 
+	    # requested method, unless required to do so because the 
+	    # resource's modification date fails to match that
+	    # supplied in an If-Modified-Since header field in the request.
+	    # Instead, if the request method was GET or HEAD, the server 
+	    # SHOULD respond with a 304 (Not Modified) response, including
+	    # the cache-related header fields (particularly ETag) of one 
+	    # of the entities that matched.
+	    # For all other request methods, the server MUST respond with
+	    # a status of 412 (Precondition Failed).
+	    return [Http PreconditionFailed $req]
 	}
 
 	if {[unmodified? $req $cached]} {
@@ -376,11 +385,10 @@ namespace eval Cache {
 	    # NB: the expires field is set in $req
 	} else {
 	    # deliver cached content in lieue of processing
-	    dict set req last-modified [Http Date [dict get $cached -when]]
-
+	    #dict set req last-modified [dict get $cached last-modified]
 	    set req [dict merge $req $cached]
-	    set req [Http CacheableContent $req [dict get $cached -when]]
-	    Debug.cache {cached content for $url ($req)}
+	    set req [Http CacheableContent $req [dict get $cached -modified]]
+	    Debug.cache {cached content for $url ([set xx $req; dict set xx -entity <ELIDED>; dict set xx -content <ELIDED>; dict set xx -gzip <ELIDED>; return $xx])}
 	    return $req
 	}
 

@@ -397,6 +397,13 @@ namespace eval Http {
 	return [OkResponse $rsp 206 PartialContent $content $ctype]
     }
 
+    # sysPage - generate a system page
+    proc sysPage {rsp title content} {
+	dict set rsp content-type "x-text/system"
+	dict set rsp -content "title:${title}\n\n<h1>$title</h1>\n$content"
+	return $rsp
+    }
+
     proc ServerError {rsp message {eo ""}} {
 	Debug.log {Server Error: '$message' ($eo)} 2
 	set content ""
@@ -415,21 +422,17 @@ namespace eval Http {
 	#    }
 	#}
 
-	catch {append content "<p>Caller: [armour [info level -1]]</p>"}
+	catch {append content [<p> "Caller: [armour [info level -1]]"]}
 	set message [armour $message]
 	catch {dict unset rsp expires}
-	dict set rsp content-type "text/html"
-	dict set rsp -content "<html><head><title>Server Error: $message</title></head>
-	<body>
-	<h1>Server Error</h1>
-	<p>$message</p>
-	<hr>
-	$content
-	<hr>
-	[dump $rsp]
-	</body>
-	</html>
-	"
+
+	set rsp [sysPage $rsp "Server Error: $message" [subst {
+	    [<p> $message]
+	    <hr>
+	    $content
+	    <hr>
+	    [dump $rsp]
+	}]]
 
 	dict set rsp -code 500
 	dict set rsp -rtype Error
@@ -449,8 +452,7 @@ namespace eval Http {
 	    append message " - Not implemented."
 	}
 
-	dict set rsp content-type "text/html"
-	dict set rsp -content "<html>\n<title>Not Implemented</title>\n<body>\n<h1>Not Implemented</h1>\n<p>$message</p>\n</body>\n</html>"
+	set rsp [sysPage $rsp "Not Implemented" [<p> $message]]
 
 	dict set rsp -code 501
 	dict set rsp -rtype NotImplemented
@@ -459,8 +461,7 @@ namespace eval Http {
     }
 
     proc Unavailable {rsp message {delay 0}} {
-	dict set rsp content-type "text/html"
-	dict set rsp -content "<html>\n<title>Service Unavailable</title>\n<body>\n<h1>Service Unavailable</h1>\n<p>$message</p>\n</body>\n</html>"
+	set rsp [sysPage $rsp "Service Unavailable" [<p> $message]]
 
 	dict set rsp -code 503
 	dict set rsp -rtype Unavailable
@@ -471,8 +472,7 @@ namespace eval Http {
     }
 
     proc Bad {rsp message {code 400}} {
-	dict set rsp content-type "text/html"
-	dict set rsp -content "<html>\n<title>Bad Request</title>\n<body>\n<h1>Bad Request</h1>\n<p>$message</p>\n</body>\n</html>"
+	set rsp [sysPage $rsp "Bad Request" [<p> $message]]
 
 	dict set rsp -code $code
 	dict set rsp -rtype Bad
@@ -484,15 +484,9 @@ namespace eval Http {
 	if {$content ne ""} {
 	    dict set rsp content-type $ctype
 	    dict set rsp -content $content
-	}
-
-	if {![dict exists $rsp -content]} {
+	} elseif {![dict exists $rsp -content]} {
 	    set uri [dict get $rsp -uri]
-	    dict set rsp -content "title: $uri - Not Found
-		<h1>$uri Not Found</h1>
-		<p>The entity '$uri' doesn't exist.</p>
-	    "
-	    dict set rsp content-type x-text/system
+	    set rsp [sysPage $rsp "$uri Not Found" [<p> "The entity '$uri' doesn't exist."]]
 	}
 
 	dict set rsp -code 404
@@ -504,13 +498,8 @@ namespace eval Http {
 	if {$content ne ""} {
 	    dict set rsp content-type $ctype
 	    dict set rsp -content $content
-	} else {
-	    dict set rsp content-type "x-text/system"
-	    dict set rsp -content "title:Access Forbidden
-	<h1>Access Forbidden</h1>
-	<p>You are not permitted to access this page.</p>
-	<hr>
-	"
+	} elseif {![dict exists $rsp -content]} {
+	    set rsp [sysPage $rsp "Access Forbidden" [<p> "You are not permitted to access this page."]]
 	}
 
 	dict set rsp -code 403
@@ -523,6 +512,8 @@ namespace eval Http {
 	if {$content ne ""} {
 	    dict set rsp content-type $ctype
 	    dict set rsp -content $content
+	} elseif {![dict exists $rsp -content]} {
+	    set rsp [sysPage $rsp Unauthorised [<p> "You are not permitted to access this page."]]
 	}
 
 	dict set rsp -code 401
@@ -534,6 +525,8 @@ namespace eval Http {
 	if {$content ne ""} {
 	    dict set rsp content-type $ctype
 	    dict set rsp -content $content
+	} elseif {![dict exists $rsp -content]} {
+	    set rsp [sysPage $rsp Conflict [<p> "Conflicting Request"]]
 	}
 
 	dict set rsp -code 409
@@ -553,8 +546,15 @@ namespace eval Http {
     }
 
     proc NotModified {rsp} {
-	catch {dict unset rsp content-type}
-	catch {dict unset rsp -content}
+	# remove content-related stuff
+	foreach n [dict keys $rsp content-*] {
+	    if {$keys ne "content-location"} {
+		dict unset rsp $n
+	    }
+	}
+	if {[dict exists $rsp transfer-encoding]} {
+	    dict unset rsp transfer-encoding
+	}
 
 	# the response MUST NOT include other entity-headers
 	# than Date, Expires, Cache-Control, Vary, Etag, Content-Location

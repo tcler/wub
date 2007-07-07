@@ -115,7 +115,7 @@ namespace eval Backend {
 	::thread::send -async $thread [list incoming $req]
     }
 
-    proc disconnect {sock} {
+    proc Disconnect {sock} {
 	variable sock2tid
 	if {[info exists sock2tid($sock)]} {
 	    # remove the socket->thread association
@@ -124,7 +124,7 @@ namespace eval Backend {
 
 	    # inform the backend worker
 	    dict unset req -worker
-	    ::thread::send -async $thread [list disconnected $req]
+	    ::thread::send -async $thread [list Disconnected $req]
 
 	    # replace the thread in its queue
 	    if {[::thread::release $thread] != 1} {
