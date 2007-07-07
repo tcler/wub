@@ -174,7 +174,7 @@ namespace eval Httpd {
     }
 
     # a worker thread has completely processed input, or has hit a socket error
-    proc disconnect {thread sock error {eo ""}} {
+    proc Disconnect {thread sock error {eo ""}} {
 	Debug.socket {Done: $thread $sock '$error' - ($eo)}
 
 	variable worker
@@ -217,7 +217,7 @@ namespace eval Httpd {
 	}
 	threads put $thread	;# we're done with this thread
 
-	catch {Backend disconnect $sock} ;# inform backend of disconnection
+	catch {Backend Disconnect $sock} ;# inform backend of disconnection
 
 	# perform quiescent callback if we're idle
 	variable ignore
@@ -315,8 +315,9 @@ namespace eval Httpd {
 	# check the incoming ip for blockage
 	if {[blocked? [Dict get? $request -ipaddr]]} {
 	    dict set request connection close
-	    ::thread::send -async $tid [list send [Http NotFound $request]]
-	    #::thread::send -async $tid [list disconnect "Blocked"]
+	    ::thread::send -async $tid [list send [Http Forbidden $request]]
+	    #::thread::send -async $tid [list send [Http NotFound $request]]
+	    #::thread::send -async $tid [list Disconnect "Blocked"]
 	    lappend activity($sock) parsed [list [clock microseconds] *[Dict get? $request -ipaddr] [Dict get? $request -url]]
 	    return
 	}
@@ -337,7 +338,9 @@ namespace eval Httpd {
 	# provide for a request callout - called with each parsed request
 	variable rqCallOut
 	if {[llength $rqCallOut] != 0} {
-	    catch {set request [{*}$rqCallOut $request]}
+	    catch {{*}$rqCallOut $request} request
+	    # this callout might transform request.
+	    # if it unsets -dispatch, the request is the reply
 	}
 
 	# check Cache for match
@@ -347,15 +350,15 @@ namespace eval Httpd {
 	    # reply from cache
 	    dict set cached -transaction [dict get $request -transaction]
 	    dict set cached -generation [dict get $request -generation]
+
+	    # send the reply
 	    ::thread::send -async $tid [list send $cached 0]
-	} else {
+	} elseif {[dict exists $request -dispatch]} {
 	    # dispatch for content
-	    if {[dict exists $request -dispatch]} {
-		{*}[subst [dict get $request -dispatch]] $request
-	    } else {
-		# just send the reply as we have it
-		::thread::send -async $tid [list send $request]
-	    }
+	    {*}[subst [dict get $request -dispatch]] $request
+	} else {
+	    # just send the reply as we have it
+	    ::thread::send -async $tid [list send $request]
 	}
     }
 
@@ -555,7 +558,7 @@ namespace eval Httpd {
 
 	# ensure that client is not spamming us.
 	variable max_conn
-	if {$ipaddr ne "127.0.0.1"
+	if {[::ip::type $ipaddr] eq "normal"
 	    && [incr connbyIP($ipaddr)] > $max_conn
 	} {
 	    # sadly we can't do this if we're reverse-proxied
@@ -660,7 +663,7 @@ namespace eval Httpd {
 	    # subsequent disconnects will notice this has occurred
 	    # and abort gracefully.  Still some race potential.
 	    # argh - what happens if the thread already knows?
-	    thread::send $otid {disconnect forced}
+	    thread::send $otid {Disconnect $sock forced}
 	}
 
 	variable ignore
