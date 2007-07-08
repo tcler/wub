@@ -221,7 +221,7 @@ proc gzip_content {reply} {
     # signature, deflate compression, no flags, mtime,
     # xfl=0, os=3
     set content [dict get $reply -content]
-    set gzip [binary format "H*iH*" "1f8b0800" [clock seconds] "0003"]
+    set gzip [binary format "H*iH*" "1f8b0800" [clock seconds] "0200"]
     append gzip [zlib deflate $content 9]
 
     # append CRC and ISIZE fields
@@ -273,6 +273,7 @@ proc te {reply} {
 			if {[dict exists $reply -gzip]} {
 			    set content [dict get $reply -gzip]
 			    dict set reply content-encoding gzip
+			    set reply [Http Vary $reply Accept-Encoding User-Agent]
 			    break
 			}
 		    }
@@ -370,16 +371,6 @@ proc send {reply {cacheit 1}} {
 	    readable $sock closing $sock
 	}
 
-	# handle Vary field
-	if {[dict exists $reply -vary]} {
-	    if {[dict exists $reply -vary *]} {
-		dict set reply vary "*"
-	    } else {
-		dict set reply vary [join [dict keys [dict get $reply -vary]]]
-	    }
-	    dict unset reply -vary
-	}
-
 	# set the informational error message
 	if {[dict exists $reply -error]} {
 	    set errmsg [dict get $reply -error]
@@ -434,6 +425,16 @@ proc send {reply {cacheit 1}} {
 	    }
 	}
 
+	# handle Vary field
+	if {[dict exists $reply -vary]} {
+	    if {[dict exists $reply -vary *]} {
+		dict set reply vary *
+	    } else {
+		dict set reply vary [join [dict keys [dict get $reply -vary]] ,]
+	    }
+	    dict unset reply -vary
+	}
+
 	# now attend to caching generated content.
 	if {$cacheit} {
 	    # use -dynamic flag to avoid caching even if it was requested
@@ -441,7 +442,7 @@ proc send {reply {cacheit 1}} {
 			       ![dict exists $reply -dynamic]
 			       || ![dict get $reply -dynamic]
 			   }]
-	    
+
 	    if {$cacheit
 		&& [dict exists $reply cache-control]
 	    } {
