@@ -312,7 +312,6 @@ proc charset {reply} {
 # Side Effects:
 #	queues the response for sending by method responder
 proc send {reply {cacheit 1}} {
-    Debug.log {Sending: [set x $reply; dict set x -entity <ELIDED>; dict set x -content <ELIDED>; dict set x -gzip <ELIDED>; return $x]}
     #set reply [Access log $reply]
 
     set sock [dict get $reply -sock]
@@ -491,6 +490,8 @@ proc send {reply {cacheit 1}} {
 	    # dynamic stuff - no caching!
 	    set reply [Http NoCache $reply]
 	}
+
+	Debug.log {Sending: [set x $reply; dict set x -entity <ELIDED>; dict set x -content <ELIDED>; dict set x -gzip <ELIDED>; return $x]}
 
 	# strip http fields which don't have relevance in response
 	dict for {n v} $reply {
