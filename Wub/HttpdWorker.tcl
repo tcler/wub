@@ -27,7 +27,7 @@ if {![catch {package require zlib}]} {
 } else {
     variable te_encodings {}
 }
-#set te_encodings {}	;# uncomment to stop gzip transfers
+set te_encodings {}	;# uncomment to stop gzip transfers
 
 package require WubUtils
 package require Debug
@@ -457,7 +457,9 @@ proc send {reply {cacheit 1}} {
 		}
 	    }
 
-	    if {$cacheit} {
+	    if {$cacheit
+		&& ![dict exists $reply etag]
+	    } {
 		# generate an etag for cacheable responses
 		dict set reply etag "\"[::thread::id].[clock microseconds]\""
 	    }
@@ -487,10 +489,10 @@ proc send {reply {cacheit 1}} {
 	    set content ""
 	}
 
-	if {!$cacheit} {
+	#if {!$cacheit} {
 	    # dynamic stuff - no caching!
-	    set reply [Http NoCache $reply]
-	}
+	    #set reply [Http NoCache $reply]
+	#}
 
 	Debug.log {Sending: [set x $reply; dict set x -entity <ELIDED>; dict set x -content <ELIDED>; dict set x -gzip <ELIDED>; return $x]}
 
