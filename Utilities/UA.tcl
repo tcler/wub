@@ -42,6 +42,7 @@ proc ua {ua} {
 		    dict set result product {*}[split [set $p] /]
 		}
 	    } elseif {$id eq "Lynx"} {
+	    } elseif {$id eq "Opera"} {
 	    } elseif {$addition eq ""} {
 		dict set result id NS
 		dict set result rest [lassign [split $pre] language provider]
@@ -67,6 +68,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	"Mozilla/2.0 (compatible; Ask Jeeves/Teoma; +http://about.ask.com/en/docs/about/webmasters.shtml)"
 	"msnbot/1.0 (+http://search.msn.com/msnbot.htm)"
 	"Mozilla/5.0 (compatible; Yahoo! Slurp; http://help.yahoo.com/help/us/ysearch/slurp)"
+	"Opera/9.21 (Windows NT 6.0; U; es-es)"
     } {
 	puts [ua $x]
     }

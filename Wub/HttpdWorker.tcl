@@ -293,7 +293,7 @@ proc CE {reply} {
 
     # choose content encoding - but not for MSIE
     variable chunk_size
-    if {[dict get $reply -ua id] ni {MSIE Lynx}
+    if {[dict get $reply -ua id] ni {MSIE Lynx Opera}
 	&& [dict exists $reply accept-encoding]
 	&& ![dict exists $reply content-encoding]
     } {
