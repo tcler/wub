@@ -23,11 +23,14 @@ interp alias {} armour {} string map {& &amp; < &lt; > &gt; \" &quot; ' &#39;}
 
 # arrange gzip Transfer Encoding
 if {![catch {package require zlib}]} {
-    variable te_encodings {gzip}
+    variable ce_encodings {gzip}
 } else {
-    variable te_encodings {}
+    variable ce_encodings {}
 }
-set te_encodings {}	;# uncomment to stop gzip transfers
+#set ce_encodings {}	;# uncomment to stop gzip transfers
+variable chunk_size 4196	;# tiny little chunk size
+
+variable te_encodings {chunked}
 
 package require WubUtils
 package require Debug
@@ -133,6 +136,9 @@ proc responder {sock} {
 	Disconnect $sock "Lost connection on transmit"; return
     }
 
+    set close 0
+    set content ""
+
     if {[catch {
 	catch {txtimer cancel}
 
@@ -150,11 +156,12 @@ proc responder {sock} {
 	    Debug.http {no pending or '$next' doesn't follow '$response'}
 	    
 	    writable $sock	;# disable responder
-	    txtimer after $::txtime timeout txtimer $sock "responder pending"
+	    variable txtime
+	    txtimer after $txtime timeout txtimer $sock "responder pending"
 	} else {
 	    # we're going to respond to the next transaction in trx order
 	    # unpack and consume the reply from replies queue
-	    lassign $replies($next) head content close
+	    lassign $replies($next) head content close chunk no_content
 
 	    # remove this response from the pending response structure
 	    set response $next	;# move to next response
@@ -171,6 +178,7 @@ proc responder {sock} {
 
 	    # send the header
 	    puts -nonewline $sock "$head\r\n"	;# send headers with terminating nl
+	    chan flush $sock			;# no, really, send it
 	    set ::sent $head
 	    Debug.socket {SENT: $sock $head'} 4
 
@@ -179,7 +187,30 @@ proc responder {sock} {
 	    # screws up the content-length and confuses the client
 	    # which doesn't then pick up the next response
 	    # in the pipeline
-	    puts -nonewline $sock $content	;# send the content
+	    if {!$no_content} {
+		if {$chunk} {
+		    while {[string length $content] > 0} {
+			if {[string length $content] > $chunk} {
+			    puts -nonewline $sock "[format %0x $chunk]\r\n"
+			    puts -nonewline $sock "[string range $content 0 $chunk-1]\r\n"
+			    set content [lrange $content $chunk end]
+			    Debug.socket {SENT CHUNKED: $chunk bytes} 8
+			} else {
+			    # send last chunk
+			    puts -nonewline $sock "[format %0x [string length $content]]\r\n"
+			    puts -nonewline $sock "${content}\r\n"
+			    Debug.socket {SENT CHUNKED: [string length $content] bytes} 8
+			    set content ""
+			}
+			chan flush $sock	;# no, really, send it
+		    }
+		    puts -nonewline $sock "0\r\n\r\n" ;# end chunked
+		} else {
+		    puts -nonewline $sock $content	;# send the content
+		    Debug.socket {SENT BYTES: [string length $content] bytes} 8
+		}
+	    }
+
 	    chan flush $sock			;# no, really, send it
 
 	    incr ::pending -1		;# count one fewer request pending
@@ -193,7 +224,7 @@ proc responder {sock} {
 	Debug.error {FAILED send '$r' ($eo)}
 	Disconnect $sock "Disconnect - $r" $eo
     } else {
-	Debug.socket {SENT content (close: $close) [string length $content] '$content'} 10
+	Debug.socket {SENT (close: $close) [string length $content] '$content'} 10
     }
 }
 
@@ -202,12 +233,9 @@ proc expunge {reply} {
     foreach n [dict keys $reply content-*] {
 	dict unset reply $n
     }
-    if {[dict exists $reply transfer-encoding]} {
-	dict unset reply transfer-encoding
-    }
-    if {[dict exists $reply -content]} {
-	dict unset reply -content	;# discard content
-    }
+
+    # discard some fields
+    Dict strip reply transfer-encoding -chunked -content
     return $reply
 }
 
@@ -249,31 +277,39 @@ proc indicate {args} {
     thread::send -async $::thread::parent $args
 }
 
-# te - find and effect appropriate transfer encoding
-proc te {reply} {
+# CE - find and effect appropriate content encoding
+proc CE {reply} {
     # default to identity encoding
     set content [dict get $reply -content]
 
+    variable ce_encodings
     if {![dict exists $reply -gzip]
-	&& "gzip" in $::te_encodings
+	&& "gzip" in $ce_encodings
     } {
 	set reply [gzip_content $reply]
     }
 
-    # choose transfer encoding
+    # choose content encoding
+    variable chunk_size
     if {[dict exists $reply accept-encoding]
 	&& ![dict exists $reply content-encoding]
     } {
 	foreach en [split [dict get $reply accept-encoding] ","] {
 	    lassign [split $en ";"] en pref
 	    set en [string trim $en]
-	    if {$en in $::te_encodings} {
+	    if {$en in $ce_encodings} {
 		switch $en {
 		    "gzip" { # substitute the gzipped form
 			if {[dict exists $reply -gzip]} {
 			    set content [dict get $reply -gzip]
 			    dict set reply content-encoding gzip
-			    set reply [Http Vary $reply Accept-Encoding User-Agent]
+			    #set reply [Http Vary $reply Accept-Encoding User-Agent]
+			    if {[dict get $reply -version] > 1.0} {
+				# this is probably redundant, since 1.0
+				# doesn't define accept-encoding (does it?)
+				dict set reply -chunked $chunk_size
+				dict set reply transfer-encoding chunked
+			    }
 			    break
 			}
 		    }
@@ -312,7 +348,7 @@ proc charset {reply} {
 #
 # Side Effects:
 #	queues the response for sending by method responder
-proc send {reply {cacheit 1}} {
+proc send {reply {server_cache_it 1}} {
     #set reply [Access log $reply]
 
     set sock [dict get $reply -sock]
@@ -339,17 +375,14 @@ proc send {reply {cacheit 1}} {
 	return
     }
 
+    set chunkit 0	;# we do not wish to chunk by default
+
     if {[catch {
 	# unpack and consume the reply from replies queue
 	set code [dict get $reply -code]
 	if {$code < 4} {
 	    # this was a tcl code, not an HTTP code
 	    set code 500
-	}
-
-	# allow domains to set their own http header tags
-	foreach {n v} [Dict get? $reply -meta] {
-	    dict set reply $n $v
 	}
 
 	# don't honour 1.0 keep-alives
@@ -404,28 +437,37 @@ proc send {reply {cacheit 1}} {
 		# responses MUST NOT include a message-body
 		set reply [expunge $reply]
 		set content ""
-		set cacheit 0	;# can't cache these
+		set server_cache_it 0	;# can't cache these
+		set no_content 1
 	    }
 
 	    default {
+		set no_content 0
 		if {[dict exists $reply -content]} {
 		    # correctly charset-encode content
 		    set reply [charset $reply]
-		
+
 		    # also gzip content so cache can store that.
-		    lassign [te $reply] reply content
-		    
-		    # ensure content-length is correct
-		    dict set reply content-length [string length $content]
+		    lassign [CE $reply] reply content
+
+		    if {[dict exists $reply -chunked]} {
+			# ensure chunking works properly
+			set chunkit [dict get $reply -chunked]
+			dict set reply transfer-encoding chunked
+			catch {dict unset reply content-length}
+		    } else {
+			# ensure content-length is correct
+			dict set reply content-length [string length $content]
+		    }
 		} else {
 		    set content ""	;# there is no content
 		    dict set reply content-length 0
-		    set cacheit 0	;# can't cache no content
+		    set server_cache_it 0	;# can't cache no content
 		}
 	    }
 	}
 
-	# handle Vary field
+	# handle Vary field and -vary dict
 	if {[dict exists $reply -vary]} {
 	    if {[dict exists $reply -vary *]} {
 		dict set reply vary *
@@ -436,14 +478,14 @@ proc send {reply {cacheit 1}} {
 	}
 
 	# now attend to caching generated content.
-	if {$cacheit} {
+	if {$server_cache_it} {
 	    # use -dynamic flag to avoid caching even if it was requested
-	    set cacheit [expr {
+	    set server_cache_it [expr {
 			       ![dict exists $reply -dynamic]
 			       || ![dict get $reply -dynamic]
 			   }]
 
-	    if {$cacheit
+	    if {$server_cache_it
 		&& [dict exists $reply cache-control]
 	    } {
 		set cacheable [split [dict get $reply cache-control] ,]
@@ -451,13 +493,13 @@ proc send {reply {cacheit 1}} {
 		    set body [string trim [join [lassign [split $directive =] d] =]]
 		    set d [string trim $d]
 		    if {$d in {no-cache private}} {
-			set cacheit 0
+			set server_cache_it 0
 			break
 		    }
 		}
 	    }
 
-	    if {$cacheit
+	    if {$server_cache_it
 		&& ![dict exists $reply etag]
 	    } {
 		# generate an etag for cacheable responses
@@ -467,14 +509,7 @@ proc send {reply {cacheit 1}} {
 
 	if {$code >= 500} {
 	    # Errors are completely dynamic - no caching!
-	    set cacheit 0
-	}
-
-	if {$content eq ""} {
-	    # if the content is empty - make sure the headers are consistent
-	    dict set reply content-length 0
-	    catch {dict unset reply content-type}
-	    catch {dict unset reply content-encoding}
+	    set server_cache_it 0
 	}
 
 	# add in Auth header elements - TODO
@@ -486,10 +521,11 @@ proc send {reply {cacheit 1}} {
 	    # All responses to the HEAD request method MUST NOT
 	    # include a message-body but may contain all the content
 	    # header fields.
+	    set no_content 1
 	    set content ""
 	}
 
-	#if {!$cacheit} {
+	#if {!$server_cache_it} {
 	    # dynamic stuff - no caching!
 	    #set reply [Http NoCache $reply]
 	#}
@@ -510,7 +546,7 @@ proc send {reply {cacheit 1}} {
 	# record transaction reply and kick off the responder
 	# response has been collected and is pending output
 	# queue up response for transmission
-	set ::replies($trx) [list $header $content $close]
+	set ::replies($trx) [list $header $content $close $chunkit $no_content]
 	set ::satisfied($trx) 1		;# request has been satisfied
 	writable $sock responder $sock	;# kick off transmitter
 
@@ -528,7 +564,7 @@ proc send {reply {cacheit 1}} {
 	    }
 	    dict set enbot -ipaddr $ip
 	    indicate Honeypot bot? $enbot
-	} elseif {$cacheit} {
+	} elseif {$server_cache_it} {
 	    # handle caching (under no circumstances cache bot replies)
 	    dict set reply -code $code
 	    indicate Cache put $reply
@@ -583,7 +619,7 @@ proc Handle {req} {
 	Debug.error {'Handle' error: '$r' ($eo)}
     }
 
-    #Disconnect [dict get $req -sock] [Dict get? $req -error] $::req
+    #Disconnect [dict get $req -sock] [Dict get? $req -error] $::request
 }
 
 # we're finished reading the header - inform the parent that work is needed
@@ -656,7 +692,8 @@ proc identity {sock length} {
 	    }
 	    got $request
 	} else {
-	    rxtimer after $::enttime timeout rxtimer $sock "identity timeout"
+	    variable enttime
+	    rxtimer after $enttime timeout rxtimer $sock "identity timeout"
 	}
     } r eo]} {
 	Debug.error {identity error '$r' ($eo)}
@@ -673,8 +710,7 @@ proc start_transfer {} {
     variable request
 
     # start the transmission of POST entity, if necessary/possible
-    if {
-	[dict get $request -version] >= 1.1
+    if {[dict get $request -version] >= 1.1
 	&& [dict exists $request expect]
 	&& [string match *100-continue* [string tolower [dict get $request expect]]]
     } {
@@ -699,7 +735,6 @@ proc entity {sock} {
     # the request's headers.
     if {[dict exists $request transfer-encoding]} {
 	set te [dict get $request transfer-encoding]
-
 	# chunked 3.6.1
 	# identity 3.6.2
 	# gzip 3.5
@@ -707,6 +742,7 @@ proc entity {sock} {
 	# deflate 3.5
 	set tels {}
 	array set params {}
+
 	variable te_encodings
 	variable te_params
 	foreach tel [split $te ,] {
@@ -730,11 +766,10 @@ proc entity {sock} {
 	dict set request -te_params [array get params]
 
 	if {0 && "chunked" in $tels} {
-	    # not handling chunks
+	    # not accepting chunks
 	    start_transfer
 	    dict set request -entity "" ;# clear any old entity
 	    readable $sock chunk $sock
-
 	    return
 	} else {
 	    # it's *got* to be an identity transfer - strip it
@@ -769,7 +804,8 @@ proc entity {sock} {
     }
 
     # start the copy of POST data
-    rxtimer after $::enttime timeout rxtimer $sock "entity timeout"
+    variable enttime
+    rxtimer after $enttime timeout rxtimer $sock "entity timeout"
     start_transfer
     dict set request -entity "" ;# clear any old entity
     readable $sock identity $sock $length
@@ -977,7 +1013,8 @@ proc get {sock} {
 	    return
 	}
 
-	rxtimer after $::enttime timeout rxtimer $sock "pre-read timeout"
+	variable enttime
+	rxtimer after $enttime timeout rxtimer $sock "pre-read timeout"
 	return
     }
 
@@ -997,10 +1034,12 @@ proc get {sock} {
 	}
     } else {
 	# accumulate header lines
-	rxtimer after $::rxtime timeout rxtimer $sock "inter-read timeout"
+	variable rxtime
+	rxtimer after $rxtime timeout rxtimer $sock "inter-read timeout"
 	dict lappend request -header $line
-	if {$::maxhead
-	    && [llength [dict get $request -header]] > $::maxhead
+	variable maxhead
+	if {$maxhead
+	    && [llength [dict get $request -header]] > $maxhead
 	} {
 	    Handle [Http Bad $request "Header too Large"]
 	    return
@@ -1039,7 +1078,8 @@ proc connect {req vars sock} {
     dict set request -worker [::thread::id]
     variable prototype $request
 
-    rxtimer after $::txtime timeout rxtimer $sock "first-read timeout"
+    variable txtime
+    rxtimer after $txtime timeout rxtimer $sock "first-read timeout"
     readable $sock get $sock
     Debug.socket {[::thread::id] connected}
 }
@@ -1050,7 +1090,9 @@ proc Disconnected {args} {
 }
 
 Debug on log 10
-Debug off close 10
+#Debug on close 10
+#Debug on socket 10
+#Debug on http 10
 # now we're able to process commands
 #puts stderr "Started Httpd Worker [::thread::id]"
 thread::wait
