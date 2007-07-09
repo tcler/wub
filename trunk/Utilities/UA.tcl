@@ -1,7 +1,7 @@
 # UA.tcl - user agent detection.
 # http://en.wikipedia.org/wiki/User_agent
 
-package provide UA.tcl 1.0
+package provide UA 1.0
 
 # process the ua string into something enabling us to detect MSIE
 proc ua {ua} {
