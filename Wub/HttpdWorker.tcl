@@ -29,7 +29,7 @@ if {![catch {package require zlib}]} {
 }
 #set ce_encodings {}	;# uncomment to stop gzip transfers
 variable chunk_size 4196	;# tiny little chunk size
-
+variable gzip_bugged {MSIE Lynx Opera}	;# these browsers can't take gzip
 variable te_encodings {chunked}
 
 package require WubUtils
@@ -293,7 +293,8 @@ proc CE {reply} {
 
     # choose content encoding - but not for MSIE
     variable chunk_size
-    if {[dict get $reply -ua id] ni {MSIE Lynx Opera}
+    variable gzip_bugged
+    if {[dict get $reply -ua id] ni $gzip_bugged
 	&& [dict exists $reply accept-encoding]
 	&& ![dict exists $reply content-encoding]
     } {
