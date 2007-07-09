@@ -310,8 +310,8 @@ proc CE {reply} {
 			    if {[dict get $reply -version] > 1.0} {
 				# this is probably redundant, since 1.0
 				# doesn't define accept-encoding (does it?)
-				dict set reply -chunked $chunk_size
-				dict set reply transfer-encoding chunked
+				#dict set reply -chunked $chunk_size
+				#dict set reply transfer-encoding chunked
 			    }
 			    break
 			}
