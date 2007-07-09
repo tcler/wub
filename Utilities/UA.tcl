@@ -6,6 +6,8 @@ package provide UA 1.0
 # process the ua string into something enabling us to detect MSIE
 proc ua {ua} {
     set rest [string trim [join [lassign [split $ua] mozver]]]
+    set id unknown
+    set version {}
     set mozver [lassign [split $mozver /] id version]
 
     set result [dict create ua $ua id $id version $version]
@@ -52,6 +54,7 @@ proc ua {ua} {
 	    }
 	}
     } r eo]} {
+	Debug.error {UA: '$r' ($eo)}
 	dict set result error "$r ($eo)"
     }
     return $result
