@@ -12,7 +12,7 @@ proc ua {ua} {
     }
 
     set result [dict create ua $ua id unknown]
-    catch {
+    if {[catch {
 	if {[regexp {([^(])*[(]([^)]*)[)](.*)} -> pre par addition]} {
 	    foreach v {pre par addition mozver} {
 		set $v [string trim [set $v]]
@@ -52,6 +52,8 @@ proc ua {ua} {
 		}
 	    }
 	}
+    } r eo]} {
+	dict set result error "$r ($eo)"
     }
     return $result
 }
