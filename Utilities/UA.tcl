@@ -17,12 +17,11 @@ proc ua {ua} {
 		set $v [string trim [set $v]]
 	    }
 	    set addition [split $addition]
-	    set mver [lindex [split $mozver /] 1]
-	    dict set result mozilla_version $mver
 	    set par [split $par {;}]
 
 	    if {[lindex $par 0] eq "compatible"} {
 		dict set result id MSIE
+		dict set result mozilla_version $version
 		set fields {version provider platform}
 		dict set result extension [lassign $par -> {*}$fields]
 		set version [lindex [split $version] 1]
@@ -31,6 +30,7 @@ proc ua {ua} {
 		}
 	    } elseif {[string match Gecko/* [lindex $addition 0]]} {
 		dict set result id FF
+		dict set result mozilla_version $version
 		set fields {platform security subplatform language version}
 		dict set result extensions [lassign $par {*}$fields]
 		set version [lindex [split $version :] end]
@@ -41,7 +41,7 @@ proc ua {ua} {
 		foreach p {gecko product} {
 		    dict set result product {*}[split [set $p] /]
 		}
-	    } elseif {[dict get $result id] eq "Lynx"} {
+	    } elseif {$id eq "Lynx"} {
 	    } elseif {$addition eq ""} {
 		dict set result id NS
 		dict set result rest [lassign [split $pre] language provider]
