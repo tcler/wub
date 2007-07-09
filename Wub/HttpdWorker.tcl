@@ -251,7 +251,7 @@ proc gzip_content {reply} {
     # signature, deflate compression, no flags, mtime,
     # xfl=0, os=3
     set content [dict get $reply -content]
-    set gzip [binary format "H*iH*" "1f8b0800" [clock seconds] "0200"]
+    set gzip [binary format "H*iH*" "1f8b0800" [clock seconds] "0003"]
     append gzip [zlib deflate $content 9]
 
     # append CRC and ISIZE fields
