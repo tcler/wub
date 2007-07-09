@@ -43,6 +43,7 @@ Debug off socket 10
 package require Url
 package require Http
 package require Cookies
+package require UA
 
 if {0} {
     # some utility/debugging code to track shimmering
@@ -290,9 +291,10 @@ proc CE {reply} {
 	set reply [gzip_content $reply]
     }
 
-    # choose content encoding
+    # choose content encoding - but not for MSIE
     variable chunk_size
-    if {[dict exists $reply accept-encoding]
+    if {[dict get -ua id] ne "MSIE"
+	&& [dict exists $reply accept-encoding]
 	&& ![dict exists $reply content-encoding]
     } {
 	foreach en [split [dict get $reply accept-encoding] ","] {
@@ -957,6 +959,9 @@ proc parse {sock} {
 	Handle [Http NotImplemented $request "Spider Service"]
 	return
     }
+
+    # analyse the user agent strings.
+    dict set request -ua [ua [Dict get? user-agent]]
 
     incr ::pending
     switch -- [dict get $request -method] {
