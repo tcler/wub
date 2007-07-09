@@ -917,13 +917,13 @@ proc parse {sock} {
 	return
     } else {
 	# HTTP 1.0 isn't required to send a Host request but we still need it
-	set request [dict merge $request [Url parse $url]]
 	if {![dict exists $request -host]} {
 	    # make sure the request has some idea of our host&port
 	    dict set request -host $::host
 	    dict set request -port $::port
 	    dict set request host [Url host $request]
 	}
+	set request [dict merge $request [Url parse http://[Url host $request]/$head(-uri)]]
     }
     dict set request -url [Url url $request]	;# normalize URL
 
