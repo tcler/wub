@@ -19,6 +19,7 @@ package ifneeded Auth 1.0 [list source [file join $dir Auth.tcl]]
 package ifneeded Interp 1.0 [list source [file join $dir Interp.tcl]]
 package ifneeded Dict 1.0 [list source [file join $dir Dict.tcl]]
 package ifneeded View 1.0 [list source [file join $dir View.tcl]]
+package ifneeded UA 1.0 [list source [file join $dir UA.tcl]]
 
 package ifneeded sgraph 1.0 [list source [file join $dir sgraph.tcl]]
 package ifneeded mkdict_tie 1.0 [list source [file join $dir mkdict_tie.tcl]]
