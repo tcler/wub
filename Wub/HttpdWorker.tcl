@@ -27,7 +27,7 @@ if {![catch {package require zlib}]} {
 } else {
     variable ce_encodings {}
 }
-#set ce_encodings {}	;# uncomment to stop gzip transfers
+set ce_encodings {}	;# uncomment to stop gzip transfers
 variable chunk_size 4196	;# tiny little chunk size
 
 variable te_encodings {chunked}
@@ -1089,6 +1089,9 @@ proc Disconnected {args} {
     # do something?
     Debug.log {Disconnected indication from parent: $args}
 }
+
+# load up per-worker locals.
+catch {source [file join [file dirname [info script]] wlocal.tcl]}
 
 Debug on log 10
 #Debug on close 10
