@@ -4,12 +4,9 @@ interp alias {} armour {} string map {& &amp; < &lt; > &gt; \" &quot; ' &#39;}
 
 namespace eval Html {
     proc menulist {menu} {
-	set result "<ul>\n"
-	foreach {text url} $menu {
-	    append result <li> "<a href='$url'>" $text </a> </li>
-	}
-	append result </ul> \n
-	return $result
+	return [<ul> [Foreach {text url} $menu {
+	    [<li> [<a> href $url $text]]
+	}]]
     }
 
     proc optset {selector args} {
