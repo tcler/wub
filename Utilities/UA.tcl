@@ -61,7 +61,13 @@ proc ua {ua} {
 }
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
-    foreach x {"Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.0.12) Gecko/20070508 Firefox/1.5.0.12"} {
+    foreach x {
+	"Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.0.12) Gecko/20070508 Firefox/1.5.0.12"
+	"Lynx/2.8.6rel.4 libwww-FM/2.14 SSL-MM/1.4.1 GNUTLS/1.6.2"
+	"Mozilla/2.0 (compatible; Ask Jeeves/Teoma; +http://about.ask.com/en/docs/about/webmasters.shtml)"
+	"msnbot/1.0 (+http://search.msn.com/msnbot.htm)"
+	"Mozilla/5.0 (compatible; Yahoo! Slurp; http://help.yahoo.com/help/us/ysearch/slurp)"
+    } {
 	puts [ua $x]
     }
 }
