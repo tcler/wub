@@ -961,7 +961,7 @@ proc parse {sock} {
     }
 
     # analyse the user agent strings.
-    dict set request -ua [ua [Dict get? user-agent]]
+    dict set request -ua [ua [Dict get? $request user-agent]]
 
     incr ::pending
     switch -- [dict get $request -method] {
