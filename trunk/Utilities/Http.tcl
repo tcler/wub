@@ -1,4 +1,5 @@
 package require ip
+package require Html
 
 package provide Http 2.1
 
