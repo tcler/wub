@@ -27,7 +27,7 @@ if {![catch {package require zlib}]} {
 } else {
     variable ce_encodings {}
 }
-set ce_encodings {}	;# uncomment to stop gzip transfers
+#set ce_encodings {}	;# uncomment to stop gzip transfers
 variable chunk_size 4196	;# tiny little chunk size
 
 variable te_encodings {chunked}
