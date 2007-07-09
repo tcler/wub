@@ -11,47 +11,46 @@ proc ua {ua} {
 	return [list id unknown ua $ua]
     }
 
-    set result [dict create ua $ua]
-
-    if {[regexp {([^(])*[(]([^)]*)[)](.*)} -> pre par addition]} {
-	foreach v {pre par addition mozver} {
-	    set $v [string trim [set $v]]
-	}
-	set addition [split $addition]
-	lassign [split $mozver /] mver
-	dict set result mozilla_version $mver
-	set par [split $par {;}]
-
-	if {[lindex $par 0] eq "compatible"} {
-	    dict set result id MSIE
-	    set fields {version provider platform}
-	    dict set result extension [lassign $par -> {*}$fields]
-	    set version [lindex [split $version] 1]
-	    foreach f $fields {
-		dict set result $f [set $f]
+    set result [dict create ua $ua id unknown]
+    catch {
+	if {[regexp {([^(])*[(]([^)]*)[)](.*)} -> pre par addition]} {
+	    foreach v {pre par addition mozver} {
+		set $v [string trim [set $v]]
 	    }
-	} elseif {[string match Gecko/* [lindex $addition 0]]} {
-	    dict set result id FF
-	    set fields {platform security subplatform language version}
-	    dict set extensions [lassign $par {*}$fields]
-	    set version [lindex [split $version :] end]
-	    foreach f $fields {
-		dict set result $f [set $f]
-	    }
-	    dict set result rest [lassign [split $addition] gecko product]
-	    foreach p {gecko product}
+	    set addition [split $addition]
+	    lassign [split $mozver /] mver
+	    dict set result mozilla_version $mver
+	    set par [split $par {;}]
+
+	    if {[lindex $par 0] eq "compatible"} {
+		dict set result id MSIE
+		set fields {version provider platform}
+		dict set result extension [lassign $par -> {*}$fields]
+		set version [lindex [split $version] 1]
+		foreach f $fields {
+		    dict set result $f [set $f]
+		}
+	    } elseif {[string match Gecko/* [lindex $addition 0]]} {
+		dict set result id FF
+		set fields {platform security subplatform language version}
+		dict set extensions [lassign $par {*}$fields]
+		set version [lindex [split $version :] end]
+		foreach f $fields {
+		    dict set result $f [set $f]
+		}
+		dict set result rest [lassign [split $addition] gecko product]
+		foreach p {gecko product}
 		dict set result product {*}[split $p /]
+	    } elseif {$addition eq ""} {
+		dict set result id NS
+		dict set result rest [lassign [split $pre] language provider]
+		set fields {platform security subplatform}
+		dict lappend result rest [lassign $par {*}$fields]
+		lappend fields language provider
+		foreach f $fields {
+		    dict set result $f [set $f]
+		}
 	    }
-	} elseif {$addition eq ""} {
-	    dict set result id NS
-	    dict set result rest [lassign [split $pre] language provider]
-	    set fields {platform security subplatform}
-	    dict lappend result rest [lassign $par {*}$fields]
-	    lappend fields language provider
-	    foreach f $fields {
-		dict set result $f [set $f]
-	    }
-	    
 	}
     }
     return $result
