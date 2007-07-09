@@ -884,7 +884,7 @@ proc parse {sock} {
     } else {
 	# Could check for FTP requestuests, etc, here...
 	dict set request -error_line $line
-	Handle [Http Bad $request "Method unsupported ([array get head])" 405]
+	Handle [Http Bad $request "Method unsupported '$line' ([array get head])" 405]
 	return
     }
 
