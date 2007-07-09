@@ -552,9 +552,9 @@ namespace eval Http {
 		dict unset rsp $n
 	    }
 	}
-	if {[dict exists $rsp transfer-encoding]} {
-	    dict unset rsp transfer-encoding
-	}
+
+	# discard some fields
+	Dict strip rsp transfer-encoding -chunked -content
 
 	# the response MUST NOT include other entity-headers
 	# than Date, Expires, Cache-Control, Vary, Etag, Content-Location

@@ -87,7 +87,9 @@ namespace eval Dict {
 	}
 	upvar 1 $var dvar
 	foreach key $args {
-	    dict unset dvar $key
+	    if {[dict exists $dvar $key]} {
+		dict unset dvar $key
+	    }
 	}
     }
 

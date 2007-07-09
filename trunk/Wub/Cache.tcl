@@ -180,7 +180,7 @@ namespace eval Cache {
 	dict set cached etag \"$etag\"	;# store with ridiculous quotes
 	dict set cached -hits 0
 
-	Debug.cache {cache entry: [set x $cached; dict set x -gzip <ELIDED> -content <ELIDED>; return $x]} 4
+	Debug.cache {cache entry: [set x $cached; dict set x -gzip <ELIDED>; dict set x -content <ELIDED>; return $x]} 4
 
 	variable cache; variable high; variable low
 	# ensure cache size is bounded
