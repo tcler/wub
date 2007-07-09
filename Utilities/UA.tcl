@@ -6,13 +6,9 @@ package provide UA 1.0
 # process the ua string into something enabling us to detect MSIE
 proc ua {ua} {
     set rest [string trim [join [lassign [split $ua] mozver]]]
+    set mozver [lassign [split $mozver /] id version]
 
-    if {![string match Mozilla/* $mozver]} {
-	# this is not a standard kind of ua
-	return [list id unknown ua $ua]
-    }
-
-    set result [dict create ua $ua id unknown]
+    set result [dict create ua $ua id $id version $version]
     if {[catch {
 	if {[regexp {([^(])*[(]([^)]*)[)](.*)} $rest -> pre par addition]} {
 	    foreach v {pre par addition mozver} {
@@ -43,6 +39,7 @@ proc ua {ua} {
 		foreach p {gecko product} {
 		    dict set result product {*}[split [set $p] /]
 		}
+	    } elseif {[dict get $result id] eq "Lynx"} {
 	    } elseif {$addition eq ""} {
 		dict set result id NS
 		dict set result rest [lassign [split $pre] language provider]
