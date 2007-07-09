@@ -52,7 +52,7 @@ foreach s {
     "Mozilla/3.0 (compatible; Indy Library)"
     "Mozilla/4.0 (compatible; Advanced Email Extractor v2.xx)"
     "Mozilla/4.0 (compatible; Iplexx Spider/1.0 http://www.iplexx.at)"
-    "Mozilla/4.0 (compatible; MSIE 5.0; Windows NT; DigExt; DTS Agent"
+    "Mozilla/4.0 (compatible; MSIE 5.0; Windows NT; DigExt; DTS Agent)"
     "Mozilla/4.0 efp@gmx.net"
     "Mozilla/5.0 (Version: xxxx Type:xx)"
     "MVAClient"
