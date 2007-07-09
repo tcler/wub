@@ -6,6 +6,7 @@ package provide UA 1.0
 # process the ua string into something enabling us to detect MSIE
 proc ua {ua} {
     set rest [string trim [join [lassign [split $ua] mozver]]]
+
     if {![string match Mozilla/* $mozver]} {
 	# this is not a standard kind of ua
 	return [list id unknown ua $ua]
@@ -13,12 +14,12 @@ proc ua {ua} {
 
     set result [dict create ua $ua id unknown]
     if {[catch {
-	if {[regexp {([^(])*[(]([^)]*)[)](.*)} -> pre par addition]} {
+	if {[regexp {([^(])*[(]([^)]*)[)](.*)} $rest -> pre par addition]} {
 	    foreach v {pre par addition mozver} {
 		set $v [string trim [set $v]]
 	    }
 	    set addition [split $addition]
-	    lassign [split $mozver /] mver
+	    set mver [lindex [split $mozver /] 1]
 	    dict set result mozilla_version $mver
 	    set par [split $par {;}]
 
@@ -28,19 +29,20 @@ proc ua {ua} {
 		dict set result extension [lassign $par -> {*}$fields]
 		set version [lindex [split $version] 1]
 		foreach f $fields {
-		    dict set result $f [set $f]
+		    dict set result $f [string trim [set $f]]
 		}
 	    } elseif {[string match Gecko/* [lindex $addition 0]]} {
 		dict set result id FF
 		set fields {platform security subplatform language version}
-		dict set extensions [lassign $par {*}$fields]
+		dict set result extensions [lassign $par {*}$fields]
 		set version [lindex [split $version :] end]
 		foreach f $fields {
-		    dict set result $f [set $f]
+		    dict set result $f [string trim [set $f]]
 		}
 		dict set result rest [lassign [split $addition] gecko product]
-		foreach p {gecko product}
-		dict set result product {*}[split $p /]
+		foreach p {gecko product} {
+		    dict set result product {*}[split [set $p] /]
+		}
 	    } elseif {$addition eq ""} {
 		dict set result id NS
 		dict set result rest [lassign [split $pre] language provider]
@@ -48,7 +50,7 @@ proc ua {ua} {
 		dict lappend result rest [lassign $par {*}$fields]
 		lappend fields language provider
 		foreach f $fields {
-		    dict set result $f [set $f]
+		    dict set result $f [string trim [set $f]]
 		}
 	    }
 	}
@@ -56,4 +58,10 @@ proc ua {ua} {
 	dict set result error "$r ($eo)"
     }
     return $result
+}
+
+if {[info exists argv0] && ($argv0 eq [info script])} {
+    foreach x {"Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.0.12) Gecko/20070508 Firefox/1.5.0.12"} {
+	puts [ua $x]
+    }
 }
