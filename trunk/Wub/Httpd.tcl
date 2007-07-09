@@ -510,7 +510,7 @@ namespace eval Httpd {
     # blocked - this ip address is blocked
     # play around with it a little
     proc blocked {cmd args} {
-	set sock [dict get $args -sock]
+	set sock [dict get $args -socket]
 	chan configure $sock -blocking 0 -translation {binary binary} -encoding binary
 	chan event $sock readable [list ::Httpd::junk $sock];# resume reading
     }
