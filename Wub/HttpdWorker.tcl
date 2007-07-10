@@ -29,7 +29,7 @@ if {![catch {package require zlib}]} {
 }
 #set ce_encodings {}	;# uncomment to stop gzip transfers
 variable chunk_size 4196	;# tiny little chunk size
-variable gzip_bugged {MSIE Lynx Opera}	;# these browsers can't take gzip
+variable gzip_bugged {MSIE Lynx}	;# these browsers can't take gzip
 variable te_encodings {chunked}
 
 package require WubUtils
@@ -255,7 +255,7 @@ proc gzip_content {reply} {
     append gzip [zlib deflate $content 9]
 
     # append CRC and ISIZE fields
-    append gzip [zlib crc32 $gzip]
+    append gzip [zlib crc32 $content]
     append gzip [binary format i [string length $content]]
 
     dict set reply -gzip $gzip
