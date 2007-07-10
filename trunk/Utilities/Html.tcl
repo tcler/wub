@@ -41,15 +41,15 @@ package require know
 know {[string match <*> [lindex $args 0]]} {
     set tag [string trim [lindex $args 0] "<>"]
     ::proc ::<$tag> {args} [string map [list @T $tag] {
-	set result {}
+	set result {@T}
 	foreach {n v} [lrange $args 0 end-1] {
 	    lappend result "[string trim $n]='[armour [string trim $v]]'"
 	}
 	set val [string trim [lindex $args end]]
 	if {$val eq ""} {
-	    return "<@T [join ${result}] />"
+	    return "<[join ${result}] />"
 	} else {
-	    return "<@T [join ${result}]>$val</@T>"
+	    return "<[join ${result}]>$val</@T>"
 	}
     }]
     return [eval $args]

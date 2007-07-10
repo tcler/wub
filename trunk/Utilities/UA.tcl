@@ -23,7 +23,9 @@ proc ua {ua} {
 		dict set result id MSIE
 		dict set result mozilla_version $version
 		set fields {version provider platform}
-		dict set result extension [lassign $par -> {*}$fields]
+		foreach e [lassign $par -> {*}$fields] {
+		    dict lappend result extension [string trim $e]
+		}
 		set version [lindex [split $version] 1]
 		foreach f $fields {
 		    dict set result $f [string trim [set $f]]
@@ -37,7 +39,9 @@ proc ua {ua} {
 		foreach f $fields {
 		    dict set result $f [string trim [set $f]]
 		}
-		dict set result rest [lassign [split $addition] gecko product]
+		foreach r [lassign [split $addition] gecko product] {
+		    dict lappend result rest [string trim $r]
+		}
 		foreach p {gecko product} {
 		    dict set result product {*}[split [set $p] /]
 		}
