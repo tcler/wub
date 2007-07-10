@@ -29,7 +29,7 @@ if {![catch {package require zlib}]} {
 }
 #set ce_encodings {}	;# uncomment to stop gzip transfers
 variable chunk_size 4196	;# tiny little chunk size
-variable gzip_bugged {Lynx}	;# these browsers can't take gzip
+variable gzip_bugged {}	;# these browsers can't take gzip
 variable te_encodings {chunked}
 
 package require WubUtils
