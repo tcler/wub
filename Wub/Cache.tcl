@@ -169,7 +169,7 @@ namespace eval Cache {
 
 	# subset the cacheable request with just those fields needed
 	set cached [Dict subset $req {
-	    -content -gzip -code -url -charset -modified
+	    -content -gzip -code -url -charset -chconverted -modified
 	    content-language content-location content-md5 content-type
 	    expires last-modified cache-control}]
 	set cached [dict merge $cached [Dict subset $req $::Http::rs_headers]]
