@@ -1,482 +1,342 @@
 # Form.html
 # this is an experiment in constructing forms.
 #
-# TODO: nested fieldsets
+# adds:
+#
+# Grouping and Labelling:
+# <form> id {attrs} content
+# <fieldset> id {attrs} content
+# Group content into forms/fieldsets - content is evaluated
+#
+# <legend> {attrs} content
+# provide a legend - useful in fieldsets
+
+# Menus
+# <select> name {attrs} content
+# <option> {attrs} value
+# <optgroup> {attrs} value
+#
+# select menus.  content and value are evaluated.
+
+# Input Fields
+# <password> name {attrs} value
+# <text> name {attrs} value
+# <hidden> name {attrs} value
+# <file> name {attrs} value
+# <image> name {attrs} src
+# <textarea> name {attrs} content
+# <button> name {attrs} content
+# <reset> name {attrs} content
+# <submit> name {attrs} content
+# <radio> name {attrs} text
+# <checkbox> name {attrs} text
+#
+# input boxes - content/value/text are evaluated
+
+# Sets - radio and checkboxes in groups
+# <radioset> name {attrs} content
+# <checkset> name {attrs} content
+# 
+# Sets group together radio and checkboxes into a single coherent unit.
+# each content is assumed to be a list of name/value pairs
 
 if {[info exists argv0] && ([info script] eq $argv0)} {
-    lappend auto_path [file dirname [file normalize [info script]]]
+    lappend auto_path [file dirname [file normalize [info script]]] ./Utilities/ ./extensions/
 }
 
-package require Debug
-Debug off form 1
+package require Dict
+package require Html
 
-package provide Form 1.0
+#package require Debug
+#Debug off form 1
+
+package provide Form 2.0
 
 namespace eval Form {
-    variable inherit {
-	-type -maxlength -size
-	-disabled -readonly -template -class
-	-onfocus -onblur -onselect -onchange
+    variable coreA {id class style title}
+    variable i18nA {lang dir}
+    variable eventA {
+	onclick ondblclick onmousedown onmouseup onmouseover
+	onmousemove onmouseout onkeypress onkeydown onkeyup
+    }
+    variable allA [subst {
+	$coreA
+	$i18nA
+	$eventA
+    }]
+
+    variable fieldsetA $allA
+    variable accessA [subst {accesskey $allA}]
+    variable formA [subst {action method enctype accept-charset accept $allA}]
+    variable fieldA [subst {name disabled size tabindex accesskey onfocus onblur value $allA}]
+    variable textareaA [subst {name rows cols disabled readonly tabindex accesskey onfocus onblur onselect onchange $allA}]
+    variable buttonA [subst {value checked $fieldA onselect onchange type}]
+    variable boxA [subst {value checked $fieldA onselect onchange type}]
+    variable textA [subst {$fieldA readonly maxlength onselect onchange alt type}]
+    variable imageA [subst {src $fieldA onselect onchange}]
+    variable fileA [subst {accept $fieldA onselect onchange type}]
+    variable selectA [subst {name size multiple disabled tabindex onfocus onblur onchange $allA}]
+    variable optgroupA [subst {disabled label $allA}]
+    variable optionA [subst {selected disabled label value $allA}]
+    variable legendA [subst {$allA}]
+    
+    variable Fdefaults [dict create {*}{
+	fieldset {vertical 0}
+    }]
+
+    # default - set attribute defaults for a given tag
+    proc default {type args} {
+	variable Fdefaults
+	set d [Dict get? $Fdefaults $type]
+	dict set Fdefaults $type [dict merge $d $args]
     }
 
-    variable field_fields {
-	-type -maxlength -name -size -value -note
-	-legend -label -prolog -epilog -inline -tooltip -alt
-	-checked -disabled -readonly -tabindex
-	-src -onfocus -onblur -onselect -onchange
-	-class -rows -cols
-	-option
-    }
-
-    variable defaults {
-	-method post
-	-maxlength 64
-	-size 30
-	-inline 0
-	-type text
-    }
-
-    proc parse_field {name f enclosing} {
-	set field [dict create -label $name -name $name]
-
-	# grab defaults from surrounding field
-	variable inherit
-	dict for {k v} $enclosing {
-	    if {$k in $inherit} {
-		dict set field $k $v
-	    }
+    proc attr {T args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
 	}
-
-	set fields {}
-	foreach {key val} $f {
-	    if {[string match -* $key]} {
-		dict set field $key $val
+	set result $T
+	foreach {n v} $args {
+	    if {$n in {checked disabled selected} && $v} {
+		lappend result $n
 	    } else {
-		if {[lsearch $fields $key] < 0} {
-		    lappend fields $key
-		}
-		dict lappend field $key [parse_field $key $val $field]
-	    }
-	}
-	if {[llength $fields] > 0} {
-	    dict set field -fields $fields
-	}
-	return $field
-    }
-
-    proc parse {text args} {
-	puts stderr "PARSE: [info frame -2]"
-	Debug.form {Parse: '$text'} 2
-	variable defaults
-	set form [dict merge $defaults $args]
-	set fields {}
-	foreach {key val} $text {
-	    Debug.form {parsing: $key} 2
-	    if {[string match -* $key]} {
-		dict lappend form $key $val
-	    } else {
-		if {[lsearch $fields $key] < 0} {
-		    lappend fields $key
-		}
-		dict set form $key [list [parse_field $key $val $form]]
-	    }
-	}
-	if {[llength $fields] > 0} {
-	    dict set form -fields $fields
-	}
-	Debug.form {parse: $form} 2
-	return $form
-    }
-
-    proc label {text} {
-	set result {}
-	foreach word [split $text] {
-	    if {$word eq ""} continue
-	    if {[string length $word] > 3} {
-		lappend result [string totitle $word]
-	    } else {
-		lappend result $word
+		lappend result "[string trim $n]='[armour [string trim $v]]'"
 	    }
 	}
 	return [join $result]
     }
-
-    proc inline {f body} {
-	set html ""
-	Debug.form {inline: $f}
-
-	if {![dict exists $f -inline] || ![dict get $f -inline]} {
-	    Debug.form {<P>: $f}
-	    append html <p>
-	    set p 1
-	} else {
-	    Debug.form {inlining: $f}
-	    set p 0
-	}
-
-	uplevel [list append html $html]
-
-	uplevel $body
-
-	set html ""
-
-	if {[dict exists $f -text]} {
-	    append html <p> [dict get $f -text] </p> \n
-	}
-
-	if {$p} {
-	    append html </p> \n
-	}
-
-	uplevel [list append html $html]
-    }
-
-    proc labelit {f} {
-	if {[dict exists $f -label]} {
-	    append html <label>
-	    if {[dict exists $f -tooltip]} {
-		append html "<span class='label'>[label [dict get $f -label]]: "
-		append html "<span class='tooltip' style='visibility:hidden'>[dict get $f -tooltip]</span>"
-		append html "</span>"
-	    } else {
-		append html "[label [dict get $f -label]]: "
-	    }
-	    append html </label>
-	}
-	return $html
-    }
-
-    proc attrs {f what which} {
-	set attrl {}
-	lappend which class
-	foreach x $which {
-	    if {[dict exists $f -$x]} {
-		if {[dict get $f -$x] eq ""} {
-		    lappend attrl $x
-		} else {
-		    lappend attrl "$x='[dict get $f -$x]'"
+    
+    foreach {type} {form fieldset} {
+	eval [string map [list @T $type] {
+	    proc <@T> {name args} {
+		variable @TA
+		variable Fdefaults
+		set config [dict merge [Dict get? $Fdefaults @T] [lrange $args 0 end-1]]
+		if {$name ne ""} {
+		    dict set config id $name
 		}
-	    }
-	}
-
-	return "<$what [join $attrl]"
-    }
-
-    proc htmlfields {name fields args} {
-	Debug.form {htmlfields name:$name fields:'$fields' args:'$args'}
-	set html ""
-	if {![dict exists $fields -fields]} {
-	    return ""
-	}
-
-	foreach fn [dict get $fields -fields] {
-	    foreach f [dict get $fields $fn] {
-		Debug.form {fields for $name: $fn ($f)}
-		    
-		set fname [expr {[dict exists $f -name]?[dict get $f -name]:$fn}]
-		if {[dict exists $args $fname]} {
-		    dict set f -value [armour [dict get $args $fname]]
-		}
-		    
-		set type [expr {[dict exists $f -type]?[dict get $f -type]:""}]
-		switch -glob -- [dict exists $f -fields],$type {
-		    *,select {
-			inline $f {
-			    append html [labelit $f]
-			    append html [attrs $f select {
-				name size multiple disabled 
-				tabindex onfocus onblur onchange
-			    }]> \n
-			    
-			    append html [htmlfields $fname $f {*}$args]
-			    
-			    append html </select> \n
-			}
-		    }
-		    
-		    1,* {
-			append html [fieldset $fn $f {*}$args]
-		    }
-		    
-		    0,option {
-			append html [attrs $f option {
-			    selected disabled label value
-			}]>
-			
-			if {[dict exists $f -option]} {
-			    append html [dict get $f -option]
-			} elseif {[dict exists $f -label]} {
-			    append html [dict get $f -label]
-			}
-			catch {dict unset f -label}
-			
-			append html </option> \n
-		    }
-		    
-		    0,textarea {
-			inline $f {
-			    append html [labelit $f]
-			    append html [attrs $f textarea {
-				type name readonly rows cols
-			    }]>
-			    if {[dict exists $f -value]} {
-				append html [dict get $f -value]
-			    }
-			    append html </textarea> \n
-			}
-		    }
-		    
-		    0,radio -
-		    0,checkbox {
-			inline $f {
-			    append html [labelit $f]
-			    append html [attrs $f input {
-				type checked name alt readonly value
-			    }]/>
-			}
-		    }
-		    
-		    0,hidden {
-			append html [attrs $f input {
-			    type name readonly value
-			}]/>
-			catch {dict unset f -label}
-		    }
-		    
-		    default {
-			inline $f {
-			    append html [labelit $f]
-			    append html [attrs $f input {
-				type maxlength name size alt readonly value}]/>
-			}
-		    }
-		}
-	    }
-	}
-
-	return $html
-    }
-
-    proc fieldset {name fieldset args} {
-	Debug.form {fieldset name:$name fields:$fieldset}
-	set html ""
-
-	if {[dict exists $fieldset -prolog]} {
-	    append html <p> [dict get $fieldset -prolog] </p> \n
-	}
-
-	if {![dict exists $fieldset -inline] || ![dict get $fieldset -inline]} {
-	    Debug.form {<P>: $name}
-	    append html <p>
-	    set p 1
-	} else {
-	    Debug.form {inlining: $name}
-	    set p 0
-	}
-	    
-	append html <fieldset> \n
-
-	if {![dict exists $fieldset -legend]} {
-	    dict set fieldset -legend $name
-	}
-
-	append html <legend> [label [dict get $fieldset -legend]] </legend> \n
-
-	if {[dict exists $fieldset -text]} {
-	    append html <p> [dict get $fieldset -text] </p> \n
-	}
-
-	append html [htmlfields $name $fieldset {*}$args] \n
-
-	if {[dict exists $fieldset -note]} {
-	    append html <p> [dict get $fieldset -note] </p> \n
-	}
-
-	append html </fieldset> \n
-	
-	if {$p} {
-	    append html </p> \n
-	}
-
-	if {[dict exists $fieldset -epilog]} {
-	    append html <p> [dict get $fieldset -epilog] </p> \n
-	}
-
-	return $html
-    }
-
-    proc html {form args} {
-	set form [parse $form {*}$args]
-
-	if {[dict exists $form -record]} {
-	    set record [dict get $form -record]
-	    Debug.form {form html record: $record}
-	} else {
-	    set record {}
-	}
-
-	if {[dict exists $form -class]} {
-	    set class [dict get $form -class]
-	} else {
-	    set class Form
-	}
-
-	foreach p [Dict get? $form -proc] {
-	    lassign $p name args body
-	    Debug.form {form defining proc: $name}
-	    if {$name ne "" && [info procs $name] eq {}} {
-		proc ::$name $args $body
-	    }
-
-	    if {[Dict get? $form -fields] eq ""} {
-		# if no fields are defined, then the -proc *is* the form
-		set html [Dict get? $form -prolog]
-		append html [$::name]
-		foreach include [Dict get? $form -load] {
-		    set loaded [load [file join [Dict get? $form -path] $include]]
-		    dict set loaded -record [Dict get? $form -record]
-		    append html [html $loaded {*}$args] \n
-		}
-		append html [Dict get? $form -epilog]
-		return $html
-	    } else {
-		if {[dict exists $form -domain]} {
-		    set domain [dict get $form -domain]
-		} else {
-		    set domain /[string trim [string tolower [namespace qualifiers $name]] :]/
-		}
+		set content [uplevel 1 [list subst [lindex $args end]]]
+		set content [string trim $content " \t\n\r"]
 		
-		dict set form -action [list "${domain}[string trimleft [namespace tail $name] /]"]
+		if {[dict exists $config vertical]
+		    && [dict get $config vertical]
+		} {
+		    set content [string map {\n <br>} $content]
+		}
+		return "<[attr @T [Dict subset $config $@TA]]>$content</@T>"
 	    }
-	}
-
-	if {![dict exists $form -method]} {
-	    dict set form -method GET
-	}
-
-	return [subst {
-	    [if {[dict exists $form -action]} {
-		return "<form class='$class' action='[lindex [dict get $form -action] 0]' method='[lindex [dict get $form -method] 0]'>\n"
-	    }]
-
-	    [join [Dict get? $form -prolog]]
-	    [htmlfields form $form {*}$record]
-	    [join [Dict get? $form -epilog]]
-
-	    [if {[dict exists $form -submit]} {
-		return "<input type='submit' value='[lindex [dict get $form -submit] 0]'>"
-	    }]
-
-	    [if {[dict exists $form -action]} {
-		return </form>
-	    }]
 	}]
     }
-
-    proc load {path args} {
-	set fd [open $path]
-	set content [string map $args [read $fd]]
-	close $fd
-	lappend content -path $path
-	return [html $content]
+    
+    foreach {type} {legend} {
+	eval [string map [list @T $type] {
+	    proc <@T> {args} {
+		variable @TA
+		variable Fdefaults
+		set config [dict merge [Dict get? $Fdefaults @T] [lrange $args 0 end-1]]
+		return "<[attr @T [Dict subset $config $@TA]]>[uplevel 1 [list subst [lindex $args end]]]</@T>"
+	    }
+	}]
+    }
+    
+    proc <select> {name args} {
+	variable selectA
+	variable Fdefaults
+	set config [dict merge [Dict get? $Fdefaults select] [lrange $args 0 end-1] [list name $name]]
+	
+	set result "<[attr select [Dict subset $config $selectA]]>[uplevel 1 [list subst [lindex $args end]]]</select>"
+	if {[dict exists $config title]} {
+	    set title [list title [dict get $config title]]
+	} else {
+	    set title {}
+	}
+	if {[dict exists $config legend]} {
+	    set legend [dict get $config legend]
+	    return [<fieldset> "" {*}$title {
+		[<legend> $legend]
+		$result
+	    }]
+	} else {
+	    return $result
+	}
+    }
+    
+    foreach {type} {option optgroup} {
+	eval [string map [list @T $type] {
+	    proc <@T> {args} {
+		variable @TA
+		variable Fdefaults
+		set config [dict merge [Dict get? $Fdefaults @T] [lrange $args 0 end-1]]
+		set content [lindex $args end]
+		if {$content eq ""} {
+		    set content [dict get $config value]
+		} else {
+		    set content [uplevel 1 [list subst $content]]
+		}
+		return "<[attr @T [Dict subset $config $@TA]]>$content</@T>"
+	    }
+	}]
+    }
+    
+    proc <textarea> {name args} {
+	variable textareaA
+	variable Fdefaults
+	set config [dict merge [Dict get? $Fdefaults textarea] [lrange $args 0 end-1] [list name $name]]
+	regsub -all {\n[ \t]+} [uplevel 1 [list subst [lindex $args end]]] \n content
+	return "<[attr textarea [Dict subset $config $textareaA]]>$content</textarea>"
+    }
+    
+    foreach type {button reset submit} {
+	eval [string map [list @T $type] {
+	    proc <@T> {name args} {
+		variable Fdefaults
+		set config [dict merge [Dict get? $Fdefaults @T] [lrange $args 0 end-1] [list name $name type button]]
+		variable buttonA
+		return "<[attr button [Dict subset $config $buttonA]]>[uplevel 1 [list subst [lindex $args end]]]</button>"
+	    }
+	}]
+    }
+    
+    foreach {itype attrs field} {
+	password text value
+	text text value
+	hidden text value
+	file file value
+	image image src
+    } {
+	eval [string map [list @T $itype @A $attrs @F $field] {
+	    proc <@T> {name args} {
+		if {[llength $args] % 2} {
+		    set value [lindex $args end]
+		    set args [lrange $args 0 end-1]
+		} else {
+		    set value ""
+		}
+		
+		variable @AA
+		variable Fdefaults
+		set config [dict merge [Dict get? $Fdefaults @T] $args [list name $name type @T @F [uplevel 1 [list subst $value]]]]
+		set result "<[attr input [Dict subset $config $@AA]]>"
+		if {[dict exists $config legend]} {
+		    set legend [dict get $config legend]
+		    return "[<span> class ilegend $legend]$result"
+		} else {
+		    return $result
+		}
+	    }
+	}]
+    }
+    
+    foreach type {radio check} sub {"" box} {
+	eval [string map [list @T $type @S $sub] {
+	    proc <@Tset> {name args} {
+		variable Fdefaults
+		set rsconfig [dict merge [Dict get? $Fdefaults @T] [lrange $args 0 end-1] [list name $name type @T]]
+		set boxes [lindex $args end]
+		set result {}
+		
+		set accum ""
+		foreach {content value} $boxes {
+		    set config [dict merge [Dict get? $Fdefaults @T@S] $rsconfig]
+		    if {[string match +* $content]} {
+			dict set config checked 1
+			set content [string trim $content +]
+		    } else {
+			catch {dict unset config checked}
+		    }
+		    dict set config value $value
+		    lappend result [uplevel 1 [list <@T@S> $name {*}$config $content]]
+		    set accum ""
+		}
+		if {[dict exists $rsconfig vertical]
+		    && [dict get $rsconfig vertical]} {
+		    set joiner <br>
+		} else {
+		    set joiner \n
+		}
+		
+		if {[dict exists $rsconfig legend]} {
+		    set legend [dict get $rsconfig legend]
+		    return [<fieldset> "" {
+			[<legend> $legend]
+			[join $result $joiner]
+		    }]
+		} else {
+		    return [join $result $joiner]
+		}
+	    }
+	}]
+	
+	eval [string map [list @T $type$sub] {
+	    proc <@T> {name args} {
+		if {[llength $args] % 2} {
+		    set value [lindex $args end]
+		    set args [lrange $args 0 end-1]
+		} else {
+		    set value ""
+		}
+		variable boxA
+		variable Fdefaults
+		set config [dict merge $args [list name $name type @T] [Dict get? $Fdefaults @T]]
+		set value [uplevel 1 [list subst $value]]
+		return "<[attr input [Dict subset $config $boxA]]>$value"
+	    }
+	}]
     }
 
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
 
+namespace import ::Form::<*>
+
 if {[info exists argv0] && ($argv0 eq [info script])} {
-    Debug on form 10
+    #Debug on form 10
+    Form default textarea rows 8 cols 60
 
     puts "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head></head><body>"
-    puts [Form html {
-	-submit "Create New Account"
-	-prolog "<p>This is a form to enter your account details</p>"
-	-epilog "<p>When you create the account instructions will be emailed to you.  Make sure your email address is correct.</p>"
-	details {
-	    -legend "Account Details"
-	    -inline 1
-
-	    user {
-		-inline 1
-		-tooltip "Your preferred username (only letters, numbers and spaces)"
-	    }
-	    email {
-		-inline 1
-		-tooltip "Your email address"
-		-value moop
-	    }
-	    hidden {
-		-type hidden
-	    }
-	}
-	
-	passwords {
-	    -text "Type in your preferred password, twice.  Leaving it blank will generate a random password for you."
-	    -type password
-	    -inline 1
-	    -maxlength 16
-	    -size 16
-	    password {}
-	    repeat {}
-	}
-
-	radio {
-	    -legend "Personal illnesses"
-	    -type radio
-	    -inline 0
-	    illness {
-		-label none
-		-checked ""
-		-value 0
-	    }
-	    illness {
-		-label lameness
-		-value 1
-	    }
-	    illness {
-		-label haltness
-		-value 2
-	    }
-	    illness {
-		-label blindness
-		-value 2
-	    }
-
-	    select {
-		-type select
-		-name selname
-		-inline 1
-		-size 2
-		option1 {
-		    -type option
-		    -value moop1
-		    -label moop1
-		    -option "option 1"
-		}
-		option2 {
-		    -label moop2
-		    -type option
-		    -value moop2
-		}
-	    }
-	}
-
-	personal {
-	    -label "Personal Information"
-	    -inline 0
-
-	    name {
-		-name fullname
-		-type text
-		-tooltip "Full name to be used in email."
-	    }
-	    phone {
-		-type text
-		-tooltip "Phone number for official contact"
-	    }
-	}
-    } -action http:moop.html]
+    puts [<form> xxx action http:moop.html {
+	[<p> "This is a form to enter your account details"]
+	[<fieldset> details vertical 1 title "Personal Details" {
+	    [<legend> "Account Details"]
+	    [<text> user legend "User name" title "Your preferred username (only letters, numbers and spaces)"]
+	    [<text> email title "Your email address" moop]
+	    [<hidden> hidden moop]
+	}]
+	[<fieldset> passwords maxlength 16 size 16 {
+	    [<legend> "Passwords"]
+	    [<p> "Type in your preferred password, twice.  Leaving it blank will generate a random password for you."]
+	    [<password> password]
+	    [<password> repeat]
+	}]
+	[<radioset> illness legend "Personal illnesses" {
+	    +none 0
+	    lameness 1
+	    haltness 2
+	    blindness 2
+	}]
+	[<checkset> illness vertical 1 legend "Personal illnesses" {
+	    +none 0
+	    lameness 1
+	    haltness 2
+	    blindness 2
+	}]
+	[<select> selname legend "Shoe Size" title "Security dictates that we know your approximate shoe size" {
+	    [<option> value moop1 label moop1 value 1 "Petit"]
+	    [<option> label moop2 value moop2 value 2 "Massive"]
+	}]
+	[<fieldset> personal {
+	    [<label> "Personal Information"]
+	    [<text> fullname title "Full name to be used in email."]
+	    [<text> phone title "Phone number for official contact"]
+	}]
+	[<p> "When you create the account instructions will be emailed to you.  Make sure your email address is correct."]
+	[<textarea> te {
+	    This is some default text to be getting on with
+	    It's fairly cool.  Note how it's left aligned.
+	}]
+	<br>[<submit> submit "Create New Account"]
+    }]
     
     puts "</body>\n</html>"
 }
