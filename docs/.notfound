@@ -1,0 +1,4 @@
+<p>This is part of the Mason Emulation of <a href='.'>Wub</a>.</p>
+<p>This page is dynamically generated in response to a request for a non-existent file.</p>
+<p>The URL which failed is:  [dict get $::response -uri]</p>
+<p>It was generated at:  [clock format [clock seconds]], and won't be cached</p>
