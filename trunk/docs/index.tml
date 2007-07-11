@@ -1,0 +1,98 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+[
+	dict set response -dynamic 0
+	return ""
+]
+<html>
+  <head>
+    <title>Wub Server in Pure Tcl</title>
+    <meta name='description' content='Your description goes here...'>
+    <meta name='keywords' content='web,server,pure,tcl'>
+    <meta name='author' content='Robert L Hicks / Design by Andreas Viklund - http://andreasviklund.com/'>
+    <link rel='stylesheet' type='text/css' href='/css/style.css' title='800px style' media='screen,projection'>
+    <title>Wub Server in Pure Tcl</title>
+  </head>
+
+  <body>
+    <div id='wrap'>
+      <div id='header'>
+	<p id='toplinks'>Wed Jul 19, 2006</p>
+	<h1><img src='/images/tclp.gif' alt='animated Tcl gif'>Wub<span class='fade'>&nbsp;Httpd</span></h1>
+	<p id='slogan'>A dynamic server in a dynamic language...</p>
+      </div>
+
+      <div id='content'>
+	<h2>As simple as it gets...</h2>
+
+	<p>Wub is a pure Tcl web server implementing near HTTP 1.1</p>
+	<p>Wub servers are designed as a series of pluggable building blocks called "<a href='docs/Domains/'>domains</a>".</p>
+	
+ 	<p>Wub is a pure Tcl implementation of a Web server. It runs as a
+	  Tcl script on top of <a href=''>Tcl 8.5</a>.</p>
+
+	<p>While this server works fine as a stand alone web server, the intent is
+	  to embed applications within it.</p>
+
+	<p>The interpreted nature of Tcl allows dynamic reconfiguration of the server.
+	  Once the core interface between the web server and the hosted application is defined,
+	  it is possible to manage the web server, upload Safe-Tcl control scripts,
+	  download logging information, and otherwise debug the Tcl part of the
+	  application without restarting the application.</p>
+	
+	<p>The <a href='mailto:wub-users@lists.sourceforge.net'>wub-users@lists.sourceforge.net</a>
+	  mailing list is the best source of current information about Wub.</p>
+	
+	<h2>Related Articles</h2>
+	<p>Relating to this Wub distribution:</p>
+	
+	<ul>
+	  <!-- <li><a href='#'>README.txt</a></li> -->
+	</ul>
+	
+	<!-- <p>The main Wub information <a href='http://www.tcl.tk/software/Wub/'>page.</a></p> -->
+	
+	<p>The <a href='http://www.tcl.tk/software/tclhttpd/server.html'>white paper</a> presents a case for an embedded web server from more of a business angle.</p>
+	
+	<p class='box'><strong>Note:</strong>  The server is distributed under a
+	  <a href='#'>copyright</a> that allows free use.</p>
+      </div>
+      
+      <div id='sidebar'>
+	<p class='list1'>Control/Status</p>
+	<p class='list2'><a href='#'>Server stats</a></p>
+	<p class='list2last'><a href='#'>Control panel</a></p>
+	<p class='list1'><a href='docs/'>Documentation</a></p>
+	<p class='list2'><a href='docs/'>Server</a></p>
+	<p class='list2'><a href='docs/Domains'>Domains</a></p>
+	<p class='list1'>Test Pages</p>
+	<p class='list2'><a href='mason'>Mason</a>.</p>
+	<p class='listend'></p>
+	
+	<!-- <h2>Server stats:</h2>
+	<p>Home hits: 6</p>-->
+	
+	<h2>Tcl version:</h2>
+	<p>Running: [info patchlevel]</p>
+	
+      </div>
+      
+      <div id='footer'>
+	<p>\[
+	  <a href='#'>Home</a> |
+	  <a href='#'>Status</a> |
+	  <a href='#'>Learn</a> |
+	  <a href='#'>CGI Tests</a> |
+	  <a href='#'>Templates</a> |
+	  <a href='#'>Access Control</a> |
+	  <a href='#'>Reference Manual</a> ]
+	</p>
+      </div>
+      
+    </div>
+    <hr>
+    <address><a href='mailto:colin@chinix.com'>Colin McCormack</a></address>
+    <!-- Created: Thu Jan  5 13:00:57 EST 2006 -->
+    <!-- hhmts start -->
+Last modified: <!--[hhmts {-->2006-07-24 20:24<!--}]--> <!-- hhmts end -->
+  </body>
+</html>
