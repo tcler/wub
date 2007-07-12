@@ -9,7 +9,7 @@
     <meta name='description' content='Your description goes here...'>
     <meta name='keywords' content='web,server,pure,tcl'>
     <meta name='author' content='Robert L Hicks / Design by Andreas Viklund - http://andreasviklund.com/'>
-    <link rel='stylesheet' type='text/css' href='/css/style.css' title='800px style' media='screen,projection'>
+    <link rel='stylesheet' type='text/css' href='css/style.css' title='800px style' media='screen,projection'>
     <title>Wub Server in Pure Tcl</title>
   </head>
 
@@ -17,7 +17,7 @@
     <div id='wrap'>
       <div id='header'>
 	<p id='toplinks'>Wed Jul 19, 2006</p>
-	<h1><img src='/images/tclp.gif' alt='animated Tcl gif'>Wub<span class='fade'>&nbsp;Httpd</span></h1>
+	<h1><img src='images/tclp.gif' alt='animated Tcl gif'>Wub<span class='fade'>&nbsp;Httpd</span></h1>
 	<p id='slogan'>A dynamic server in a dynamic language...</p>
       </div>
 
@@ -62,10 +62,8 @@
 	<p class='list2'><a href='#'>Server stats</a></p>
 	<p class='list2last'><a href='#'>Control panel</a></p>
 	<p class='list1'><a href='docs/'>Documentation</a></p>
-	<p class='list2'><a href='docs/'>Server</a></p>
+	<p class='list2'><a href='docs/Server'>Server</a></p>
 	<p class='list2'><a href='docs/Domains'>Domains</a></p>
-	<p class='list1'>Test Pages</p>
-	<p class='list2'><a href='mason'>Mason</a>.</p>
 	<p class='listend'></p>
 	
 	<!-- <h2>Server stats:</h2>

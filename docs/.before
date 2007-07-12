@@ -1,18 +1,6 @@
 [
- if {![dict exists $response content-type]} {
-     # default content-type
-     dict set response content-type text/x-html-fragment
- }
-
- switch -- [dict get $response content-type] {
-     text/x-html-fragment {
-	 dict append response -content {
-             <hr>
-             <p>(.wrapped by <a href='mason/'>Mason Demo</a>)</p>
-         }
-     }
- }
-
+ puts stderr ".before"
+ dict set response -code 200
 ### Local Variables: ***
 ### mode:tcl ***
 ### tcl-indent-level:4 ***
