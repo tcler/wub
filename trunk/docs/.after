@@ -1,6 +1,6 @@
 [
 # do nothing.
-
+puts stderr ".after"
 ### Local Variables: ***
 ### mode:tcl ***
 ### tcl-indent-level:4 ***
