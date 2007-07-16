@@ -117,6 +117,48 @@ namespace eval Dict {
 	}]
     }
 
+    # dir - convert directory to dict
+    proc dir {dir} {
+	set content {}
+	foreach file [glob -nocomplain -directory $dir *] {
+	    while {[file type $file] eq "link"} {
+		set file [file readlink $file]
+	    }
+
+	    switch -- [file type $file] {
+		directory {
+		    set extra "/"
+		}
+		file {
+		    set extra ""
+		}
+		default {
+		    continue
+		}
+	    }
+
+	    catch {unset attr}
+	    file stat $file attr
+	    set name [file tail $file]
+	    dict set content $name [array get attr]
+	    foreach {x y} [file attributes $file] {
+		dict set content $name $x $y
+	    }
+	    foreach {x y} [dict get $content $name] {
+		if {[string match *time $x]} {
+		    dict set content $name $x [clock format $y -format {%Y-%m-%d %H:%M:%S}]
+		}
+		if {$x eq "size"
+		    && [file type $file] eq "directory"
+		} {
+		    dict set content $name $x [expr {[dict get $content $name nlink] - 2}]
+		}
+	    }
+	    dict set content $name name [<a> href $name $name$extra]
+	}
+	return $content
+    }
+
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
