@@ -11,7 +11,7 @@ namespace eval Stdin {
 
     proc backends {cmd} {
 	set result {}
-	foreach tid [array names ::backend::worker] {
+	foreach tid [array names ::Backend::worker] {
 	    catch {::thread::send $tid $cmd} r eo
 	    lappend result [list "$tid: '$r' ($eo)"]
 	}
