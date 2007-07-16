@@ -41,7 +41,7 @@
 # each content is assumed to be a list of name/value pairs
 
 if {[info exists argv0] && ([info script] eq $argv0)} {
-    lappend auto_path [file dirname [file normalize [info script]]] ./Utilities/ ./extensions/
+    lappend auto_path [file dirname [file normalize [info script]]] ../Utilities/ ../extensions/
 }
 
 package require Dict
@@ -51,6 +51,8 @@ package require Html
 #Debug off form 1
 
 package provide Form 2.0
+
+#alias tclarmour string map {\[ "&5B;" \] "&5D;" \{ "&7B;" \} "&7D;" $ "&24;"}
 
 namespace eval Form {
     variable coreA {id class style title}
@@ -73,7 +75,7 @@ namespace eval Form {
     variable buttonA [subst {value checked $fieldA onselect onchange type}]
     variable boxA [subst {value checked $fieldA onselect onchange type}]
     variable textA [subst {$fieldA readonly maxlength onselect onchange alt type}]
-    variable imageA [subst {src $fieldA onselect onchange}]
+    variable imageA [subst {src alt $fieldA onselect onchange type}]
     variable fileA [subst {accept $fieldA onselect onchange type}]
     variable selectA [subst {name size multiple disabled tabindex onfocus onblur onchange $allA}]
     variable optgroupA [subst {disabled label $allA}]
@@ -81,7 +83,11 @@ namespace eval Form {
     variable legendA [subst {$allA}]
     
     variable Fdefaults [dict create {*}{
+	textarea {compact 0}
+	form {method get}
 	fieldset {vertical 0}
+	submit {alt Submit}
+	reset {alt Reset}
     }]
 
     # default - set attribute defaults for a given tag
@@ -97,8 +103,10 @@ namespace eval Form {
 	}
 	set result $T
 	foreach {n v} $args {
-	    if {$n in {checked disabled selected} && $v} {
-		lappend result $n
+	    if {$n in {checked disabled selected}} {
+		if {$v} {
+		    lappend result $n
+		}
 	    } else {
 		lappend result "[string trim $n]='[armour [string trim $v]]'"
 	    }
@@ -177,24 +185,54 @@ namespace eval Form {
 	    }
 	}]
     }
-    
+
     proc <textarea> {name args} {
 	variable textareaA
 	variable Fdefaults
 	set config [dict merge [Dict get? $Fdefaults textarea] [lrange $args 0 end-1] [list name $name]]
-	regsub -all {\n[ \t]+} [uplevel 1 [list subst [lindex $args end]]] \n content
-	return "<[attr textarea [Dict subset $config $textareaA]]>$content</textarea>"
+	set content [lindex $args end]
+	if {[dict exists $config compact]
+	    && [dict get $config compact]} {
+	    regsub -all {\n[ \t]+} $content \n content
+	}
+	#set content [tclarmour $content]
+	#puts "CONTENT: $content"
+	return "<[attr textarea [Dict subset $config $textareaA]]>[lindex $content 0]</textarea>"
     }
     
-    foreach type {button reset submit} {
+    foreach type {reset submit} {
 	eval [string map [list @T $type] {
 	    proc <@T> {name args} {
 		variable Fdefaults
-		set config [dict merge [Dict get? $Fdefaults @T] [lrange $args 0 end-1] [list name $name type button]]
-		variable buttonA
-		return "<[attr button [Dict subset $config $buttonA]]>[uplevel 1 [list subst [lindex $args end]]]</button>"
+		if {[llength $args] % 2} {
+		    set content [lindex $args end]
+		    set args [lrange $args 0 end-1]
+		} else {
+		    set content ""
+		}
+		set config [dict merge [Dict get? $Fdefaults @T] [list alt @T] $args [list name $name type @T]]
+
+		if {$content eq {}} {
+		    if {[dict exists $config content]} {
+			set content [dict get $config content]
+		    } else {
+			set content [string totitle @T]
+		    }
+		} else {
+		    set content [uplevel 1 subst [list $content]]
+		}
+
+		variable imageA
+		return [<button> $name {*}$config $content]
 	    }
 	}]
+    }
+
+    proc <button> {name args} {
+	variable Fdefaults
+	set config [dict merge [Dict get? $Fdefaults button] [lrange $args 0 end-1] [list name $name]]
+	variable buttonA
+	return "<[attr button [Dict subset $config $buttonA]]>[uplevel 1 [list subst [lindex $args end]]]</button>"
     }
     
     foreach {itype attrs field} {
@@ -337,6 +375,19 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	}]
 	<br>[<submit> submit "Create New Account"]
     }]
-    
+    [<div> class buttons [subst {
+	[<submit> class positive {
+	    [<img> src /images/icons/tick.png alt ""] Save
+	}]
+
+	[<a> href /password/reset/ [subst {
+	    [<img> src /images/icons/textfield_key.png alt ""] Change Password
+	}]]
+
+	[<a> href "#" class negative [subst {
+	    [<img> src /images/icons/cross.png alt ""] Cancel
+	}]]
+    }]]
+
     puts "</body>\n</html>"
 }
