@@ -7,7 +7,36 @@ package provide Mason 1.0
 package require snit
 package require Html
 
+namespace eval ::MConvert {
+    proc .x-text/dict.x-text/html-fragment {rsp} {
+	Debug.convert {x-text/dict.x-text/html-fragment conversion: $rsp}
+
+	# use -thead as table headers, or if there is none use the dict keys
+	if {![dict exists $rsp -thead]} {
+	    set thead [lsort [dict keys [lindex [dict get -contents] 1]]]
+	} else {
+	    set thead [dict get $rsp -thead]
+	}
+
+	dict set rsp -content [Html dict2table [dict get $rsp -content] $thead [Dict get? $rsp -tfoot]]
+
+	if {[dict exists $rsp -title]} {
+	    dict lappend rsp -headers [<title> [string trim [dict get $rsp -title]]]
+	}
+	set uroot [Dict get? $rsp -urlroot]
+	foreach js {common css standardista-table-sorting} {
+	    dict lappend rsp -headers [<script> type text/javascript src $uroot/scripts/$js.js {}]
+	}
+	dict lappend rsp -headers [<style> type text/css media all "@import url($uroot/css/sorttable.css);"]
+	dict set rsp content-type x-text/html-fragment
+
+	Debug.convert {x-text/dict.x-text/html-fragment conversion: $rsp}
+	return $rsp
+    }
+}
+
 ::snit::type Mason {
+    option -url ""	;# url for top of this domain
     option -root ""	;# file system domain root
     option -hide {^([.].*)|(.*~)$}	;# these files are never matched
     option -functional ".tml"	;# functional extension
@@ -15,10 +44,8 @@ package require Html
     option -wrapper ".wrapper"	;# wrapper handler name
     option -auth ".auth"	;# authentication functional
     option -index index.html	;# directory index name
-    option -dirread 0		;# are directories inherently readable?
-    			;# -1: probe, 0: never, 1: always
-    option -dirlist 1		;# return a multipart/x-dirlist type for directories?
-
+    option -dirhead {name size mtime *}
+    option -dirfoot {}
     # additional aliases to be installed in session interpreter
     option -aliases -configuremethod addalias \
 	-default {}
@@ -79,7 +106,7 @@ package require Html
 	#catch {dict unset response -content}	;# let subst set content
 	if {![dict exists $response content-type]} {
 	    # set default mime type
-	    dict set response content-type text/x-html-fragment
+	    dict set response content-type x-text/html-fragment
 	}
 
 	# perform template substitution
@@ -127,62 +154,88 @@ package require Html
 	}
     }
 
+    # candidate - find a candidate for file
+    method candidate {file} {
+	if {[file exists $file]} {
+	    return $file
+	}
+	
+	# no such file - may be a functional?
+	set fpath [file rootname $file]$options(-functional)
+	if {[file exists $fpath]} {
+	    return $fpath
+	} else {
+	    return ""
+	}
+    }
+
     method mason {req} {
 	Debug.mason {Mason: [dumpMsg $req]}
-
+	
 	dict set req -mason $self
+	dict set req -urlroot $options(-url)
+
 	set http [Dict get? $req -http]
 	set suffix [string trimleft [dict get $req -suffix] /]
-
+	
 	set ext [file extension $suffix]	;# file extent
 	set path [file join [dict get $req -root] $suffix] ;# complete path to file
 	set tail [file tail $suffix]	;# last component of path
 	set url [dict get $req -url]	;# full URL
-
+	
 	Debug.mason {Mason: -url:$url - suffix:$suffix - path:$path - tail:$tail - ext:$ext}
-
+	
 	if {(($tail eq $ext) && ($ext ne "")
 	     && ![dict exists $req -extonly])
 	    || [regexp $options(-hide) $tail]
 	} {
 	    # this is a file name like '.../.tml', or is hidden
-	    return [Http NotFound $req "<p>'$path' has illegal name.</p>"]
+	    return [Http NotFound $req [subst {
+		[<p> "'$path' has illegal name.</p>"]
+	    }]]
 	}
-
+	
 	# .notfound processing
-	if {![file exists $path] || $ext eq $options(-functional)} {
-	    # no such file - may be a functional
-	    set fpath [file rootname $path]$options(-functional)
-	    if {![file exists $fpath]} {
-		Debug.mason {not found $fpath - looking for $options(-notfound)}
-		set fpath [$self findUp $req $options(-notfound)]	;# get the .notfound
-	    }
-
+	set fpath [$self candidate $path]
+	if {$fpath eq ""} {
+	    Debug.mason {not found $fpath - looking for $options(-notfound)}
+	    set fpath [$self findUp $req $options(-notfound)]	;# get the .notfound
 	    if {$fpath eq ""} {
-		Debug.mason {notfound processing failed - really not here}
-
+		Debug.mason {notfound failed - really not here}
 		# respond notfound template
-		dict set req -depends [file join [dict get $req -root] $suffix]
 		return [Http NotFound $req]
+	    } else {
+		# handle conditional request on .notfound
+		if {[$self conditional $req $fpath]} {
+		    return [Http NotModified $req]
+		}
+		dict set req -dynamic 1	;# functionals are dynamic by default
+		return [$self functional $req $fpath]	;# invoke the .notfound
+	    }
+	} elseif {[file extension $fpath] eq $options(-functional)} {
+	    # handle conditional request on functional path
+	    if {[$self conditional $req $fpath]} {
+		return [Http NotModified $req]
 	    }
 
-	    # handle conditional request - return if it's unmodified
-	    $self conditional $req $fpath
-
-	    dict set req -functional $fpath
 	    dict set req -dynamic 1	;# functionals are dynamic by default
-
 	    return [$self functional $req $fpath]	;# invoke the functional
+	} else {
+	    set path $fpath
+
+	    # handle conditional request on path
+	    if {[$self conditional $req $path]} {
+		return [Http NotModified $req]
+	    }
 	}
 
-	# handle conditional request on path
-	if {[$self conditional $req $path]} {
-	    return [Http NotModified $req]
-	}
-
+	# file $path exists
 	Debug.mason {Found file '$path' of type [file type $path]}
+	while {[file type $path] eq "link"} {
+	    set path [file readlink $path]	;# remove links
+	}
+
 	switch -- [file type $path] {
-	    link -
 	    file {
 		# allow client caching
 		return [Http CacheableFile $req $path]
@@ -194,94 +247,64 @@ package require Html
 		    # redirect - insist on trailing /
 		    return [Http Redirect $req "${url}/"]
 
-		    # Question: Why should a URL that names a directory have a trailing slash?
+		    # Question: Why should a URL that names a directory have
+		    # a trailing slash?
 		    # Answer:
-		    # When a document contains relative links, they are resolved by the browser, 
-		    # not by the HTTP server. The browser starts with the URL for the current 
-		    # document, removes everything after the last slash, and appends the 
-		    # relative URL. If the URL for the current document names a file, this works 
-		    # fine. But if the URL for the current document names a directory, and the 
-		    # URL is missing the trailing slash, then the method fails.
-		}
-
-		if {[set readable $options(-dirread)] < 0} {
-		    # test underlying fs to see if it accepts dir read.
-		    set dir [open $path]
-		    set readable [expr ![catch {read $dir 1}]]
-		    #set options(-dirread) $readable
-		    close $dir
-
-		    # Justification: Some file systems permit a thing to be both a collection
-		    # of other things (a directory) and a content-ful thing, simultaneously.
-		    # Unix fs does not, but (say) the URL namespace does.  We have metakit
-		    # vfs which also support this duality, and it makes sense to make use of
-		    # it.
-		    # To that end, we attempt a simple read on each directory, and if it fails
-		    # we fall back to the usual circumlocution ($dir/index.*)
-		}
-
-		if {$readable} {
-		    # the underlying fs supports directory reads at this location
-		    # just return the thing as a file, Conversion is expected to
-		    # make some sense of it.
-		    return [Http CacheableFile $req $path multipart/x-directory]
-		} elseif {($options(-index) ne "")} {
+		    # When a document contains relative links, they are resolved
+		    # by the browser, not by the HTTP server.
+		    # The browser starts with the URL for the current document,
+		    # removes everything after the last slash, and appends the
+		    # relative URL. If the URL for the current document names
+		    # a file, this works fine, but if the URL for the current
+		    # document names a directory, and the URL is missing the
+		    # trailing slash, then the method fails.
+		} elseif {$options(-index) ne ""} {
 		    # we are instructed to use index.html (or similar)
 		    # as the contents of a directory.
-
-		    # re-try this request after modifying the URL/path etc.
-		    dict set req -suffix [file join [dict get $req -suffix] $options(-index)]
-
-		    # remember cache dependency on dir
-		    dict lappend req -depends [file normalize $path]
-
-		    # remember the query args - order should be significant?
-		    dict lappend req -cache [dict get $req -uri]
-
-		    set req [$self mason $req]	;# recurse to find ./index.html
-		    if {[Dict get? $req -code] != 404} {
-			return $req
+		    
+		    # if there is an existing index file re-try this request
+		    # after modifying the URL/path etc.
+		    set fpath [$self candidate [file join $path $options(-index)]]
+		    if {$fpath ne ""} {
+			if {[file extension $fpath] eq $options(-functional)} {
+			    # handle conditional request on functional path
+			    if {[$self conditional $req $fpath]} {
+				return [Http NotModified $req]
+			    }
+			    
+			    dict set req -dynamic 1	;# functionals are dynamic by default
+			    return [$self functional $req $fpath]	;# invoke the functional
+			}
+			return [Http CacheableFile $req $fpath]
 		    }
 		}
 
-		# couldn't find an index file
-		dict lappend req -depends [file normalize $path]	;# cache directory
-		if {$options(-dirlist)} {
-		    set content [dict create]
-		    foreach name [glob -directory $path *] {
-			switch -- [file type $name] {
-			    link {
-				set file [file readlink $name]
-			    }
-			    file - directory {
-				set file $name
-			    }
-			    default {
-				continue
-			    }
-			}
-			file stat $file attr
-			dict set content [file tail $name] \
-			    [dict merge [file attributes $file] [array get attr]]
-		    }
-
-		    #puts stderr "DIR: $content"
-
-		    return [Http CacheableContent $req \
-				[file mtime $path] $content "multipart/x-dirlist"]
-		} else {
+		Debug.mason {not found index $path - looking for .directory}
+		set fpath [$self findUp $req .directory]
+		if {$fpath eq ""} {
+		    Debug.mason {notfound processing failed - really not here}
+		    # respond notfound template
 		    return [Http NotFound $req]
 		}
+		if {$options(-dirhead) ne {}} {
+		    dict set req -thead $options(-dirhead)
+		}
+		if {$options(-dirfoot) eq {}} {
+		    dict set req -tfoot [list [<a> href .. Up]]
+		}
+		dict set req -dynamic 1	;# functionals are dynamic by default
+		return [$self functional $req $fpath]	;# invoke the functional
 	    }
-
+	    
 	    default {
 		dict lappend req -depends [file normalize $path]	;# cache notfound
-		return [Http NotFound $req \
-			    "<p>'$suffix' is of illegal type [file type $path]</p>"]
+		return [Http NotFound $req [subst {
+		    [<p> "'$suffix' is of illegal type [file type $path]"]
+		}]]
 	    }
 	}
     }
-
+    
     method auth {req} {
 	# run authentication and return any codes
 	set fpath [$self findUp $req $options(-auth)]
@@ -327,12 +350,10 @@ package require Html
 
     method do {req} {
 	Debug.dispatch {do}
-	dict set req -domain $self	;# record the domain
 	dict set req -root $options(-root)
 	set req [$self auth $req]	;# authenticate - must not be caught!
-	dict set req -dynamic 0	;# default: static content
+	dict set req -dynamic 0		;# default: static content
 	set rsp [$self mason $req]	;# process request
-	catch {dict unset rsp -domain}	;# forget the domain
 
 	Debug.dispatch {MASON Respond $rsp}
 
@@ -364,5 +385,38 @@ package require Html
     constructor {args} {
 	$self configurelist $args
 	set options(-root) [file normalize $options(-root)]
+
+	if {$options(-dirhead) ne ""} {
+	    # search for an element "*" in -dirhead
+	    catch {unset attr}
+	    file lstat $options(-root) attr
+	    set oth [array get attr]
+	    dict set oth name X
+	    foreach {x y} [file attributes $options(-root)] {
+		dict set oth $x $y
+	    }
+ 
+	    set i 0
+	    set index -1
+	    set hd {}
+	    set rhead {}
+	    foreach el $options(-dirhead) {
+		if {$el eq "*"} {
+		    set index $i
+		    lappend rhead *
+		    incr i
+		} elseif {![catch {dict unset oth $el}]} {
+		    lappend rhead $el
+		    incr i
+		}
+	    }
+
+	    if {$index ne -1} {
+		set thead [lreplace $rhead $index $index {*}[lsort -dictionary [dict keys $oth]]]
+		set options(-dirhead) $thead
+	    }
+
+	    #puts stderr "THEAD: $thead"
+	}
     }
 }
