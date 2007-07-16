@@ -85,7 +85,7 @@ namespace eval Html {
 }
 
 proc <img> {args} {
-    return "<[Html::attr img {*}args]>"
+    return "<[Html::attr img {*}$args]>"
 }
 
 # HTML <> commands per http://wiki.tcl.tk/2776
