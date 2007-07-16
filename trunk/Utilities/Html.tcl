@@ -3,6 +3,23 @@ package provide Html 1.0
 interp alias {} armour {} string map {& &amp; < &lt; > &gt; \" &quot; ' &#39;}
 
 namespace eval Html {
+    proc attr {T args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	set result $T
+	foreach {n v} $args {
+	    if {$n in {checked disabled selected}} {
+		if {$v} {
+		    lappend result $n
+		}
+	    } else {
+		lappend result "[string trim $n]='[armour [string trim $v]]'"
+	    }
+	}
+	return [join $result]
+    }
+    
     proc menulist {menu} {
 	return [<ul> [Foreach {text url} $menu {
 	    [<li> [<a> href $url $text]]
@@ -32,8 +49,43 @@ namespace eval Html {
 	return $c
     }
 
+    # dict2table - convert dict into sortable HTML table
+    proc dict2table {dict header {footer {}}} {
+	set row 0
+	return [<table> class sortable [subst {
+	    [<thead> [<tr> [Foreach t $header {
+		[<th> [string totitle $t]]
+	    }]]]
+	    [If {$footer ne {}} {
+		[<tfoot> [<tr> [Foreach t $footer {[<th> $t]}]]]
+	    }]
+	    [<tbody> [Foreach {k v} $dict {
+		[<tr> class [If {[incr row] % 2} even else odd] \
+		     [Foreach th $header {
+			 [If {[dict exists $v $th]} {
+			     [<td> [dict get $v $th]]
+			 } else {
+			     [<td> {}]
+			 }]
+		     }]]
+	    }]]
+	}]]
+    }
+
+    # dir2table - convert directory into sortable table
+    proc dir2table {dir header {footer {}}} {
+	if {$header eq {}} {
+	    set header {name size mtime ctime atime}
+	}
+	return [dict2table [dir2dict [Dict dir $dir $header] $header $footer]]
+    }
+
     namespace export -clear *
     namespace ensemble create -subcommands {}
+}
+
+proc <img> {args} {
+    return "<[Html::attr img {*}args]>"
 }
 
 # HTML <> commands per http://wiki.tcl.tk/2776
@@ -46,11 +98,7 @@ know {[string match <*> [lindex $args 0]]} {
 	    lappend result "[string trim $n]='[armour [string trim $v]]'"
 	}
 	set val [string trim [lindex $args end]]
-	if {$val eq ""} {
-	    return "<[join ${result}] />"
-	} else {
-	    return "<[join ${result}]>$val</@T>"
-	}
+	return "<[join ${result}]>$val</@T>"
     }]
     return [eval $args]
 }
@@ -61,8 +109,10 @@ know {[string match <*> [lindex $args 0]]} {
 # Note that this version does not support the then keyword in if,
 # and requires the else keyword.
 proc If {args} {
-    while {[llength $args] && ![uplevel expr [lindex $args 0]]} {
+    #puts stderr "IF cond: [lindex $args 0]"
+    while {[llength $args] && ![uplevel 1 expr [list [lindex $args 0]]]} {
 	set args [lrange $args 2 end]	;# lose the cond and positive-cond
+	#puts stderr "IF cond: [lindex $args 0]"
 	
 	if {[lindex $args 0] eq "else"} {
             break
@@ -70,29 +120,32 @@ proc If {args} {
 	
 	set args [lrange $args 1 end] ;# assumed to be 'elseif'
     }
-    return [uplevel subst [list [lindex $args 1]]] ;# return with neg-consequence
+    #puts stderr "IF consequence: [lindex $args 0]"
+    return [uplevel 1 subst [list [lindex $args 1]]] ;# return with neg-consequence
 }
 
 # Subst-while
 proc While {cond body} {
     set result {}
-    while {[uplevel $cond]} {
-	lappend result [uplevel subst [list $body]]
+    while {[uplevel 1 expr [list $cond]]} {
+	lappend result [uplevel 1 subst [list $body]]
     }
-    return $result
+    return [join $result]
 }
 
 # Subst-foreach
 proc Foreach {args} {
     set body [lindex $args end]
     set vars [lrange $args 0 end-1]
-    set script [string map [list %A $args %B $body %V $vars] {
+    set script [string map [list %A $vars %B $body %V $vars] {
+	set {%A} {}
 	foreach %V {
 	    lappend {%A} [subst {%B}]
 	}
-	return [set {%A}]
+	return [join [set {%A}]]
     }]
-    return [uplevel $script]
+    #puts stderr "FOREACH: $script"
+    return [uplevel 1 $script]
 }
 
 # Subst-switch
@@ -105,5 +158,5 @@ proc Switch {args} {
 	    lappend switch $key [list subst $body]
 	}
     }
-    return [uplevel [list switch {*}[lrange $args 0 end-1] $switch]]
+    return [uplevel 1 [list switch {*}[lrange $args 0 end-1] $switch]]
 }
