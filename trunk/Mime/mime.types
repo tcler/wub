@@ -7,9 +7,9 @@ application/x-blockspecial
 application/x-fifo
 application/x-socket
 
-text/x-html-fragment htmf
-text/x-stx stx
-text/x-form form
+x-text/html-fragment htmf
+x-text/stx stx
+x-text/form form
 text/x-csv csv
 
 application/x-tcl-template .tml
