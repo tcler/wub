@@ -134,10 +134,12 @@ proc While {cond body} {
 }
 
 # Subst-foreach
+variable feCnt 0
 proc Foreach {args} {
     set body [lindex $args end]
     set vars [lrange $args 0 end-1]
-    set script [string map [list %A $vars %B $body %V $vars] {
+    variable feCnt; incr feCnt
+    set script [string map [list %A __FE${feCnt}__ %B $body %V $vars] {
 	set {%A} {}
 	foreach %V {
 	    lappend {%A} [subst {%B}]
