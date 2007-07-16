@@ -1,4 +1,5 @@
 package require struct::list
+package require Html
 
 package provide conversions 1.0
 
@@ -6,7 +7,6 @@ namespace eval ::conversions {
     variable htmlhead {<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">}
 
     proc .x-text/html-fragment.text/html {rsp} {
-	set rsp [Http loadContent $rsp] ;# read -fd content if any
 	set rspcontent [dict get $rsp -content]
 
 	if {[string match "<!DOCTYPE*" $rspcontent]} {
@@ -36,8 +36,6 @@ namespace eval ::conversions {
     }
 
     proc .x-text/stx.x-text/html-fragment {rsp} {
-	set rsp [Http loadContent $rsp] ;# read -fd content if any
-
 	package require stx2html
 
 	dict lappend rsp -headers {<link rel="stylesheet" type="text/css" href="/css/stx.css" media="screen" title="screen">}
@@ -56,13 +54,12 @@ namespace eval ::conversions {
     }
 
     proc .x-text/system.x-text/html-fragment {rsp} {
-	set rsp [Http loadContent $rsp] ;# read -fd content if any
-
 	# split out headers
 	set headers ""
-	set body [split [dict get $rsp -content] \n]
+	set body [split [string trimleft [dict get $rsp -content] \n] \n]
 	set start 0
 	set headers {}
+
 	foreach line $body {
 	    set line [string trim $line]
 	    if {[string match <* $line]} break
@@ -72,7 +69,7 @@ namespace eval ::conversions {
 
 	    # this is a header line
 	    set val [lassign [split $line :] tag]
-	    dict lappend rsp -headers "<$tag>[string trim [join $val]]</$tag>"
+	    dict lappend rsp -headers [<$tag> [string trim [join $val]]]
 	}
 
 	set content "[join [lrange $body $start end] \n]\n"
@@ -103,8 +100,6 @@ namespace eval ::conversions {
 
     proc .multipart/x-aggregate.x-text/html-fragment {rsp} {
 	Debug.convert {multipart/x-aggregate conversion: $rsp}
-	set rsp [Http loadContent $rsp] ;# read -fd content if any
-
 	set result ""
 	set content [dict get $rsp -content]
 
@@ -136,9 +131,7 @@ namespace eval ::conversions {
 	return $interp
     }
 
-    proc .application/x-tcl-template {rsp} {
-	set rsp [Http loadContent $rsp] ;# read -fd content if any
-
+    proc .x-application/tcl-template {rsp} {
 	# create an interp or use the request's -interp
 	if {![dict exists $req -interp]} {
 	    set interp [interp_create]
@@ -241,8 +234,7 @@ namespace eval ::conversions {
 	}
     }
 
-    # convert a directory list
-    proc .multipart/x-dirlist.x-text/system {rsp} {
+    proc .x-application/directory.x-text/dict {rsp} {
 	set suffix [file dirname [dict get $rsp -suffix]]
 	set prefix [dict get $rsp -prefix]
 	set root [dict get $rsp -root]
@@ -320,6 +312,30 @@ namespace eval ::conversions {
 	return [dict replace $rsp \
 		    -content $result \
 		    content-type x-text/system]
+    }
+
+    # convert a directory list
+    proc .x-application/directory.x-text/table {rsp} {
+	set content {}
+	foreach name [glob -directory [dict get $req -directory] *] {
+	    switch -- [file type $name] {
+		link {
+		    set file [file readlink $name]
+		}
+		file - directory {
+		    set file $name
+		}
+		default {
+		    continue
+		}
+	    }
+	    catch {unset attr}
+	    file lstat $file attr
+	    dict set rsp -content [file tail $name] \
+		[dict merge [file attributes $file] [array get attr]]
+	}
+	dict set content-type x-text/table
+	return $rsp
     }
 }
 

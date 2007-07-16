@@ -143,7 +143,7 @@ snit::type Convert {
 	    set path [$self path $ctype $a]
 	    if {$path ne {}} {
 		# there is a transforming path
-		Debug.convert {TRANSFORMING: $path}
+		Debug.convert {TRANSFORMING: [dict get $rsp -url] $path}
 		
 		set rsp [Http loadContent $rsp] ;# read -fd content if any
 		
