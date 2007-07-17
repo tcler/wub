@@ -1,6 +1,7 @@
 [
- puts stderr ".before"
+ # this file is evaluated before any access
  dict set response -code 200
+
 ### Local Variables: ***
 ### mode:tcl ***
 ### tcl-indent-level:4 ***

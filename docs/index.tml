@@ -6,7 +6,7 @@
 <html>
   <head>
     <title>Wub Server in Pure Tcl</title>
-    <meta name='description' content='Your description goes here...'>
+    <meta name='description' content='Wub HTTP Server in Pure Tcl'>
     <meta name='keywords' content='web,server,pure,tcl'>
     <meta name='author' content='Robert L Hicks / Design by Andreas Viklund - http://andreasviklund.com/'>
     <link rel='stylesheet' type='text/css' href='css/style.css' title='800px style' media='screen,projection'>
@@ -27,20 +27,13 @@
 	<p>Wub is a pure Tcl web server implementing near HTTP 1.1</p>
 	<p>Wub servers are designed as a series of pluggable building blocks called "<a href='docs/Domains/'>domains</a>".</p>
 	
- 	<p>Wub is a pure Tcl implementation of a Web server. It runs as a
-	  Tcl script on top of <a href=''>Tcl 8.5</a>.</p>
+ 	<p>Wub is a pure Tcl implementation of a Web server. It runs as a Tcl script on top of <a href=''>Tcl 8.5</a>.</p>
 
-	<p>While this server works fine as a stand alone web server, the intent is
-	  to embed applications within it.</p>
+	<p>While this server works fine as a stand alone web server, the intent is to embed applications within it.</p>
 
-	<p>The interpreted nature of Tcl allows dynamic reconfiguration of the server.
-	  Once the core interface between the web server and the hosted application is defined,
-	  it is possible to manage the web server, upload Safe-Tcl control scripts,
-	  download logging information, and otherwise debug the Tcl part of the
-	  application without restarting the application.</p>
+	<p>The interpreted nature of Tcl allows dynamic reconfiguration of the server. Once the core interface between the web server and the hosted application is defined, it is possible to manage the web server, upload Safe-Tcl control scripts, download logging information, and otherwise debug the Tcl part of the application without restarting the application.</p>
 	
-	<p>The <a href='mailto:wub-users@lists.sourceforge.net'>wub-users@lists.sourceforge.net</a>
-	  mailing list is the best source of current information about Wub.</p>
+	<p>The <a href='mailto:wub-users@lists.sourceforge.net'>wub-users@lists.sourceforge.net</a> mailing list is the best source of current information about Wub.</p>
 	
 	<h2>Related Articles</h2>
 	<p>Relating to this Wub distribution:</p>
@@ -52,7 +45,7 @@
 	<!-- <p>The main Wub information <a href='http://www.tcl.tk/software/Wub/'>page.</a></p> -->
 	
 	<p>The <a href='http://www.tcl.tk/software/tclhttpd/server.html'>white paper</a> presents a case for an embedded web server from more of a business angle.</p>
-	
+
 	<p class='box'><strong>Note:</strong>  The server is distributed under a
 	  <a href='#'>copyright</a> that allows free use.</p>
       </div>
@@ -64,6 +57,7 @@
 	<p class='list1'><a href='docs/'>Documentation</a></p>
 	<p class='list2'><a href='docs/Server'>Server</a></p>
 	<p class='list2'><a href='docs/Domains'>Domains</a></p>
+	<p class='list2'><a href='docs/Utilities'>Utilities</a></p>
 	<p class='listend'></p>
 	
 	<!-- <h2>Server stats:</h2>

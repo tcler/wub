@@ -1,6 +1,6 @@
 [
-# do nothing.
-puts stderr ".after"
+ # This file is evaluated after content is received but prior to conversion
+
 ### Local Variables: ***
 ### mode:tcl ***
 ### tcl-indent-level:4 ***
