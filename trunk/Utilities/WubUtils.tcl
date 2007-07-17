@@ -75,3 +75,5 @@ proc hhmts {time} {
 proc alias {alias args} {
     interp alias {} $alias {} {*}$args
 }
+
+alias tclarmour string map {\[ "&5B;" \] "&5D;" \{ "&7B;" \} "&7D;" $ "&24;"}

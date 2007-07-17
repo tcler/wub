@@ -52,8 +52,6 @@ package require Html
 
 package provide Form 2.0
 
-#alias tclarmour string map {\[ "&5B;" \] "&5D;" \{ "&7B;" \} "&7D;" $ "&24;"}
-
 namespace eval Form {
     variable coreA {id class style title}
     variable i18nA {lang dir}
