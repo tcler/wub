@@ -6,6 +6,8 @@
 #
 # This implementation dispatches to a pool of objects which
 # interact at the protocol level, to provide a network service.
+#
+# NOTE: there's no need for the $socket [get] [connect] [Exhausted] interface - just a single [connect] which handles the rest.
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
     # test Listener
