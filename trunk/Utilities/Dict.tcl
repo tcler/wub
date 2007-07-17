@@ -118,9 +118,9 @@ namespace eval Dict {
     }
 
     # dir - convert directory to dict
-    proc dir {dir} {
+    proc dir {dir {glob *}} {
 	set content {}
-	foreach file [glob -nocomplain -directory $dir *] {
+	foreach file [glob -nocomplain -directory $dir $glob] {
 	    while {[file type $file] eq "link"} {
 		set file [file readlink $file]
 	    }
