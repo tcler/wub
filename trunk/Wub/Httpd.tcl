@@ -663,7 +663,7 @@ namespace eval Httpd {
 	    # subsequent disconnects will notice this has occurred
 	    # and abort gracefully.  Still some race potential.
 	    # argh - what happens if the thread already knows?
-	    thread::send $otid {Disconnect $sock forced}
+	    thread::send $otid [list Disconnect $sock forced]
 	}
 
 	variable ignore
