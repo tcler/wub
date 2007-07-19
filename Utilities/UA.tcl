@@ -43,7 +43,7 @@ proc ua {ua} {
 		    dict lappend result rest [string trim $r]
 		}
 		foreach p {gecko product} {
-		    dict set result product {*}[split [set $p] /]
+		    catch {dict set result product {*}[split [set $p] /]}
 		}
 	    } elseif {$id eq "Lynx"} {
 	    } elseif {$id eq "Opera"} {
