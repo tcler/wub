@@ -16,7 +16,7 @@ namespace eval Sitemap {
 	}
 	return [subst {<url>
 	    [<loc> [esc ${prefix}$n]]
-	    [<lastmod> [Http Date [dict get $args mtime]]]
+	    [<lastmod> [clock format [dict get $args mtime] -format {%Y-%m-%d %H:%M:%S}]]
 	    [If {[dict exists $args changefreq]} {
 		[<changefreq> [dict get $args changefreq]]
 	    }]
