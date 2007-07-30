@@ -11,12 +11,6 @@ proc Trace {{skip 1}} {
     return $result
 }
 
-proc narrate {args} {
-    #return
-    set sf [info level -1]
-    puts stderr "N: $args: $sf"
-}
-
 # translation -- 
 #
 #	fconfigure the connected socket into a given mode
@@ -67,15 +61,7 @@ proc translation {sock args} {
 #interp bgerror "" ::Http::bgerror
 
 namespace eval Http {
-    proc narrate {args} {
-	return
-	set sf [info level -1]
-	upvar -1 self self
-	$self log debug "N: $args: $sf"
-    }
-
     # throw --
-    #
     #
     # Arguments:
     #
@@ -92,6 +78,49 @@ namespace eval Http {
 
     proc throw {dict msg {code 500}} {
 	return -code $code -request $dict $msg
+    }
+
+    proc dispatch {args} {
+	catch {
+	    uplevel 1 switch $args
+	} r eo
+
+	switch [dict get $eo -code] {
+	    0 -
+	    2 { # ok - return
+		return $r
+	    }
+	    
+	    1 { # error
+		return [Http ServerError $req $r $eo]
+	    }
+
+	    3 -
+	    4 { # break & continue
+		return -options $eo
+	    }
+	}
+    }
+
+    # process - evaluate a script in the context of a request
+    proc process {req args} {
+	set code [catch {{*}$args} r eo]
+	switch -- $code {
+	    1 {
+		return [Http ServerError $req $r $eo]
+	    }
+	    default {
+		set req $r
+		if {$code == 0} {
+		    set code 200
+		}
+		if {![dict exists $req -code]} {
+		    dict set req -code $code
+		}
+		Debug.wikit {Response code: $code / [dict get $req -code]}
+		return $req
+	    }
+	}
     }
 
     # HTTP error codes and default textual interpretation

@@ -1,8 +1,7 @@
 # Listener
 #
 # Listener is a network server which listens for connection attempts and
-# dispatches the connected socket to one of a pool of handler objects of
-# -type type
+# dispatches the connected socket to a handler
 #
 # This implementation dispatches to a pool of objects which
 # interact at the protocol level, to provide a network service.
@@ -16,37 +15,10 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 
 package require WubUtils
 package require Debug
-package require snit
-package require Pool
-package require Httpd
-package provide Listener 1.0
+package provide Listener 2.0
 
-snit::type Listener {
-    variable listen	;# socket upon which to accept connections
-
-    option -server [info host]		;# server name
-    option -host [info hostname]	;# host name
-    option -port 8015	;# port for listener to listen on
-    option -myaddr 0	;# ip address to listen on
-    option -type Httpd  ;# URI scheme - also controls socket handler type
-    option -dispatcher "Host Dispatch"
-    option -pool Pool	;# Pool handler
-    option -sockets ""	;# optional Pool for handler allocation
-    option -tls ""	;# tls args
-    option -httpd ""	;# httpd args
-
-    # pool of sockets for this listener
-    # note: this provides the release method
-    # to return sockets to the pool
-    component sockets -inherit true
-    delegate option -maxsize to sockets
-
-    option -retryafter 5	;# retry period for socket exhaustion
-
-    method Count {args} {}
-    method CountStart {args} {}
-    method CountHist {args} {}
-    method CountName {args} {}
+namespace eval Listener {
+    variable listeners; array set listeners {}	;# listener by port
 
     # accept --
     #
@@ -54,7 +26,7 @@ snit::type Listener {
     #	clients connect to the server.
     #
     # Arguments:
-    #	self	A list of {protocol name port} that identifies the server
+    #   opts	a dict containing listener options
     #	sock	The new socket connection
     #	ipaddr	The client's IP address
     #	port	The client's port
@@ -67,62 +39,34 @@ snit::type Listener {
     #	The per-connection state is kept in Httpd$sock, (e.g., Httpdsock6),
     #	and upvar is used to create a local "data" alias for this global array.
 
-    method accept {sock ipaddr rport} {
-	Debug.socket {$self accepted: $sock $ipaddr $rport}
+    proc accept {opts sock ipaddr rport} {
+	Debug.socket {accepted: $sock $ipaddr $rport}
 
 	if {[catch {
-	    $self Count accepts sockets
-
 	    # start tls on port
-	    if {$options(-tls) ne ""} {
-		::tls::import $sock -command tls::progress {*}$options(-tls)
+	    if {[Dict get? $opts -tls] ne ""} {
+		::tls::import $sock -command tls::progress {*}[Dict get? $opts -tls]
 	    }
 
 	    # select an Http object to handle incoming
-	    if {[catch {$sockets get $sock $ipaddr $rport} http eo]} {
-		Debug.error {accept failed $http ($eo)}
-		# we have exceeded per-listener pool size
-		catch {
-		    $option(-type) Exhausted $sock $eo $options(-retryafter)
-		}
-		flush $sock
-		close $sock
-	    } else {
-		Debug.socket {accept "$http connect -listener $self \
-				  $options(-httpd) \
-				  -ipaddr $ipaddr \
-				  -rport $rport \
-				  -sock $sock"}
-
-		# tell the Httpd object it's now connected
-		{*}$http connect -listener $self \
-		    {*}$options(-httpd) \
-		    -ipaddr $ipaddr \
-		    -rport $rport \
-		    -socket $sock
-		Debug.socket {accept complete: $http}
-	    }
+	    {*}[dict get $opts -httpd] Connect $sock $ipaddr $rport {*}$opts
 	} result eo]} {
-	    Debug.error {$self accept: $eo}
+	    Debug.error {accept: $eo}
 	}
     }
 
-    constructor {args} {
+    proc listen {args} {
 	if {[catch {
-	    $self configurelist $args
+	    set args [dict merge [subst {
+		-server [info hostname]
+		-host [info hostname]
+		-port 8015
+		-httpd Httpd
+		-id [incr id]
+	    }] $args]
 
-	    if {$options(-sockets) eq ""} {
-		install sockets using $options(-pool) ${self}_pool -maxsize 257 \
-		    -constructor [list $options(-type) %AUTO% \
-				      -dispatcher $options(-dispatcher)]
-	    } else {
-		# creator supplied a readymade Pool
-		# useful for Enthread usage
-		set sockets $options(-sockets)
-	    }
-
-	    if {$options(-tls) eq ""} {
-		set cmd [list socket -server [list $self accept]]
+	    if {[Dict get? $args -tls] eq ""} {
+		set cmd [list socket]
 	    } else {
 		::tls::init \
 		    -ssl2 1 \
@@ -130,32 +74,40 @@ snit::type Listener {
 		    -tls1 0 \
 		    -require 0 \
 		    -request 0
-
-		set cmd [list tls::socket -server [list $self accept] -command tls::progress {*}$options(-tls)]
+	    
+		set cmd [list tls::socket -command tls::progress {*}[dict get $args -tls]]
 	    }
 
-	    if {$options(-myaddr) != 0} {
-		lappend cmd -myaddr $options(myaddr)
+	    lappend cmd -server [namespace code [list accept $args]]
+	    
+	    if {[dict exists $args -myaddr] &&
+		[dict get $args -myaddr] != 0
+	    } {
+		lappend cmd -myaddr [dict get $args -myaddr]
 	    }
-
-	    lappend cmd $options(-port)
+	    
+	    lappend cmd [dict get $args -port]
 
 	    Debug.socket {server: $cmd}
 	    if {[catch $cmd listen eo]} {
-		error "$options(-host):$options(-port) $listen\ncmd=$cmd"
+		error "[dict get $args -host]:[dict get $args -port] $listen\ncmd=$cmd"
 	    }
+	    variable listeners; set listeners([dict get $args -port]) $id
+
 	} error eo]} {
 	    Debug.error {constructor err: $eo}
 	}
     }
 
-    destructor {
-	Debug.socket {Destroying $self}
-	catch {close $listen}
-	if {[catch {$sockets destroy} result eo]} {
-	    Debug.error {Error destroying socket pool: $result ($eo)}
+    proc destroy {} {
+	variable listeners
+	foreach listen [array names listeners] {
+	    catch {close $listen}
 	}
     }
+
+    namespace export -clear *
+    namespace ensemble create -subcommands {}
 }
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
