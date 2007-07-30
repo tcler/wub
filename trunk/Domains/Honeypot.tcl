@@ -31,6 +31,9 @@ package provide Honeypot 1.0
 namespace eval Honeypot {
     variable dir ./images/captcha	;# directory for captchas
     variable length 5			;# length of captcha
+    variable honeypot /_honeypot
+    variable aliases {}			;# honeypot aliases
+    variable captcha /_captcha
 
     # initialize Honeypot state
     proc init {args} {
@@ -43,6 +46,39 @@ namespace eval Honeypot {
 	catch {file mkdir $dir}
     }
 
+    # guard - redirect known bots to captcha or honeypot
+    # detect access to honeypot and tag client as a bot
+    proc guard {reqv} {
+	upvar 1 $reqv req
+	variable honeypot
+	variable captcha
+	variable aliases
+	set path [dict get $req -path]
+
+	# a known bot may only access /_honeypot and /_captcha or their aliases
+	if {[dict exists $req -bot]} {
+	    if {$path eq $captcha} {
+		# return the captcha
+		set req [/captcha $req]
+	    } elseif {$path eq $honeypot} {
+		# return the honeypot
+		set req [/honeypot $req]
+	    } else {
+		# Known bot: everything but /_captcha gets redirected to /_honeypot
+		Debug.wikit {Honeypot: it's a bot, so we're redirecting to /_honeypot}
+		set req [Http Relocated $req "http://[Url host $req]/$honeypot"]
+	    }
+	} elseif {$path in $aliases || $path eq $honeypot || [pest $req]} {
+	    # triggered the trap
+	    Debug.wikit {Honeypot: triggered}
+	    set req [/honeypot $req]
+	} else {
+	    return 0
+	}
+
+	return 1
+    }
+
     variable bots	;# array of potential bot ip addresses
     array set bots {}
 
@@ -52,12 +88,6 @@ namespace eval Honeypot {
     # in order to fetch/store bot related data about the client's ipaddr.
     proc bot? {req} {
 	set ipaddr [dict get $req -ipaddr]
-	if {$ipaddr eq "127.0.0.1"
-	    && [dict exists $req x-forwarded-for]
-	} {
-	    set ipaddr [lindex [split [dict get $req x-forwarded-for] ,] 0]
-	}
-
 	variable bots
 
 	if {[dict exists $req -bot]} {

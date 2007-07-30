@@ -80,7 +80,7 @@ namespace eval Backend {
     }
 
     # process incoming
-    proc incoming {req} {
+    proc Incoming {req} {
 	Debug.backend {get thread for work}
 
 	# look for a thread tied to this session
@@ -112,7 +112,7 @@ namespace eval Backend {
 	}
 
 	set sock2tid($sock) $thread
-	::thread::send -async $thread [list incoming $req]
+	::thread::send -async $thread [list Incoming $req]
     }
 
     proc Disconnect {sock} {
