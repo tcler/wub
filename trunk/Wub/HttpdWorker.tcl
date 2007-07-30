@@ -1091,9 +1091,11 @@ namespace eval HttpdWorker {
 	Debug.socket {[::thread::id] connect $req $sock}
 
 	# some code to detect races (we hope)
-	set chans [chan names sock*]
-	if {[llength $chans] > 1} {
-	    Debug.error {HRACE [::thread::id]: new req from $sock ($chans) - request:[catch {set ::request} xxx; set xxx]}
+	if {0} { # threads may now have more than 1 channel
+	    set chans [chan names sock*]
+	    if {[llength $chans] > 1} {
+		Debug.error {HRACE [::thread::id]: new req from $sock ($chans) - request:[catch {set ::request} xxx; set xxx]}
+	    }
 	}
 
 	variable gen_count; set generation [incr gen_count]
