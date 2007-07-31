@@ -80,49 +80,6 @@ namespace eval Http {
 	return -code $code -request $dict $msg
     }
 
-    proc dispatch {args} {
-	catch {
-	    uplevel 1 switch $args
-	} r eo
-
-	switch [dict get $eo -code] {
-	    0 -
-	    2 { # ok - return
-		return $r
-	    }
-	    
-	    1 { # error
-		return [Http ServerError $req $r $eo]
-	    }
-
-	    3 -
-	    4 { # break & continue
-		return -options $eo
-	    }
-	}
-    }
-
-    # process - evaluate a script in the context of a request
-    proc process {req args} {
-	set code [catch {{*}$args} r eo]
-	switch -- $code {
-	    1 {
-		return [Http ServerError $req $r $eo]
-	    }
-	    default {
-		set req $r
-		if {$code == 0} {
-		    set code 200
-		}
-		if {![dict exists $req -code]} {
-		    dict set req -code $code
-		}
-		Debug.wikit {Response code: $code / [dict get $req -code]}
-		return $req
-	    }
-	}
-    }
-
     # HTTP error codes and default textual interpretation
     variable Errors
     array set Errors {
