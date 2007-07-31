@@ -65,10 +65,44 @@ namespace eval Backend {
 	    variable thread_path
 	    variable worker
 	    variable config
-	    set s "set ::auto_path [list $thread_path] \n set ::thread::parent $me \n array set ::config [list [array get config]] \n $script"
+
+	    # provide backend with some interface shims
+	    set s {
+		# Activity - fetch an activity log
+		proc Activity {args} {
+		    set args [linsert $args 0 Activity]
+		    return [::thread::send $::thread::parent $args]
+		}
+		
+		# Cache - interact with cache
+		proc Cache {args} {
+		    set args [linsert $args 0 Cache]
+		    ::thread::send -async $::thread::parent $args
+		}
+		
+		# Block - interact with block
+		proc Block {args} {
+		    set args [linsert $args 0 Block]
+		    ::thread::send -async $::thread::parent $args
+		}
+		
+		# Send a packet
+		proc Send {rsp} {
+		    ::thread::send -async [dict get $rsp -worker] [list HttpdWorker Send $rsp]
+		}
+	    }
+
+	    append s [subst {
+		set ::auto_path [list $thread_path]
+		set ::thread::parent $me
+		array set ::config [list [array get config]]
+		$script
+		thread::wait
+	    }]
 
 	    for {set i 0} {$i < $incr} {incr i} {
 		set new [::thread::create $s]
+		::thread::send $new "proc id {} {return $new}"
 		if {[::thread::preserve $new] != 1} {
 		    error "Thread $thread has been allocated $i times"
 		}
@@ -79,26 +113,16 @@ namespace eval Backend {
 	}
     }
 
+    variable connection
+
     # process incoming
     proc Incoming {req} {
 	Debug.backend {get thread for work}
 
-	# look for a thread tied to this session
-	if {[dict exists $req -session_id]} {
-	    # do we have a session tied thread?
-	    set session [dict get $req -session_id]
-	    variable session2tid
-	    if {[info exists session2tid($session)]} {
-		set thread $session2tid($session)
-	    }
-	}
+	variable connection
+	set cid [dict get $req -cid]
 
-	set sock [dict get $req -sock]
-	variable sock2tid
-	if {![info exists thread] && [info exists sock2tid($sock)]} {
-	    # do we have a socket tied thread?
-	    set thread $sock2tid($sock)
-	} else {
+	if {![info exists connection($cid)]} {
 	    # need to grab a free thread
 	    if {[catch {threads get} thread]} {
 		if {[catch {mkthreads}]} {
@@ -109,18 +133,22 @@ namespace eval Backend {
 	    if {[::thread::preserve $thread] != 2} {
 		error "Thread $thread has been allocated $i times"
 	    }
+	    dict set connection($cid) thread $thread
 	}
 
-	set sock2tid($sock) $thread
+	set connection($cid) socket [dict get $req -sock]
+	variable sock2cid; set sock2cid($sock) $cid
+
 	::thread::send -async $thread [list Incoming $req]
     }
 
     proc Disconnect {sock} {
-	variable sock2tid
-	if {[info exists sock2tid($sock)]} {
+	variable sock2cid
+	variable connection
+	if {[info exists sock2cid($sock)]} {
 	    # remove the socket->thread association
-	    set thread $sock2tid($sock)
-	    unset sock2tid($sock)
+	    set cid $sock2cid($sock)
+	    unset connection($cid)
 
 	    # inform the backend worker
 	    dict unset req -worker
@@ -138,7 +166,7 @@ namespace eval Backend {
     variable scriptname "BackendWorker.tcl"
     variable config	;# a configuration array available to workers
 
-    proc init {args} {
+    proc configure {args} {
 	variable config
 	array set config $args
 	# a script to get a thread going
@@ -151,7 +179,6 @@ namespace eval Backend {
 	    set config(scriptname) $scriptname
 	}
 	variable script [::fileutil::cat [file join $config(scriptdir) $config(scriptname)]]
-	mkthreads	;# construct initial thread pool
     }
 
     namespace export -clear *
