@@ -11,6 +11,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     package require Http
 }
 
+package require Listener
 package require Query
 package require struct::queue
 package require fileutil
@@ -37,7 +38,7 @@ catch {source [file join [file dirname [info script]] pest.tcl]}
 
 namespace eval Httpd {
     variable rqCallOut {}
-    variable dispatch "Backend Incoming"
+    variable dispatch "Backend"
     variable server_port ;# server's port (if different from Listener's)
 
     proc dump {} {
@@ -92,7 +93,7 @@ namespace eval Httpd {
 	    # Cookie processing for Session
 	    # Session handling
 
-	    {*}[subst [dict get $request -dispatch]] $request
+	    {*}[subst [dict get $request -dispatch]] Incoming $request
 	} else {
 	    # just send the reply as we have it
 	    send $request
@@ -255,7 +256,9 @@ namespace eval Httpd {
 
 	    unset connection($id)
 
-	    catch {Backend Disconnect $sock} ;# inform backend of disconnection
+	    # inform backend of disconnection
+	    variable dispatch
+	    catch {{*}$dispatch Disconnect $sock}
 	}
 
 	# perform quiescent callback if we're now idle
@@ -306,8 +309,8 @@ namespace eval Httpd {
 	cleanup	;# clean up worker associations
     }
 
-    # init - set Httpd protocol defaults
-    proc init {args} {
+    # configure - set Httpd protocol defaults
+    proc configure {args} {
 	variable {*}$args
     }
 

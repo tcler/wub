@@ -78,7 +78,8 @@ namespace eval Httpd {
 	    variable incr
 	    set nt {}
 	    for {set i 0} {$i < $incr} {incr i} {
-		set new [::thread::create "$s\nproc id {} {return $new}"]
+		set new [::thread::create $s]
+		::thread::send $new "proc id {} {return $new}"
 		set workers($new) {}
 		lappend nt $new
 		::thread::preserve $new
