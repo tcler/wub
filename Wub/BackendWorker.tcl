@@ -1,7 +1,6 @@
 interp bgerror {} bgerror
 proc bgerror {error eo} {
-    #puts stderr "Thread [::thread::id] ERROR: $error ($eo)"
-    Debug.error {Thread [::thread::id] ERROR: $error ($eo)}
+    Debug.error {Thread [id] ERROR: $error ($eo)}
     catch {disconnect $error $eo}
 }
 
@@ -131,11 +130,11 @@ proc incoming {req} {
 	    dict set response -transaction [dict get $request -transaction]
 	    dict set response -generation [dict get $request -generation]
 
-	    ::thread::send -async [dict get $request -worker] [list send $response]
+	    Send $response
 	    set request [dict create]	;# go idle
 	}
     } r eo]} {
-	Debug.error {Incoming [::thread::id] ERROR: $r ($eo)}
+	Debug.error {Incoming [id] ERROR: $r ($eo)}
 	catch {disconnect $r $eo}
     }
 }
@@ -147,5 +146,3 @@ Debug off convert 10
 Debug off db 10
 Debug off session 10
 Debug off form 10
-
-thread::wait
