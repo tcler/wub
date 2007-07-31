@@ -6,9 +6,9 @@ package require spiders
 #package require Access
 #Access open
 
-#puts stderr "Starting Httpd Worker [::thread::id]"
+#puts stderr "Starting Httpd Worker [id]"
 proc bgerror {error eo} {
-    Debug.error {Thread [::thread::id]: $error ($eo)}
+    Debug.error {Thread [id]: $error ($eo)}
     catch {
 	dict lappend ::request -debug bgerror [list [clock seconds] $error $eo]
     }
@@ -19,7 +19,7 @@ proc bgerror {error eo} {
 
 interp bgerror {} ::bgerror
 
-#puts stderr "Thread: [::thread::id]";
+#puts stderr "Thread: [id]";
 interp alias {} armour {} string map {& &amp; < &lt; > &gt; \" &quot; ' "&#39;"}
 
 package require WubUtils
@@ -528,7 +528,7 @@ namespace eval HttpdWorker {
 		    && ![dict exists $reply etag]
 		} {
 		    # generate an etag for cacheable responses
-		    dict set reply etag "\"[::thread::id].[clock microseconds]\""
+		    dict set reply etag "\"[id].[clock microseconds]\""
 		}
 	    }
 
@@ -1088,13 +1088,13 @@ namespace eval HttpdWorker {
 
     # Parent thread will call connect with the pro-forma request
     proc Connect {sock req} {
-	Debug.socket {[::thread::id] connect $req $sock}
+	Debug.socket {[id] connect $req $sock}
 
 	# some code to detect races (we hope)
-	if {0} { # threads may now have more than 1 channel
+	if {0} { # threads may now have more than 1 channelldap 
 	    set chans [chan names sock*]
 	    if {[llength $chans] > 1} {
-		Debug.error {HRACE [::thread::id]: new req from $sock ($chans) - request:[catch {set ::request} xxx; set xxx]}
+		Debug.error {HRACE [id]: new req from $sock ($chans) - request:[catch {set ::request} xxx; set xxx]}
 	    }
 	}
 
@@ -1113,13 +1113,13 @@ namespace eval HttpdWorker {
 
 	# remember the request prototype
 	upvar #0 ::HttpdWorker::requests($sock) request
-	set request [dict merge $req [list -sock $sock -worker [::thread::id] -generation $generation]]
+	set request [dict merge $req [list -sock $sock -generation $generation]]
 	dict set connection prototype $request
 
 	variable txtime
 	after $sock rxtimer $txtime "first-read timeout"
 	readable $sock get $sock
-	Debug.socket {[::thread::id] connected}
+	Debug.socket {[id] connected}
     }
 
     proc Disconnected {args} {
@@ -1139,6 +1139,5 @@ Debug on log 10
 #Debug on socket 10
 #Debug on http 10
 # now we're able to process commands
-#puts stderr "Started Httpd Worker [::thread::id]"
-thread::wait
+#puts stderr "Started Httpd Worker [id]"
 #puts stderr "~Thread: [thread::id]"

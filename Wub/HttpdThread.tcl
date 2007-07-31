@@ -27,7 +27,7 @@ namespace eval Httpd {
     proc workers {args} {
 	variable workers
 	foreach tid [array names workers] {
-	    ::thread::send -async $tid {*}$args
+	    ::thread::send -async $tid $args
 	}
     }
 
@@ -71,13 +71,14 @@ namespace eval Httpd {
 		set ::thread::parent $me
 		array set ::env [list [array get ::env]]
 		$script
+		thread::wait
 	    }]
 
 	    # create $incr new threads, add them to queue
 	    variable incr
 	    set nt {}
 	    for {set i 0} {$i < $incr} {incr i} {
-		set new [::thread::create $s]
+		set new [::thread::create "$s\nproc id {} {return $new}"]
 		set workers($new) {}
 		lappend nt $new
 		::thread::preserve $new
@@ -132,6 +133,8 @@ namespace eval Httpd {
 	set id [dict get $request -cid]
 	dict set connection($id) thread $thread
 	set socket [dict get $connection($id) socket]
+
+	dict set request -worker $thread	;# where to Send
 
 	after idle [namespace code [list transfer $id $request]]
     }
