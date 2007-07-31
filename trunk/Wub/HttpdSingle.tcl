@@ -138,7 +138,9 @@ namespace eval Httpd {
 	dict set connection($id) thread $thread
 	set socket [dict get $connection($id) socket]
 
-	dict set request -worker [::thread::id]	;# where to Send
+	catch {
+	    dict set request -worker [::thread::id]	;# where to Send
+	}
 	dict set request -iworker $thread
 
 	transfer $id $request
