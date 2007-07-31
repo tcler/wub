@@ -92,7 +92,7 @@ namespace eval Httpd {
 	    }
 	}
     }
-    mkthreads	;# construct initial thread pool
+    #mkthreads	;# construct initial thread pool
 
     # transfer - transfer control to a worker thread
     proc transfer {id request} {
