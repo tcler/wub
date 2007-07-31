@@ -66,6 +66,12 @@ namespace eval Backend {
 	    variable worker
 	    variable config
 
+	    if {$script eq ""} {
+		variable scriptdir
+		variable scriptname
+		set script [::fileutil::cat [file join $scriptdir $scriptname]]
+	    }
+
 	    # provide backend with some interface shims
 	    set s {
 		# Activity - fetch an activity log
@@ -134,9 +140,12 @@ namespace eval Backend {
 		error "Thread $thread has been allocated $i times"
 	    }
 	    dict set connection($cid) thread $thread
+	} else {
+	    dict with connection($cid) {}
 	}
 
-	set connection($cid) socket [dict get $req -sock]
+	set sock [dict get $req -sock]
+	dict set connection($cid) socket $sock
 	variable sock2cid; set sock2cid($sock) $cid
 
 	::thread::send -async $thread [list Incoming $req]
@@ -162,7 +171,7 @@ namespace eval Backend {
 	}
     }
 
-    variable thisdir [file dirname [file normalize [info script]]]
+    variable scriptdir [file dirname [file normalize [info script]]]
     variable scriptname "BackendWorker.tcl"
     variable config	;# a configuration array available to workers
 
@@ -170,15 +179,7 @@ namespace eval Backend {
 	variable config
 	array set config $args
 	# a script to get a thread going
-	if {![info exists config(scriptdir)]} {
-	    variable thisdir
-	    set config(scriptdir) $thisdir
-	}
-	if {![info exists config(scriptname)]} {
-	    variable scriptname
-	    set config(scriptname) $scriptname
-	}
-	variable script [::fileutil::cat [file join $config(scriptdir) $config(scriptname)]]
+	variable {*}$args
     }
 
     namespace export -clear *
