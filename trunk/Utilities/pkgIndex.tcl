@@ -2,6 +2,8 @@ package ifneeded Http 2.1 [list source [file join $dir Http.tcl]]
 package ifneeded Cookies 1.0 [list source [file join $dir Cookies.tcl]]
 package ifneeded Session 2.0 [list source [file join $dir Session.tcl]]
 
+package ifneeded Responder 1.0 [list source [file join $dir Responder.tcl]]
+
 package ifneeded Debug 2.0 [list source [file join $dir Debug.tcl]]
 package ifneeded Timer 1.0 [list source [file join $dir Timer.tcl]]
 package ifneeded Pool 1.0 [list source [file join $dir Pool.tcl]]
