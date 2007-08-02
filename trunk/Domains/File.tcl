@@ -21,7 +21,7 @@ package require Mime
     method dirList {req} {
 	set files {}
 	set suffix [dict get $req -suffix]
-	set prefix [dict get $req -prefix]
+	set prefix [Dict get? $req -prefix]
 	set fulldir [file join $options(-root) [string trim $suffix /]]
 	foreach file [glob -nocomplain -tails -directory $fulldir *] {
 	    set fp [file join $fulldir $file]
