@@ -2,6 +2,7 @@ package provide Responder 1.0
 
 namespace eval Responder {
     # process - evaluate a script in the context of a request
+    # generate errors as ServerError responses
     proc process {req args} {
 	set code [catch {{*}$args} r eo]
 	switch -- $code {
@@ -22,6 +23,7 @@ namespace eval Responder {
 	}
     }
 
+    # dispatch - wrap a switch command so errors are handled as 500 responses
     proc dispatch {req args} {
 	catch {
 	    uplevel 1 switch $args
@@ -47,32 +49,52 @@ namespace eval Responder {
 	}
     }
 
-    variable working 0
-    variable pre
-    variable post
+    # pre - process incoming request
+    proc pre {req} {
+	#dict set req -cookies [Cookies parse4server [Dict get? $req cookie]]
+	return $req
+    }
 
-    proc init {args} {
-	variable {*}$args
+    # post - process outgoing response request
+    proc post {req} {
+	#return [process $rsp convert do $rsp]
+	return $req
+    }
+
+    proc responder {req args} {
     }
 
     proc Incoming {new args} {
 	inQ put $new	;# add the incoming request to the inQ
 
 	# while idle and there are new requests to procecss
-	variable working
-	variable pre
-	variable post
+	variable working	;# set while we're working
 	while {!$working && ![catch {inQ get} req eo]} {
 	    set working 1
-	    dict set req -cookies [Cookies parse4server [Dict get? $req cookie]]
+	    if {[catch {pre $req} rsp eo]} {	;# preprocess request
+		set rsp [Http ServerError $req $rsp $eo]
+	    } else {
+		set rsp [uplevel 1 [list Responder dispatch $req {*}$args]]
+	    }
 
-	    # get a plausible prefix/suffix split
-	    set response [uplevel 1 [list dispatch $req {*}$args]]
-	    set rsp [process $rsp convert do $rsp]
-	    Send $rsp ;# send response
+	    if {[catch {post $rsp} r eo]} { ;# postprocess response
+		set rsp [Http ServerError $rsp $r $eo]
+	    } else {
+		set rsp $r
+	    }
 
+	    puts stderr "RESPONSE: $rsp"
+	    Send $rsp 		;# send response
 	    set working 0	;# go idle
 	}
+    }
+
+    variable working 0	;# set while we're working
+    ::struct::queue inQ	;# create a queue of pending work
+
+    # configure - configure namespace
+    proc configure {args} {
+	variable {*}$args
     }
 
     namespace export -clear *
