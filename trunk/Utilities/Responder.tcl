@@ -75,18 +75,19 @@ namespace eval Responder {
 		set rsp [Http ServerError $req $rsp $eo]
 	    } else {
 		catch {uplevel 1 [list switch {*}$args]} r eo
-
+		Debug.socket {Dispatcher: $eo}
 		switch [dict get $eo -code] {
 		    0 -
 		    2 { # ok - return
 			if {![dict exists $r -code]} {
-			    set r [Http Ok $r]
+			    set rsp [Http Ok $r]
+			} else {
+			    set rsp $r
 			}
-			return $r
 		    }
 	    
 		    1 { # error
-			return [Http ServerError $req $r $eo]
+			set rsp [Http ServerError $req $r $eo]
 		    }
 
 		    3 { # break
