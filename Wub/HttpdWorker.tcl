@@ -639,7 +639,7 @@ namespace eval HttpdWorker {
 		dict set req -transaction [dict get $connection transaction]
 	    }
 	    dict set req -generation [dict get $connection generation]
-	    send $req 0			;# send our own reply
+	    Send $req 0			;# send our own reply
 	} r eo]} {
 	    dict append req -error "(handler '$r' ($eo))"
 	    #set req [Access log $request]

@@ -30,11 +30,11 @@ proc page {name alist page {body ""} {ctype "text/html"}} {
 
 	set ns $options(-namespace)
 	set fn [file rootname [dict get $response -suffix]]	;# remove extension
-	set cmd ${ns}::/[armour $fn]
+	set cmd ${ns}::/[string trimleft [armour $fn] /]
 	if {[info procs $cmd] eq {}} {
 	    set cmd ${ns}::/default
 	    if {[info procs $cmd] eq {}} {
-		Debug.direct {$cmd not found ([info procs ${ns}::/*])}
+		Debug.direct {$cmd not found looking for $fn ([info procs ${ns}::/*])}
 		return [Http NotFound $response]
 	    }
 	}

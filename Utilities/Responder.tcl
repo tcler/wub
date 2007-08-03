@@ -42,9 +42,12 @@ namespace eval Responder {
 		return [Http ServerError $req $r $eo]
 	    }
 
-	    3 -
-	    4 { # break & continue
-		return -options $eo
+	    3 { # break
+		return -code break
+	    }
+
+	    4 { # continue
+		return -code continue
 	    }
 	}
     }
@@ -61,9 +64,6 @@ namespace eval Responder {
 	return $req
     }
 
-    proc responder {req args} {
-    }
-
     proc Incoming {new args} {
 	inQ put $new	;# add the incoming request to the inQ
 
@@ -74,7 +74,32 @@ namespace eval Responder {
 	    if {[catch {pre $req} rsp eo]} {	;# preprocess request
 		set rsp [Http ServerError $req $rsp $eo]
 	    } else {
-		set rsp [uplevel 1 [list Responder dispatch $req {*}$args]]
+		catch {uplevel 1 [list switch {*}$args]} r eo
+
+		switch [dict get $eo -code] {
+		    0 -
+		    2 { # ok - return
+			if {![dict exists $r -code]} {
+			    set r [Http Ok $r]
+			}
+			return $r
+		    }
+	    
+		    1 { # error
+			return [Http ServerError $req $r $eo]
+		    }
+
+		    3 { # break
+			set working 0
+			break
+		    }
+		    
+		    4 { # continue
+			set working 0
+			continue
+		    }
+		}
+
 	    }
 
 	    if {[catch {post $rsp} r eo]} { ;# postprocess response
