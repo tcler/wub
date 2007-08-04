@@ -52,12 +52,6 @@ namespace eval Responder {
 	}
     }
 
-    # pre - process incoming request
-    proc pre {req} {
-	#dict set req -cookies [Cookies parse4server [Dict get? $req cookie]]
-	return $req
-    }
-
     # post - process outgoing response request
     proc post {req} {
 	#return [process $rsp convert do $rsp]
@@ -71,36 +65,31 @@ namespace eval Responder {
 	variable working	;# set while we're working
 	while {!$working && ![catch {inQ get} req eo]} {
 	    set working 1
-	    if {[catch {pre $req} rsp eo]} {	;# preprocess request
-		set rsp [Http ServerError $req $rsp $eo]
-	    } else {
-		catch {uplevel 1 [list switch {*}$args]} r eo
-		Debug.socket {Dispatcher: $eo}
-		switch [dict get $eo -code] {
-		    0 -
-		    2 { # ok - return
-			if {![dict exists $r -code]} {
-			    set rsp [Http Ok $r]
-			} else {
-			    set rsp $r
-			}
-		    }
-	    
-		    1 { # error
-			set rsp [Http ServerError $req $r $eo]
-		    }
-
-		    3 { # break
-			set working 0
-			break
-		    }
-		    
-		    4 { # continue
-			set working 0
-			continue
+	    catch {uplevel 1 [list switch {*}$args]} r eo
+	    Debug.socket {Dispatcher: $eo}
+	    switch [dict get $eo -code] {
+		0 -
+		2 { # ok - return
+		    if {![dict exists $r -code]} {
+			set rsp [Http Ok $r]
+		    } else {
+			set rsp $r
 		    }
 		}
-
+		
+		1 { # error
+		    set rsp [Http ServerError $req $r $eo]
+		}
+		
+		3 { # break
+		    set working 0
+		    break
+		}
+		    
+		4 { # continue
+		    set working 0
+		    continue
+		}
 	    }
 
 	    if {[catch {post $rsp} r eo]} { ;# postprocess response
