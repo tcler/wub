@@ -58,7 +58,6 @@ namespace eval Listener {
     proc listen {args} {
 	if {[catch {
 	    set args [dict merge [subst {
-		-server [info hostname]
 		-host [info hostname]
 		-port 8015
 		-httpd Httpd
@@ -66,7 +65,7 @@ namespace eval Listener {
 	    }] $args]
 
 	    if {[Dict get? $args -tls] eq ""} {
-		set cmd [list socket]
+		set cmd socket
 	    } else {
 		::tls::init \
 		    -ssl2 1 \

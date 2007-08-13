@@ -40,6 +40,7 @@ namespace eval Httpd {
     variable rqCallOut {}
     variable dispatch "Backend"
     variable server_port ;# server's port (if different from Listener's)
+    variable server_id "Wub [package provide Httpd]"
 
     proc dump {} {
 	variable connection
@@ -124,7 +125,6 @@ namespace eval Httpd {
     }
 
     # forbidden - method called by Listener to blocked clients
-    variable retry_wait 20
     proc forbidden {sock} {
 	Debug.socket {Forbidden $sock}
 
