@@ -98,7 +98,7 @@ namespace eval Responder {
 		set rsp $r
 	    }
 
-	    puts stderr "RESPONSE: $rsp"
+	    #puts stderr "RESPONSE: $rsp"
 	    Send $rsp 		;# send response
 	    set working 0	;# go idle
 	}
