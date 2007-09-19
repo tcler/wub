@@ -2,23 +2,29 @@ package require Mk4tcl
 package require functional
 
 package provide View 1.0
+proc ::echo {args} {
+    puts stderr "ECHO: $args"
+}
 
 namespace eval View {
     variable cmd2v; array set cmd2v {}
 
-    # _unknown - map commands to underlying mktoo view
-    proc _unknown {cmd args} {
+    # _unknown - map commands to underlying mktoo view command
+    proc _unknown {cmd subcommand args} {
 	variable cmd2v
 	#puts stderr "unknown: [array get cmd2v]"
-	set scmd [list {*}$cmd2v($cmd) {*}$args]
-	puts stderr "unknown: $scmd"
+	#set scmd [list {*}$cmd2v($cmd) {*}$args]
+	set scmd [list $cmd2v($cmd) $subcommand]
+	puts stderr "unknown: $scmd from '$cmd' '$args'"
 	return $scmd
     }
 
-    proc _get {view inode} {
-	return [mk::get $view!$inode]
+    proc _get {view inode args} {
+	Debug.view {get $view!$inode $args}
+	return [mk::get $view!$inode {*}$args]
     }
     proc _set {view inode args} {
+	Debug.view {set $view!$inode}
 	if {[llength $args] eq 1} {
 	    set args [lindex $args 0]
 	}
@@ -124,7 +130,10 @@ namespace eval View {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
-	return [mk::row append $view {*}$args]
+	mk::row append $view {*}$args
+	set result [expr {[mk::view size $view] - 1}]
+	Debug.view {append $view -> $result}
+	return $result
     }
 
     proc pretty {layout} {
@@ -184,12 +193,14 @@ namespace eval View {
     proc init {cmd vpath} {
 	lassign [split $vpath .] db view
 	set vcmd _V$cmd
-	set cmd [uplevel 1 namespace current]$cmd
+	set cmd [uplevel 1 namespace current]::$cmd
 	variable cmd2v;
-	set cmd2v($cmd) [namespace code $vcmd]
+	#set cmd2v($cmd) [namespace code $vcmd]
+	set cmd2v($cmd) ::View::$vcmd
 	set cmd2v([namespace current]::$vcmd) $cmd
 	rename [mk::view open $db.$view] $vcmd	;# create mktoo cmd
 	namespace export -clear {[A-Za-z]*}
+	Debug.view {init: $cmd - $vpath}
 
 	set map [subst {
 	    lselect "_lselect $vpath"
@@ -208,6 +219,7 @@ namespace eval View {
 	    -subcommands {}
 
 	trace add command $vcmd delete ::View::_uninit
+	return $cmd
     }
 
     proc _uninit {old new op args} {
