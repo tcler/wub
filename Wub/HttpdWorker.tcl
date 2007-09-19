@@ -336,7 +336,7 @@ namespace eval HttpdWorker {
 
 	# handle charset for text/* types
 	lassign [split [Dict get? $reply content-type] {;}] ct
-	if {[string match text/* $ct]} {
+	if {[string match text/* $ct] || [string match */*xml $ct]} {
 	    if {[dict exists $reply -charset]} {
 		set charset [dict get $reply -charset]
 	    } else {
