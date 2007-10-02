@@ -725,6 +725,7 @@ namespace eval HttpdWorker {
 	    }
 	} r eo]} {
 	    Debug.error {identity error '$r' ($eo)}
+	    Disconnect $sock chunk; return
 	}
     }
 
