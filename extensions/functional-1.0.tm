@@ -7,6 +7,22 @@ proc lambda {arglist body {ns {}}} {
     list ::apply [list $arglist $body $ns]
 }
 
+proc iota {args} {
+    switch [llength $args] {
+	1 {set from 0; set to [lindex $args 0]; set incr 1}
+	2 {set from [lindex $args 0]; set to [lindex $args 1]; set incr 1}
+	3 {set from [lindex $args 0]; set to [lindex $args 1]; set incr [lindex $args 2]}
+	default {
+	    error "wrong number of args 1-3"
+	}
+    }
+    set result {}
+    for {set i $from} {$i < $to} {incr i $incr} {
+	lappend result $i
+    }
+    return $result
+}
+
 proc curry {lam args} {
     lappend lam {*}$args
 }
