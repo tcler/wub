@@ -535,7 +535,7 @@ namespace eval Http {
     proc NotModified {rsp} {
 	# remove content-related stuff
 	foreach n [dict keys $rsp content-*] {
-	    if {$keys ne "content-location"} {
+	    if {$n ne "content-location"} {
 		dict unset rsp $n
 	    }
 	}
