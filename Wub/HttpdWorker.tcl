@@ -298,7 +298,7 @@ namespace eval HttpdWorker {
 	# choose content encoding - but not for MSIE
 	variable chunk_size
 	variable gzip_bugged
-	if {[dict get $reply -ua id] ni $gzip_bugged
+	if {[Dict get? $reply -ua id] ni $gzip_bugged
 	    && [dict exists $reply accept-encoding]
 	    && ![dict exists $reply content-encoding]
 	} {
