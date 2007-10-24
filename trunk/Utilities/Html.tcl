@@ -119,6 +119,30 @@ namespace eval Html {
 	}]]
     }
 
+    # dict2table - convert dict into sortable HTML table
+    # provisional new version
+    proc dict2table {dict header {footer {}} {tag ""}} {
+	set row 0
+	return [<table> class sortable [If {$tag ne ""} { class $tag }] [subst {
+	    [<thead> [<tr> [Foreach t $header {
+		[<th> class $t [string totitle $t]]
+	    }]]]
+	    [If {$footer ne {}} {
+		[<tfoot> [<tr> [Foreach t $footer {[<th> $t]}]]]
+	    }]
+	    [<tbody> [Foreach {k v} $dict {
+		[<tr> class [If {[incr row] % 2} even else odd] \
+		     [Foreach th $header {
+			 [If {[dict exists $v $th]} {
+			     [<td> class $th [dict get $v $th]]
+			 } else {
+			     [<td> {}]
+			 }]
+		     }]]
+	    }]]
+	}]]
+    }
+
     # dir2table - convert directory into sortable table
     proc dir2table {dir header {footer {}}} {
 	if {$header eq {}} {
