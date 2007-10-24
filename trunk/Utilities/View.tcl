@@ -19,23 +19,46 @@ namespace eval View {
 	return $scmd
     }
 
-    proc _get {view inode args} {
-	Debug.view {get $view!$inode $args}
-	return [mk::get $view!$inode {*}$args]
+    proc _incr {view index field {qty 1}} {
+	Debug.view {incr $view!$index $field $qty}
+	mk::set $view!$index $field [expr {[mk::get $view!$index $field] + $qty}]
     }
-    proc _set {view inode args} {
-	Debug.view {set $view!$inode}
+
+    proc _lappend {view index field args} {
+	Debug.view {lappend $view!$index $field $args}
+	set value [mk::get $view!$index $field]
+	lappend value {*}$args
+	mk::set $view!$index $field $value
+    }
+
+    # append values to field as dict/value pairs
+    proc _dlappend {view index field args} {
+	Debug.view {dlappend $view!$index $field $args}
+	set value [mk::get $view!$index $field]
+	dict set value {*}$args
+	mk::set $view!$index $field $value
+	return $value
+    }
+
+    proc _get {view index args} {
+	Debug.view {get $view!$index $args}
+	return [mk::get $view!$index {*}$args]
+    }
+
+    proc _set {view index args} {
 	if {[llength $args] eq 1} {
 	    set args [lindex $args 0]
 	}
-	return [mk::set $view!$inode {*}$args]
+	Debug.view {set $view!$index keys: '[dict keys $args]'}
+	return [mk::set $view!$index {*}$args]
     }
 
-    # lselect - perform a select over view yielding a list
+    # lselect - perform a select over view yielding a list of indices
     proc _lselect {view args} {
 	if {[llength $args] eq 1} {
 	    set args [lindex $args 0]
 	}
+	Debug.view {lselect $view $args}
 	return [mk::select $view {*}$args]
     }
 
@@ -50,8 +73,8 @@ namespace eval View {
 	    lappend _kv $arg $arg
 	}
 
-	foreach _inode [mk::select $_view {*}$args] {
-	    set _record [mk::get $_view!$_inode]
+	foreach _index [mk::select $_view {*}$args] {
+	    set _record [mk::get $_view!$_index]
 	    switch [catch {
 		dict update _record {*}$_kv $_script
 	    } _result _eo] {
@@ -72,7 +95,7 @@ namespace eval View {
 		}
 
 		default {# normal
-		    mk::set $_view!$_inode {*}[dict filter $_record {_k _v} {
+		    mk::set $_view!$_index {*}[dict filter $_record {_k _v} {
 			expr {$_k in $args}
 		    }]
 		}
@@ -86,8 +109,8 @@ namespace eval View {
 	    set args [lindex $args 0]
 	}
 	set results {}
-	foreach _inode [mk::select $view {*}$args] {
-	    set _record [mk::get $view!$_inode]
+	foreach _index [mk::select $view {*}$args] {
+	    set _record [mk::get $view!$_index]
 	    switch [catch {
 		dict with _record $script
 	    } result eo] {
@@ -108,7 +131,7 @@ namespace eval View {
 		}
 
 		default {# normal
-		    lappend results $_inode $result
+		    lappend results $_index $result
 		}
 	    }
 	}
@@ -119,7 +142,7 @@ namespace eval View {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
-	# we now have a list of inode/value pairs
+	# we now have a list of index/value pairs
 	foreach {i v} $args {
 	    mk::set $view!$i {*}$v
 	}
@@ -132,7 +155,7 @@ namespace eval View {
 	}
 	mk::row append $view {*}$args
 	set result [expr {[mk::view size $view] - 1}]
-	Debug.view {append $view -> $result}
+	Debug.view {append $view keys: '[dict keys $args]' -> $result}
 	return $result
     }
 
@@ -210,6 +233,8 @@ namespace eval View {
 	    append "_append $vpath"
 	    get "_get $vpath"
 	    set "_set $vpath"
+	    incr "_incr $vpath"
+	    dlappend "_dlappend $vpath"
 	}]
 
 	namespace ensemble create \
