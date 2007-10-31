@@ -133,7 +133,7 @@ namespace eval Cache {
 	set weight_a [staleness $a]
 	set weight_b [staleness $b]
 
-	return [expr {int($weight_a - $weight_b)}]
+	return [expr {int(100 * ($weight_b - $weight_a))}]
     }
 
     proc put {req} {
