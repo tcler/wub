@@ -7,6 +7,7 @@ namespace eval Cache {
 	# perform cache freshness check
 	if {![dict exists $req if-modified-since]} {
 	    Debug.cache {unmodified? 0 - no if-modified-since}
+	    counter $cached -ifmod
 	    return 0
 	}
 
@@ -187,6 +188,7 @@ namespace eval Cache {
 	dict set cached -key $etag	;# remember the actual etag
 	dict set cached -hits 0
 	dict set cached -unmod 0
+	dict set cached -ifmod 0
 
 	Debug.cache {cache entry: [set x $cached; dict set x -gzip <ELIDED>; dict set x -content <ELIDED>; return $x]} 4
 
