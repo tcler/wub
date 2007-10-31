@@ -316,8 +316,9 @@ namespace eval Cache {
 	    return 0
 	}
 
-	Debug.log {any-match [dict get $cached etag] - [dict get $req if-none-match]}
-	return [expr {[dict get $cached etag] in [split [dict get $req if-none-match] ", "]}]
+	set result [expr {[dict get $cached etag] in [split [dict get $req if-none-match] ", "]}]
+	Debug.log {any-match: $result - [dict get $cached etag] - [dict get $req if-none-match]}
+	return $result
     }
 
     # check - can request be satisfied from cache?
