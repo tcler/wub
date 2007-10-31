@@ -385,35 +385,34 @@ namespace eval Cache {
 	}
 
 	# see if we can respond 304
-	if {[dict exists $req if-none-match]
-	    &&
-	    [dict get $cached etag] in [split [dict get $req if-none-match] ","]
-	    && [dict get $req -method] ni {"GET" "HEAD"}
-	} {
-	    # rfc2616 14.26 If-None-Match
-	    # If any of the entity tags match the entity tag of the entity
-	    # that would have been returned in the response to a similar 
-	    # GET request (without the If-None-Match header) on that 
-	    # resource, or if "*" is given and any current entity exists 
-	    # for that resource, then the server MUST NOT perform the 
-	    # requested method, unless required to do so because the 
-	    # resource's modification date fails to match that
-	    # supplied in an If-Modified-Since header field in the request.
-	    # Instead, if the request method was GET or HEAD, the server 
-	    # SHOULD respond with a 304 (Not Modified) response, including
-	    # the cache-related header fields (particularly ETag) of one 
-	    # of the entities that matched.
-	    # For all other request methods, the server MUST respond with
-	    # a status of 412 (Precondition Failed).
-	    return [Http PreconditionFailed $req]
-	} else {
-	    Debug.cache {unmodified $url}
-	    counter $cached -unmod	;# count unmod hits
-	    return [Http NotModified $req]
-	    # NB: the expires field is set in $req
-	}
-
-	if {[unmodified? $req $cached]} {
+	if {[dict exists $req if-none-match]} {
+	    if {
+		[dict get $cached etag] in [split [dict get $req if-none-match] ","]
+		&& [dict get $req -method] ni {"GET" "HEAD"}
+	    } {
+		# rfc2616 14.26 If-None-Match
+		# If any of the entity tags match the entity tag of the entity
+		# that would have been returned in the response to a similar 
+		# GET request (without the If-None-Match header) on that 
+		# resource, or if "*" is given and any current entity exists 
+		# for that resource, then the server MUST NOT perform the 
+		# requested method, unless required to do so because the 
+		# resource's modification date fails to match that
+		# supplied in an If-Modified-Since header field in the request.
+		# Instead, if the request method was GET or HEAD, the server 
+		# SHOULD respond with a 304 (Not Modified) response, including
+		# the cache-related header fields (particularly ETag) of one 
+		# of the entities that matched.
+		# For all other request methods, the server MUST respond with
+		# a status of 412 (Precondition Failed).
+		return [Http PreconditionFailed $req]
+	    } else {
+		Debug.cache {unmodified $url}
+		counter $cached -unmod	;# count unmod hits
+		return [Http NotModified $req]
+		# NB: the expires field is set in $req
+	    }
+	} elseif {[unmodified? $req $cached]} {
 	    Debug.cache {unmodified $url}
 	    counter $cached -unmod	;# count unmod hits
 	    return [Http NotModified $req]
