@@ -7,7 +7,6 @@ namespace eval Cache {
 	# perform cache freshness check
 	if {![dict exists $req if-modified-since]} {
 	    Debug.cache {unmodified? 0 - no if-modified-since}
-	    counter $cached -ifmod
 	    return 0
 	}
 
@@ -15,6 +14,9 @@ namespace eval Cache {
 	set since [Http DateInSeconds [dict get $req if-modified-since]]
 	set result [expr {$since >= [dict get $cached -modified]}]
 	Debug.cache {unmodified? $since >= [dict get $cached -modified] -> $result}
+	if {$result} {
+	    counter $cached -ifmod
+	}
 	return $result
     }
 
