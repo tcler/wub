@@ -281,6 +281,18 @@ namespace eval Cache {
     variable CC 0	;# do we bother to parse cache-control?
     variable obey_CC 0	;# do we act on cache-control? (Not Implemented)
 
+    # 2dict - convert cache to dict
+    proc 2dict {} {
+	variable cache
+	set result {}
+	foreach {n v} [array get cache] {
+	    catch {dict unset v -content}
+	    catch {dict unset v -gzip}
+	    dict set result $n $v
+	}
+	return $result
+    }
+
     # check - 
     proc check {req} {
 	Debug.cache {check [dict get $req -url]: ([dumpMsg $req])}
