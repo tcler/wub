@@ -315,12 +315,9 @@ namespace eval Cache {
 	if {![dict exists $req if-none-match]} {
 	    return 0
 	}
+
 	Debug.cache {if-none-match [dict get $cached etag] - [dict get $req if-none-match]}
-	set etag [string trim [dict get $cached etag] \"]
-	foreach el [split [dict get $req if-none-match] ,] {
-	    if {$etag eq [string trim $el "\" "]} {return 1}
-	}
-	return 0	
+	return [expr {[dict get $cached etag] in [split [dict get $req if-none-match] ", "]}]
     }
 
     # check - can request be satisfied from cache?
