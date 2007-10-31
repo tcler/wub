@@ -311,12 +311,12 @@ namespace eval Cache {
 	dict incr cache([dict get $cached -key]) $field
     }
 
-    proc if-none-match {req cached} {
+    proc any-match {req cached} {
 	if {![dict exists $req if-none-match]} {
 	    return 0
 	}
 
-	Debug.cache {if-none-match [dict get $cached etag] - [dict get $req if-none-match]}
+	Debug.log {any-match [dict get $cached etag] - [dict get $req if-none-match]}
 	return [expr {[dict get $cached etag] in [split [dict get $req if-none-match] ", "]}]
     }
 
@@ -396,7 +396,7 @@ namespace eval Cache {
 	}
 
 	# see if we can respond 304
-	if {[if-none-match $req $cached]} {
+	if {[any-match $req $cached]} {
 	    # rfc2616 14.26 If-None-Match
 	    # If any of the entity tags match the entity tag of the entity
 	    # that would have been returned in the response to a similar 
