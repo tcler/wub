@@ -110,7 +110,7 @@ namespace eval Cache {
     # high and low water mark for cache occupancy
     variable high 100
     variable low 90
-    variable weight_age 1.0
+    variable weight_age 0.02
     variable weight_hits -2.0
 
     proc staleness {n} {
@@ -118,7 +118,8 @@ namespace eval Cache {
 	variable weight_age; variable weight_hits
 
 	set c $cache($n);
-	set hits [dict get $c -hits]; set age [dict get $c -when]
+	set hits [dict get $c -hits]
+	set age [expr {[dict get $cached -when] - [clock seconds]}
 	set weight [expr {($hits * $weight_hits) + ($age * $weight_age)}]
 	return $weight
     }
@@ -361,7 +362,7 @@ namespace eval Cache {
 	}
 
 	if {[info exists max_age]
-	    && ([dict $cached -when] - [clock seconds]) > $max_age
+	    && ([dict get $cached -when] - [clock seconds]) > $max_age
 	} {
 	    # ignore the cache - this client wants newness
 	    Debug.cache {older than max-age $max_age}
