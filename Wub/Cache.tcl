@@ -317,7 +317,7 @@ namespace eval Cache {
 	}
 
 	set result [expr {[dict get $cached etag] in [split [dict get $req if-none-match] ", "]}]
-	Debug.log {any-match: $result - [dict get $cached etag] - [dict get $req if-none-match]}
+	Debug.cache {any-match: $result - [dict get $cached etag] - [dict get $req if-none-match]}
 	return $result
     }
 
