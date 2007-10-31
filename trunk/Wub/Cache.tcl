@@ -117,7 +117,7 @@ namespace eval Cache {
 	variable weight_age; variable weight_hits
 
 	set c $cache($n);
-	set hits [dict get $c -hits]
+	set hits [expr {[dict get $c -hits] + [dict get $c -unmod]}]
 	set age [expr {[dict get $c -when] - [clock seconds]}]
 	set weight [expr {($hits * $weight_hits) + ($age * $weight_age)}]
 	return $weight
