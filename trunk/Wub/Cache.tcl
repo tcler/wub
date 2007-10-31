@@ -102,7 +102,6 @@ namespace eval Cache {
 
 	# maintain some stats for cache management
 	variable hits; incr hits	;# count cache hits
-	dict incr cache($key) -hits	;# count individual entry hits
 
 	return $cache($key)
     }
@@ -136,6 +135,7 @@ namespace eval Cache {
 	return [expr {int(100 * ($weight_b - $weight_a))}]
     }
 
+    # put - insert request into cache
     proc put {req} {
 	Debug.cache {put: ([dumpMsg $req])}
 
@@ -184,7 +184,9 @@ namespace eval Cache {
 	dict set cached -refcount 2
 	dict set cached -when [clock seconds]
 	dict set cached etag \"$etag\"	;# store with ridiculous quotes
+	dict set cached -key $etag	;# remember the actual etag
 	dict set cached -hits 0
+	dict set cached -unmod 0
 
 	Debug.cache {cache entry: [set x $cached; dict set x -gzip <ELIDED>; dict set x -content <ELIDED>; return $x]} 4
 
@@ -300,7 +302,13 @@ namespace eval Cache {
 	return $result
     }
 
-    # check - 
+    proc counter {cached field} {
+	variable cache
+	dict incr cache([dict get $cached -key]) $field
+    }
+
+    # check - can request be satisfied from cache?
+    # if so, return it.
     proc check {req} {
 	Debug.cache {check [dict get $req -url]: ([dumpMsg $req])}
 	variable attempts; incr attempts	;# count cache attempts
@@ -400,11 +408,13 @@ namespace eval Cache {
 
 	if {[unmodified? $req $cached]} {
 	    Debug.cache {unmodified $url}
+	    counter $cached -unmod	;# count unmod hits
 	    return [Http NotModified $req]
 	    # NB: the expires field is set in $req
 	} else {
 	    # deliver cached content in lieue of processing
 	    #dict set req last-modified [dict get $cached last-modified]
+	    counter $cached -hits	;# count individual entry hits
 	    set req [dict merge $req $cached]
 	    set req [Http CacheableContent $req [dict get $cached -modified]]
 	    Debug.cache {cached content for $url ([set xx $req; dict set xx -entity <ELIDED>; dict set xx -content <ELIDED>; dict set xx -gzip <ELIDED>; return $xx])}
