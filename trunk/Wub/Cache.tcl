@@ -113,19 +113,24 @@ namespace eval Cache {
     variable weight_age 1.0
     variable weight_hits -2.0
 
+    proc staleness {n} {
+	variable cache;
+	variable weight_age; variable weight_hits
+
+	set c $cache($n);
+	set hits [dict get $c -hits]; set age [dict get $c -when]
+	set weight [expr {($hits * $weight_hits) + ($age * $weight_age)}]
+	return $weight
+    }
+
     # stale_sort - return objects in staleness order
     # staleness is a measure of #hits and age of entry
     proc stale_sort {a b} {
 	variable cache;
 	variable weight_age; variable weight_hits
 
-	set ca $cache($a);
-	set hits_a [dict get $ca -hits]; set age_a [dict get $ca -when]
-	set weight_a [expr {($hits_a * $weight_hits) + ($age_a * $weight_age)}]
-
-	set cb $cache($b);
-	set hits_b [dict get $cb -hits]; set age_b [dict get $cb -when]
-	set weight_b [expr {($hits_b * $weight_hits) + ($age_b * $weight_age)}]
+	set weight_a [staleness $a]
+	set weight_b [staleness $b]
 
 	return [expr {int($weight_a - $weight_b)}]
     }
@@ -288,6 +293,7 @@ namespace eval Cache {
 	foreach {n v} [array get cache] {
 	    catch {dict unset v -content}
 	    catch {dict unset v -gzip}
+	    dict set v -stale [staleness $n]
 	    dict set result $n $v
 	}
 	return $result
