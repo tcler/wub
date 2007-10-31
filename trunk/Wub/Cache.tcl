@@ -406,6 +406,11 @@ namespace eval Cache {
 	    # For all other request methods, the server MUST respond with
 	    # a status of 412 (Precondition Failed).
 	    return [Http PreconditionFailed $req]
+	} else {
+	    Debug.cache {unmodified $url}
+	    counter $cached -unmod	;# count unmod hits
+	    return [Http NotModified $req]
+	    # NB: the expires field is set in $req
 	}
 
 	if {[unmodified? $req $cached]} {
