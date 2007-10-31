@@ -309,6 +309,17 @@ namespace eval Cache {
 	dict incr cache([dict get $cached -key]) $field
     }
 
+    proc if-none-match {req cached} {
+	if {![dict exists $req if-none-match]} {
+	    return 0
+	}
+	set etag [string trim [dict get $cached etag] \"]
+	foreach el [split [dict get $req if-none-match] ,] {
+	    if {$etag eq [string trim $el "\" "]} {return 1}
+	}
+	return 0	
+    }
+
     # check - can request be satisfied from cache?
     # if so, return it.
     proc check {req} {
@@ -385,34 +396,33 @@ namespace eval Cache {
 	}
 
 	# see if we can respond 304
-	if {[dict exists $req if-none-match]} {
-	    if {
-		[dict get $cached etag] in [split [dict get $req if-none-match] ","]
-		&& [dict get $req -method] ni {"GET" "HEAD"}
-	    } {
-		# rfc2616 14.26 If-None-Match
-		# If any of the entity tags match the entity tag of the entity
-		# that would have been returned in the response to a similar 
-		# GET request (without the If-None-Match header) on that 
-		# resource, or if "*" is given and any current entity exists 
-		# for that resource, then the server MUST NOT perform the 
-		# requested method, unless required to do so because the 
-		# resource's modification date fails to match that
-		# supplied in an If-Modified-Since header field in the request.
-		# Instead, if the request method was GET or HEAD, the server 
+	if {[if-none-match $req $cached]} {
+	    # rfc2616 14.26 If-None-Match
+	    # If any of the entity tags match the entity tag of the entity
+	    # that would have been returned in the response to a similar 
+	    # GET request (without the If-None-Match header) on that 
+	    # resource, or if "*" is given and any current entity exists 
+	    # for that resource, then the server MUST NOT perform the 
+	    # requested method, unless required to do so because the 
+	    # resource's modification date fails to match that
+	    # supplied in an If-Modified-Since header field in the request.
+	    if {[dict get $req -method] in {"GET" "HEAD"}} {
+		# if the request method was GET or HEAD, the server 
 		# SHOULD respond with a 304 (Not Modified) response, including
 		# the cache-related header fields (particularly ETag) of one 
 		# of the entities that matched.
-		# For all other request methods, the server MUST respond with
-		# a status of 412 (Precondition Failed).
-		return [Http PreconditionFailed $req]
-	    } else {
 		Debug.cache {unmodified $url}
 		counter $cached -unmod	;# count unmod hits
 		return [Http NotModified $req]
 		# NB: the expires field is set in $req
+	    } else {
+		# For all other request methods, the server MUST respond with
+		# a status of 412 (Precondition Failed).
+		return [Http PreconditionFailed $req]
 	    }
-	} elseif {[unmodified? $req $cached]} {
+	}
+
+	if {[unmodified? $req $cached]} {
 	    Debug.cache {unmodified $url}
 	    counter $cached -unmod	;# count unmod hits
 	    return [Http NotModified $req]
