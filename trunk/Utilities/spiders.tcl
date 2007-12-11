@@ -1,6 +1,7 @@
+# list of spiders from http://www.user-agents.org/index.shtml
+
 package provide spiders 1.0
 
-# list of spiders from http://www.user-agents.org/index.shtml
 foreach s {
     "8484 Boston Project v 1.0"
     "atSpider/1.0"

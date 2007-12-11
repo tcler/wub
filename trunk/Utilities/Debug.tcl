@@ -1,3 +1,18 @@
+# Debug - a debug narrative logger.
+#
+# Debugging areas of interest are represented by 'tokens' which have 
+# independantly settable levels of interest (an integer, higher is more detailed)
+#
+# Debug narrative is provided as a tcl script whose value is [subst]ed in the 
+# caller's scope if and only if the current level of interest matches or exceeds
+# the Debug call's level of detail.  This is useful, as one can place arbitrarily
+# complex narrative in code without unnecessarily evaluating it.
+#
+# TODO: potentially different streams for different areas of interest.
+# (currently only stderr is used.  there is some complexity in efficient
+# cross-threaded streams.)
+
+
 package provide Debug 2.0
 
 namespace eval Debug {

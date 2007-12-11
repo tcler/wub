@@ -5,6 +5,7 @@ package require Http
 package provide Sitemap 1.0
 
 namespace eval Sitemap {
+    # wrap characters which offend HTML
     proc esc {string} {
   	return [string map {& &amp; ' &apos; \" &quot; > &gt; < &lt;} $string]
     }
@@ -26,7 +27,7 @@ namespace eval Sitemap {
 	    </url>}]
     }
 
-    # sitemap - wrap generated map in sitemap
+    # sitemap - wrap generated map in sitemap XML
     proc sitemap {string} {
 	return "<?xml version='1.0' encoding='UTF-8'?>
 	    [<urlset> xmlns http://www.sitemaps.org/schemas/sitemap/0.9 $string]"

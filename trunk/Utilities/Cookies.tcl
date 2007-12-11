@@ -7,11 +7,25 @@
 #
 # Modification:
 # Wed, 31st Jan, 2007	Initial Release	Colin McCormack (colin at chinix dot com)
-####
+
+#### = Cookie Dict Format =
+#
+# Cookies are stored and manipulated in dicts with the following
+# feature elements:
+#
+# ;-name: the cookie name
+# ;-path: the URL path prefix within which the cookie is active
+# ;-domain: the URL domain suffix within which the cookie is active
+# ;-value: the cookie's value
+# ;-comment: a comment - don't know if this is useful
+# ;-secure: completely useless
+# ;-when: the absolute seconds when the cookie expires
+# ;-changed: an indicator that this code has changed a cookie's values.  (Used by format4* procs to only send changed cookie values.)
 
 package provide Cookies 1.0
 
 namespace eval Cookies {
+
     # filter all expired cookies from a cookie dict
     proc expire {cookies {now ""}} {
 	# get a time value as a base for expiry calculations
@@ -75,7 +89,8 @@ namespace eval Cookies {
 	return [string match "*.[string trimleft $b .]" $a]
     }
 
-    # filter a cookie dict according to rfc2109 against the url dict given in args
+    # filter a cookie dict according to rfc2109
+    # against the url dict given in args
     proc filter {cookies args} {
 	if {[llength $args] eq 1} {
 	    set args [lindex $args 0]

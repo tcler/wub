@@ -107,6 +107,7 @@ namespace eval Url {
 	return $result
     }
 
+    # construct the host part of a URL dict
     proc host {x} {
 	if {[dict exists $x -port]
 	    && [dict get $x -port] ne {}
@@ -117,6 +118,7 @@ namespace eval Url {
 	}
     }
 
+    # construct a URL from a URL dict
     proc http {x args} {
 	Debug.url {Url http $x}
 
@@ -133,6 +135,7 @@ namespace eval Url {
 	return $result
     }
 
+    # insert a fully expanded path, uri and url into a request
     proc path {req path} {
 	dict set req -path $path
 	dict set req -url [url $req]
@@ -142,7 +145,6 @@ namespace eval Url {
 
     # process a possibly local URI for redirection
     proc redir {dict to} {
-
 	set todict [parse $to 0]
 
 	if {[dict exists $todict host]
