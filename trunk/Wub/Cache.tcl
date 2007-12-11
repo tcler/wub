@@ -1,4 +1,5 @@
 # cache for multithreading
+
 package require Debug
 package provide Cache 2.0
 namespace eval Cache {
@@ -25,6 +26,7 @@ namespace eval Cache {
     variable cache	;# array of refcounted dicts
     array set cache {}
     variable unique 0
+    variable maxsize 0	;# maximum size of object to cache
 
     proc exists? {key} {
 	if {$key eq ""} {return 0}	;# special case - no key
@@ -158,6 +160,12 @@ namespace eval Cache {
 	    return $req
 	}
 
+	variable maxsize
+	if {$maxsize > [string length [dict get $req -content]]} {
+	    # we can't store enormous entities in the cache
+	    return $req
+	}
+
 	set ctype [dict get $req content-type]
 	if {[string match x-*/* $ctype]
 	    || [string match */x-* $ctype]} {
@@ -179,6 +187,7 @@ namespace eval Cache {
 	# subset the cacheable request with just those fields needed
 	set cached [Dict subset $req {
 	    -content -gzip -code -url -charset -chconverted -modified
+	    -expiry
 	    content-language content-location content-md5 content-type
 	    expires last-modified cache-control}]
 	set cached [dict merge $cached [Dict subset $req $::Http::rs_headers]]
@@ -298,6 +307,7 @@ namespace eval Cache {
 	variable cache
 	set result {}
 	foreach {n v} [array get cache] {
+	    dict set v -size [dict get $v -content]
 	    catch {dict unset v -content}
 	    catch {dict unset v -gzip}
 	    dict set v -stale [staleness $n]
@@ -440,6 +450,11 @@ namespace eval Cache {
 
 	Debug.cache {no cached version}
 	return {}	;# no cache available
+    }
+
+    # initialise the state of Cache
+    proc init {args} {
+	variable {*}$args
     }
 
     namespace export -clear *
