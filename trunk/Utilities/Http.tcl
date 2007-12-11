@@ -296,6 +296,7 @@ namespace eval Http {
 		dict set rsp content-type "text/html"
 	    }
 	}
+	return $rsp
     }
 
     # modify an HTTP response to indicate that its contents is cacheable
