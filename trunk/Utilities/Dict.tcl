@@ -1,6 +1,7 @@
+# Extra useful dict commands
+
 package provide Dict 1.0
 
-# Extra useful dict commands
 namespace eval Dict {
 
     # return a dict element, or {} if it doesn't exist
@@ -29,6 +30,16 @@ namespace eval Dict {
 	}
     }
 
+    # unset a dict element if it exists
+    proc unset? {var args} {
+	upvar 1 $var dvar
+	set val [lindex $args end]
+	set name [lrange $args 0 end-1]
+	if {[dict exists $dvar {*}$name]} {
+	    dict unset dvar $name
+	}
+    }
+
     # modify a dict var with the args-dict given
     proc modify {var args} {
 	if {[llength $args] == 1} {
@@ -38,6 +49,8 @@ namespace eval Dict {
 	set dvar [dict merge $dvar $args]
     }
 
+    # fill a dict with default key/value pairs as defaults
+    # if a key already exists, it is unperturbed.
     proc defaults {var args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
@@ -80,6 +93,15 @@ namespace eval Dict {
 	return $keys
     }
 
+    # return dict as list sorted by key
+    proc keysorted {dict args} {
+	set result {}
+	foreach key [lsort {*}$args [dict keys $dict]] {
+	    lappend result $key [dict get $dict $key]
+	}
+	return $result
+    }
+
     # strip a set of keys from a dict
     proc strip {var args} {
 	if {[llength $args] == 1} {
@@ -93,7 +115,7 @@ namespace eval Dict {
 	}
     }
 
-    # cache - use a dict as a cache for the value of the $args-expression
+    # use a dict as a cache for the value of the $args-expression
     proc cache {dict name args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
@@ -107,7 +129,7 @@ namespace eval Dict {
 	}
     }
 
-    # subset - return the dict subset specified by args
+    # return the dict subset specified by args
     proc subset {dict args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
@@ -117,7 +139,7 @@ namespace eval Dict {
 	}]
     }
 
-    # dir - convert directory to dict
+    # convert directory to dict
     proc dir {dir {glob *}} {
 	set content {}
 	foreach file [glob -nocomplain -directory $dir $glob] {
