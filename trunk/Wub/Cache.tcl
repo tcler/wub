@@ -307,7 +307,11 @@ namespace eval Cache {
 	variable cache
 	set result {}
 	foreach {n v} [array get cache] {
-	    dict set v -size [dict get $v -content]
+	    if {[dict exists $v -content]} {
+		dict set v -size [string length [dict get $v -content]]
+	    } else {
+		dict set v -size 0
+	    }
 	    catch {dict unset v -content}
 	    catch {dict unset v -gzip}
 	    dict set v -stale [staleness $n]
