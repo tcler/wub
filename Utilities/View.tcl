@@ -1,5 +1,8 @@
+# View.tcl - Wrapper around Metakit
+
 package require Mk4tcl
 package require functional
+package require Debug
 
 package provide View 1.0
 proc ::echo {args} {
@@ -19,11 +22,13 @@ namespace eval View {
 	return $scmd
     }
 
+    # incr a field
     proc _incr {view index field {qty 1}} {
 	Debug.view {incr $view!$index $field $qty}
 	mk::set $view!$index $field [expr {[mk::get $view!$index $field] + $qty}]
     }
 
+    # lappend to a field
     proc _lappend {view index field args} {
 	Debug.view {lappend $view!$index $field $args}
 	set value [mk::get $view!$index $field]
@@ -40,11 +45,13 @@ namespace eval View {
 	return $value
     }
 
+    # get a field's value
     proc _get {view index args} {
 	Debug.view {get $view!$index $args}
 	return [mk::get $view!$index {*}$args]
     }
 
+    # set a field's value
     proc _set {view index args} {
 	if {[llength $args] eq 1} {
 	    set args [lindex $args 0]
@@ -62,6 +69,7 @@ namespace eval View {
 	return [mk::select $view {*}$args]
     }
 
+    # update selected rows with a script's values
     proc _update {_view _select _script args} {
 	set _kv {}
 	if {$args eq {}} {
@@ -138,10 +146,12 @@ namespace eval View {
 	return $results
     }
 
+    # store updates in db
     proc _store {view args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
+
 	# we now have a list of index/value pairs
 	foreach {i v} $args {
 	    mk::set $view!$i {*}$v
@@ -159,6 +169,7 @@ namespace eval View {
 	return $result
     }
 
+    # set metakit layout from pretty form
     proc pretty {layout} {
 	# remove comments
 	set r ""
@@ -247,6 +258,7 @@ namespace eval View {
 	return $cmd
     }
 
+    # destroy metakit view.
     proc _uninit {old new op args} {
 	variable cmd2v
 	#puts stderr "_uninit $old $new $op $args ([array get cmd2v])"
