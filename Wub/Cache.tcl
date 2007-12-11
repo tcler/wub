@@ -161,7 +161,8 @@ namespace eval Cache {
 	}
 
 	variable maxsize
-	if {$maxsize > [string length [dict get $req -content]]} {
+	if {($maxsize > 0)
+	    && ($maxsize < [string length [dict get $req -content]])} {
 	    # we can't store enormous entities in the cache
 	    return $req
 	}
