@@ -1,3 +1,7 @@
+# Http.tcl - useful utilities for an Http server.
+#
+# Contains procs to generate most useful HTTP response forms.
+
 package require ip
 package require Html
 
@@ -58,28 +62,7 @@ proc translation {sock args} {
     Debug.socket {MODE: $rmode $wmode} 20
 }
 
-#interp bgerror "" ::Http::bgerror
-
 namespace eval Http {
-    # throw --
-    #
-    # Arguments:
-    #
-    #	dict	request dict
-    #	msg	error message
-    #	code	http error code
-    #
-    # Results: None
-    #
-    # Side Effects:
-    #
-    #	transforms a protocol error into a tcl error with attached
-    #	-request dictionary, used to feed errors back to client
-
-    proc throw {dict msg {code 500}} {
-	return -code $code -request $dict $msg
-    }
-
     # HTTP error codes and default textual interpretation
     variable Errors
     array set Errors {
@@ -139,6 +122,8 @@ namespace eval Http {
     variable notmod_headers {
 	date expires cache-control vary etag content-location
     }
+
+    # set of request-only headers
     variable rq_headers {
 	accept accept-charset accept-encoding accept-language authorization
 	expect from host if-match if-modified-since if-none-match if-range
@@ -148,6 +133,8 @@ namespace eval Http {
     foreach n $rq_headers {
 	set headers($n) rq
     }
+
+    # set of response-only headers
     variable rs_headers {
 	accept-ranges age etag location proxy-authenticate retry-after
 	server vary www-authenticate
@@ -155,6 +142,8 @@ namespace eval Http {
     foreach n $rs_headers {
 	set headers($n) rs
     }
+
+    # set of entity-only headers
     variable e_headers {
 	allow content-encoding content-language content-length 
 	content-location content-md5 content-range content-type
@@ -175,7 +164,7 @@ namespace eval Http {
 	}
     }
 
-    # return an http date
+    # return an HTTP date
     proc DateInSeconds {date} {
 	if {[string is integer -strict $date]} {
 	    return $date
@@ -189,7 +178,7 @@ namespace eval Http {
 	}
     }
 
-    # return an http date
+    # return an HTTP date
     proc Date {{seconds ""}} {
 	if {$seconds eq ""} {
 	    set seconds [clock seconds]
@@ -198,10 +187,12 @@ namespace eval Http {
 	return [clock format $seconds -format {%a, %d %b %Y %T GMT} -gmt true]
     }
 
+    # return the current time and date in HTTP format
     proc Now {} {
 	return [clock format [clock seconds] -format {%a, %d %b %Y %T GMT} -gmt true]
     }
 
+    # modify response to indicate that content is a file (NB: not working)
     proc File {rsp path {ctype ""}} {
 	set path [file normalize $path]
 	dict set rsp -fd [::open $path r]
@@ -218,6 +209,7 @@ namespace eval Http {
 	return $rsp
     }
 
+    # modify response to indicate that the content is a cacheable file
     proc CacheableFile {rsp path {ctype ""}} {
 	set path [file normalize $path]
 
@@ -250,12 +242,14 @@ namespace eval Http {
 	return $rsp
     }
 
+    # record a dependency in a response
     proc Depends {rsp args} {
 	catch {dict unset rsp -dynamic}
 	dict lappend rsp -depends {*}$args
 	return $rsp
     }
 
+    # modify an HTTP response to indicate that its contents may not be Cached
     proc NoCache {rsp} {
 	dict set rsp cache-control "no-store, no-cache, must-revalidate, max-age=0"; # HTTP/1.1
 	dict set rsp expires "Sun, 01 Jul 2005 00:00:00 GMT"
@@ -267,6 +261,7 @@ namespace eval Http {
 	return $rsp
     }
 
+    # modify an HTTP response to indicate that its contents may be Cached
     proc Cache {rsp {age 0} {realm "public"}} {
 	if {[string is integer -strict $age]} {
 	    # it's an age
@@ -274,8 +269,10 @@ namespace eval Http {
 		dict set rsp expires [Date expr {[clock seconds] + $age}]
 	    } else {
 		catch {dict unset rsp expires}
+		catch {dict inset rsp -expiry}
 	    }
 	} else {
+	    dict set rsp -expiry $age	;# remember expiry verbiage for caching
 	    dict set rsp expires [Date [clock scan $age]]
 	    set age [expr {[clock scan $age] - [clock seconds]}]
 	}
@@ -283,12 +280,25 @@ namespace eval Http {
 	return $rsp
     }
 
+    # modify an HTTP response to indicate that its contents must be revalidated
     proc DCache {rsp {age 0} {realm "public"}} {
 	set rsp [Cache $rsp $age $realm]
 	dict append rsp cache-control ", must-revalidate"
 	return $rsp
     }
 
+    proc setCType {rsp ctype} {
+	# new ctype passed in?
+	if {$ctype ne ""} {
+	    dict set rsp content-type $ctype
+	} else {
+	    if {![dict exists $rsp content-type]} {
+		dict set rsp content-type "text/html"
+	    }
+	}
+    }
+
+    # modify an HTTP response to indicate that its contents is cacheable
     proc CacheableContent  {rsp mtime {content ""} {ctype ""}} {
 	# cacheable content must have last-modified
 	if {![dict exists $rsp last-modified]} {
@@ -296,25 +306,28 @@ namespace eval Http {
 	}
 	dict set rsp -modified $mtime
 
+	# Cacheable Content may have an -expiry clause
+	if {[dict exists $rsp -expiry]} {
+	    dict set rsp expires [Date [clock scan [dict get $rsp -expiry]]]
+	}
+
+	# new content passed in?
 	if {$content ne ""} {
 	    dict set rsp -content $content
 	}
 
-	if {$ctype eq ""} {
-	    if {![dict exists $rsp content-type]} {
-		dict set rsp content-type "text/html"
-	    }
-	} else {
-	    dict set rsp content-type $ctype
-	}
+	set rsp [setCType $rsp $ctype]; # new ctype passed in?
 
+	# new code passed in?
 	if {![dict exists $rsp -code]} {
 	    dict set rsp -code 200
 	}
-	dict set rsp -rtype CacheableContent
+
+	dict set rsp -rtype CacheableContent	;# tag the response type
 	return $rsp
     }
 
+    # construct a generic Ok style response form
     proc OkResponse {rsp code rtype content ctype} {
 	if {$content ne ""} {
 	    dict set rsp -content $content
@@ -322,23 +335,19 @@ namespace eval Http {
 	    dict set rsp content-length 0
 	}
 
-	if {$ctype eq ""} {
-	    if {![dict exists $rsp content-type]} {
-		dict set rsp content-type "text/html"
-	    }
-	} else {
-	    dict set rsp content-type $ctype
-	}
+	set rsp [setCType $rsp $ctype]; # new ctype passed in?
 
 	dict set rsp -code $code
 	dict set rsp -rtype Ok
 	return $rsp
     }
 
+    # construct an HTTP Ok response
     proc Ok {rsp {content ""} {ctype ""}} {
 	return [OkResponse $rsp 200 Ok $content $ctype]
     }
 
+    # construct an HTTP Created response
     proc Created {rsp location} {
 	dict set rsp -code 201
 	dict set rsp -rtype Created
@@ -357,14 +366,17 @@ namespace eval Http {
 	return $rsp
     }
 
+    # construct an HTTP Accepted response
     proc Accepted {rsp {content ""} {ctype ""}} {
 	return [OkResponse $rsp 202 Accepted $content $ctype]
     }
 
+    # construct an HTTP NonAuthoritative response
     proc NonAuthoritative {rsp {content ""} {ctype ""}} {
 	return [OkResponse $rsp 203 NonAuthoritative $content $ctype]
     }
 
+    # construct an HTTP NoContent response
     proc NoContent {rsp} {
 	foreach el {content-type -content -fd} {
 	    catch [list dict unset rsp $el]
@@ -376,10 +388,12 @@ namespace eval Http {
 	return $rsp
     }
 
+    # construct an HTTP ResetContent response
     proc ResetContent {rsp {content ""} {ctype ""}} {
 	return [OkResponse $rsp 205 ResetContent $content $ctype]
     }
 
+    # construct an HTTP PartialContent response
     proc PartialContent {rsp {content ""} {ctype ""}} {
 	return [OkResponse $rsp 206 PartialContent $content $ctype]
     }
@@ -391,6 +405,7 @@ namespace eval Http {
 	return $rsp
     }
 
+    # construct an HTTP response containing a server error page
     proc ServerError {rsp message {eo ""}} {
 	Debug.log {Server Error: '$message' ($eo)} 2
 	set content ""
@@ -432,6 +447,7 @@ namespace eval Http {
 	return $rsp
     }
 
+    # construct an HTTP NotImplemented response
     proc NotImplemented {rsp {message ""}} {
 	if {$message eq ""} {
 	    set message "This function not implemented"
@@ -447,6 +463,7 @@ namespace eval Http {
 	return $rsp
     }
 
+    # construct an HTTP Unavailable response
     proc Unavailable {rsp message {delay 0}} {
 	set rsp [sysPage $rsp "Service Unavailable" [<p> $message]]
 
@@ -458,6 +475,7 @@ namespace eval Http {
 	return $rsp
     }
 
+    # construct an HTTP Bad response
     proc Bad {rsp message {code 400}} {
 	set rsp [sysPage $rsp "Bad Request" [<p> $message]]
 
@@ -467,6 +485,7 @@ namespace eval Http {
 	return $rsp
     }
 
+    # construct an HTTP NotFound response
     proc NotFound {rsp {content ""} {ctype "x-text/system"}} {
 	if {$content ne ""} {
 	    dict set rsp content-type $ctype
@@ -481,6 +500,7 @@ namespace eval Http {
 	return $rsp
     }
 
+    # construct an HTTP Forbidden response
     proc Forbidden {rsp {content ""} {ctype "text/x-html-fragment"}} {
 	if {$content ne ""} {
 	    dict set rsp content-type $ctype
@@ -494,6 +514,7 @@ namespace eval Http {
 	return $rsp
     }
 
+    # construct an HTTP Unauthorized response
     proc Unauthorized {rsp challenge {content ""} {ctype "text/x-html-fragment"}} {
 	dict lappend rsp -auth $challenge
 	if {$content ne ""} {
@@ -508,6 +529,7 @@ namespace eval Http {
 	return $rsp
     }
 
+    # construct an HTTP Conflict response
     proc Conflict {rsp {content ""} {ctype "x-text/system"}} {
 	if {$content ne ""} {
 	    dict set rsp content-type $ctype
@@ -521,6 +543,7 @@ namespace eval Http {
 	return $rsp
     }
 
+    # construct an HTTP PreconditionFailed response
     proc PreconditionFailed {rsp {content ""} {ctype "x-text/system"}} {
 	if {$content ne ""} {
 	    dict set rsp content-type $ctype
@@ -532,6 +555,7 @@ namespace eval Http {
 	return $rsp
     }
 
+    # construct an HTTP NotModified response
     proc NotModified {rsp} {
 	# remove content-related stuff
 	foreach n [dict keys $rsp content-*] {
@@ -587,6 +611,7 @@ namespace eval Http {
 	return $rsp
     }
 
+    # discover Referer of request
     proc Referer {req} {
 	if {[dict exists $req referer]} {
 	    return [dict get $req referer]
@@ -595,6 +620,7 @@ namespace eval Http {
 	}
     }
 
+    # construct an HTTP Redirect response
     proc Redirect {rsp to {content ""} {ctype "text/html"} args} {
 	set query {}
 	foreach {name val} $args {
@@ -607,6 +633,7 @@ namespace eval Http {
 	return [Http genRedirect Redirect 302 $rsp $to $content $ctype]
     }
 
+    # construct an HTTP Redirect response to Referer of request
     proc RedirectReferer {rsp args} {
 	set ref [Referer $rsp]
 	if {$ref eq ""} {
@@ -622,18 +649,22 @@ namespace eval Http {
 	return [Redirect $rsp $ref]
     }
 
+    # construct an HTTP Found response
     proc Found {rsp to {content ""} {ctype "text/html"}} {
 	return [Http genRedirect Redirect 302 $rsp $to $content $ctype]
     }
 
+    # construct an HTTP Relocated response
     proc Relocated {rsp to {content ""} {ctype "text/html"}} {
 	return [Http genRedirect Relocated 307 $rsp $to $content $ctype]
     }
     
+    # construct an HTTP SeeOther response
     proc SeeOther {rsp to {content ""} {ctype "text/html"}} {
 	return [Http genRedirect SeeOther 303 $rsp $to $content $ctype]
     }
 
+    # construct an HTTP Moved response
     proc Moved {rsp to {content ""} {ctype "text/html"}} {
 	return [Http genRedirect Moved 301 $rsp $to $content $ctype]
     }
@@ -738,6 +769,7 @@ namespace eval Http {
 	return $rsp
     }
 
+    # add a Refresh meta-data field
     proc Refresh {rsp time {url ""}} {
 	catch {dict unset rsp cache-control}
 	if {$url == ""} {
