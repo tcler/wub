@@ -127,12 +127,13 @@ namespace eval Backend {
 
 	variable connection
 	set cid [dict get $req -cid]
+	set sock [dict get $req -sock]
 
 	if {![info exists connection($cid)]} {
 	    # need to grab a free thread
 	    if {[catch {threads get} thread]} {
 		if {[catch {mkthreads}]} {
-		    Httpd Exhausted $sock
+		    Httpd exhausted $sock
 		}
 		set thread [threads get]	;# try again - propagate error
 	    }
@@ -144,7 +145,6 @@ namespace eval Backend {
 	    dict with connection($cid) {}
 	}
 
-	set sock [dict get $req -sock]
 	dict set connection($cid) socket $sock
 	variable sock2cid; set sock2cid($sock) $cid
 
