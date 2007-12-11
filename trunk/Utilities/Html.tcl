@@ -1,3 +1,10 @@
+# Html.tcl - Useful facilities for manipulating and analysing HTML text.
+#
+# provides a facility to automatically construct <TAG> procs
+#
+# provides subst-versions of if, while, foreach and switch commands
+
+package require know
 package provide Html 1.0
 
 interp alias {} armour {} string map [list & &amp\; < &lt\; > &gt\; \" &quot\; ' &\#39\;]
@@ -50,6 +57,8 @@ proc demoronizer {} {
 interp alias {} demoronizer {} string map [demoronizer]
 
 namespace eval Html {
+    # attr - Construct a properly formed attribute name/value string
+    # for inclusion in an HTML element.
     proc attr {T args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
@@ -66,14 +75,19 @@ namespace eval Html {
 	}
 	return [join $result]
     }
-    
+
+    # turn dict or alist into a <ul> list
     proc menulist {menu} {
 	return [<ul> [Foreach {text url} $menu {
 	    [<li> [<a> href $url $text]]
 	}]]
     }
 
+    # turn dict or alist into an option set.
     proc optset {selector args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
 	set optset ""
 	for {val text} $args {
 	    if {$val eq $selector} {
@@ -85,7 +99,11 @@ namespace eval Html {
 	return $optset
     }
 
+    # turn dict into tables
     proc table {name args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
 	array set arg $args
 	append c "<table border='1' width='80%'>" \n
 	append c <tr> <th> $name </th> </tr> \n
@@ -155,12 +173,32 @@ namespace eval Html {
     namespace ensemble create -subcommands {}
 }
 
+# return an HTML <img> form
 proc <img> {args} {
     return "<[Html::attr img {*}$args]>"
 }
 
+foreach tag {html body head} {
+    ::proc ::<$tag> {args} [string map [list @T $tag] {
+	set document "<[Html::attr @T [lrange $args 0 end-1]]>"
+	append document [uplevel [list subst [lindex $args end]]] \n
+	append document </@T>
+    }]
+}
+
+# return a nested set of HTML <divs>
+proc divs {ids {content ""}} {
+    set divs ""
+    foreach id $ids {
+	append divs "<div class='$id'>\n"
+    }
+    append divs [uplevel 1 subst [list $content]]
+    append divs "\n"
+    append divs [string repeat "\n</div>" [llength $ids]]
+    return $divs
+}
+
 # HTML <> commands per http://wiki.tcl.tk/2776
-package require know
 know {[string match <*> [lindex $args 0]]} {
     set tag [string trim [lindex $args 0] "<>"]
     ::proc ::<$tag> {args} [string map [list @T $tag] {
@@ -176,7 +214,8 @@ know {[string match <*> [lindex $args 0]]} {
 
 # Some command equivalents which use subst instead of eval
 
-# If: Subst-if
+# if using [subst] instead of [eval] to return its body
+#
 # Note that this version does not support the then keyword in if,
 # and requires the else keyword.
 proc If {args} {
@@ -195,7 +234,7 @@ proc If {args} {
     return [uplevel 1 subst [list [lindex $args 1]]] ;# return with neg-consequence
 }
 
-# Subst-while
+# while using [subst] instead of [eval] to return its body
 proc While {cond body} {
     set result {}
     while {[uplevel 1 expr [list $cond]]} {
@@ -204,8 +243,9 @@ proc While {cond body} {
     return [join $result]
 }
 
-# Subst-foreach
 variable feCnt 0
+
+# foreach using [subst] instead of [eval] to return its body
 proc Foreach {args} {
     set body [lindex $args end]
     set vars [lrange $args 0 end-1]
@@ -221,7 +261,7 @@ proc Foreach {args} {
     return [uplevel 1 $script]
 }
 
-# Subst-switch
+# switch using [subst] instead of [eval] to return its body
 proc Switch {args} {
     set switch {}
     foreach {key body} [lindex $args end] {
