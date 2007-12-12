@@ -4,6 +4,8 @@ package require Mk4tcl
 package require functional
 package require Debug
 
+Debug off view 10
+
 package provide View 1.0
 proc ::echo {args} {
     puts stderr "ECHO: $args"
