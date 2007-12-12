@@ -57,11 +57,14 @@ namespace eval Dub {
 	}
 
 	mk::view layout db.$view $l
+	variable views
 	catch {View init v$view db.$view}
+	set views($view) v$view
 
 	mk::file commit db
 	return [/default $r]
     }
+    variable views; array set views {}
 
     proc /del {r view id} {
 	mk::row delete db.$view!$id
@@ -70,7 +73,8 @@ namespace eval Dub {
     }
 
     proc /add {r view {name {}} {value {}}} {
-	if {$view ni [mk::file views db]} {
+	variable views
+	if {![info exists $views($view)]} {
 	    return [/create $r $view]
 	}
 	set fields {}
@@ -85,10 +89,9 @@ namespace eval Dub {
     }
 
     proc /view {r view {op {}} {select {}}} {
-	if {$view ni [mk::file views db]} {
+	variable views
+	if {![info exists $views($view)]} {
 	    return [/create $r $view]
-	} else {
-	    View init v$view db.$view
 	}
 
 	variable prefix
