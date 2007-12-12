@@ -88,7 +88,7 @@ namespace eval Dub {
 	if {$view ni [mk::file views db]} {
 	    return [/create $r $view]
 	} else {
-	    catch {View init v$view db.$view}
+	    View init v$view db.$view
 	}
 
 	variable prefix
