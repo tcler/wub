@@ -1,11 +1,15 @@
+# conversions - Code to implement some standard mime conversions
+
 package require struct::list
 package require Html
 
 package provide conversions 1.0
 
 namespace eval ::conversions {
+    # HTML DOCTYPE header
     variable htmlhead {<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">}
 
+    # convert an HTML fragment to HTML
     proc .x-text/html-fragment.text/html {rsp} {
 	set rspcontent [dict get $rsp -content]
 
@@ -35,6 +39,7 @@ namespace eval ::conversions {
 		    content-type text/html]
     }
 
+    # convert STX to an HTML fragment
     proc .x-text/stx.x-text/html-fragment {rsp} {
 	package require stx2html
 
@@ -53,6 +58,7 @@ namespace eval ::conversions {
 	}
     }
 
+    # convert system text to an HTML fragment
     proc .x-text/system.x-text/html-fragment {rsp} {
 	# split out headers
 	set headers ""
@@ -98,6 +104,7 @@ namespace eval ::conversions {
 		    content-type x-text/html-fragment]
     }
 
+    # convert an aggregate into an HTML fragment
     proc .multipart/x-aggregate.x-text/html-fragment {rsp} {
 	Debug.convert {multipart/x-aggregate conversion: $rsp}
 	set result ""
@@ -120,7 +127,7 @@ namespace eval ::conversions {
 
     variable safe 0		;# make safe interpreters?
 
-    proc interp_create {} {
+    if {0} {proc interp_create {} {
 	variable safe
 	if {$safe} {
 	    set interp [interp create -safe]
@@ -129,7 +136,7 @@ namespace eval ::conversions {
 	}
 
 	return $interp
-    }
+    }}
 
     proc .x-application/tcl-template {rsp} {
 	# create an interp or use the request's -interp
