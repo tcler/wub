@@ -74,7 +74,7 @@ namespace eval Dub {
 
     proc /add {r view {name {}} {value {}}} {
 	variable views
-	if {![info exists $views($view)]} {
+	if {![info exists views($view)]} {
 	    return [/create $r $view]
 	}
 	set fields {}
@@ -90,7 +90,7 @@ namespace eval Dub {
 
     proc /view {r view {op {}} {select {}}} {
 	variable views
-	if {![info exists $views($view)]} {
+	if {![info exists views($view)]} {
 	    return [/create $r $view]
 	}
 
