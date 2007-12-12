@@ -9,6 +9,7 @@ package ifneeded Convert 1.0 [list source [file join $dir Convert.tcl]]
 package ifneeded Mason 1.0 [list source [file join $dir Mason.tcl]]
 package ifneeded Direct 1.0 [list source [file join $dir Direct.tcl]]
 package ifneeded Honeypot 1.0 [list source [file join $dir Honeypot.tcl]]
+package ifneeded Dub 1.0 [list source [file join $dir Dub.tcl]]
 
 #package ifneeded Host 2.0 [list source [file join $dir Host.tcl]]
 #package ifneeded Snit 1.0 [list source [file join $dir Snit.tcl]]
