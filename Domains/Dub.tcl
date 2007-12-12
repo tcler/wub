@@ -10,13 +10,15 @@ package require Responder
 namespace eval Dub {
     variable db /tmp/dub.db
     variable toplevel
+    variable prefix ..
 
     proc /default {r args} {
+	variable prefix
 	return [Http NotFound $r [subst {
 	    [<h1> "Dub - A Metakit Toy"]
-	    [<a> href ../create "Create View"]
+	    [<a> href ${prefix}/create "Create View"]
 	    [<ul> [Foreach view [mk::file views db] {
-		[<li> [<a> href ../view?view=$view $view]]
+		[<li> [<a> href ${prefix}/view?view=$view $view]]
 	    }]]
 	}]]
     }
@@ -31,8 +33,9 @@ namespace eval Dub {
 		[<option> value D double]
 		[<option> value B binary]
 	    }]
+	    variable prefix
 	    return [Http Ok $r [subst {
-		[<form> create action ../create {
+		[<form> create action ${prefix}/create {
 		    [<fieldset> "Create A View" {
 			[<text> view legend "View Name:" $view]
 			[<submit> create "Create View"]
@@ -88,6 +91,7 @@ namespace eval Dub {
 	    catch {View init v$view db.$view}
 	}
 
+	variable prefix
 	switch -- $op {
 	    default {
 		# view
@@ -95,8 +99,8 @@ namespace eval Dub {
 		set dict {}
 		for {set i 0} {$i < $len} {incr i} {
 		    dict set dict $i [v$view get $i]
-		    dict set dict $i edit [<a> href ../edit?view=$view&id=$i Edit]
-		    dict set dict $i delete [<a> href ../del?view=$view&id=$i Del]
+		    dict set dict $i edit [<a> href ${prefix}/edit?view=$view&id=$i Edit]
+		    dict set dict $i delete [<a> href ${prefix}/del?view=$view&id=$i Del]
 		}
 
 		set layout {}
@@ -105,7 +109,7 @@ namespace eval Dub {
 		}
 
 		set table [Html dict2table $dict [list {*}$layout edit delete]]
-		set form [<form> record action ../add {
+		set form [<form> record action ${prefix}/add {
 		    [<fieldset> record {
 			[<hidden> view $view]
 			[Foreach l $layout {
@@ -115,7 +119,7 @@ namespace eval Dub {
 			[<submit> add "New Row"]
 		    }]
 		}]
-		set rest [<a> href ../ Back]
+		set rest [<a> href ${prefix}/ Back]
 		return [Http Ok $r "$table\n$form\n$rest" x-text/html-fragment]
 	    }
 	}
