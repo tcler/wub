@@ -3,9 +3,11 @@
 # TODO: wildcard dispatch, /photo/1234 handled by photo::/*, etc.
 #  consider using the namespace unknown better for this.
 
-package provide Direct 1.0
 package require Query
 package require Debug
+package require snit
+
+package provide Direct 1.0
 Debug off direct 10
 
 proc page {name alist page {body ""} {ctype "text/html"}} {
@@ -38,6 +40,7 @@ proc page {name alist page {body ""} {ctype "text/html"}} {
 		return [Http NotFound $response]
 	    }
 	}
+
 
 	set params [lrange [info args $cmd] 1 end]
 	array set used {}
