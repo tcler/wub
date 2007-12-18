@@ -7,7 +7,7 @@
 package require know
 package provide Html 1.0
 
-interp alias {} armour {} string map [list & &amp\; < &lt\; > &gt\; \" &quot\; ' &\#39\;]
+interp alias {} armour {} string map [list &\# &\# & &amp\; < &lt\; > &gt\; \" &quot\; ' &\#39\;]
 
 # xmlarmour - remove characters offensive to xml
 interp alias {} xmlarmour {} string map [list & &amp\; < &lt\; > &gt\; \" &quot\; ' &\#39\; \x00 " " \x01 " " \x02 " " \x03 " " \x04 " " \x05 " " \x06 " " \x07 " " \x08 " " \x0B " " \x0C " " \x0E " " \x0F " " \x10 " " \x11 " " \x12 " " \x13 " " \x14 " " \x15 " " \x16 " " \x17 " " \x18 " " \x19 " " \x1A " " \x1B " " \x1C " " \x1D " " \x1E " " \x1F " " \x7F " "]
@@ -202,7 +202,7 @@ proc divs {ids {content ""}} {
 know {[string match <*> [lindex $args 0]]} {
     set tag [string trim [lindex $args 0] "<>"]
     ::proc ::<$tag> {args} [string map [list @T $tag] {
-	set result {@T}
+	set result "@T"
 	foreach {n v} [lrange $args 0 end-1] {
 	    lappend result "[string trim $n]='[armour [string trim $v]]'"
 	}
