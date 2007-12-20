@@ -166,6 +166,9 @@ namespace eval scgi {
 	puts $sock "</HTML>"
 	close $sock
     }
+
+    namespace export -clear *
+    namespace ensemble create -subcommands {}
 }
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
