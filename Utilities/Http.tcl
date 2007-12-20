@@ -408,42 +408,47 @@ namespace eval Http {
 
     # construct an HTTP response containing a server error page
     proc ServerError {rsp message {eo ""}} {
-	Debug.log {Server Error: '$message' ($eo)} 2
+	Debug.error {Server Error: '$message' ($eo)} 2
 	set content ""
-	if {$eo ne ""} {
-	    append content "<table border='1' width='80%'>" \n
-	    append content <tr> <th> Error Info </th> </tr> \n
-	    dict for {n v} $eo {
-		append content <tr> <td> $n </td> <td> [armour $v] </td> </tr> \n
+	if {[catch {
+	    if {$eo ne ""} {
+		append content "<table border='1' width='80%'>" \n
+		append content <tr> <th> Error Info </th> </tr> \n
+		dict for {n v} $eo {
+		    append content <tr> <td> $n </td> <td> [armour $v] </td> </tr> \n
+		}
+		append content </table> \n
 	    }
-	    append content </table> \n
+	    
+	    #if {($eo ne "") && [dict exists $eo -errorinfo]} {
+	    #    catch {
+	    #	set message [string map {\n <br>} [armour [dict get $eo -errorinfo]]]
+	    #    }
+	    #}
+	    
+	    catch {append content [<p> "Caller: [armour [info level -1]]"]}
+	    set message [armour $message]
+	    catch {dict unset rsp expires}
+	    
+	    set rsp [sysPage $rsp "Server Error: $message" [subst {
+		[<p> [tclarmour $message]]
+		<hr>
+		[tclarmour $content]
+		<hr>
+		[dump [tclarmour $rsp]]
+	    }]]
+		     
+	    dict set rsp -code 500
+	    dict set rsp -rtype Error
+	    dict set rsp -dynamic 1
+	    
+	    # Errors are completely dynamic - no caching!
+	    set rsp [NoCache $rsp]
+	} r1 eo1]} {
+	    Debug.error {Recursive ServerError $r1 ($eo1) from '$message' ($eo)}
+	} else {
+	    Debug.http {ServerError [dumpMsg $rsp 0]}
 	}
-
-	#if {($eo ne "") && [dict exists $eo -errorinfo]} {
-	#    catch {
-	#	set message [string map {\n <br>} [armour [dict get $eo -errorinfo]]]
-	#    }
-	#}
-
-	catch {append content [<p> "Caller: [armour [info level -1]]"]}
-	set message [armour $message]
-	catch {dict unset rsp expires}
-
-	set rsp [sysPage $rsp "Server Error: $message" [subst {
-	    [<p> $message]
-	    <hr>
-	    $content
-	    <hr>
-	    [dump $rsp]
-	}]]
-
-	dict set rsp -code 500
-	dict set rsp -rtype Error
-	dict set rsp -dynamic 1
-
-	# Errors are completely dynamic - no caching!
-	set rsp [NoCache $rsp]
-	Debug.http {ServerError [dumpMsg $rsp 0]}
 
 	return $rsp
     }
