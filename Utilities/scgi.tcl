@@ -7,6 +7,8 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 
 package provide scgi 1.0
 package require Debug
+package require Url
+
 Debug on scgi 10
 
 namespace eval scgi {
@@ -73,7 +75,7 @@ namespace eval scgi {
 	    dict set args -socket $sock
 	    dict set args -content_length $content_length
 	    if {[catch {
-		{*}[dict get $args -dispatch] {*}$args {*}[translate $headers]
+		{*}[dict get $args -dispatch] [dict merge $args [translate $headers]]
 	    } r eo]} {
 		Debug.error {SCGI Error: $r ($eo)}
 	    }
@@ -125,7 +127,8 @@ namespace eval scgi {
 	    }
 	}
 	lappend result -scgi [list $headers]
-
+	lappend result -scheme http
+	lappend result -url [Url url $result]
 	return $result
     }
 
@@ -133,7 +136,6 @@ namespace eval scgi {
 	#set reply [Access log $reply]
 
 	set sock [dict get $reply -sock]
-	upvar #0 ::HttpdWorker::connections($sock) connection
 
 	if {[catch {
 	    # unpack and consume the reply from replies queue
@@ -189,20 +191,9 @@ namespace eval scgi {
 		    set no_content 0
 		    if {[dict exists $reply -content]} {
 			# correctly charset-encode content
-			set reply [charset $reply]
-
-			# also gzip content so cache can store that.
-			lassign [CE $reply] reply content
-
-			if {[dict exists $reply -chunked]} {
-			    # ensure chunking works properly
-			    set chunkit [dict get $reply -chunked]
-			    dict set reply transfer-encoding chunked
-			    catch {dict unset reply content-length}
-			} else {
-			    # ensure content-length is correct
-			    dict set reply content-length [string length $content]
-			}
+			set reply [Http charset $reply]
+			set content [dict get $reply -content]
+			dict set reply content-length [string length $content]
 		    } else {
 			set content ""	;# there is no content
 			dict set reply content-length 0
