@@ -129,6 +129,143 @@ namespace eval scgi {
 	return $result
     }
 
+    proc Send {reply} {
+	#set reply [Access log $reply]
+
+	set sock [dict get $reply -sock]
+	upvar #0 ::HttpdWorker::connections($sock) connection
+
+	if {[catch {
+	    # unpack and consume the reply from replies queue
+	    set code [dict get $reply -code]
+	    if {$code < 4} {
+		# this was a tcl code, not an HTTP code
+		set code 500
+	    }
+
+	    # set the informational error message
+	    if {[dict exists $reply -error]} {
+		set errmsg [dict get $reply -error]
+	    }
+	    if {![info exists errmsg] || ($errmsg eq "")} {
+		set errmsg [Http ErrorMsg $code]
+	    }
+
+	    #set header "HTTP/[dict get $reply -version] $code $errmsg\r\n"
+	    set header "Status: $code $errmsg\r\n"
+
+	    # format up the headers
+	    if {$code != 100} {
+		append header "Date: [Http Now]" \r\n
+		set si [Dict get? $reply -server_id]
+		if {$si eq ""} {
+		    set si "The Wub"
+		}
+		append header "Server: $si" \r\n
+	    }
+
+	    # format up and send each cookie
+	    if {[dict exists $reply -cookies]} {
+		set c [dict get $reply -cookies]
+		foreach cookie [Cookies format4server $c] {
+		    append header "set-cookie: $cookie\r\n"
+		}
+	    }
+
+	    # there is content data
+	    switch -glob -- $code {
+		204 - 304 - 1* {
+		    # 1xx (informational),
+		    # 204 (no content),
+		    # and 304 (not modified)
+		    # responses MUST NOT include a message-body
+		    set reply [expunge $reply]
+		    set content ""
+		    set server_cache_it 0	;# can't cache these
+		    set no_content 1
+		}
+
+		default {
+		    set no_content 0
+		    if {[dict exists $reply -content]} {
+			# correctly charset-encode content
+			set reply [charset $reply]
+
+			# also gzip content so cache can store that.
+			lassign [CE $reply] reply content
+
+			if {[dict exists $reply -chunked]} {
+			    # ensure chunking works properly
+			    set chunkit [dict get $reply -chunked]
+			    dict set reply transfer-encoding chunked
+			    catch {dict unset reply content-length}
+			} else {
+			    # ensure content-length is correct
+			    dict set reply content-length [string length $content]
+			}
+		    } else {
+			set content ""	;# there is no content
+			dict set reply content-length 0
+			set server_cache_it 0	;# can't cache no content
+		    }
+		}
+	    }
+
+	    # handle Vary field and -vary dict
+	    if {[dict exists $reply -vary]} {
+		if {[dict exists $reply -vary *]} {
+		    dict set reply vary *
+		} else {
+		    dict set reply vary [join [dict keys [dict get $reply -vary]] ,]
+		}
+		dict unset reply -vary
+	    }
+
+	    if {[dict get $reply -method] eq "HEAD"} {
+		# All responses to the HEAD request method MUST NOT
+		# include a message-body but may contain all the content
+		# header fields.
+		set no_content 1
+		set content ""
+	    }
+
+	    # strip http fields which don't have relevance in response
+	    dict for {n v} $reply {
+		set nl [string tolower $n]
+		if {$nl ni {server date}
+		    && [info exists ::Http::headers($nl)]
+		    && $::Http::headers($nl) ne "rq"
+		} {
+		    append header "$n: $v" \r\n
+		}
+	    }
+
+	    # send reply
+	    puts $sock $header
+	    puts $sock ""
+	    puts $sock $content
+	    close $sock
+
+	    # global consequences - botting and caching
+	    if {[dict exists $reply -bot_change]} {
+		# this is a newly detected bot - inform parent
+		dict set enbot -bot [dict get $reply -bot]
+		set ip [dict get $reply -ipaddr]
+		if {[::ip::type $ip] ne "normal"
+		    && [dict exists $reply x-forwarded-for]
+		} {
+		    set ip [lindex [split [dict get $reply x-forwarded-for] ,] 0]
+		}
+		dict set enbot -ipaddr $ip
+		indicate Honeypot bot? $enbot
+	    }
+	} r eo]} {
+	    Debug.error {Sending Error: '$r' ($eo)}
+	} else {
+	    #Debug.log {Sent: ($header) ($content)}
+	}
+    }
+
     # handle_request - generate some test responses
     proc handle_request {sock headers body} {
 	package require html
