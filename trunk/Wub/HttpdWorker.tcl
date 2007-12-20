@@ -54,6 +54,7 @@ if {0} {
 	}
     }
 }
+
 namespace eval HttpdWorker {
 
     variable requests	;# array of dicts containing requests read
@@ -328,27 +329,6 @@ namespace eval HttpdWorker {
 	return [list $reply $content]
     }
 
-    # charset - ensure correctly encoded content
-    proc charset {reply} {
-	if {[dict exists $reply -chconverted]} {
-	    return $reply	;# don't re-encode by charset
-	}
-
-	# handle charset for text/* types
-	lassign [split [Dict get? $reply content-type] {;}] ct
-	if {[string match text/* $ct] || [string match */*xml $ct]} {
-	    if {[dict exists $reply -charset]} {
-		set charset [dict get $reply -charset]
-	    } else {
-		set charset utf-8	;# default charset
-	    }
-	    dict set reply -charset $charset
-	    dict set reply -chconverted $charset
-	    dict set reply content-type "$ct; charset=$charset"
-	    dict set reply -content [encoding convertto $charset [dict get $reply -content]]
-	}
-	return $reply
-    }
 
     # dump - return a stripped request for printing
     proc dump {req} {
@@ -470,7 +450,7 @@ namespace eval HttpdWorker {
 		    set no_content 0
 		    if {[dict exists $reply -content]} {
 			# correctly charset-encode content
-			set reply [charset $reply]
+			set reply [Http charset $reply]
 
 			# also gzip content so cache can store that.
 			lassign [CE $reply] reply content
