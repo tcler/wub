@@ -55,7 +55,10 @@ namespace eval Listener {
 	}
     }
 
+    variable id 0	;# listener id
+
     proc listen {args} {
+	variable id
 	if {[catch {
 	    set args [dict merge [subst {
 		-host [info hostname]
