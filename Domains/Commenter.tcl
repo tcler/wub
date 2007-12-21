@@ -254,6 +254,7 @@ namespace eval Commenter {
 
 	dict with args {
 	    set munged [munge $comments $contexts]
+	    set result ""
 	    foreach context [lsort [dict keys $munged]] {
 		set val [dict get $munged $context]
 		append result "<$container class='$context_class'>" \n
@@ -298,7 +299,8 @@ namespace eval Commenter {
 	dict for {n v} $munged {
 	    foreach context [lsort [dict keys $munged]] {
 		set val [dict get $munged $context]
-		append result <dt> [<a> href "./ns?ns=[armour $context]" [armour $context]] </dt>
+		set ns [join [split $context] &]
+		append result <dt> [<a> href "./ns?ns=[armour $ns]" [armour $context]] </dt>
 		append result <dd> [armour [lindex [dict get $val ""] 0]] </dd>
 	    }
 	}
@@ -308,6 +310,7 @@ namespace eval Commenter {
 
     proc /ns {r ns} {
 	variable display
+	Debug.error {/ns contexts: $ns}
 	return [Http Ok $r [Commenter 2html $display contexts $ns]]
     }
 
