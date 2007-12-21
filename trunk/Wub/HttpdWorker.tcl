@@ -357,7 +357,6 @@ namespace eval HttpdWorker {
 	    # global consequences - botting and caching
 	    if {![indicate Honeypot newbot? $reply] && $cache} {
 		# handle caching (under no circumstances cache bot replies)
-		dict set reply -code $code
 		indicate Cache put $reply
 	    }
 	} r eo]} {
