@@ -1,6 +1,10 @@
 # Convert -- make-like content transformation
 #
 # intercepts responses and transforms content according to mime-type
+#
+# Convert translates content by invoking translator procs
+# (which are commands of the form .mime/type.mime/type)
+#
 
 package require snit
 package require sgraph
@@ -13,7 +17,6 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 }
 
 snit::type Convert {
-    option -subdomain {}
     option -conversions 1	;# include some default conversions
 
     option -namespace -configuremethod set_namespace
@@ -21,6 +24,26 @@ snit::type Convert {
 	lappend options($option) $value
     }
 
+    variable paths -array {}
+    variable graph	;# transformation graph - all known transforms
+    variable transform -array {}	;# set of mappings from,to mime-types
+
+    # Transform - add a single transform to the transformation graph
+    method Transform {from to args} {
+	set prefix ${from},$to
+	set transform($prefix) $args
+	dict lappend graph $from $to
+    }
+
+    # set of mappings mime-type to postprocess script
+    variable postprocess -array {}
+
+    # Postprocess - add a postprocessor to the set of postprocessors
+    method Postprocess {from args} {
+	set postprocess($from) $args
+    }
+
+    # Namespace - add all transformers and postprocessors from the namespace
     method Namespace {ns} {
 
 	# scan the namespace looking for translators
@@ -44,8 +67,8 @@ snit::type Convert {
 	}
     }
 
-    variable paths -array {}
-    variable graph
+    # path - return a path through the transformation graph
+    # between source 'from' and sink 'to'
     method path {from to} {
 	Debug.convert {path $from -> $to ($graph)}
 	if {[info exists paths($from,$to)]} {
@@ -69,22 +92,6 @@ snit::type Convert {
 	return $pairs
     }
 
-    # set of mappings from,to mime-types
-    variable transform -array {}
-
-    method Transform {from to args} {
-	set prefix ${from},$to
-	set transform($prefix) $args
-	dict lappend graph $from $to
-    }
-
-    # set of mappings mime-type to postprocess script
-    variable postprocess -array {}
-
-    method Postprocess {from args} {
-	set postprocess($from) $args
-    }
-
     # perform applicable postprocess on content of given type
     method postprocess {rsp} {
 	set ctype [dict get $rsp content-type]
@@ -103,7 +110,7 @@ snit::type Convert {
 	return $rsp
     }
 
-    variable tcache
+    variable tcache	;# cache of known transformations
 
     # perform applicable transformations on content
     method transform {rsp} {
@@ -184,6 +191,7 @@ snit::type Convert {
 	return $rsp
     }
 
+    # Convert - perform all content negotiation on a Wub response
     method Convert {rsp} {
 	Debug.convert {Converting}
 
@@ -208,6 +216,7 @@ snit::type Convert {
 	return $rsp
     }
 
+    # Convert! - perform a specified transformation on a Wub response
     method Convert! {rq mime to content} {
 	dict set rq accept $to
 	dict set rq content-type $mime
@@ -215,183 +224,37 @@ snit::type Convert {
 	return [$self Convert $rq]
     }
 
-    option -safe 0
-    option -aliases {}
-
-    method template {req} {
-	set fpath [dict get $req -template_file]
-	Debug.convert {template run: $fpath [dumpMsg $req]}
-
-	set req [Http Depends $req $fpath] ;# cache functional dependency
-
-	set interp [Interp name $req]
-	if {$interp eq ""} {
-	    # create an interpreter
-	    dict set req -safe $options(-safe)
-	    set interp [Interp create $req]
-	}
-
-	# fill interp with useful aliases and commands
-	if {[catch {$interp eval set ::response}]} {
-	    # template signals dynamic content with this
-	    interp alias $interp Template_Dynamic \
-		$interp dict set ::response -dynamic 1
-	    interp alias $interp Template_Static \
-		$interp dict set ::response -dynamic 0
-
-	    foreach cmd $options(-aliases) {
-		interp alias $interp $cmd {} ::$cmd
-	    }
-
-	    interp alias $interp Self {} $self
-	    dict set req -interp $interp	;# remember interpreter
-	}
-
-	# read template into interpreter
-	if {[catch {
-	    set template [file read $fpath]
-	    Debug.convert {template code: $template}
-	} r eo]} {
-	    do respond ServerError $req $r $eo
-	}
-
-	# set some variables
-	catch {dict unset req -code}	;# let subst set -code value
-	if {![dict exists $req content-type]} {
-	    # set default mime type
-	    dict set req content-type x-text/html-fragment
-	}
-	$interp eval set ::response [list $req]
-
-	#trace add command $interp {rename delete} trace_pmod
-
-	# save some sensitive values
-	set root [dict get $req -root]
-
-	# perform template substitution
-	set code [catch {
-	    #puts stderr "template: $template"
-	    $interp eval subst [list $template]
-	} result eo]	;# result is the substituted template
-	Debug.convert {template result: $code ($eo) - '$result' over '$template'} 2
-
-	# dig out the result from the error options dict
-	if {[dict exists $eo -response]} {
-	    Debug.convert {template has -response}
-	    set rsp [dict get $eo -response]	;# get response dict
-	} else {
-	    # implicit return value - use the substitution
-	    set rsp [$interp eval set ::response]	;# get response dict
-	    dict set rsp -content $result	;# fold subst result back into response
-	    Debug.convert {template implicit return - $code - '$result' ($eo) - [dumpMsg $rsp] - [$interp eval dict get \$::response -dynamic]}
-	    if {![dict exists $rsp -code]} {
-		#dict set rsp -code 0
-	    }
-	}
-	Debug.convert {template return code: [Dict get? $rsp -code] dynamic: [dict get $rsp -dynamic] -content: '[dict get $rsp -content]'}
-
-	# remember interpreter for next time this
-	# transaction needs one
-	dict set rsp -interp $interp
-
-	# restore sensitive values
-	dict set rsp -root $root
-
-	if {$code && ($code < 200)} {
-	    do respond ServerError $rsp $result $eo
-	}
-
-	# if the template didn't set its own content,
-	# use the template subst result
-	if {([Dict get? $rsp -content] eq "")} {
-	    dict set rsp -content $result
-	}
-
-	# wrap returned content for %BODY% - experimental
-	if {[dict exists $eo -wrapper]} {
-	    dict set rsp \
-		-content [string map \
-			      [list %BODY% [dict get $rsp -content]] \
-			      [dict get $rsp -wrapper]]
-	    dict unset eo -wrapper
-	}
-
-	if {[dict exists $rsp -code]} {
-	    # template has taken control and set code itself.
-	    # we follow its instructions with the code given.
-	    Debug.convert {template return ($fpath) [dict get $rsp -code]: $rsp - $result}
-	    return -code [dict get $rsp -code] -response $rsp $result
-	}
-
-	# completed substutition successfully
-	dict set rsp -content $result	;# result is the substituted template
-
-	return $rsp
-    }
-
+    # do - perform content negotiation and transformation
     method do {rsp} {
-	return [$self Respond [dict exists $rsp -code] $rsp]
-    }
-
-    method Respond {code rsp} {
 	Debug.convert {Respond: [dumpMsg $rsp]
 	    with: [array get transform]
 	    postproc: [array get postprocess]
 	}
 
+	# -raw overrides content negotiation
 	if {[dict exists $rsp -raw]} {
 	    Debug.convert {Respond Raw override}
 	    return $rsp
 	}
 
+	# perform the content negotiation
 	set code [catch {
-	    # run specified template over response
-	    if {[Dict get? $rsp -template_file] ne ""} {
-		# apply template
-		set rsp [$self template $rsp]
-	    }
-
 	    $self Convert $rsp	;# perform conversion
 	} r eo]
 
 	if {$code} {
-	    if {[dict exists $eo -response]} {
-		set rsp [dict get $eo -response]
-		dict unset eo -response
-	    } elseif {[dict exists $eo -request]} {
-		set rsp [dict get $eo -request]
-		dict unset eo -request
-	    } else {
-		# go with the rsp we've got
-	    }
 	    Debug.convert {Convert error: $code '$r' ($eo) - [dumpMsg $rsp]}
+	    set rsp [Http ServerError $rsp $r $eo]
 	} else {
 	    # pass back the transformed response
 	    set rsp $r
-	    if {[dict exists $rsp -code]} {
-		set code [dict get $rsp -code]
-	    } else {
-		set code 200	;# assume a standard Ok response
+
+	    if {![dict exists $rsp -code]} {
+		dict set rsp -code 200
 	    }
 	}
 
 	return $rsp
-    }
-
-    method Dispatch {req} {
-	set ec [catch {
-	    if {[dict exists $req -raw]} {
-		# the request is raw, so just skip this domain
-		Debug.convert {Convert raw}
-		do jump $req $options(-subdomain) Dispatch
-	    } else {
-		Debug.convert {Convert normal -> $options(-subdomain)}
-		do dispatch $req $options(-subdomain) Dispatch
-	    }
-	} r eo]
-	Debug.convert {Convert return: ($eo)}
-
-	return -options $eo $req
     }
 
     constructor {args} {
@@ -401,14 +264,17 @@ snit::type Convert {
 	    package require conversions
 	    $self Namespace ::conversions
 	}
+
 	foreach ns $options(-namespace) {
 	    $self Namespace ::$ns
 	}
+
 	Debug.convert {Convert graph: $graph}
     }
 }
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
+    # this is out of date
     lappend auto_path [pwd] [pwd]/stx/
 
     package require Stdin
