@@ -7,34 +7,6 @@ package provide Mason 1.0
 package require snit
 package require Html
 
-namespace eval ::MConvert {
-    proc .x-text/dict.x-text/html-fragment {rsp} {
-	Debug.convert {x-text/dict.x-text/html-fragment conversion: $rsp}
-
-	# use -thead as table headers, or if there is none use the dict keys
-	if {![dict exists $rsp -thead]} {
-	    set thead [lsort [dict keys [lindex [dict get -contents] 1]]]
-	} else {
-	    set thead [dict get $rsp -thead]
-	}
-
-	dict set rsp -content [Html dict2table [dict get $rsp -content] $thead [Dict get? $rsp -tfoot]]
-
-	if {[dict exists $rsp -title]} {
-	    dict lappend rsp -headers [<title> [string trim [dict get $rsp -title]]]
-	}
-	set uroot [Dict get? $rsp -urlroot]
-	foreach js {common css standardista-table-sorting} {
-	    dict lappend rsp -headers [<script> type text/javascript src $uroot/scripts/$js.js {}]
-	}
-	dict lappend rsp -headers [<style> type text/css media all "@import url($uroot/css/sorttable.css);"]
-	dict set rsp content-type x-text/html-fragment
-
-	Debug.convert {x-text/dict.x-text/html-fragment conversion: $rsp}
-	return $rsp
-    }
-}
-
 ::snit::type Mason {
     option -url ""	;# url for top of this domain
     option -root ""	;# file system domain root
@@ -418,5 +390,33 @@ namespace eval ::MConvert {
 
 	    #puts stderr "THEAD: $thead"
 	}
+    }
+}
+
+namespace eval ::MConvert {
+    proc .x-text/dict.x-text/html-fragment {rsp} {
+	Debug.convert {x-text/dict.x-text/html-fragment conversion: $rsp}
+
+	# use -thead as table headers, or if there is none use the dict keys
+	if {![dict exists $rsp -thead]} {
+	    set thead [lsort [dict keys [lindex [dict get -contents] 1]]]
+	} else {
+	    set thead [dict get $rsp -thead]
+	}
+
+	dict set rsp -content [Html dict2table [dict get $rsp -content] $thead [Dict get? $rsp -tfoot]]
+
+	if {[dict exists $rsp -title]} {
+	    dict lappend rsp -headers [<title> [string trim [dict get $rsp -title]]]
+	}
+	set uroot [Dict get? $rsp -urlroot]
+	foreach js {common css standardista-table-sorting} {
+	    dict lappend rsp -headers [<script> type text/javascript src $uroot/scripts/$js.js {}]
+	}
+	dict lappend rsp -headers [<style> type text/css media all "@import url($uroot/css/sorttable.css);"]
+	dict set rsp content-type x-text/html-fragment
+
+	Debug.convert {x-text/dict.x-text/html-fragment conversion: $rsp}
+	return $rsp
     }
 }
