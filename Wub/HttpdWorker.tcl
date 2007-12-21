@@ -354,7 +354,7 @@ namespace eval HttpdWorker {
 	    Debug.http {ADD TRANS: $header ([array names ::replies])}
 
 	    # global consequences - botting and caching
-	    if {![Honeypot newbot? $reply] && $cache} {
+	    if {![indicate Honeypot newbot? $reply] && $cache} {
 		# handle caching (under no circumstances cache bot replies)
 		dict set reply -code $code
 		indicate Cache put $reply
