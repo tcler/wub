@@ -1,5 +1,13 @@
 = Mason Domain - a mason-like domain =
 
+== Examples ==
+
+Construct a Mason domain:
+
+ Mason wub -url /_wub -root /var/www/wubdocs -auth .before -wrapper .after -dirhead {name size mtime}
+
+== Background ==
+
 According to the Mason website: [http://www.masonhq.com/ Mason] is a '''powerful Perl-based web site development and delivery engine.'''
 
 The Wub Mason domain emulates some of Mason's architecture.  Henceforth in this document, '''Mason''' will refer to MasonDomain, and not the original PERL system.
