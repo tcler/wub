@@ -870,9 +870,8 @@ namespace eval Http {
 	# default to identity encoding
 	set content [dict get $reply -content]
 
-	variable ce_encodings
 	if {![dict exists $reply -gzip]
-	    && ("gzip" in [Dict get? $args -encodings])
+	    && ("gzip" in [Dict get? $args -encoding])
 	} {
 	    set reply [gzip_content $reply]
 	}
