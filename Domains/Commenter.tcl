@@ -311,7 +311,7 @@ namespace eval Commenter {
     proc /ns {r ns} {
 	variable display
 	Debug.error {/ns contexts: $ns}
-	return [Http Ok $r [Commenter 2html $display contexts $ns]]
+	return [Http Ok $r [Commenter 2html $display contexts [list $ns]]]
     }
 
     namespace export -clear *
