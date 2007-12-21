@@ -302,7 +302,7 @@ namespace eval HttpdWorker {
 	# handle 'connection: close' indication
 	foreach ct [split [Dict get? $r connection] ,] {
 	    if {[string tolower [string trim $ct]] eq "close"} {
-		Debug.close {Tagging $sock close at connection:close request}
+		Debug.close {Tagging close at connection:close request}
 		set close 1
 	    }
 	}
@@ -310,6 +310,7 @@ namespace eval HttpdWorker {
 	if {$close} {
 	    # we're not accepting more input
 	    # but we defer closing the socket until transmission's complete
+	    set sock [dict get $reply -sock]
 	    chan configure $sock -blocking 0
 	    readable $sock closing $sock
 	}
