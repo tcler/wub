@@ -1002,7 +1002,7 @@ namespace eval Http {
 	    }
 
 	    # now attend to caching generated content.
-	    if {[dict get $reply content-length] == 0} {
+	    if {$empty || [dict get $reply content-length] == 0} {
 		set cache 0	;# can't cache no content
 	    } elseif {$cache} {
 		# use -dynamic flag to avoid caching even if it was requested
