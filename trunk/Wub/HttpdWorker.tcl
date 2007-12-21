@@ -310,7 +310,7 @@ namespace eval HttpdWorker {
 	if {$close} {
 	    # we're not accepting more input
 	    # but we defer closing the socket until transmission's complete
-	    set sock [dict get $reply -sock]
+	    set sock [dict get $r -sock]
 	    chan configure $sock -blocking 0
 	    readable $sock closing $sock
 	}
