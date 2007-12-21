@@ -82,6 +82,23 @@ namespace eval Honeypot {
     variable bots	;# array of potential bot ip addresses
     array set bots {}
 
+    proc newbot? {r} {
+	if {[dict exists $r -bot_change]} {
+	    # this is a newly detected bot - inform parent
+	    dict set enbot -bot [dict get $reply -bot]
+	    set ip [dict get $r -ipaddr]
+	    if {[::ip::type $ip] ne "normal"
+		&& [dict exists $r x-forwarded-for]
+	    } {
+		set ip [lindex [split [dict get $r x-forwarded-for] ,] 0]
+	    }
+	    dict set enbot -ipaddr $ip
+	    indicate Honeypot bot? $enbot
+	    return 1
+	}
+	return 0
+    }
+
     # bot? - determines and records whether a given address is a known bot.
     # adds data about bot to request, for worker handling
     # this is called from the parent thread before and after request processing
