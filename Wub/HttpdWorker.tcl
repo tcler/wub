@@ -331,7 +331,7 @@ namespace eval HttpdWorker {
 	upvar #0 ::HttpdWorker::connections($sock) connection
 
 	# fetch transaction from the caller's identity
-	set trx [trx_check $r]
+	set trx [trx_check $reply]
 	if {$trx < 0} {
 	    return	;# invalid reply
 	}
