@@ -103,6 +103,8 @@ snit::type Convert {
 	return $rsp
     }
 
+    variable tcache
+
     # perform applicable transformations on content
     method transform {rsp} {
 	Debug.convert {transform: [dumpMsg $rsp]}
@@ -113,57 +115,68 @@ snit::type Convert {
 	    dict set rsp accept [string map [list */* text/html] [dict get $rsp accept]]
 	}
 
-	# create dummy quality measure to preserve order
-	set order 10000
 	set ctype [dict get $rsp content-type]
-	foreach a [split [dict get $rsp accept] ,] {
-	    lassign [split [string trim $a] ";"] a q
+	set accept [dict get $rsp accept]
+	set path ""
 
-	    Debug.convert {transform matching '$a' '$q' against $ctype}
-	    if {$a eq $ctype} {
-		# exact match - done
-		Debug.convert {transform: matched $a}
-		return [dict replace $rsp -raw 1]
-	    }
-
-	    if {$q eq ""} {
-		set q [incr order -1].0 ;# ordered quality metric
-	    } else {
-		set q [lindex [split $q =] 1]
-	    }
-	    lappend acceptable [list $a $q]
-	}
-
-	# sort acceptable types in decreasing order of acceptability
-	set acceptable [lsort -real -decreasing -index 1 $acceptable]
-
-	foreach a $acceptable {
-	    set a [lindex $a 0]
-	    Debug.convert {trying '$ctype,$a'}
-	    set path [$self path $ctype $a]
-	    if {$path ne {}} {
-		# there is a transforming path
-		Debug.convert {TRANSFORMING: [dict get $rsp -url] $path}
+	variable tcache
+	if {[info exists tcache(${ctype}=$accept)]} {
+	    # found a cached transformation
+	    set path $tcache(${ctype}=$accept)
+	} else {
+	    # search for path through conversion graph
+	    set order 10000; # create dummy quality measure to preserve order
+	    foreach a [split [dict get $rsp accept] ,] {
+		lassign [split [string trim $a] ";"] a q
 		
-		set rsp [Http loadContent $rsp] ;# read -fd content if any
-		
-		# perform transformations on path
-		foreach el $path {
-		    Debug.convert {transform element: $el with '$transform($el)'}
-		    if {![set code [catch {
-			{*}$transform($el) [list $rsp]
-		    } result eo]]} {
-			# transformation success
-			Debug.convert {transform Success: $result}
-			set rsp $result
-			catch {dict unset rsp -file}	;# forget that there's a file
-		    } else {
-			# transformation failure
-			Debug.convert {transform Error: $result ($eo)}
-			return [Http ServerError $rsp $result $eo]
-		    }
+		Debug.convert {transform matching '$a' '$q' against $ctype}
+		if {$a eq $ctype} {
+		    # exact match - done
+		    Debug.convert {transform: matched $a}
+		    return [dict replace $rsp -raw 1]
 		}
-		return $rsp	;# completed transformation path
+
+		if {$q eq ""} {
+		    set q [incr order -1].0 ;# ordered quality metric
+		} else {
+		    set q [lindex [split $q =] 1]
+		}
+		lappend acceptable [list $a $q]
+	    }
+
+	    # process acceptable types in decreasing order of acceptability
+	    foreach a [lsort -real -decreasing -index 1 $acceptable] {
+		set a [lindex $a 0]
+		Debug.convert {trying '$ctype,$a'}
+		set path [$self path $ctype $a]
+		if {$path ne {}} {
+		    set tcache(${ctype}=$accept) $path
+		    break
+		}
+	    }
+	}
+	    
+
+	if {$path ne ""} {
+	    # there is a transforming path
+	    Debug.convert {TRANSFORMING: [dict get $rsp -url] $path}
+	    set rsp [Http loadContent $rsp] ;# read -fd content if any
+	    
+	    # perform transformations on path
+	    foreach el $path {
+		Debug.convert {transform element: $el with '$transform($el)'}
+		if {![set code [catch {
+		    {*}$transform($el) [list $rsp]
+		} result eo]]} {
+		    # transformation success
+		    Debug.convert {transform Success: $result}
+		    set rsp $result
+		    catch {dict unset rsp -file} ;# forget that there's a file
+		} else {
+		    # transformation failure
+		    Debug.convert {transform Error: $result ($eo)}
+		    return [Http ServerError $rsp $result $eo]
+		}
 	    }
 	}
 
