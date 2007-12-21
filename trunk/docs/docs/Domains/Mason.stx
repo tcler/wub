@@ -2,10 +2,13 @@
 
 == Examples ==
 
-Construct a Mason domain:
+=== 1. Construct a Mason domain: ===
 
  Mason wub -url /_wub -root /var/www/wubdocs -auth .before -wrapper .after -dirhead {name size mtime}
 
+This will create a command ''wub'' which interprets the file system directory specified by '''-root''', using '''.before''' and '''.after''' as templates.
+
+----
 == Background ==
 
 According to the Mason website: [http://www.masonhq.com/ Mason] is a '''powerful Perl-based web site development and delivery engine.'''
@@ -15,6 +18,7 @@ The Wub Mason domain emulates some of Mason's architecture.  Henceforth in this 
 This documentation is being delivered by a Mason instance.
 ----
 == Mason Architecture ==
+
 There are two kinds of static elements (normal files and directories), and three kinds of procedural elements (templates, .notfound and .wrapper files) in Mason.  The procedural elements are tcl scripts, which are loaded and evaluated.
 
 ;directories: are treated as if they referred to a file index.html contained within them.  If no index.html or index.tml file is found, the .directory template is evaluated
