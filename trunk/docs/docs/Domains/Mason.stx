@@ -5,7 +5,7 @@ According to the Mason website: [http://www.masonhq.com/ Mason] is a '''powerful
 
 The Wub Mason domain emulates some of Mason's architecture.  Henceforth in this document, '''Mason''' will refer to MasonDomain, and not the original PERL system.
 
-This documentation is being delivered by a Mason instance.  Detailed documentation can be found at http:/_docs/ns?ns=Mason
+This documentation is being delivered by a Mason instance.  Detailed documentation can be found at http:/_doc/ns?ns=Mason
 
 ----
 
