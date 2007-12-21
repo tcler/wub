@@ -286,31 +286,30 @@ namespace eval Commenter {
 
     variable path [file dirname [file dirname [file normalize [info script]]]]
     variable display ""	;#
+    variable munged ""
+
     proc / {r} {
 	variable display
 	variable munged
 	if {$display eq ""} {
 	    variable path
 	    set display [Commenter parseFS $path]
-	    set munged [munge $display *]
+	    set munged [munge $display]
 	}
 
 	set result "<dl>"
-	dict for {n v} $munged {
-	    foreach context [lsort [dict keys $munged]] {
-		set val [dict get $munged $context]
-		set ns [lindex [split $context] 1]
-		append result <dt> [<a> href "./ns?ns=$ns" [armour $context]] </dt>
-		append result <dd> [armour [lindex [dict get $val ""] 0]] </dd>
-	    }
+	foreach context [lsort [dict keys $munged]] {
+	    set val [dict get $munged $context]
+	    set ns [lindex [split $context] 1]
+	    append result <dt> [<a> href "./ns?ns=$ns" [armour $context]] </dt>
+	    append result <dd> [armour [lindex [dict get $val ""] 0]] </dd>
 	}
-	append result </dl>
+	append result "</dl>"
 	return [Http Ok $r $result]
     }
 
     proc /ns {r ns} {
 	variable display
-	Debug.error {/ns contexts: $ns}
 	return [Http Ok $r [Commenter 2html $display contexts "*$ns"]]
     }
 
