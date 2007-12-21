@@ -261,7 +261,7 @@ namespace eval HttpdWorker {
 
     # trx_check - get transaction from reply, check for consistency
     proc trx_check {r} {
-	set sock [dict get $reply -sock]
+	set sock [dict get $r -sock]
 	upvar #0 ::HttpdWorker::connections($sock) connection
 
 	# fetch transaction from the caller's identity
