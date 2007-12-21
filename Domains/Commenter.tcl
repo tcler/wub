@@ -300,7 +300,7 @@ namespace eval Commenter {
 	    foreach context [lsort [dict keys $munged]] {
 		set val [dict get $munged $context]
 		set ns [join [split $context] &]
-		append result <dt> [<a> href "./ns?ns=[armour $ns]" [armour $context]] </dt>
+		append result <dt> [<a> href "./ns?ns=$ns" [armour $context]] </dt>
 		append result <dd> [armour [lindex [dict get $val ""] 0]] </dd>
 	    }
 	}
