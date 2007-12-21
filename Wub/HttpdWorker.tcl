@@ -78,8 +78,6 @@ namespace eval HttpdWorker {
 	variable ce_encodings {}
     }
     #set ce_encodings {}	;# uncomment to stop gzip transfers
-    variable chunk_size 4196	;# tiny little chunk size
-    variable gzip_bugged {}	;# these browsers can't take gzip
     variable te_encodings {chunked}
 
     proc restart {sock timer} {
@@ -239,38 +237,7 @@ namespace eval HttpdWorker {
 	}
     }
 
-    # expunge - remove metadata from reply dict
-    proc expunge {reply} {
-	foreach n [dict keys $reply content-*] {
-	    dict unset reply $n
-	}
-
-	# discard some fields
-	Dict strip reply transfer-encoding -chunked -content
-	return $reply
-    }
-
-    # gzip_content - gzip-encode the content
-    proc gzip_content {reply} {
-	if {[dict exists $reply -gzip]} {
-	    return $reply	;# it's already been gzipped
-	}
-
-	# prepend a minimal gzip file header:
-	# signature, deflate compression, no flags, mtime,
-	# xfl=0, os=3
-	set content [dict get $reply -content]
-	set gzip [binary format "H*iH*" "1f8b0800" [clock seconds] "0003"]
-	append gzip [zlib deflate $content]
-
-	# append CRC and ISIZE fields
-	append gzip [binary format i [zlib crc32 $content]]
-	append gzip [binary format i [string length $content]]
-
-	dict set reply -gzip $gzip
-	return $reply
-    }
-
+    # closing - we are closing the connection, or recognising that it's closed.
     proc closing {sock} {
 	if {[catch {chan eof $sock} r] || $r} {
 	    # remote end closed - just forget it
@@ -284,58 +251,70 @@ namespace eval HttpdWorker {
 	}
     }
 
-    # CE - find and effect appropriate content encoding
-    proc CE {reply} {
-	# default to identity encoding
-	set content [dict get $reply -content]
-
-	variable ce_encodings
-	if {![dict exists $reply -gzip]
-	    && "gzip" in $ce_encodings
-	} {
-	    set reply [gzip_content $reply]
-	}
-
-	# choose content encoding - but not for MSIE
-	variable chunk_size
-	variable gzip_bugged
-	if {[Dict get? $reply -ua id] ni $gzip_bugged
-	    && [dict exists $reply accept-encoding]
-	    && ![dict exists $reply content-encoding]
-	} {
-	    foreach en [split [dict get $reply accept-encoding] ","] {
-		lassign [split $en ";"] en pref
-		set en [string trim $en]
-		if {$en in $ce_encodings} {
-		    switch $en {
-			"gzip" { # substitute the gzipped form
-			    if {[dict exists $reply -gzip]} {
-				set content [dict get $reply -gzip]
-				dict set reply content-encoding gzip
-				#set reply [Http Vary $reply Accept-Encoding User-Agent]
-				if {[dict get $reply -version] > 1.0} {
-				    # this is probably redundant, since 1.0
-				    # doesn't define accept-encoding (does it?)
-				    #dict set reply -chunked $chunk_size
-				    #dict set reply transfer-encoding chunked
-				}
-				break
-			    }
-			}
-		    }
-		}
-	    }
-	}
-	return [list $reply $content]
-    }
-
-
     # dump - return a stripped request for printing
     proc dump {req} {
 	dict set req -content <ELIDED>
 	dict set req -entity <ELIDED>
 	dict set req -gzip <ELIDED>
 	return $req
+    }
+
+    # trx_check - get transaction from reply, check for consistency
+    proc trx_check {r} {
+	set sock [dict get $reply -sock]
+	upvar #0 ::HttpdWorker::connections($sock) connection
+
+	# fetch transaction from the caller's identity
+	variable generation
+	if {![dict exists $r -transaction]} {
+	    # can't Send reply: no -transaction associated with request
+	    Debug.error {Send discarded: no transaction ($r)}
+	    return -1
+	} elseif {[dict get $r -generation]
+		  != [dict get $connection generation]
+	      } {
+	    # this reply belongs to an older, disconnected Httpd generation.
+	    # we must discard it, because it was directed to a different client!
+	    Debug.error {Send discarded: out of generation '[dict get $r -generation] != [dict get $connection generation]' ([dump $r])}
+	    return -1
+	}
+	set trx [dict get $r -transaction]
+
+	# discard duplicate responses
+
+	if {[dict exists $connection satisfied $trx]} {
+	    # a duplicate response has been sent - discard this
+	    # this could happen if a dispatcher sends a response,
+	    # then gets an error.
+	    Debug.error {Send discarded: duplicate ($r)}
+	    return -1
+	}
+
+	return $trx
+    }
+
+    # close? - should we close this connection?
+    proc close? {r} {
+	# don't honour 1.0 keep-alives
+	set close [expr {[dict get $r -version] < 1.1}]
+	Debug.close {version [dict get $r -version] implies close=$close}
+
+	# handle 'connection: close' indication
+	foreach ct [split [Dict get? $r connection] ,] {
+	    if {[string tolower [string trim $ct]] eq "close"} {
+		Debug.close {Tagging $sock close at connection:close request}
+		set close 1
+	    }
+	}
+
+	if {$close} {
+	    # we're not accepting more input
+	    # but we defer closing the socket until transmission's complete
+	    chan configure $sock -blocking 0
+	    readable $sock closing $sock
+	}
+
+	return $close
     }
 
     # Send - queue up a transaction response
@@ -345,231 +324,37 @@ namespace eval HttpdWorker {
     #
     # Side Effects:
     #	queues the response for sending by method responder
-    proc Send {reply {server_cache_it 1}} {
+    proc Send {reply {cache 1}} {
 	#set reply [Access log $reply]
 
 	set sock [dict get $reply -sock]
 	upvar #0 ::HttpdWorker::connections($sock) connection
 
 	# fetch transaction from the caller's identity
-	variable generation
-	if {![dict exists $reply -transaction]} {
-	    # can't Send reply: no -transaction associated with request
-	    Debug.error {Send discarded: no transaction ($reply)}
-	    return
-	} elseif {[dict get $reply -generation] != [dict get $connection generation]} {
-	    # this reply belongs to an older, disconnected Httpd generation.
-	    # we must discard it, because it was directed to a different client!
-	    Debug.error {Send discarded: out of generation '[dict get $reply -generation] != [dict get $connection generation]' ([dump $reply])}
-	    return
+	set trx [trx_check $r]
+	if {$trx < 0} {
+	    return	;# invalid reply
 	}
-	set trx [dict get $reply -transaction]
-
-	# discard duplicate responses
-
-	if {[dict exists $connection satisfied $trx]} {
-	    # a duplicate response has been sent - discard this
-	    # this could happen if a dispatcher sends a response,
-	    # then gets an error.
-	    Debug.error {Send discarded: duplicate ($reply)}
-	    return
-	}
-
-	set chunkit 0	;# we do not wish to chunk by default
 
 	if {[catch {
-	    # unpack and consume the reply from replies queue
-	    set code [dict get $reply -code]
-	    if {$code < 4} {
-		# this was a tcl code, not an HTTP code
-		set code 500
-	    }
+	    variable ce_encodings	;# what encodings do we support?
 
-	    # don't honour 1.0 keep-alives
-	    set close [expr {[dict get $reply -version] < 1.1}]
-	    Debug.close {version [dict get $reply -version] implies close=$close}
-
-	    # handle 'connection: close' indication
-	    foreach ct [split [Dict get? $reply connection] ,] {
-		if {[string tolower [string trim $ct]] eq "close"} {
-		    Debug.close {Tagging $sock close at connection:close request}
-		    set close 1
-		}
-	    }
-
-	    if {$close} {
-		# we're not accepting more input
-		# but we defer closing the socket until transmission's complete
-		chan configure $sock -blocking 0
-		readable $sock closing $sock
-	    }
-
-	    # set the informational error message
-	    if {[dict exists $reply -error]} {
-		set errmsg [dict get $reply -error]
-	    }
-	    if {![info exists errmsg] || ($errmsg eq "")} {
-		set errmsg [Http ErrorMsg $code]
-	    }
-
-	    #set header "HTTP/[dict get $reply -version] $code $errmsg\r\n"
-	    set header "HTTP/1.1 $code $errmsg\r\n"
-
-	    # format up the headers
-	    if {$code != 100} {
-		append header "Date: [Http Now]" \r\n
-		set si [Dict get? $reply -server_id]
-		if {$si eq ""} {
-		    set si "The Wub"
-		}
-		append header "Server: $si" \r\n
-	    }
-
-	    # format up and send each cookie
-	    if {[dict exists $reply -cookies]} {
-		set c [dict get $reply -cookies]
-		foreach cookie [Cookies format4server $c] {
-		    append header "set-cookie: $cookie\r\n"
-		}
-	    }
-
-	    # there is content data
-	    switch -glob -- $code {
-		204 - 304 - 1* {
-		    # 1xx (informational),
-		    # 204 (no content),
-		    # and 304 (not modified)
-		    # responses MUST NOT include a message-body
-		    set reply [expunge $reply]
-		    set content ""
-		    set server_cache_it 0	;# can't cache these
-		    set no_content 1
-		}
-
-		default {
-		    set no_content 0
-		    if {[dict exists $reply -content]} {
-			# correctly charset-encode content
-			set reply [Http charset $reply]
-
-			# also gzip content so cache can store that.
-			lassign [CE $reply] reply content
-
-			if {[dict exists $reply -chunked]} {
-			    # ensure chunking works properly
-			    set chunkit [dict get $reply -chunked]
-			    dict set reply transfer-encoding chunked
-			    catch {dict unset reply content-length}
-			} else {
-			    # ensure content-length is correct
-			    dict set reply content-length [string length $content]
-			}
-		    } else {
-			set content ""	;# there is no content
-			dict set reply content-length 0
-			set server_cache_it 0	;# can't cache no content
-		    }
-		}
-	    }
-
-	    # handle Vary field and -vary dict
-	    if {[dict exists $reply -vary]} {
-		if {[dict exists $reply -vary *]} {
-		    dict set reply vary *
-		} else {
-		    dict set reply vary [join [dict keys [dict get $reply -vary]] ,]
-		}
-		dict unset reply -vary
-	    }
-
-	    # now attend to caching generated content.
-	    if {$server_cache_it} {
-		# use -dynamic flag to avoid caching even if it was requested
-		set server_cache_it [expr {
-					   ![dict exists $reply -dynamic]
-					   || ![dict get $reply -dynamic]
-				       }]
-
-		if {$server_cache_it
-		    && [dict exists $reply cache-control]
-		} {
-		    set cacheable [split [dict get $reply cache-control] ,]
-		    foreach directive $cacheable {
-			set body [string trim [join [lassign [split $directive =] d] =]]
-			set d [string trim $d]
-			if {$d in {no-cache private}} {
-			    set server_cache_it 0
-			    break
-			}
-		    }
-		}
-
-		if {$server_cache_it
-		    && ![dict exists $reply etag]
-		} {
-		    # generate an etag for cacheable responses
-		    dict set reply etag "\"[id].[clock microseconds]\""
-		}
-	    }
-
-	    if {$code >= 500} {
-		# Errors are completely dynamic - no caching!
-		set server_cache_it 0
-	    }
-
-	    # add in Auth header elements - TODO
-	    foreach challenge [Dict get? $reply -auth] {
-		append header "WWW-Authenticate: $challenge" \r\n
-	    }
-
-	    if {[dict get $reply -method] eq "HEAD"} {
-		# All responses to the HEAD request method MUST NOT
-		# include a message-body but may contain all the content
-		# header fields.
-		set no_content 1
-		set content ""
-	    }
-
-	    #if {!$server_cache_it} {
-	    # dynamic stuff - no caching!
-	    #set reply [Http NoCache $reply]
-	    #}
-
-	    Debug.log {Sending: [dump $reply]}
-
-	    # strip http fields which don't have relevance in response
-	    dict for {n v} $reply {
-		set nl [string tolower $n]
-		if {$nl ni {server date}
-		    && [info exists ::Http::headers($nl)]
-		    && $::Http::headers($nl) ne "rq"
-		} {
-		    append header "$n: $v" \r\n
-		}
-	    }
+	    # wire-format the reply transaction
+	    lassign [Http Send $reply -cache $cache -encodings $ce_encodings] reply header content empty cache
+	    set header "HTTP/1.1 $header" ;# add the HTTP signifier
 
 	    # record transaction reply and kick off the responder
 	    # response has been collected and is pending output
 	    # queue up response for transmission
-	    dict set connection replies $trx [list $header $content $close $chunkit $no_content]
+	    set chunkit [expr {[Dict get? $reply transfer-encoding] eq "chunked"}]
+	    dict set connection replies $trx [list $header $content [close? $reply] $chunkit $empty]
 	    dict set connection satisfied $trx 1 ;# request has been satisfied
 	    writable $sock responder $sock	;# kick off transmitter
 
 	    Debug.http {ADD TRANS: $header ([array names ::replies])}
 
 	    # global consequences - botting and caching
-	    if {[dict exists $reply -bot_change]} {
-		# this is a newly detected bot - inform parent
-		dict set enbot -bot [dict get $reply -bot]
-		set ip [dict get $reply -ipaddr]
-		if {[::ip::type $ip] ne "normal"
-		    && [dict exists $reply x-forwarded-for]
-		} {
-		    set ip [lindex [split [dict get $reply x-forwarded-for] ,] 0]
-		}
-		dict set enbot -ipaddr $ip
-		indicate Honeypot bot? $enbot
-	    } elseif {$server_cache_it} {
+	    if {![Honeypot newbot? $reply] && $cache} {
 		# handle caching (under no circumstances cache bot replies)
 		dict set reply -code $code
 		indicate Cache put $reply
