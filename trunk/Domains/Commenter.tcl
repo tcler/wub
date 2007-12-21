@@ -283,6 +283,34 @@ namespace eval Commenter {
 	return $result
     }
 
+    variable path [file dirname [file dirname [file normalize [info script]]]]
+    variable display ""	;#
+    proc / {} {
+	variable display
+	variable munged
+	if {$display eq ""} {
+	    variable path
+	    set display [Commenter parseFS $path]
+	    set munged [munge $display *]
+	}
+
+	set result "<dl>"
+	dict for {n v} $munged {
+	    foreach context [lsort [dict keys $munged]] {
+		set val [dict get $munged $context]
+		append result <dt> [<a> href "./ns?ns=[armour $context]" [armour $context]] </dt>
+		append result <dd> [armour [lindex [dict get $val ""] 0]] </dd>
+	    }
+	}
+	append result </dl>
+	return [Http Ok $r $result]
+    }
+
+    proc /ns {r ns} {
+	variable display
+	return [Http Ok $r [Commenter 2html $display contexts $ns]]
+    }
+
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
