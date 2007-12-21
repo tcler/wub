@@ -1,21 +1,26 @@
 = Mason Domain - a mason-like domain =
 
-== Examples ==
-
-=== 1. Construct a Mason domain: ===
-
- Mason wub -url /_wub -root /var/www/wubdocs -auth .before -wrapper .after -dirhead {name size mtime}
-
-This will create a command ''wub'' which interprets the file system directory specified by '''-root''', using '''.before''' and '''.after''' as templates.
-
-----
-== Background ==
 
 According to the Mason website: [http://www.masonhq.com/ Mason] is a '''powerful Perl-based web site development and delivery engine.'''
 
 The Wub Mason domain emulates some of Mason's architecture.  Henceforth in this document, '''Mason''' will refer to MasonDomain, and not the original PERL system.
 
-This documentation is being delivered by a Mason instance.
+This documentation is being delivered by a Mason instance.  Detailed documentation can be found at http:/_docs/ns?ns=Mason
+
+----
+
+=== Example 1. Construct a Mason domain ===
+
+ Mason mason -url /_wub -root /var/www/wubdocs
+
+This will create a command ''mason'' which interprets the file system directory specified by '''-root''', using '''.before''' and '''.after''' as templates.
+
+=== Example 2. Use of a Mason domain ===
+
+ mason do $req
+
+Assuming that '''$req''' represents a Wub request dict, a Wub response dict will be returned containing the file within mason's '''-root''' named by the request, after mason's '''-url''' has been stripped from the front of the URL.
+
 ----
 == Mason Architecture ==
 
