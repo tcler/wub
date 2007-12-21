@@ -86,6 +86,7 @@ namespace eval Form {
 	fieldset {vertical 0}
 	submit {alt Submit}
 	reset {alt Reset}
+	option {value ""}
     }]
 
     # default - set attribute defaults for a given tag
@@ -386,6 +387,33 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	    [<img> src /images/icons/cross.png alt ""] Cancel
 	}]]
     }]]
-
+    puts "<hr />"
+    puts [<form> yyy action http:moop.html {
+	[<fieldset> fsearch {
+	    [<submit> submit "Search"]
+	    [<text> kw title "Search Text"]
+	    [<radioset> scope title "Search scope" {
+		+site 0
+		section 1
+	    }]
+	    [<select> newer legend "Newer Than" {
+		[<option> week value "last week"]
+		[<option> fortnight value "last fortnight"]
+		[<option> month value "last month"]
+		[<option> year value "last year"]
+	    }]
+	    [<select> older legend "Older Than" {
+		[<option> week value "last week"]
+		[<option> fortnight value "last fortnight"]
+		[<option> month value "last month"]
+		[<option> year value "last year"]
+	    }]
+	    [<select> sort title "Sort By" {
+		[<option> title value title]
+		[<option> author value author]
+	    }]
+	}]
+    }]
     puts "</body>\n</html>"
+
 }
