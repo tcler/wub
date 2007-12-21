@@ -1053,7 +1053,7 @@ namespace eval Http {
 	    #set reply [Http NoCache $reply]
 	    #}
 
-	    Debug.log {Sending: [dump $reply]}
+	    #Debug.log {Sending: [dump $reply]}
 
 	    # strip http fields which don't have relevance in response
 	    dict for {n v} $reply {
