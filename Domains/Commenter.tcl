@@ -299,7 +299,7 @@ namespace eval Commenter {
 	dict for {n v} $munged {
 	    foreach context [lsort [dict keys $munged]] {
 		set val [dict get $munged $context]
-		set ns [join [split $context] &]
+		set ns [lindex [split $context] 1]
 		append result <dt> [<a> href "./ns?ns=$ns" [armour $context]] </dt>
 		append result <dd> [armour [lindex [dict get $val ""] 0]] </dd>
 	    }
@@ -311,7 +311,7 @@ namespace eval Commenter {
     proc /ns {r ns} {
 	variable display
 	Debug.error {/ns contexts: $ns}
-	return [Http Ok $r [Commenter 2html $display contexts [list $ns]]]
+	return [Http Ok $r [Commenter 2html $display contexts "*$ns"]]
     }
 
     namespace export -clear *
