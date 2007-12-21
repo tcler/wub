@@ -4,6 +4,7 @@
 
 package require ip
 package require Html
+catch {package require zlib}
 
 package provide Http 2.1
 
@@ -827,6 +828,252 @@ namespace eval Http {
 	}
 	return $reply
     }
+
+    # expunge - remove metadata from reply dict
+    proc expunge {reply} {
+	foreach n [dict keys $reply content-*] {
+	    dict unset reply $n
+	}
+
+	# discard some fields
+	Dict strip reply transfer-encoding -chunked -content
+	return $reply
+    }
+
+    # arrange gzip Transfer Encoding
+    variable chunk_size 4196	;# tiny little chunk size
+    variable gzip_bugged {}	;# these browsers can't take gzip
+
+    # gzip_content - gzip-encode the content
+    proc gzip_content {reply} {
+	if {[dict exists $reply -gzip]} {
+	    return $reply	;# it's already been gzipped
+	}
+
+	# prepend a minimal gzip file header:
+	# signature, deflate compression, no flags, mtime,
+	# xfl=0, os=3
+	set content [dict get $reply -content]
+	set gzip [binary format "H*iH*" "1f8b0800" [clock seconds] "0003"]
+	append gzip [zlib deflate $content]
+
+	# append CRC and ISIZE fields
+	append gzip [binary format i [zlib crc32 $content]]
+	append gzip [binary format i [string length $content]]
+
+	dict set reply -gzip $gzip
+	return $reply
+    }
+
+    # CE - find and effect appropriate content encoding
+    proc CE {reply args} {
+	# default to identity encoding
+	set content [dict get $reply -content]
+
+	variable ce_encodings
+	if {![dict exists $reply -gzip]
+	    && ("gzip" in [Dict get? $args -encodings])
+	} {
+	    set reply [gzip_content $reply]
+	}
+
+	# choose content encoding - but not for MSIE
+	variable chunk_size
+	variable gzip_bugged
+	if {[Dict get? $reply -ua id] ni $gzip_bugged
+	    && [dict exists $reply accept-encoding]
+	    && ![dict exists $reply content-encoding]
+	} {
+	    foreach en [split [dict get $reply accept-encoding] ","] {
+		lassign [split $en ";"] en pref
+		set en [string trim $en]
+		if {$en in $ce_encodings} {
+		    switch $en {
+			"gzip" { # substitute the gzipped form
+			    if {[dict exists $reply -gzip]} {
+				set content [dict get $reply -gzip]
+				dict set reply content-encoding gzip
+				#set reply [Http Vary $reply Accept-Encoding User-Agent]
+				if {[dict get $reply -version] > 1.0} {
+				    # this is probably redundant, since 1.0
+				    # doesn't define accept-encoding (does it?)
+				    #dict set reply -chunked $chunk_size
+				    #dict set reply transfer-encoding chunked
+				}
+				break
+			    }
+			}
+		    }
+		}
+	    }
+	}
+	return [list $reply $content]
+    }
+
+    variable etag_id [clock microseconds]
+
+    # Send - format up a reply for sending.
+    proc Send {reply args} {
+	set sock [dict get $reply -sock]
+	set cache [expr {[Dict get? $args -cache] eq "1"}]
+
+	if {[catch {
+	    # unpack and consume the reply from replies queue
+	    set code [dict get $reply -code]
+	    if {$code < 4} {
+		# this was a tcl error code, not an HTTP code
+		set code 500
+	    }
+
+	    # set the informational error message
+	    if {[dict exists $reply -error]} {
+		set errmsg [dict get $reply -error]
+	    }
+	    if {![info exists errmsg] || ($errmsg eq "")} {
+		set errmsg [Http ErrorMsg $code]
+	    }
+
+	    set header "$code $errmsg\r\n"	;# note - needs prefix
+
+	    # format up the headers
+	    if {$code != 100} {
+		append header "Date: [Http Now]" \r\n
+		set si [Dict get? $reply -server_id]
+		if {$si eq ""} {
+		    set si "The Wub"
+		}
+		append header "Server: $si" \r\n
+	    }
+
+	    # format up and send each cookie
+	    if {[dict exists $reply -cookies]} {
+		set c [dict get $reply -cookies]
+		foreach cookie [Cookies format4server $c] {
+		    append header "set-cookie: $cookie\r\n"
+		}
+	    }
+
+	    # there is content data
+	    switch -glob -- $code {
+		204 - 304 - 1* {
+		    # 1xx (informational),
+		    # 204 (no content),
+		    # and 304 (not modified)
+		    # responses MUST NOT include a message-body
+		    set reply [expunge $reply]
+		    set content ""
+		    set cache 0	;# can't cache these
+		    set empty 1
+		}
+
+		default {
+		    set empty 0
+		    if {[dict exists $reply -content]} {
+			# correctly charset-encode content
+			set reply [charset $reply]
+
+			# also gzip content so cache can store that.
+			lassign [CE $reply {*}$args] reply content
+
+			if {[dict exists $reply -chunked]} {
+			    # set up for chunking
+			    dict set reply transfer-encoding chunked
+			    catch {dict unset reply content-length}
+			} else {
+			    # ensure content-length is correct
+			    dict set reply content-length [string length $content]
+			}
+		    } else {
+			set content ""	;# there is no content
+			set empty 1	;# it's empty
+			dict set reply content-length 0
+			set cache 0	;# can't cache no content
+		    }
+		}
+	    }
+
+	    # handle Vary field and -vary dict
+	    if {[dict exists $reply -vary]} {
+		if {[dict exists $reply -vary *]} {
+		    dict set reply vary *
+		} else {
+		    dict set reply vary [join [dict keys [dict get $reply -vary]] ,]
+		}
+		dict unset reply -vary
+	    }
+
+	    # now attend to caching generated content.
+	    if {[dict get $reply content-length] == 0} {
+		set cache 0	;# can't cache no content
+	    } elseif {$cache} {
+		# use -dynamic flag to avoid caching even if it was requested
+		set cache [expr {
+				 ![dict exists $reply -dynamic]
+				 || ![dict get $reply -dynamic]
+			     }]
+
+		if {$cache && [dict exists $reply cache-control]} {
+		    set cacheable [split [dict get $reply cache-control] ,]
+		    foreach directive $cacheable {
+			set body [string trim [join [lassign [split $directive =] d] =]]
+			set d [string trim $d]
+			if {$d in {no-cache private}} {
+			    set cache 0
+			    break
+			}
+		    }
+		}
+
+		if {$cache && ![dict exists $reply etag]} {
+		    # generate an etag for cacheable responses
+		    variable etag_id
+		    dict set reply etag "\"H[incr etag_id]\""
+		}
+	    }
+
+	    if {$code >= 500} {
+		# Errors are completely dynamic - no caching!
+		set cache 0
+	    }
+
+	    # add in Auth header elements - TODO
+	    foreach challenge [Dict get? $reply -auth] {
+		append header "WWW-Authenticate: $challenge" \r\n
+	    }
+
+	    if {[dict get $reply -method] eq "HEAD"} {
+		# All responses to the HEAD request method MUST NOT
+		# include a message-body but may contain all the content
+		# header fields.
+		set empty 1
+		set content ""
+	    }
+
+	    #if {!$cache} {
+	    # dynamic stuff - no caching!
+	    #set reply [Http NoCache $reply]
+	    #}
+
+	    Debug.log {Sending: [dump $reply]}
+
+	    # strip http fields which don't have relevance in response
+	    dict for {n v} $reply {
+		set nl [string tolower $n]
+		if {$nl ni {server date}
+		    && [info exists ::Http::headers($nl)]
+		    && $::Http::headers($nl) ne "rq"
+		} {
+		    append header "$n: $v" \r\n
+		}
+	    }
+	} r eo]} {
+	    Debug.error {Sending Error: '$r' ($eo)}
+	} else {
+	    #Debug.log {Sent: ($header) ($content)}
+	}
+	return [list $reply $header $content $empty $cache]
+    }
+
 
     namespace export -clear *
     namespace ensemble create -subcommands {}
