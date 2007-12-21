@@ -141,7 +141,7 @@ namespace eval scgi {
 	    set sock [dict get $reply -sock]
 
 	    # wire-format the reply transaction
-	    lassign [Http Send $reply -cache $cache -encodings $ce_encodings] reply header content empty cache
+	    lassign [Http Send $reply -cache 0] reply header content empty cache
 	    set header "Status: $header" ;# add the SCGI signifier
 
 	    # send reply to actual server
