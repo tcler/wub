@@ -2,11 +2,11 @@
 #
 # intercepts responses and transforms content according to mime-type
 
-package provide Convert 1.0
-
 package require snit
 package require sgraph
 package require Interp
+
+package provide Convert 1.0
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
     lappend auto_path [pwd]
