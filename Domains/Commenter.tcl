@@ -285,7 +285,7 @@ namespace eval Commenter {
 
     variable path [file dirname [file dirname [file normalize [info script]]]]
     variable display ""	;#
-    proc / {} {
+    proc / {r} {
 	variable display
 	variable munged
 	if {$display eq ""} {
