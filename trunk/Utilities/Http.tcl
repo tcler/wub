@@ -886,7 +886,7 @@ namespace eval Http {
 	    foreach en [split [dict get $reply accept-encoding] ","] {
 		lassign [split $en ";"] en pref
 		set en [string trim $en]
-		if {$en in $ce_encodings} {
+		if {$en in [Dict get? $args -encoding]} {
 		    switch $en {
 			"gzip" { # substitute the gzipped form
 			    if {[dict exists $reply -gzip]} {
