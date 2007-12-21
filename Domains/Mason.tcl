@@ -2,10 +2,10 @@
 #
 # A domain to emulate Mason (http://www.masonhq.com/)
 
-package provide Mason 1.0
-
 package require snit
 package require Html
+
+package provide Mason 1.0
 
 ::snit::type Mason {
     option -url ""	;# url for top of this domain

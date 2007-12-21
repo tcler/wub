@@ -10,16 +10,6 @@ package require snit
 package provide Direct 1.0
 Debug off direct 10
 
-proc page {name alist page {body ""} {ctype "text/html"}} {
-    set whole "upvar request request\n"
-    append whole "set ctype $ctype" \n
-    append whole "set page [list $page]" \n
-    append whole $body \n
-    append whole "dict set request content-type \$ctype" \n
-    append whole "return \[subst \$page\]" \n
-    uplevel 1 [list proc $name $alist $whole]
-}
-
 ::snit::type Direct {
     option -namespace ""
     option -ctype "text/html"
@@ -116,6 +106,16 @@ namespace eval DirectTest {
     }
     proc /a/b2 {x {y y-default}} {
 	return [retval]
+    }
+
+    proc page {name alist page {body ""} {ctype "text/html"}} {
+	set whole "upvar request request\n"
+	append whole "set ctype $ctype" \n
+	append whole "set page [list $page]" \n
+	append whole $body \n
+	append whole "dict set request content-type \$ctype" \n
+	append whole "return \[subst \$page\]" \n
+	uplevel 1 [list proc $name $alist $whole]
     }
 
     page /page {args} {

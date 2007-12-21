@@ -109,6 +109,7 @@ namespace eval Commenter {
 		    #puts stderr "namespace $name"
 		}
 
+		::snit::type* -
 		snit::type* {
 		    regsub {[ \t]+} $line " " line
 		    set line [split $line]
