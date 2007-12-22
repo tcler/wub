@@ -1023,16 +1023,11 @@ namespace eval Http {
 		    }
 		}
 
-		if {$cache && ![dict exists $reply etag]} {
+		if {0 && $cache && ![dict exists $reply etag]} {
 		    # generate an etag for cacheable responses
 		    variable etag_id
 		    dict set reply etag "\"H[incr etag_id]\""
 		}
-	    }
-
-	    if {$code >= 500} {
-		# Errors are completely dynamic - no caching!
-		set cache 0
 	    }
 
 	    # add in Auth header elements - TODO
@@ -1055,6 +1050,11 @@ namespace eval Http {
 
 	    #Debug.log {Sending: [dump $reply]}
 
+	    if {$code >= 500} {
+		# Errors are completely dynamic - no caching!
+		set cache 0
+	    }
+
 	    # strip http fields which don't have relevance in response
 	    dict for {n v} $reply {
 		set nl [string tolower $n]
@@ -1066,10 +1066,16 @@ namespace eval Http {
 		}
 	    }
 	} r eo]} {
+	    if {$code >= 500} {
+		# Errors are completely dynamic - no caching!
+		set cache 0
+	    }
+
 	    Debug.error {Sending Error: '$r' ($eo)}
 	} else {
 	    #Debug.log {Sent: ($header) ($content)}
 	}
+
 	return [list $reply $header $content $empty $cache]
     }
 
