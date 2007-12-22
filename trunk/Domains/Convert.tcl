@@ -128,7 +128,7 @@ snit::type Convert {
 
 	variable tcache
 	if {[info exists tcache(${ctype}=$accept)]} {
-	    # found a cached transformation
+	    # found a cached transformation path - use it
 	    set path $tcache(${ctype}=$accept)
 	} else {
 	    # search for path through conversion graph
@@ -162,7 +162,6 @@ snit::type Convert {
 		}
 	    }
 	}
-	    
 
 	if {$path ne ""} {
 	    # there is a transforming path
@@ -201,6 +200,8 @@ snit::type Convert {
 	    set ctype [dict get $rsp content-type]
 	}
 
+	# perform each transformation on the path
+	# any step may set -raw to avoid further conversion
 	while {![dict exists $rsp -raw]
 	       && [dict exists $rsp content-type]} {
 	    # transform according to mime type
@@ -213,6 +214,7 @@ snit::type Convert {
 	    
 	    Debug.convert {Converted: [dumpMsg $rsp]}
 	}
+
 	return $rsp
     }
 
