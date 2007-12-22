@@ -259,7 +259,7 @@ proc stx::do_para {para} {
 	set f normal
     }
     
-    puts stderr "STX: $f '$para'"
+    #puts stderr "STX: $f '$para'"
     $f $para
 }
 
