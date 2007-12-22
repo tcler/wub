@@ -1,11 +1,11 @@
-# Httpd nearly-1.1 client in pure tcl.
+# Http nearly-1.1 client in pure tcl.
 package require Thread
 package require struct::queue
 package require fileutil
 
 package provide HttpdClient 1.0
 
-namespace eval Http {
+namespace eval HttpC {
     variable me [::thread::id]
     variable counter 0	;# unique prefix for thread commands
 
@@ -136,7 +136,7 @@ namespace eval Http {
 	variable host2thread; set host2thread($host,$port) $tidc; set host2thread($tid) "$host,$port"
 
 	# create an alias for the thread
-	interp alias {} $tidc {} Http::thread $tid
+	interp alias {} $tidc {} HttpC::thread $tid
 	$tidc connect $host $port {*}$args ;# open the connection
 
 	return $tidc
@@ -226,7 +226,7 @@ namespace eval Http {
 	# consider using the rchan package.
 	if {[dict exists $args -chan]} {
 	    set chanid [dict get $args -chan]
-	    dict set args -callback [list Httpd chanwrite $chanid]
+	    dict set args -callback [list HttpCd chanwrite $chanid]
 	}
 
 	# remember any callback for this host
@@ -274,7 +274,7 @@ namespace eval Http {
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
     foreach d {Utilities extensions Utilities/zlib} {
-	lappend auto_path [file join $Http::home $d]
+	lappend auto_path [file join $HttpC::home $d]
     }
 
     package require Stdin
@@ -292,14 +292,14 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     set forever 0
     vwait forever
 
-    Http get http://localhost/
-    Http get http://localhost/ connection close	;# close the connection
-    Http get http://localhost/ -callback $fn		;# call {*}fn on reception
+    HttpC get http://localhost/
+    HttpC get http://localhost/ connection close	;# close the connection
+    HttpC get http://localhost/ -callback $fn		;# call {*}fn on reception
 
-    set con [Http open localhost]; $con get http://localhost
+    set con [HttpC open localhost]; $con get http://localhost
 
     package require rchan
     set fd [chan create {read write} rchan]
-    Http get http:://localhost/ -chan $fd
+    HttpC get http:://localhost/ -chan $fd
     set content [read $fd]
 }
