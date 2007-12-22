@@ -181,6 +181,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     vwait forever
 }
 
+# support for tls Listeners
 namespace eval tls {
     proc progress {args} {
 	puts stderr "TLS: $args"
