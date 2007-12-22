@@ -277,7 +277,8 @@ namespace eval Http {
 	    dict set rsp expires [Date [clock scan $age]]
 	    set age [expr {[clock scan $age] - [clock seconds]}]
 	}
-	dict set rsp cache-control "$realm, max-age=$age"
+	#dict set rsp cache-control "$realm, max-age=$age"
+	dict set rsp cache-control $realm
 	return $rsp
     }
 
