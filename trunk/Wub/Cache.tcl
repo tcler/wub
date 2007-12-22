@@ -25,7 +25,7 @@ namespace eval Cache {
     array set keys {}
     variable cache	;# array of refcounted dicts
     array set cache {}
-    variable unique 0
+    variable unique [clock microseconds]
     variable maxsize 0	;# maximum size of object to cache
 
     proc exists? {key} {
@@ -174,14 +174,15 @@ namespace eval Cache {
 	}
 
 	if {[dict exists $req etag]} {
+	    # generator has given us an etag
 	    set etag [string trim [dict get $req etag] \"]
 	    dict unset req etag	;# we don't want to store old etag - why?
 	} else {
 	    # generate an etag
 	    variable unique
-	    set etag "[pid].[clock microseconds].[incr unique]"
+	    set etag "[pid].[incr unique]"
 	    while {[exists? $etag]} {
-		set etag "[pid].[clock microseconds].[incr unique]"
+		set etag "[pid].[incr unique]"
 	    }
 	}
 
@@ -190,7 +191,8 @@ namespace eval Cache {
 	    -content -gzip -code -url -charset -chconverted -modified
 	    -expiry
 	    content-language content-location content-md5 content-type
-	    expires last-modified cache-control}]
+	    expires last-modified cache-control
+	}]
 	set cached [dict merge $cached [Dict subset $req $::Http::rs_headers]]
 
 	# add new fields for server cache control
