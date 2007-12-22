@@ -180,9 +180,9 @@ namespace eval Cache {
 	} else {
 	    # generate an etag
 	    variable unique
-	    set etag "W[pid]U[incr unique]B"
+	    set etag "WUB[incr unique]"
 	    while {[exists? $etag]} {
-		set etag "W[pid]U[incr unique]B"
+		set etag "WUB[incr unique]"
 	    }
 	}
 
