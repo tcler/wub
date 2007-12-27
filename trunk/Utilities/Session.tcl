@@ -1,4 +1,4 @@
-# mkSession - handle Session vars stored in a mk db, indexed by a cookie slot.
+# Session - handle Session vars stored in a mk db, indexed by a cookie slot.
 #
 # This is to be run in the main thread, and to amend the -session var in
 # a request, to be passed to Workers.
