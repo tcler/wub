@@ -413,6 +413,15 @@ namespace eval Cookies {
 	return $cdict
     }
 
+    # decode cookie header into a request
+    proc 4Server {req} {
+	if {[dict exists $req -cookies]} {
+	    return $req
+	}
+	dict set req -cookies [parse4server [Dict get? $req cookie]]
+	return $req
+    }
+
     # load cookies from a client's request
     proc load_client_cookies {req} {
 	if {[dict exists $rsp cookie]} {
