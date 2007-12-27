@@ -1,5 +1,9 @@
 # View.tcl - Wrapper around Metakit
 
+if {[info exists argv0] && ($argv0 eq [info script])} {
+    lappend auto_path /usr/lib/tcl8.5/Mk4tcl ../extensions/
+}
+
 package require Mk4tcl
 package require functional
 package require Debug
@@ -165,8 +169,8 @@ namespace eval View {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
-	mk::row append $view {*}$args
-	set result [expr {[mk::view size $view] - 1}]
+	set cursor [mk::row append $view {*}$args]
+	lassign [split $cursor !] row result
 	Debug.view {append $view keys: '[dict keys $args]' -> $result}
 	return $result
     }
@@ -225,6 +229,15 @@ namespace eval View {
 	return $pretty
     }
 
+    # return field names within view
+    method _names {view} {
+	set result {}
+	foreach f [split [$view properties]] {
+	    lappend result [split $f :]
+	}
+	return $result
+    }
+
     # initialize view ensemble
     proc init {cmd vpath} {
 	lassign [split $vpath .] db view
@@ -248,6 +261,7 @@ namespace eval View {
 	    set "_set $vpath"
 	    incr "_incr $vpath"
 	    dlappend "_dlappend $vpath"
+	    names "_names $vpath"
 	}]
 
 	namespace ensemble create \
