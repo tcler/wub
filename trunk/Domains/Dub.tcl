@@ -138,11 +138,16 @@ namespace eval Dub {
 	    mk::file views db
 	    # we expect threads to be created *after* the db is initialized
 	    variable toplevel 0
-	} views]} {
+	} vlist]} {
 	    # this is the top level process, need to create a db
 	    variable toplevel 1
 	    variable db
 	    mk::file open db $db -shared
+	} else {
+	    variable views
+	    foreach v $vlist {
+		set views($v) [View init v$v db.$v]
+	    }
 	}
     }
 
