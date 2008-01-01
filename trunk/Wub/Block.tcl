@@ -24,8 +24,12 @@ namespace eval Block {
 	array set blocked [fileutil::cat [file join $logdir blocked]]
     }
 
-    proc blocklist {} {
+    proc blockdict {} {
 	variable blocked
+	set result {}
+	foreach {n v} [array get blocked] {
+	    lappend result $n [list -site $n -when [clock format [lindex $v 0]] -why [lindex $v 1]]
+	}
 	return [array get blocked]
     }
 
