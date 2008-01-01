@@ -21,7 +21,9 @@ namespace eval Block {
     proc init {args} {
 	variable {*}$args
 	variable blocked
-	array set blocked [fileutil::cat [file join $logdir blocked]]
+	catch {
+	    array set blocked [fileutil::cat [file join $logdir blocked]]
+	}
     }
 
     proc blockdict {} {
