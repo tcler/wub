@@ -153,6 +153,9 @@ namespace eval Httpd {
     variable max_conn 10	;# max connections per IP
     variable connbyIP		;# count of connections
     array set connbyIP {}
+    variable too_many		;# how many times has this IP address been told?
+    array set too_many {}
+    variable no_really 3	;# after this many max_conns - it's blocked
 
     # connect - process a connection request
     proc Connect {sock ipaddr rport args} {
@@ -182,7 +185,14 @@ namespace eval Httpd {
 	    && [incr connbyIP($ipaddr)] > $max_conn
 	} {
 	    # Too many connections for $ipaddr - no more than $max_conn
-	    Debug.log {Too many connections for $ipaddr}
+	    variable too_many
+	    variable no_really
+	    if {[incr too_many($ipaddr)] > $no_really} {
+		# this client has been told repeatedly - block it.
+		Block block $ipaddr "Repeatedly too many connections"
+	    } else {
+		Debug.log {Too many connections for $ipaddr}
+	    }
 	    exhausted $sock
 	    incr connbyIP($ipaddr) -1
 	    return
