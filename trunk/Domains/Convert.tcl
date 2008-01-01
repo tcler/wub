@@ -148,6 +148,15 @@ snit::type Convert {
 		} else {
 		    set q [lindex [split $q =] 1]
 		}
+
+		# fix bogus quality values
+		if {![string is double -strict $q]} {
+		    if {[string is integer -strict $q]} {
+			set q "${q}.0"
+		    } else {
+			set q 1.0
+		    }
+		}
 		lappend acceptable [list $a $q]
 	    }
 
