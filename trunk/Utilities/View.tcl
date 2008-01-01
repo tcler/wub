@@ -230,7 +230,7 @@ namespace eval View {
     }
 
     # return field names within view
-    method _names {view} {
+    proc _names {view} {
 	set result {}
 	foreach f [split [$view properties]] {
 	    lappend result [split $f :]
