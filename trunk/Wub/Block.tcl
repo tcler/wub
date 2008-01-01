@@ -9,6 +9,7 @@ namespace eval Block {
     proc block {ipaddr {reason ""}} {
 	variable blocked
 	set blocked($ipaddr) [list [clock seconds] $reason]
+	variable logdir
 	::fileutil::appendToFile [file join $logdir blocked] "$ipaddr [list $blocked($ipaddr)]\n"
 	Debug.block {BLOCKING: $ipaddr $reason}
     }
@@ -21,6 +22,7 @@ namespace eval Block {
     proc init {args} {
 	variable {*}$args
 	variable blocked
+	variable logdir
 	catch {
 	    array set blocked [fileutil::cat [file join $logdir blocked]]
 	}
