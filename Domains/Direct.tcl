@@ -10,7 +10,7 @@ Debug off direct 10
 
 namespace eval Direct {
     proc _do {ns ctype response} {
-	Debug.direct {do direct}
+	Debug.direct {do direct $ns $ctype}
 	# get query dict
 	set qd [Query parse $response]
 	dict set response -Query $qd
@@ -71,7 +71,6 @@ namespace eval Direct {
 
 	catch {dict unset response -content}
 	Debug.direct {calling $cmd $response $argl} 2
-	#puts stderr "RAAAR: '$cmd' '$response' '$argl'"
 	set response [dict merge $response [$cmd $response {*}$argl]]
 
 	#Debug.direct {Content: '[dict get $response -content]'} 2
