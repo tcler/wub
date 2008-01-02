@@ -8,7 +8,6 @@
 
 package require snit
 package require sgraph
-package require Interp
 
 package provide Convert 1.0
 
