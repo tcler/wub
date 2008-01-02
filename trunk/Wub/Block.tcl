@@ -1,3 +1,5 @@
+# Block - manage a block list of sites
+
 package require fileutil
 
 package provide Block 2.0
