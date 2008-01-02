@@ -14,7 +14,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     lappend auto_path [pwd]
 }
 
-namespace Convert {
+namespace eval Convert {
     variable conversions 1	;# include some default conversions
     variable namespace
 
