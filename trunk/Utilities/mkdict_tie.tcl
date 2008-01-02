@@ -1,1 +1,0 @@
-../tclDb/mkdict_tie.tcl
