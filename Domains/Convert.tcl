@@ -6,7 +6,6 @@
 # (which are commands of the form .mime/type.mime/type)
 #
 
-package require snit
 package require sgraph
 
 package provide Convert 1.0
@@ -15,35 +14,37 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     lappend auto_path [pwd]
 }
 
-snit::type Convert {
-    option -conversions 1	;# include some default conversions
+namespace Convert {
+    variable conversions 1	;# include some default conversions
+    variable namespace
 
-    option -namespace -configuremethod set_namespace
-    method set_namespace {option value} {
-	lappend options($option) $value
-    }
-
-    variable paths -array {}
+    variable paths
+    array set paths {}
     variable graph	;# transformation graph - all known transforms
-    variable transform -array {}	;# set of mappings from,to mime-types
+    variable transform	;# set of mappings from,to mime-types
+    array set transform {}
 
     # Transform - add a single transform to the transformation graph
-    method Transform {from to args} {
+    proc Transform {from to args} {
 	set prefix ${from},$to
+	variable transform
 	set transform($prefix) $args
+	variable graph
 	dict lappend graph $from $to
     }
 
     # set of mappings mime-type to postprocess script
-    variable postprocess -array {}
+    variable postprocess
+    array set postprocess {}
 
     # Postprocess - add a postprocessor to the set of postprocessors
-    method Postprocess {from args} {
+    proc Postprocess {from args} {
+	variable postprocess
 	set postprocess($from) $args
     }
 
     # Namespace - add all transformers and postprocessors from the namespace
-    method Namespace {ns} {
+    proc Namespace {ns} {
 
 	# scan the namespace looking for translators
 	# which are commands of the form .mime/type.mime/type
@@ -51,7 +52,7 @@ snit::type Convert {
 	Debug.convert {Convert Namespace $ns transformers - $candidates}
 	foreach candidate $candidates {
 	    lassign [split $candidate .] -> from to
-	    $self Transform $from $to namespace eval $ns $candidate
+	    Transform $from $to namespace eval $ns $candidate
 	}
 
 	# scan the namespace looking for postprocessors
@@ -61,15 +62,17 @@ snit::type Convert {
 	Debug.convert {Convert Namespace $ns postprocessors - $candidates}
 	foreach candidate $candidates {
 	    if {[lassign [split $candidate .] x from] eq ""} {
-		$self Postprocess $from namespace eval $ns $candidate
+		Postprocess $from namespace eval $ns $candidate
 	    }
 	}
     }
 
     # path - return a path through the transformation graph
     # between source 'from' and sink 'to'
-    method path {from to} {
+    proc path {from to} {
+	variable graph
 	Debug.convert {path $from -> $to ($graph)}
+	variable paths
 	if {[info exists paths($from,$to)]} {
 	    return $paths($from,$to)
 	}
@@ -92,10 +95,10 @@ snit::type Convert {
     }
 
     # perform applicable postprocess on content of given type
-    method postprocess {rsp} {
+    proc postprocess {rsp} {
 	set ctype [dict get $rsp content-type]
 	Debug.convert {postprocess: $ctype}
-
+	variable postprocess
 	if {[info exists postprocess($ctype)]} {
 	    # there is a postprocessor
 	    
@@ -112,7 +115,7 @@ snit::type Convert {
     variable tcache	;# cache of known transformations
 
     # perform applicable transformations on content
-    method transform {rsp} {
+    proc transform {rsp} {
 	Debug.convert {transform: [dumpMsg $rsp]}
 
 	if {![dict exists $rsp accept]} {
@@ -163,7 +166,7 @@ snit::type Convert {
 	    foreach a [lsort -real -decreasing -index 1 $acceptable] {
 		set a [lindex $a 0]
 		Debug.convert {trying '$ctype,$a'}
-		set path [$self path $ctype $a]
+		set path [path $ctype $a]
 		if {$path ne {}} {
 		    set tcache(${ctype}=$accept) $path
 		    break
@@ -177,6 +180,7 @@ snit::type Convert {
 	    set rsp [Http loadContent $rsp] ;# read -fd content if any
 	    
 	    # perform transformations on path
+	    variable transform
 	    foreach el $path {
 		Debug.convert {transform element: $el with '$transform($el)'}
 		if {![set code [catch {
@@ -199,12 +203,12 @@ snit::type Convert {
     }
 
     # Convert - perform all content negotiation on a Wub response
-    method Convert {rsp} {
+    proc Convert {rsp} {
 	Debug.convert {Converting}
 
 	# perform any postprocessing on input type
 	if {[dict exists $rsp content-type]} {
-	    set rsp [$self postprocess $rsp]
+	    set rsp [postprocess $rsp]
 	    set ctype [dict get $rsp content-type]
 	}
 
@@ -213,11 +217,11 @@ snit::type Convert {
 	while {![dict exists $rsp -raw]
 	       && [dict exists $rsp content-type]} {
 	    # transform according to mime type
-	    set rsp [$self transform $rsp]
+	    set rsp [transform $rsp]
 	    
 	    # perform any postprocessing on *transformed* type
 	    if {$ctype ne [dict get $rsp content-type]} {
-		set rsp [$self postprocess $rsp]
+		set rsp [postprocess $rsp]
 	    }
 	    
 	    Debug.convert {Converted: [dumpMsg $rsp]}
@@ -227,15 +231,17 @@ snit::type Convert {
     }
 
     # Convert! - perform a specified transformation on a Wub response
-    method Convert! {rq mime to content} {
+    proc Convert! {rq mime to content} {
 	dict set rq accept $to
 	dict set rq content-type $mime
 	dict set rq -content $content
-	return [$self Convert $rq]
+	return [Convert $rq]
     }
 
     # do - perform content negotiation and transformation
-    method do {rsp} {
+    proc do {rsp} {
+	variable transform
+	variable postprocess
 	Debug.convert {Respond: [dumpMsg $rsp]
 	    with: [array get transform]
 	    postproc: [array get postprocess]
@@ -249,7 +255,7 @@ snit::type Convert {
 
 	# perform the content negotiation
 	set code [catch {
-	    $self Convert $rsp	;# perform conversion
+	    Convert $rsp	;# perform conversion
 	} r eo]
 
 	if {$code} {
@@ -267,19 +273,20 @@ snit::type Convert {
 	return $rsp
     }
 
-    constructor {args} {
-	$self configurelist $args
+    proc init {args} {
+	variable {*}$args
 
-	if {$options(-conversions)} {
+	variable conversions
+	if {$conversions} {
 	    package require conversions
-	    $self Namespace ::conversions
+	    Namespace ::conversions
 	}
 
-	foreach ns $options(-namespace) {
-	    $self Namespace ::$ns
+	foreach {n ns} $args {
+	    if {$n eq "namespace"} {
+		Namespace ::$ns
+	    }
 	}
-
-	Debug.convert {Convert graph: $graph}
     }
 }
 
