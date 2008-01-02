@@ -31,7 +31,7 @@ if {[info exists starkit::topdir]} {
     # set up home directory relative to script
     set home [file normalize [file dirname [info script]]]
     set topdir [file normalize [file dirname $home]]
-    foreach lib {Mime extensions Wub Domains stx Utilities tclDb} {
+    foreach lib {Mime extensions Wub Domains stx Utilities} {
 	lappend auto_path [file join $topdir $lib]
     }
     lappend auto_path $home
@@ -108,7 +108,7 @@ if {$profile} {
     ::profiler::resume
 }
 
-set sdb [Db ::Session::sdb -file [file join $sessionroot session.db] -shared 1]
+#set sdb [Db ::Session::sdb -file [file join $sessionroot session.db] -shared 1]
 
 puts stderr "STARTING BACKENDS"
 package require Backend
