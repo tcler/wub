@@ -87,7 +87,7 @@ namespace eval Direct {
 	set cmd [uplevel 1 namespace current]::$cmd
 
 	namespace ensemble create \
-	    -command $cmd -subcommands {}
+	    -command $cmd -subcommands {} \
 	    -map [subst {
 		do "_do $ctype $namespace"
 	    }]
