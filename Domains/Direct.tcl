@@ -89,7 +89,7 @@ namespace eval Direct {
 	namespace ensemble create \
 	    -command $cmd -subcommands {} \
 	    -map [subst {
-		do "_do $ctype $namespace"
+		do "_do $namespace $ctype"
 	    }]
 
 	return $cmd
