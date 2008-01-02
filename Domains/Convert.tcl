@@ -274,7 +274,9 @@ namespace eval Convert {
     }
 
     proc init {args} {
-	variable {*}$args
+	if {$args ne {}} {
+	    variable {*}$args
+	}
 
 	variable conversions
 	if {$conversions} {
