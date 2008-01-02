@@ -1,26 +1,20 @@
 # Direct.tcl - direct domain handler, like tclhttpd's
 #
-# TODO: wildcard dispatch, /photo/1234 handled by photo::/*, etc.
-#  consider using the namespace unknown better for this.
+# Provides wildcard dispatch, /photo/1234 handled by photo::/default
 
 package require Query
 package require Debug
-package require snit
 
 package provide Direct 1.0
 Debug off direct 10
 
-::snit::type Direct {
-    option -namespace ""
-    option -ctype "text/html"
-
-    method do {response} {
+namespace eval Direct {
+    method _do {ns ctype response} {
 	Debug.direct {do direct}
 	# get query dict
 	set qd [Query parse $response]
 	dict set response -Query $qd
 
-	set ns $options(-namespace)
 	set fn [file rootname [dict get $response -suffix]]	;# remove extension
 	set cmd ${ns}::/[string trimleft [armour $fn] /]
 	if {[info procs $cmd] eq {}} {
@@ -71,7 +65,7 @@ Debug off direct 10
 	}
 
 	# TODO: armour commands
-	dict set response content-type $options(-ctype)
+	dict set response content-type $ctype
 	#dict set response cache-control no-cache	;# default - not cacheable
 	dict set response -dynamic 1
 
@@ -84,46 +78,26 @@ Debug off direct 10
 	return $response
     }
 
-    constructor {args} {
-	Debug.direct {Direct constructor: $args}
-	$self configurelist $args
-	if {$options(-namespace) eq ""} {
-	    error "-namespace must be specified"
+    proc init {cmd args} {
+	set ctype "text/html"
+	foreach {n v} $args {
+	    set $n $v
 	}
-    }
-}
 
-namespace eval DirectTest {
-    proc retval {} {
-	return "<html><body>[info level -1]</body></html>"
-    }
-    
-    proc /a {args} {
-	return [retval]
-    }
-    proc /a/b1 {x y} {
-	return [retval]
-    }
-    proc /a/b2 {x {y y-default}} {
-	return [retval]
+	set cmd [uplevel 1 namespace current]::$cmd
+	variable namespace
+	variable ctype
+	set map 
+
+	namespace ensemble create \
+	    -command $cmd -subcommands {}
+	    -map [subst {
+		do "_do $ctype $namespace"
+	    }]
+
+	return $cmd
     }
 
-    proc page {name alist page {body ""} {ctype "text/html"}} {
-	set whole "upvar request request\n"
-	append whole "set ctype $ctype" \n
-	append whole "set page [list $page]" \n
-	append whole $body \n
-	append whole "dict set request content-type \$ctype" \n
-	append whole "return \[subst \$page\]" \n
-	uplevel 1 [list proc $name $alist $whole]
-    }
-
-    page /page {args} {
-	<h1> Test Page Generator </h1>
-	<p>Time: [clock scan now]</p>
-	<p>Count: $counter</p>
-	<p>Args: $args</p>
-    } {
-	variable counter; incr counter
-    }
+    namespace export -clear *
+    namespace ensemble create -subcommands {}
 }
