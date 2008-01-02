@@ -34,7 +34,7 @@ namespace eval Block {
 	foreach {n v} [array get blocked] {
 	    lappend result $n [list -site $n -when [clock format [lindex $v 0]] -why [lindex $v 1]]
 	}
-	return [array get blocked]
+	return $result
     }
 
     namespace export -clear *
