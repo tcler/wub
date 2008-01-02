@@ -9,7 +9,7 @@ package provide Direct 1.0
 Debug off direct 10
 
 namespace eval Direct {
-    method _do {ns ctype response} {
+    proc _do {ns ctype response} {
 	Debug.direct {do direct}
 	# get query dict
 	set qd [Query parse $response]
