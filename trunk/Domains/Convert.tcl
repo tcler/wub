@@ -288,6 +288,9 @@ namespace Convert {
 	    }
 	}
     }
+
+    namespace export -clear *
+    namespace ensemble create -subcommands {}
 }
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
