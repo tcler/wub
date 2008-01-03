@@ -65,6 +65,8 @@ namespace eval Direct {
 
 	# remove suffix's extension and trim /s
 	set fn [string trim [file rootname $suffix] /]
+	dict set response -suffix $fn
+
 	set cmd ${ns}::/[armour $fn]
 	if {[info procs $cmd] eq {}} {
 	    # no match - use wildcard proc
