@@ -4,6 +4,7 @@
 
 package require ip
 package require Html
+package require Url
 catch {package require zlib}
 
 package provide Http 2.1
@@ -592,7 +593,9 @@ namespace eval Http {
     }
 
     # internal redirection generator
-    proc genRedirect {title code rsp to {content ""} {ctype "text/html"}} {
+    proc genRedirect {title code rsp to {content ""} {ctype "text/html"} args} {
+	set to [Url redir $rsp $to $args]
+
 	if {$content eq ""} {
 	    dict set rsp content-type "text/html"
 	    dict set rsp -content "<html>\n<head>\n<title>$title</title>\n</head>\n<body>\n<h1>$title</h1>\n<p>The page may be found here: <a href='[armour $to]'>[armour $to]</a></p>\n</body>\n</html>\n"
@@ -630,20 +633,12 @@ namespace eval Http {
 
     # construct an HTTP Redirect response
     proc Redirect {rsp to {content ""} {ctype "text/html"} args} {
-	set query {}
-	foreach {name val} $args {
-	    lappend query "$name=[Query encode $val]"
-	}
-	if {$query ne {}} {
-	    append to ? [join $query &]
-	}
-
-	return [Http genRedirect Redirect 302 $rsp $to $content $ctype]
+	return [Http genRedirect Redirect 302 $rsp $to $content $ctype $args]
     }
 
-    # construct a simple HTTP Redirect response
+    # construct a simple HTTP Redirect response with extra query
     proc Redir {rsp to args} {
-	return [Redirect $rsp $to "" "" {*}$args]
+	return [Http genRedirect Redirect 302 $rsp $to "" "" $args]
     }
 
     # construct an HTTP Redirect response to Referer of request
@@ -652,34 +647,27 @@ namespace eval Http {
 	if {$ref eq ""} {
 	    set ref /
 	}
-	set query {}
-	foreach {name val} $args {
-	    lappend query "$name=[Query encode $val]"
-	}
-	if {$query ne {}} {
-	    append ref ? [join $query &]
-	}
-	return [Redirect $rsp $ref]
+	return [Http genRedirect Redirect 302 $rsp $to "" "" $args]
     }
 
     # construct an HTTP Found response
-    proc Found {rsp to {content ""} {ctype "text/html"}} {
-	return [Http genRedirect Redirect 302 $rsp $to $content $ctype]
+    proc Found {rsp to {content ""} {ctype "text/html"} args} {
+	return [Http genRedirect Redirect 302 $rsp $to $content $ctype $args]
     }
 
     # construct an HTTP Relocated response
-    proc Relocated {rsp to {content ""} {ctype "text/html"}} {
-	return [Http genRedirect Relocated 307 $rsp $to $content $ctype]
+    proc Relocated {rsp to {content ""} {ctype "text/html"} args} {
+	return [Http genRedirect Relocated 307 $rsp $to $content $ctype $args]
     }
     
     # construct an HTTP SeeOther response
-    proc SeeOther {rsp to {content ""} {ctype "text/html"}} {
-	return [Http genRedirect SeeOther 303 $rsp $to $content $ctype]
+    proc SeeOther {rsp to {content ""} {ctype "text/html"} args} {
+	return [Http genRedirect SeeOther 303 $rsp $to $content $ctype $args]
     }
 
     # construct an HTTP Moved response
-    proc Moved {rsp to {content ""} {ctype "text/html"}} {
-	return [Http genRedirect Moved 301 $rsp $to $content $ctype]
+    proc Moved {rsp to {content ""} {ctype "text/html"} args} {
+	return [Http genRedirect Moved 301 $rsp $to $content $ctype $args]
     }
 
     

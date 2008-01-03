@@ -1,7 +1,9 @@
 # Url - support for URL manipulation
 
-package provide Url 1.0
+package require Query
 package require Dict
+
+package provide Url 1.0
 
 namespace eval Url {
 
@@ -115,8 +117,8 @@ namespace eval Url {
 	set result [url $x]
 
 	foreach {part pre post} {
-	    -fragment \# ""
 	    -query ? ""
+	    -fragment \# ""
 	} {
 	    if {[dict exists $x $part]} {
 		append result "${pre}[dict get $x $part]${post}"
@@ -162,10 +164,22 @@ namespace eval Url {
     }
 
     # process a possibly local URI for redirection
-    proc redir {dict to} {
-	set todict [parse $to 0]
+    proc redir {dict to args} {
+	set todict [parse $to 0]	;# parse the destination URL
 
-	if {[dict exists $todict host]
+	# parse args as additional -query elements
+	set query {}
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	foreach {name val} $args {
+	    lappend query "$name='[Query encode $val]'"
+	}
+	if {$query ne {}} {
+	    dict append todict -query ? [join $query &]
+	}
+	
+	if {[dict exists $todict -host]
 	    && ([dict get $todict -host] ne [dict get $dict -host])} {
 	    # this is a remote URL
 	    set to [uri $todict]
