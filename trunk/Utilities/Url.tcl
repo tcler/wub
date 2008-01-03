@@ -184,8 +184,9 @@ namespace eval Url {
 	    }
 	}
 
-	if {[dict exists $todict -host]
-	    && ([dict get $todict -host] ne [dict get $dict -host])} {
+	if {([Dict get? $todict -host] ne [Dict get? $dict -host])
+	    || ([Dict get? $todict -port] ne [Dict get? $dict -port])	    
+	} {
 	    # this is a remote URL
 	    set to [uri $todict]
 	} else {
