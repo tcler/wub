@@ -592,7 +592,7 @@ namespace eval Http {
     }
 
     # internal redirection generator
-    proc genRedirect {title code rsp to content ctype} {
+    proc genRedirect {title code rsp to {content ""} {ctype "text/html"}} {
 	if {$content eq ""} {
 	    dict set rsp content-type "text/html"
 	    dict set rsp -content "<html>\n<head>\n<title>$title</title>\n</head>\n<body>\n<h1>$title</h1>\n<p>The page may be found here: <a href='[armour $to]'>[armour $to]</a></p>\n</body>\n</html>\n"
@@ -639,6 +639,19 @@ namespace eval Http {
 	}
 
 	return [Http genRedirect Redirect 302 $rsp $to $content $ctype]
+    }
+
+    # construct a simple HTTP Redirect response
+    proc Redir {rsp to args} {
+	set query {}
+	foreach {name val} $args {
+	    lappend query "$name=[Query encode $val]"
+	}
+	if {$query ne {}} {
+	    append to ? [join $query &]
+	}
+
+	return [Http genRedirect Redirect 302 $rsp $to]
     }
 
     # construct an HTTP Redirect response to Referer of request
