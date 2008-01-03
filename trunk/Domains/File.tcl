@@ -12,6 +12,7 @@ package require Mime
 # TODO - some kind of permissions system
 
 ::snit::type File {
+    option -prefix "/"
     option -root ""
     option -hide {^([.].*)|(.*~)$}
     option -superimpose 0
@@ -155,7 +156,20 @@ package require Mime
     method do {req} {
 	Debug.dispatch {File}
 
-	set suffix [dict get $req -suffix]
+	if {[dict exists $req -suffix]} {
+	    # caller has munged path already
+	    set suffix [dict get $req -suffix]
+	} else {
+	    # assume we've been parsed by package Url
+	    # remove the specified prefix from path, giving suffix
+	    set suffix [Url pstrip [file split $options(-prefix)] [dict get $req -path]]
+	    if {[string match "/*" $suffix]} {
+		# path isn't inside our domain suffix - error
+		return [Http NotFound $req]
+	    }
+	    dict set req -suffix $suffix
+	}
+
 	set ext [file extension $suffix]
 	set path [file join $options(-root) $suffix]
 	#dict set req -path $path
