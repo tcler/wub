@@ -10,3 +10,4 @@ package ifneeded Activity 2.0 [list source [file join $dir Activity.tcl]]
 package ifneeded Block 2.0 [list source [file join $dir Block.tcl]]
 
 package ifneeded Backend 1.0 [list source [file join $dir Backend.tcl]]
+package ifneeded Site 1.0 [list source [file join $dir Site.tcl]]
