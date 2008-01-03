@@ -45,7 +45,7 @@ namespace eval Listener {
 	if {[catch {
 	    # start tls on port
 	    if {[Dict get? $opts -tls] ne ""} {
-		::tls::import $sock -command tls::progress {*}[Dict get? $opts -tls]
+		::tls::import $sock -command ::Listener::progress {*}[Dict get? $opts -tls]
 	    }
 
 	    # select an Http object to handle incoming
@@ -70,6 +70,7 @@ namespace eval Listener {
 	    if {[Dict get? $args -tls] eq ""} {
 		set cmd socket
 	    } else {
+		package require tls
 		::tls::init \
 		    -ssl2 1 \
 		    -ssl3 1 \
@@ -77,7 +78,7 @@ namespace eval Listener {
 		    -require 0 \
 		    -request 0
 	    
-		set cmd [list tls::socket -command tls::progress {*}[dict get $args -tls]]
+		set cmd [list tls::socket -command ::Listener::progress {*}[dict get $args -tls]]
 	    }
 
 	    lappend cmd -server [namespace code [list accept $args]]
@@ -106,6 +107,11 @@ namespace eval Listener {
 	foreach listen [array names listeners] {
 	    catch {close $listen}
 	}
+    }
+
+    proc progress {args} {
+	puts stderr "TLS: $args"
+	return 1
     }
 
     namespace export -clear *
@@ -179,17 +185,4 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 
     set forever 0
     vwait forever
-}
-
-# support for tls Listeners
-namespace eval tls {
-    proc progress {args} {
-	puts stderr "TLS: $args"
-	return 1
-    }
-
-    proc password {args} {
-	puts stderr "Asking password $args"
-	return "sample"
-    }
 }
