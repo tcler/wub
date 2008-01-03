@@ -1,3 +1,4 @@
+package require struct::queue
 package provide Responder 1.0
 
 namespace eval Responder {
