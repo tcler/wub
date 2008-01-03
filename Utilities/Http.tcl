@@ -643,15 +643,7 @@ namespace eval Http {
 
     # construct a simple HTTP Redirect response
     proc Redir {rsp to args} {
-	set query {}
-	foreach {name val} $args {
-	    lappend query "$name=[Query encode $val]"
-	}
-	if {$query ne {}} {
-	    append to ? [join $query &]
-	}
-
-	return [Http genRedirect Redirect 302 $rsp $to]
+	return [Redirect $rsp $to "" "" {*}$args]
     }
 
     # construct an HTTP Redirect response to Referer of request
