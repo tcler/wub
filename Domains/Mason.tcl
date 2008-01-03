@@ -323,6 +323,21 @@ package provide Mason 1.0
     method do {req} {
 	Debug.dispatch {do}
 	dict set req -root $options(-root)
+
+	if {[dict exists $req -suffix]} {
+	    # caller has munged path already
+	    set suffix [dict get $req -suffix]
+	} else {
+	    # assume we've been parsed by package Url
+	    # remove the specified prefix from path, giving suffix
+	    set suffix [Url pstrip [file split $options(-url)] [dict get $req -path]]
+	    if {[string match "/*" $suffix]} {
+		# path isn't inside our domain suffix - error
+		return [Http NotFound $req]
+	    }
+	    dict set req -suffix $suffix
+	}
+
 	set req [$self auth $req]	;# authenticate - must not be caught!
 	dict set req -dynamic 0		;# default: static content
 	set rsp [$self mason $req]	;# process request
