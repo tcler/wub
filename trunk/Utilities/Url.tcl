@@ -176,16 +176,15 @@ namespace eval Url {
 	    lappend query "$name=[Query encode $val]"
 	}
 	if {$query ne {}} {
-	    set q [Dict get? $todict -query]
-	    if {$q eq ""} {
-		dict set todict -query [join $query &]
+	    if {[dict exists $todict -query]} {
+		dict append todict -query & [join $query &]
 	    } else {
-		dict append todict -query $q & [join $query &]
+		dict set todict -query [join $query &]
 	    }
 	}
 
 	if {([Dict get? $todict -host] ne [Dict get? $dict -host])
-	    || ([Dict get? $todict -port] ne [Dict get? $dict -port])	    
+	    || ([Dict get? $todict -port] ne [Dict get? $dict -port])
 	} {
 	    # this is a remote URL
 	    set to [uri $todict]
@@ -195,9 +194,11 @@ namespace eval Url {
 	    set port [dict get $dict -port]
 	    set path [dict get $dict -path]
 	    set npath [dict get $todict -path]
+
 	    if {[file pathtype $npath] eq "relative"} {
 		set npath [normalize [file join $path $npath]]
 	    }
+
 	    set to [uri [dict replace $todict \
 			     -path $npath \
 			     -host $host \
