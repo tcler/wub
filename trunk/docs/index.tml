@@ -58,6 +58,11 @@
 	<p class='list2'><a href='docs/Server'>Server</a></p>
 	<p class='list2'><a href='docs/Domains'>Domains</a></p>
 	<p class='list2'><a href='docs/Utilities'>Utilities</a></p>
+	<p class='list2'><a href='/code'>Packages</a></p>
+	<p class='list1'>Instrospection</p>
+	<p class='list2'><a href='/introspect/block'>Blocked</a></p>
+	<p class='list2'><a href='/introspect/cache'>Cache</a></p>
+	<p class='list2'><a href='/introspect/cclear'>Clear Cache</a></p>
 	<p class='listend'></p>
 	
 	<!-- <h2>Server stats:</h2>
