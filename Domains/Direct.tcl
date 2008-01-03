@@ -19,6 +19,24 @@ package provide Direct 1.0
 Debug off direct 10
 
 namespace eval Direct {
+
+    # strip off path prefix - from ::fileutil
+    proc pstrip {prefix path} {
+	# [file split] is used to generate a canonical form for both
+	# paths, for easy comparison, and also one which is easy to modify
+	# using list commands.
+	if {[string equal $prefix $path]} {
+	    return ""
+	}
+	
+	set npath [file split $path]
+	if {[string match ${prefix}* $npath]} {
+	    return [file join {*}[lrange $npath [llength $prefix] end]]
+	} else {
+	    return $path
+	}
+    }
+
     # called as "do $request" causes procs defined within 
     # the specified namespace to be invoked, with the request as an argument,
     # expecting a response result.
@@ -31,20 +49,22 @@ namespace eval Direct {
 
 	if {[dict exists $response -suffix]} {
 	    # caller has munged path already
-	    set suffix [string trimleft [dict get $response -suffix] /]
+	    set suffix [dict get $response -suffix]
 	} else {
 	    # assume we've been parsed by package Url
 	    # remove the specified prefix from path, giving suffix
-	    set suffix [::fileutil::stripPath $prefix [dict get $response -path]]
-	    if {$suffix eq "."} {
-		set suffix ""
-	    } elseif {[string match "/*" $suffix]} {
+	    set suffix [pstrip $prefix [dict get $response -path]]
+	    if {[string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
 		return [Http NotFound $response]
 	    }
 	}
 
-	set fn [file rootname $suffix]	;# remove extension
+	# record the suffix's extension
+	dict set response -extension [file extension $suffix]
+
+	# remove suffix's extension and trim /s
+	set fn [string trim [file rootname $suffix] /]
 	set cmd ${ns}::/[armour $fn]
 	if {[info procs $cmd] eq {}} {
 	    # no match - use wildcard proc
@@ -123,7 +143,7 @@ namespace eval Direct {
 	namespace ensemble create \
 	    -command $cmd -subcommands {} \
 	    -map [subst {
-		do "_do $namespace $ctype $prefix"
+		do "_do $namespace $ctype [file split $prefix]"
 	    }]
 
 	return $cmd
