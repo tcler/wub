@@ -13,29 +13,13 @@
 #  fred do $r
 
 package require Query
+package require Url
 package require Debug
 
 package provide Direct 1.0
 Debug off direct 10
 
 namespace eval Direct {
-
-    # strip off path prefix - from ::fileutil
-    proc pstrip {prefix path} {
-	# [file split] is used to generate a canonical form for both
-	# paths, for easy comparison, and also one which is easy to modify
-	# using list commands.
-	if {[string equal $prefix $path]} {
-	    return ""
-	}
-	
-	set npath [file split $path]
-	if {[string match ${prefix}* $npath]} {
-	    return [file join {*}[lrange $npath [llength $prefix] end] {}]
-	} else {
-	    return $path
-	}
-    }
 
     # called as "do $request" causes procs defined within 
     # the specified namespace to be invoked, with the request as an argument,
@@ -53,7 +37,7 @@ namespace eval Direct {
 	} else {
 	    # assume we've been parsed by package Url
 	    # remove the specified prefix from path, giving suffix
-	    set suffix [pstrip $prefix [dict get $response -path]]
+	    set suffix [Url pstrip $prefix [dict get $response -path]]
 	    if {[string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
 		return [Http NotFound $response]
