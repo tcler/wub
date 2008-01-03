@@ -1,6 +1,16 @@
 # Direct.tcl - direct domain handler, like tclhttpd's
 #
 # Provides wildcard dispatch, /photo/1234 handled by photo::/default
+#
+# Examples:
+#  1) Create a Direct domain handler (fred) which will interpret URLs 
+#  with a prefix /fred/ as proc calls within a namespace ::Fred
+#
+#   Direct fred namespace ::Fred prefix /fred/
+#
+#  2) Using [fred] domain handler to interpret a request $r:
+#
+#  fred do $r
 
 package require Query
 package require Debug
@@ -9,22 +19,41 @@ package provide Direct 1.0
 Debug off direct 10
 
 namespace eval Direct {
-    proc _do {ns ctype response} {
+    # called as "do $request" causes procs defined within 
+    # the specified namespace to be invoked, with the request as an argument,
+    # expecting a response result.
+    proc _do {ns ctype prefix response} {
 	Debug.direct {do direct $ns $ctype}
+
 	# get query dict
 	set qd [Query parse $response]
 	dict set response -Query $qd
 
-	set fn [file rootname [dict get $response -suffix]]	;# remove extension
-	set cmd ${ns}::/[string trimleft [armour $fn] /]
+	if {[dict exists $response -suffix]} {
+	    # caller has munged path already
+	    set suffix [string trimleft [dict get $response -suffix] /]
+	} else {
+	    # assume we've been parsed by package Url
+	    # remove the specified prefix from path, giving suffix
+	    set suffix [::fileutil::stripPath $prefix [dict get $response -path]]
+	    if {$suffix eq "."} {
+		set suffix ""
+	    } elseif {[string match "/*" $suffix]} {
+		# path isn't inside our domain suffix - error
+		return [Http NotFound $response]
+	    }
+	}
+
+	set fn [file rootname $suffix]	;# remove extension
+	set cmd ${ns}::/[armour $fn]
 	if {[info procs $cmd] eq {}} {
+	    # no match - use wildcard proc
 	    set cmd ${ns}::/default
 	    if {[info procs $cmd] eq {}} {
 		Debug.direct {$cmd not found looking for $fn ([info procs ${ns}::/*])}
 		return [Http NotFound $response]
 	    }
 	}
-
 
 	set params [lrange [info args $cmd] 1 end]
 	array set used {}
@@ -77,8 +106,14 @@ namespace eval Direct {
 	return $response
     }
 
+    # init cmd {namespace ns} {ctype default-mime-type} {prefix prefix-of-domain}
+    # creates cmd command proxy/interface to procs within $ns called /name,
+    # which will be invoked with Query args from the request assigned to actual
+    # parameters of matching proc, procs are matched from the -path or -suffix
+    # components of the passed request
     proc init {cmd args} {
 	set ctype "text/html"
+	set prefix "/"
 	foreach {n v} $args {
 	    set $n $v
 	}
@@ -88,7 +123,7 @@ namespace eval Direct {
 	namespace ensemble create \
 	    -command $cmd -subcommands {} \
 	    -map [subst {
-		do "_do $namespace $ctype"
+		do "_do $namespace $ctype $prefix"
 	    }]
 
 	return $cmd
