@@ -176,9 +176,14 @@ namespace eval Url {
 	    lappend query "$name='[Query encode $val]'"
 	}
 	if {$query ne {}} {
-	    dict append todict -query [join $query &]
+	    set q [Dict get? $todict -query]
+	    if {$q eq ""} {
+		dict set todict -query [join $query &]
+	    } else {
+		dict append todict -query $q & [join $query &]
+	    }
 	}
-	
+
 	if {[dict exists $todict -host]
 	    && ([dict get $todict -host] ne [dict get $dict -host])} {
 	    # this is a remote URL
