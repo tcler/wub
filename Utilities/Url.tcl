@@ -176,7 +176,7 @@ namespace eval Url {
 	    lappend query "$name='[Query encode $val]'"
 	}
 	if {$query ne {}} {
-	    dict append todict -query ? [join $query &]
+	    dict append todict -query [join $query &]
 	}
 	
 	if {[dict exists $todict -host]
