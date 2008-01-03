@@ -4,6 +4,24 @@ package provide Url 1.0
 package require Dict
 
 namespace eval Url {
+
+    # strip off path prefix - from ::fileutil
+    proc pstrip {prefix path} {
+	# [file split] is used to generate a canonical form for both
+	# paths, for easy comparison, and also one which is easy to modify
+	# using list commands.
+	if {[string equal $prefix $path]} {
+	    return ""
+	}
+	
+	set npath [file split $path]
+	if {[string match ${prefix}* $npath]} {
+	    return [file join {*}[lrange $npath [llength $prefix] end] {}]
+	} else {
+	    return $path
+	}
+    }
+
     # normalize -- 
     #
     #	collapse and normalize //, ../ and . components to avoid tricks
