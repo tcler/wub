@@ -31,7 +31,7 @@ namespace eval Direct {
 	
 	set npath [file split $path]
 	if {[string match ${prefix}* $npath]} {
-	    return [file join {*}[lrange $npath [llength $prefix] end]]
+	    return [file join {*}[lrange $npath [llength $prefix] end] {}]
 	} else {
 	    return $path
 	}
