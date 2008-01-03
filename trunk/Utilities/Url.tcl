@@ -173,7 +173,7 @@ namespace eval Url {
 	    set args [lindex $args 0]
 	}
 	foreach {name val} $args {
-	    lappend query "$name='[Query encode $val]'"
+	    lappend query "$name=[Query encode $val]"
 	}
 	if {$query ne {}} {
 	    set q [Dict get? $todict -query]
