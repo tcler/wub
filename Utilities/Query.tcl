@@ -95,6 +95,7 @@ namespace eval Query {
     # Side Effects:
 
     proc qparse {qstring count {ct "NONE"}} {
+	Debug.query {qparse $ct - [string range $qstring 0 80]}
 	switch -glob -- $ct {
 	    text/xml -
 	    application/x-www-form-urlencoded -
@@ -218,18 +219,27 @@ namespace eval Query {
 	    set entity [Dict get? $http -entity]
 	    lassign [qparse $entity $count $ct] query1 count
 	    set query1 [charset $query1]
-	    Debug.query {qparsed $query1}
+	    Debug.query {qparsed [string range $query1 0 80]...}
 	    dict for {n v} $query1 {
 		while {$v ne {}} {
 		    set v [lassign $v val meta]
-		    Debug.query {meta: $n $val $meta - $query}
+		    Debug.query {meta: $n [string range $val 0 80]... $meta - $query}
 		    dict lappend query $n $val $meta
 		}
 	    }
-	    Debug.query {meta $query}
+	    Debug.query {meta [string range $query 0 80]...}
 	}
 
 	return $query
+    }
+
+    # dump query dict
+    proc dump {qd} {
+	set result {}
+	foreach name [dict keys $qd] {
+	    lappend result [list $name [string range [value $qd $name] 0 80] [metadata $qd $name]]
+	}
+	return $result
     }
 
     # numvalues -- how many values does a named element have?
@@ -413,6 +423,7 @@ namespace eval Query {
 		    }
 		}
 		lappend paramList $key $val
+		Debug.query {parseMimeValue $key: '[string range $val 0 80]...'}
 	    }
 	}
 	
@@ -469,11 +480,14 @@ namespace eval Query {
 	    error "Not a multipart Content-Type: [lindex $parsedType 0]"
 	}
 
+	Debug.query {multipart parsed Mime Values $type '$parsedType'}
 	array set options [lindex $parsedType 1]
 	if {![info exists options(boundary)]} {
 	    error "No boundary given for multipart document"
 	}
 	set boundary $options(boundary)
+
+	Debug.query {multipart options $type '[array get options]'}
 	
 	# The query data is typically read in binary mode, which preserves
 	# the \r\n sequence from a Windows-based browser.
@@ -571,8 +585,10 @@ namespace eval Query {
 	
 	set q [dict create]
 	dict for {n v} $results {
-	    dict lappend q $n $v
+	    Debug.query {multipart result $n '[string range $v 0 80]...'}
+	    dict lappend q $n {*}$v
 	}
+	Debug.query {headers: $headers}
 	return [list $q $count]
     }
 
