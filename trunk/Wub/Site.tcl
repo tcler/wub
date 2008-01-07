@@ -67,6 +67,8 @@ namespace eval Site {
 	set $name $val	;# set global config vars
     }
 
+    variable url "http://$host:[dict get $listener -port]/"
+
     if {[info exists ::starkit::topdir]} {
 	# starkit startup
 	variable topdir $::starkit::topdir
@@ -92,6 +94,7 @@ namespace eval Site {
     # uncomment to turn off caching for testing
     # package provide Cache 2.0 ; proc Cache args {return {}}
     foreach package {
+	Httpd
 	Debug Http Html Cache Listener Block
 	File Mason Convert Direct Mime
 	Url Query Form Cookies
@@ -99,28 +102,10 @@ namespace eval Site {
     } {
 	package require $package
     }
-
+    
     # install default conversions
     Convert init
     Convert Namespace ::MConvert	;# add Mason conversions
-
-    #### initialize Block
-    Block init logdir $docroot
-
-    #### Cache init
-    Cache init maxsize 204800
-
-    #### Mime init
-    Mime::Init -dsname [file join $home ext2mime.tie]
-
-    #### Console init
-    if {$cmdport eq ""} {
-	package require Stdin
-	Stdin start	;# start a command shell on stdin
-    } elseif {$cmdport > 0} {
-	package require Stdin
-	Stdin start $cmdport ;# start a command shell on localhost,$cmdport
-    }
 
     #### Debug init - set some reasonable Debug narrative levels
     Debug on error 100
@@ -131,9 +116,12 @@ namespace eval Site {
     Debug off http 2
     Debug off cache 10
     Debug off cookies 10
-    Debug off dispatch 10
-    Debug off wikit 10
     Debug off direct 10
+    Debug off dispatch 10
+    Debug off query 10
+    Debug off direct 10
+    Debug off convert 10
+    Debug off cookies 10
 
     # backend may be in this thread. store its config in ::config()
     variable backend
@@ -144,6 +132,24 @@ namespace eval Site {
     proc start {args} {
 	if {$args ne {}} {
 	    variable {*}$args
+	}
+
+	#### initialize Block
+	Block init logdir $docroot
+
+	#### Cache init
+	Cache init maxsize 204800
+
+	#### Mime init
+	Mime::Init -dsname [file join $home ext2mime.tie]
+
+	#### Console init
+	if {$cmdport eq ""} {
+	    package require Stdin
+	    Stdin start	;# start a command shell on stdin
+	} elseif {$cmdport > 0} {
+	    package require Stdin
+	    Stdin start $cmdport ;# start a command shell on localhost,$cmdport
 	}
 
 	variable multi
@@ -174,11 +180,14 @@ namespace eval Site {
 	}
 
 	variable host
+	variable docroot
 
 	#### start Listener
 	variable listener
 	if {[dict exists $listener -port] && ([dict get $listener -port] > 0)} {
 	    Listener listen -host $host -httpd Httpd {*}$listener
+	    
+	    Debug.log {Listening on http://$host:[dict get $listener -port]/ using docroot $docroot}
 	}
 
 	#### start scgi Listener
@@ -187,6 +196,7 @@ namespace eval Site {
 	    package require scgi
 	    Debug on scgi 10
 	    Listener listen -host $host -httpd scgi {*}$scgi
+	    Debug.log {Listening on scgi $host [dict get $scgi -port] using docroot $docroot}
 	}
 
 	#### Load local semantics from ./local.tcl
