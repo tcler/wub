@@ -57,7 +57,11 @@ namespace eval Debug {
 	variable detail
 	set result {}
 	foreach n [lsort [array names detail]] {
-	    lappend result $n $detail($n)
+	    if {[interp alias {} Debug.$n] ne "Debug::noop"} {
+		lappend result $n $detail($n)
+	    } else {
+		lappend result $n -$detail($n)
+	    }
 	}
 	return $result
     }
@@ -103,6 +107,7 @@ Debug off cookies
 Debug off db
 Debug off dblayout
 Debug off dispatch
+Debug off entity
 Debug off file
 Debug off home
 Debug off host
