@@ -470,18 +470,24 @@ namespace eval HttpdWorker {
     # read the entity, informing parent when complete
     proc identity {sock length} {
 	cancel $sock rxtimer
-
+	Debug.error {identity from '$sock' ('$length' remaining)}
 	upvar #0 ::HttpdWorker::requests($sock) request
 	if {[catch {
 	    # read as much of the entity as is available
-	    dict set request -left [expr {$length - [string bytelength [dict get $request -entity]]}]
-	    dict append request -entity [read $sock [dict get $request -left]]
+	    dict set request -left [expr {$length - [string length [dict get $request -entity]]}]
+	    Debug.error {identity reading from '$sock' ([dict get $request -left])}
 
-	    if {[string bytelength [dict get $request -entity]] == $length} {
+	    dict append request -entity [read $sock [dict get $request -left]]
+	    Debug.error {identity read [string length [dict get $request -entity]]/$length from '$sock' ()}
+
+	    if {[string length [dict get $request -entity]] == $length} {
 		readable $sock	;# disable reading
 		# completed entity - invoke continuation
+		Debug.error {identity read complete - '[Dict get? $request -te]'}
 		foreach te [Dict get? $request -te] {
-		    $te $sock
+		    if {$te in {chunked deflate compress gzip}} {
+			$te $sock
+		    }
 		}
 		got $request
 	    } else {
@@ -598,6 +604,7 @@ namespace eval HttpdWorker {
 	after $sock rxtimer $enttime "entity timeout"
 	start_transfer $sock
 	dict set request -entity "" ;# clear any old entity
+
 	readable $sock identity $sock $length
 
 	return 0	;# we'll be handling the channel
