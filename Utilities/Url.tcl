@@ -7,6 +7,12 @@ package provide Url 1.0
 
 namespace eval Url {
 
+    # flatten the -path into a -suffix
+    proc flatten {req} {
+	dict set req -suffix [file tail [dict get $req -path]]
+	return $req
+    }
+
     # strip off path prefix - from ::fileutil
     proc pstrip {prefix path} {
 	# [file split] is used to generate a canonical form for both
@@ -20,7 +26,7 @@ namespace eval Url {
 	if {[string match ${prefix}* $npath]} {
 	    return [file join {*}[lrange $npath [llength $prefix] end] {}]
 	} else {
-	    return $path
+	    return /$path
 	}
     }
 
