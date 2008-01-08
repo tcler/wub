@@ -147,6 +147,8 @@ namespace eval Html {
 	    }]]]
 	    [If {$footer ne {}} {
 		[<tfoot> [<tr> [Foreach t $footer {[<th> $t]}]]]
+	    } else {
+		[<tfoot> [<tr> [Foreach t $header {[<th> $t]}]]]
 	    }]
 	    [<tbody> [Foreach {k v} $dict {
 		[<tr> class [If {[incr row] % 2} even else odd] \
