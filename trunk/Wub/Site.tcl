@@ -102,7 +102,7 @@ namespace eval Site {
     } {
 	package require $package
     }
-    
+
     # install default conversions
     Convert init
     Convert Namespace ::MConvert	;# add Mason conversions
@@ -111,7 +111,7 @@ namespace eval Site {
     Debug on error 100
     Debug on log 10
     Debug on block 10
-    
+
     Debug off socket 10
     Debug off http 2
     Debug off cache 10
@@ -133,6 +133,7 @@ namespace eval Site {
 	if {$args ne {}} {
 	    variable {*}$args
 	}
+	variable docroot ; variable home ; variable cmdport
 
 	#### initialize Block
 	Block init logdir $docroot
@@ -163,7 +164,7 @@ namespace eval Site {
 
 	    variable backend
 	    Backend configure {*}$backend mkmutex [thread::mutex create]
-	    
+
 	    package require HttpdThread	;# choose multithreaded
 	} else {
 	    package require HttpdSingle	;# choose singlethreaded
@@ -186,7 +187,7 @@ namespace eval Site {
 	variable listener
 	if {[dict exists $listener -port] && ([dict get $listener -port] > 0)} {
 	    Listener listen -host $host -httpd Httpd {*}$listener
-	    
+
 	    Debug.log {Listening on http://$host:[dict get $listener -port]/ using docroot $docroot}
 	}
 
