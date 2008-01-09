@@ -122,7 +122,7 @@ namespace eval Html {
 		[<th> [string totitle $t]]
 	    }]]]
 	    [If {$footer ne {}} {
-		[<tfoot> [<tr> [Foreach t $footer {[<th> $t]}]]]
+		[<tfoot> [<tr> [Foreach t $footer {[<th> [string totitle $t]]}]]]
 	    }]
 	    [<tbody> [Foreach {k v} $dict {
 		[<tr> class [If {[incr row] % 2} even else odd] \
@@ -141,14 +141,14 @@ namespace eval Html {
     # provisional new version
     proc dict2table {dict header {footer {}} {tag ""}} {
 	set row 0
-	return [<table> class sortable [If {$tag ne ""} { class $tag }] [subst {
+	return [<table> class sortable {*}[If {$tag ne ""} { class $tag }] [subst {
 	    [<thead> [<tr> [Foreach t $header {
 		[<th> class $t [string totitle $t]]
 	    }]]]
 	    [If {$footer ne {}} {
-		[<tfoot> [<tr> [Foreach t $footer {[<th> $t]}]]]
+		[<tfoot> [<tr> [Foreach t $footer {[<th> [string totitle $t]]}]]]
 	    } else {
-		[<tfoot> [<tr> [Foreach t $header {[<th> $t]}]]]
+		[<tfoot> [<tr> [Foreach t $header {[<th> [string totitle $t]]}]]]
 	    }]
 	    [<tbody> [Foreach {k v} $dict {
 		[<tr> class [If {[incr row] % 2} even else odd] \
