@@ -43,7 +43,7 @@ namespace eval RAM {
 
 	if {$args ne {}} {
 	    # calculate an accurate content length
-	    lappend args content-length [llength [lindex $args 0]]
+	    lappend args content-length [string length [lindex $args 0]]
 	    set ram($prefix$key) $args
 	}
 
