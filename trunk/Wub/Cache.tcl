@@ -203,6 +203,9 @@ namespace eval Cache {
 	dict set cached -hits 0
 	dict set cached -unmod 0
 	dict set cached -ifmod 0
+	if {![dict exists $cached -modified]} {
+	    dict set cached -modified [clock seconds]
+	}
 
 	Debug.cache {cache entry: [set x $cached; dict set x -gzip <ELIDED>; dict set x -content <ELIDED>; return $x]} 4
 
