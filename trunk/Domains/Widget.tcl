@@ -7,8 +7,15 @@ package provide Widget 1.0
 
 RAM init Widget /widget/
 
-Widget set login.stx "" content-type x-text/stx
-    
+# Documentation for Login widget
+Widget set login.doc {
+= Login Widget =
+
+This widget generates a Form containing Username and Password suitable for transclusion or inclusion in a page.
+} content-type x-text/stx
+
+# Login HTML component - suitable for transclusion as /widget/login.html
+# or inclusion via [Widget get login.html]
 Widget set login.html [<form> login \
 			   action "" \
 			   method post \
@@ -24,12 +31,17 @@ Widget set login.html [<form> login \
 			       }]]
 
 			       [<submit> submit tabindex 3 Login]
-			       [<script> type text/javascript src /widget/login.js ""]
+			       [<script> type text/javascript src /widget/overlabel.js ""]
 			   }] content-type x-text/html-fragment -headers [list [<style> type text/css {@import url(/widget/login.css);}]]
 
-Widget set login.js {
+Widget set overlabel.stx {
+This is derived from http://www.alistapart.com/articles/makingcompactformsmoreaccessible
+} content-type x-text/stx
+
+# overlabel.js - overlabel widget
+Widget set overlabel.js {
     function initOverLabels () {
-	if (!document.getElementById) return;      
+	if (!document.getElementById) return;
 	
 	var labels, id, field;
 
