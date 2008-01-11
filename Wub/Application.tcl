@@ -67,7 +67,7 @@ RAM init ram /ram/
 ram set test.html "[<h1> Test][<p> {This is a test of RAM domain.  You should see it in RED.}]" content-type x-text/html-fragment -headers [list [<style> type text/css {@import url(/ram/test.css);}]]
 
 # declares /ram/test.css is a CSS which colours the <body> red
-ram set test.css "{body {color: red} \;}" content-type text/css
+ram set test.css "body {color: red} ;" content-type text/css
 
 #### introspection: example of a direct domain
 # Implemented as a Direct domain, used to introspect the server.
