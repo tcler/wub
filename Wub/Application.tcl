@@ -58,7 +58,7 @@ variable robots {User-agent: *
 #### ram: RAM domain
 #
 package require RAM
-Debug on RAM 10
+Debug off RAM 10
 # Declare a RAM domain, invoked by [ram], whose URL prefix is /ram/
 RAM init ram /ram/
 
@@ -71,7 +71,6 @@ ram set test.css "body {color: red} ;" content-type text/css
 
 #### Widgets package
 # provides a bunch of HTML/JS/CSS widget sets
-
 package require Widget
 
 #### introspection: example of a direct domain
