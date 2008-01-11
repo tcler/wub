@@ -20,3 +20,4 @@ package ifneeded Commenter 1.0 [list source [file join $dir Commenter.tcl]]
 #package ifneeded WubTest 1.0 [list source [file join $dir WubTest.tcl]]
 
 package ifneeded RAM  1.0 [list source [file join $dir RAM.tcl]]
+package ifneeded Widget 1.0 [list source [file join $dir Widget.tcl]]
