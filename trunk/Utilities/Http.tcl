@@ -294,10 +294,8 @@ namespace eval Http {
 	# new ctype passed in?
 	if {$ctype ne ""} {
 	    dict set rsp content-type $ctype
-	} else {
-	    if {![dict exists $rsp content-type]} {
-		dict set rsp content-type "text/html"
-	    }
+	} elseif {![dict exists $rsp content-type]} {
+	    dict set rsp content-type "text/html"
 	}
 	return $rsp
     }
