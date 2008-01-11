@@ -23,7 +23,7 @@ proc stx2html::tagstart {what} {
 
 # redefine subst - we only ever want commands in this application
 proc stx2html::subst {what} {
-    #puts stderr "subst: $what"
+    Debug.STX {subst: $what}
     return [::subst -nobackslashes -novariables $what]
 }
 
@@ -42,7 +42,7 @@ proc stx2html::pre {para args} {
 proc stx2html::special {para args} {
     set p [split $para]
     set cmd [string tolower [lindex $p 0]]
-    #puts stderr "special: $cmd"
+    Debug.STX {special: $cmd}
     if {[llength [info commands "_$cmd"]] == 1} {
 	set para [_$cmd [lrange $p 1 end]]
     } else {
@@ -57,7 +57,7 @@ proc stx2html::_title {args} {
 }
 
 proc stx2html::_message {args} {
-    puts stderr "Message: [join $args]"
+    Debug.log {STX Message: [join $args]}
     return ""
 }
 
@@ -111,13 +111,13 @@ proc stx2html::dlist {args} {
 }
 
 proc stx2html::dl {term def} {
-    #puts stderr "DL: $term / $def"
+    Debug.STX {2HTML DL: $term / $def}
     return "<dt>[subst $term]</dt>\n<dd>[subst $def]</dd>\n"
 }
 
 # make list item
 proc stx2html::li {content args} {
-    puts "2HTML: '$content' '$args'"
+    Debug.STX {2HTML li: '$content' '$args'}
     return "[subst $content]\n[join $args]\n"
 }
 
@@ -175,7 +175,7 @@ proc stx2html::ref {what} {
     set proto [split $what :]
     set body [join [lrange $proto 1 end] :]
     set proto [lindex $proto 0]
-    #puts "ref '$proto' '$body'"
+    Debug.STX {2HTML ref '$proto' '$body'}
     switch -- $proto {
 	http {
 	    set body [split $body]
@@ -267,7 +267,7 @@ proc stx2html::ref_org {what} {
     } else {
 	set proto ""
     }
-    puts stderr "ref '$proto' '$body'"
+    Debug.STX {ref '$proto' '$body'}
     switch -- $proto {
 	http {
 	    set body [split $body]
@@ -276,7 +276,7 @@ proc stx2html::ref_org {what} {
 	    if {$text eq ""} {
 		set text "http:$body"
 	    }
-	    #puts stderr "http:  ... $body"
+	    Debug.STX {body http:  ... $body}
 	    if {![string match /* $body]} {
 		set what "<a href='$body'>$text</a>"
 	    } else {
