@@ -1,5 +1,6 @@
-package provide stx2html 1.1
 package require stx
+
+package provide stx2html 1.1
 
 namespace eval stx2html {
     variable features
