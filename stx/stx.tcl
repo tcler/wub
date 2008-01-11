@@ -1,4 +1,7 @@
 package require struct::tree
+package require Debug
+Debug off STX
+
 package provide stx 1.1
 
 namespace eval stx {
@@ -23,6 +26,11 @@ namespace eval stx {
 	\x83 li
     }
     variable state {}
+}
+
+proc stx::undent {text} {
+    package require textutil
+    return [::textutil::undent $text]
 }
 
 # count the number of characters in the set 'leadin'
@@ -82,7 +90,7 @@ proc stx::unlist {{new {}}} {
 	# get the changes: undo set, then add set
 	set undo [lrange $path $match end]
 	set add [lrange $new $match end]
-	#puts stderr "Path: $path New: $new / $match / Undo: $undo Add: $add"
+	Debug.STX {unlist Path: $path New: $new / $match / Undo: $undo Add: $add} 10
 
 	# unwind the cursor, moving up the tree
 	while {[llength $undo]} {
@@ -122,12 +130,12 @@ proc stx::char {text} {
     } $text]
     # handle naked http references
     regsub -all {([^[]|^)(http:[^ ]+)} $text {\1[http:\2]} text
-    #puts stderr "Char: '$text'"
+	Debug.STX {Char: '$text'} 30
     variable refs
 	#puts stderr "ENCODING REFS: $text"
     while {[regexp -- {\[[^]]+\]} $text ref]} {
 	set index [array size refs]
-	#puts stderr "ENCODE REF: $index $ref"
+	Debug.STX {ENCODE REF: $index $ref} 10
 	set refs($index) [string trim $ref {[]}]
 	regsub -- {\[[^]]+\]} $text "(\x86$index)" text
     }
@@ -195,7 +203,7 @@ proc stx::indent {para} {
 
 # preprocess for header elements
 proc stx::header {para} {
-    #puts stderr "HEADER: $para"
+    Debug.STX {HEADER: $para}
     set count [count $para =]	;# depth of header nesting
     set para [string trimleft $para =] ;# strip leading ='s
 
@@ -228,7 +236,7 @@ proc stx::header {para} {
 # preprocess for list elements
 proc stx::li {para} {
     set count [count $para "\#*"]	;# how many list levels deep?
-    #puts stderr "li $count '$para'"
+    Debug.STX {li $count '$para'}
     set li [string range $para 0 [expr {$count - 1}]]	;# list prefix
     set li [split [string trim [string map {\# "ol " * "ul "} $li]]]
     set para [string trim [string range $para $count end]]	;# content
@@ -243,7 +251,7 @@ proc stx::dlist {para {cpath ""}} {
     set term [lindex $pp 0]
     set def [string trim [join [lrange $pp 1 end] ": "]]
     set dlnode [newnode dl dlist]
-    #puts stderr "DLIST: '$para' - '[char $para]' - [char $term]"
+    Debug.STX {DLIST: '$para' - '[char $para]' - [char $term]}
     nodecdata $dlnode $term	;#OR: nodecdata $dlnode $term ?
     nodecdata $dlnode $def
 }
@@ -259,7 +267,7 @@ proc stx::do_para {para} {
 	set f normal
     }
     
-    #puts stderr "STX: $f '$para'"
+    Debug.STX {do_para $f '$para'}
     $f $para
 }
 
@@ -329,13 +337,13 @@ proc stx::translate {text {tagstart 0}} {
     #puts stderr "STX REFSUBBING"
     variable refs
     while {[regexp -- {[(]\x86([^)]+)[)]} $result index]} {
-	#puts stderr "STX REFSUB $index -> $refs([string trim $index \x86()])"
+	Debug.STX {REFSUB $index -> $refs([string trim $index \x86()])}
 	regsub -- {[(]\x86[^)]+[)]} $result "\[ref \{$refs([string trim $index \x86()])\}\]" result
     }
 
     catch {unset refs}
     set refs() ""
     unset refs()
-    #puts stderr "STX RESULT: ${result}"
+    Debug.STX {RESULT: ${result}}
     return ${result}
 }
