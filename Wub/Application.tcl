@@ -62,12 +62,17 @@ Debug on RAM 10
 # Declare a RAM domain, invoked by [ram], whose URL prefix is /ram/
 RAM init ram /ram/
 
-# Declares /ram/test.html which is an html-fragment test.html which includes
+# Declares /ram/test.html which is an literal html-fragment including
 # a <head> <style> element which includes /ram/test.css
 ram set test.html "[<h1> Test][<p> {This is a test of RAM domain.  You should see it in RED.}]" content-type x-text/html-fragment -headers [list [<style> type text/css {@import url(/ram/test.css);}]]
 
 # declares /ram/test.css is a CSS which colours the <body> red
 ram set test.css "body {color: red} ;" content-type text/css
+
+#### Widgets package
+# provides a bunch of HTML/JS/CSS widget sets
+
+package require Widget
 
 #### introspection: example of a direct domain
 # Implemented as a Direct domain, used to introspect the server.
@@ -122,6 +127,11 @@ proc Incoming {req} {
     set rsp [Responder Incoming $req -glob -- [dict get $req -path] {
 	/ {
 	    Http Redir $req "/wub"
+	}
+
+	/widget/* -
+	/widget/ {
+	    Widget do $req
 	}
 
 	/ram/* -
