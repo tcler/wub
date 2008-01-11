@@ -1,5 +1,5 @@
-package provide stx 1.1
 package require struct::tree
+package provide stx 1.1
 
 namespace eval stx {
     variable path	;# current path in tree
@@ -228,7 +228,7 @@ proc stx::header {para} {
 # preprocess for list elements
 proc stx::li {para} {
     set count [count $para "\#*"]	;# how many list levels deep?
-    puts stderr "li $count '$para'"
+    #puts stderr "li $count '$para'"
     set li [string range $para 0 [expr {$count - 1}]]	;# list prefix
     set li [split [string trim [string map {\# "ol " * "ul "} $li]]]
     set para [string trim [string range $para $count end]]	;# content
