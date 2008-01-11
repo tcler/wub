@@ -25,19 +25,23 @@ namespace eval Direct {
     # the specified namespace to be invoked, with the request as an argument,
     # expecting a response result.
     proc _do {ns ctype prefix response} {
-	Debug.direct {do direct $ns $ctype}
+	Debug.direct {do direct $ns $prefix $ctype}
 
 	# get query dict
 	set qd [Query parse $response]
 	dict set response -Query $qd
+	Debug.direct {Query: [Query dump $qd]}
 
 	if {[dict exists $response -suffix]} {
 	    # caller has munged path already
 	    set suffix [dict get $response -suffix]
+	    Debug.direct {-suffix given $suffix}
 	} else {
 	    # assume we've been parsed by package Url
 	    # remove the specified prefix from path, giving suffix
-	    set suffix [Url pstrip $prefix [dict get $response -path]]
+	    set path [file rootname [dict get $response -path]]
+	    set suffix [Url pstrip $prefix $path]
+	    Debug.direct {-suffix not given - calculated '$suffix' from '$prefix' and '$path'}
 	    if {[string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
 		return [Http NotFound $response]
@@ -54,9 +58,10 @@ namespace eval Direct {
 	set cmd ${ns}::/[armour $fn]
 	if {[info procs $cmd] eq {}} {
 	    # no match - use wildcard proc
+	    Debug.direct {$cmd not found looking for $fn in '$ns' ([info procs ${ns}::/*])}
 	    set cmd ${ns}::/default
 	    if {[info procs $cmd] eq {}} {
-		Debug.direct {$cmd not found looking for $fn ([info procs ${ns}::/*])}
+		Debug.direct {default not found looking for $cmd in ([info procs ${ns}::/*])}
 		return [Http NotFound $response]
 	    }
 	}
@@ -65,7 +70,7 @@ namespace eval Direct {
 	array set used {}
 	set needargs 0
 	set argl {}
-	Debug.direct {cmd:$cmd params:$params ($qd)}
+	Debug.direct {cmd: '$cmd' params:$params [dict keys $qd]}
 	foreach arg $params {
 	    if {[Query exists $qd $arg]} {
 		Debug.direct {param $arg exists} 2
@@ -74,27 +79,28 @@ namespace eval Direct {
 		    Debug.direct {multiple $arg: [Query values $qd $arg]} 2
 		    lappend argl [Query values $qd $arg]
 		} else {
-		    Debug.direct {single $arg: [Query value $qd $arg]} 2
+		    Debug.direct {single $arg: [string range [Query value $qd $arg] 0 80]...} 2
 		    lappend argl [Query value $qd $arg]
 		}
+	    } elseif {$arg eq "args"} {
+		set needargs 1
 	    } else {
-		Debug.direct {param $arg does not exist} 2
+		Debug.direct {param '$arg' does not exist} 2
 		if {[info default $cmd $arg value]} {
 		    Debug.direct {default $arg: $value} 2
 		    lappend argl $value
-		} elseif {$arg eq "args"} {
-		    set needargs 1
 		} else {
 		    lappend argl {}
 		}
 	    }
 	}
 
+	set argll {}
 	if {$needargs} {
 	    foreach {name value} [Query flatten $qd] {
 		if {![info exists used($name)]} {
-		    Debug.direct {args $name: $value} 2
-		    lappend argl $name $value
+		    Debug.direct {args $name: [string range $value 0 80]...} 2
+		    lappend argll $name $value
 		}
 	    }
 	}
@@ -105,8 +111,8 @@ namespace eval Direct {
 	dict set response -dynamic 1
 
 	catch {dict unset response -content}
-	Debug.direct {calling $cmd $response $argl} 2
-	set response [dict merge $response [$cmd $response {*}$argl]]
+	Debug.direct {calling $cmd [string range $argl 0 80]... [dict keys $argll]} 2
+	set response [dict merge $response [$cmd $response {*}$argl {*}$argll]]
 
 	#Debug.direct {Content: '[dict get $response -content]'} 2
 	return $response
