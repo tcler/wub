@@ -37,6 +37,12 @@ namespace eval RAM {
 	return [Http Ok $rsp]
     }
 
+    # _get - gets keyed content only
+    proc _get {prefix key} {
+	variable ram
+	return [lindex $ram($prefix$key) 0]
+    }
+
     # _set - assumes first arg is content, rest are to be merged
     proc _set {prefix key args} {
 	variable ram
@@ -59,6 +65,7 @@ namespace eval RAM {
 	    -command $cmd -subcommands {} \
 	    -map [subst {
 		set "_set $prefix"
+		get "_get $prefix"
 		do "_do $prefix"
 	    }]
 
