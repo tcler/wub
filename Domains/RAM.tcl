@@ -9,6 +9,7 @@ Debug off RAM 10
 
 namespace eval RAM {
     variable ram
+    variable content_type x-text/html-fragment
 
     # called as "do $request" returns the value stored in this RAM to be returned.
     proc _do {prefix rsp} {
@@ -32,7 +33,8 @@ namespace eval RAM {
 
 	variable ram
 	Debug.RAM {exists ram $prefix$suffix [info exists ram($prefix$suffix)]}
-	set rsp [dict merge $rsp [list -content {*}$ram($prefix$suffix)]]
+	variable content_type
+	set rsp [dict merge $rsp [list content-type $content_type -content {*}$ram($prefix$suffix)]]
 
 	return [Http Ok $rsp]
     }
@@ -59,8 +61,10 @@ namespace eval RAM {
 
     # initialize view ensemble for RAM
     proc init {cmd prefix args} {
+	if {$args ne {}} {
+	    variable {*}$args
+	}
 	set cmd [uplevel 1 namespace current]::$cmd
-
 	namespace ensemble create \
 	    -command $cmd -subcommands {} \
 	    -map [subst {
@@ -68,14 +72,6 @@ namespace eval RAM {
 		get "_get $prefix"
 		do "_do $prefix"
 	    }]
-
-	foreach {n v} $args {
-	    if {[catch {
-		_set $prefix $n {*}$v
-	    } r eo]} {
-		Debug.error {RAM domain $cmd - key '$n' value: '$v', $r ($eo)}
-	    }
-	}
 
 	return $cmd
     }
