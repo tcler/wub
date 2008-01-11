@@ -27,5 +27,6 @@ package ifneeded passgen 1.0 [list source [file join $dir passgen.tcl]]
 package ifneeded captcha 1.0 [list source [file join $dir captcha.tcl]]
 package ifneeded spiders 1.0 [list source [file join $dir spiders.tcl]]
 package ifneeded Sitemap 1.0 [list source [file join $dir Sitemap.tcl]]
+package ifneeded Widget 1.0 [list source [file join $dir Widget.tcl]]
 
 package ifneeded scgi 1.0 [list source [file join $dir scgi.tcl]]
