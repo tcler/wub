@@ -18,3 +18,5 @@ package ifneeded Commenter 1.0 [list source [file join $dir Commenter.tcl]]
 #package ifneeded Prefix 1.0 [list source [file join $dir Prefix.tcl]]
 #package ifneeded Home 1.0 [list source [file join $dir Home.tcl]]
 #package ifneeded WubTest 1.0 [list source [file join $dir WubTest.tcl]]
+
+package ifneeded RAM  1.0 [list source [file join $dir RAM.tcl]]
