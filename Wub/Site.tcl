@@ -38,7 +38,7 @@ namespace eval Site {
 
 	listener {-port 8080}
 	scgi {-port 8088 -scgi_send {::scgi Send}}
-
+	
 	backend [subst {
 	    scriptdir [file dirname [info script]]
 	    scriptname Worker.tcl
@@ -95,7 +95,7 @@ namespace eval Site {
     # package provide Cache 2.0 ; proc Cache args {return {}}
     foreach package {
 	Httpd
-	Debug Http Html Cache Listener Block
+	Debug Http Html Listener Block
 	File Mason Convert Direct Mime
 	Url Query Form Cookies
 	Sitemap stx Responder
@@ -138,8 +138,26 @@ namespace eval Site {
 	#### initialize Block
 	Block init logdir $docroot
 
-	#### Cache init
-	Cache init maxsize 204800
+	if {[info exists varnish] && ($vanish ne {})} {
+	    #### Varnish cache
+	    package require Varnish
+	    if {![catch {
+		Varnish init {*}$varnish
+	    }]} {
+		package forget Varnish
+		catch {unset cache}
+	    }
+	}
+
+	if {[info exists cache] && ($cache ne {})} {
+	    #### in-RAM Cache
+	    package require Cache 
+	    Cache init maxsize 204800
+	} else {
+	    #### Null Cache
+	    package provide Cache 2.0
+	    proc Cache args {return {}}
+	}
 
 	#### Mime init
 	Mime::Init -dsname [file join $home ext2mime.tie]
