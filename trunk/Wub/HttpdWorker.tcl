@@ -750,7 +750,7 @@ namespace eval HttpdWorker {
 
 	# block spiders by UA
 	if {[info exists ::spiders([Dict get? $request user-agent])]} {
-	    indicate Block block [dict get $request -ipaddr] "spider UA"
+	    indicate Block block [dict get $request -ipaddr] "spider UA ([Dict get? $request user-agent])"
 	    Handle [Http NotImplemented $request "Spider Service"]
 	    return
 	}
