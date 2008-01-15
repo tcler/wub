@@ -57,23 +57,62 @@ proc demoronizer {} {
 interp alias {} demoronizer {} string map [demoronizer]
 
 namespace eval Html {
+    # arrange a set of links as a list
+    proc links {sep args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	set content {}
+	foreach {n url} $args {
+	    lappend content [<a> href $url $n]
+	}
+	return [join $content $sep]
+    }
+
+    proc ulinks {args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	return [<ul> [<li> [links </li><li> {*}$args]]]
+    }
+
+    proc olinks {args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	return [<ol> [<li> [links </li><li> {*}$args]]]
+    }
+
     # attr - Construct a properly formed attribute name/value string
     # for inclusion in an HTML element.
     proc attr {T args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
-	set result $T
+
+	set result ""
+	set class {}
 	foreach {n v} $args {
 	    if {$n in {checked disabled selected}} {
 		if {$v} {
 		    lappend result $n
 		}
+	    } elseif {$n eq "class"} {
+		foreach c [split [string trim $v]] {
+		    if {$c ne {}} {
+			lappend class [armour $c]
+		    }
+		}
 	    } else {
 		lappend result "[string trim $n]='[armour [string trim $v]]'"
 	    }
 	}
-	return [join $result]
+
+	if {$class ne {}} {
+	    return "$T class='[join $class]' [join $result]"
+	} else {
+	    return "$T [join $result]"
+	}
     }
 
     # turn dict or alist into a <ul> list
@@ -175,15 +214,39 @@ namespace eval Html {
     namespace ensemble create -subcommands {}
 }
 
+# optional span
+proc <span>? {args} {
+    set content [lindex $args end]
+    if {$content eq {}} {
+	return ""
+    } else {
+	return "<[Html::attr span {*}[lrange $args 0 end-1]] $content>"
+    }
+}
+
 # return an HTML <img> form
 proc <img> {args} {
-    return "<[Html::attr img {*}$args]>"
+    return "<[Html::attr img {*}$args] />"
+}
+
+foreach tag {br hr link meta} {
+    eval [string map [list %T $tag] {
+	proc <%T> {args} {
+	    return "<[Html::attr %T {*}$args] />"
+	}
+    }]
 }
 
 foreach tag {html body head} {
     ::proc ::<$tag> {args} [string map [list @T $tag] {
-	set document "<[Html::attr @T [lrange $args 0 end-1]]>"
-	append document [uplevel [list subst [lindex $args end]]] \n
+	set content [lindex $args 0]
+	if {[llength $args] > 1} {
+	    set args [lrange $args 0 end-1]
+	} else {
+	    set args {}
+	}
+	set document "<[Html::attr @T $args]>"
+	append document [uplevel 1 [list subst $content]] \n
 	append document </@T>
     }]
 }
@@ -204,12 +267,25 @@ proc divs {ids {content ""}} {
 know {[string match <*> [lindex $args 0]]} {
     set tag [string trim [lindex $args 0] "<>"]
     ::proc ::<$tag> {args} [string map [list @T $tag] {
-	set result "@T"
-	foreach {n v} [lrange $args 0 end-1] {
-	    lappend result "[string trim $n]='[armour [string trim $v]]'"
+	set content [lindex $args end]
+	if {[llength $args] > 1} {
+	    set args [lrange $args 0 end-1]
+	} else {
+	    set args {}
 	}
-	set val [string trim [lindex $args end]]
-	return "<[join ${result}]>$val</@T>"
+	set class {}
+	set result "@T"
+	foreach {n v} $args {
+	    if {$n eq "class"} {
+		lappend class $v
+	    } else {
+		lappend result "[string trim $n]='[armour [string trim $v]]'"
+	    }
+	}
+	if {$class ne {}} {
+	    lappend result "class='$class'"
+	}
+	return "<[join ${result}]>$content</@T>"
     }]
     return [eval $args]
 }
