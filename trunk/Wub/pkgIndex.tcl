@@ -5,6 +5,7 @@ package ifneeded HttpdThread 1.0 [list source [file join $dir HttpdThread.tcl]]
 package ifneeded HttpdSingle 1.0 [list source [file join $dir HttpdSingle.tcl]]
 
 package ifneeded Cache 2.0 [list source [file join $dir Cache.tcl]]
+package ifneeded Varnish 1.0 [list source [file join $dir Varnish.tcl]]
 package ifneeded Access 1.0 [list source [file join $dir Access.tcl]]
 package ifneeded Activity 2.0 [list source [file join $dir Activity.tcl]]
 package ifneeded Block 2.0 [list source [file join $dir Block.tcl]]
