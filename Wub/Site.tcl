@@ -222,11 +222,12 @@ namespace eval Site {
 	    package require HttpdThread	;# choose multithreaded
 	} else {
 	    package require HttpdSingle	;# choose singlethreaded
+	    array set ::config [vars]
+
 	    variable application
 	    if {[info exists application] && $application ne ""} {
 		package require {*}$application
 	    }
-	    array set ::config [vars]
 	}
 
 	#### start Httpd protocol
