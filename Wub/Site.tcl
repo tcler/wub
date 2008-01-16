@@ -174,7 +174,7 @@ namespace eval Site {
 
 	variable varnish
 
-	if {[info exists varnish] && ($vanish ne {})} {
+	if {[info exists varnish] && ($varnish ne {})} {
 	    #### Varnish cache
 	    package require Varnish
 	    if {![catch {
