@@ -35,8 +35,8 @@ sub vcl_recv {
 	pass;
     }
     
-    # We only care about the "__ac.*" cookies, used for authentication
-    if (req.http.Cookie && req.http.Cookie ~ "__ac(|_(name|password|persistent))=") {
+    # We only care about the cookies used for authentication in Editing
+    if (req.http.Cookie && req.url ~ "^/_edit/.*$") {
 	pass;
     }
     lookup;
