@@ -5,6 +5,17 @@ package require fileutil
 package provide Site 1.0
 
 namespace eval Site {
+    # return all the configuration state of Site in a handy form
+    proc vars {args} {
+	set vars {}
+	foreach var [info vars ::Site::*] {
+	    set var [namespace tail $var] 
+	    variable $var
+	    lappend vars $var [set $var]
+	}
+	return $vars
+    }
+
     # simple rc reader
     proc rc {text} {
 	set accum ""
@@ -21,29 +32,39 @@ namespace eval Site {
 	}
     }
 
+
+    variable home
+    if {![info exists home]} {
+	set home [file normalize [file dirname [info script]]]
+    }
+
     #### Configuration
     # set some default configuration flags and values
     foreach {name val} [rc {
-	host [info hostname]
-	multi 0
+	host [info hostname]	;# default home for relative paths
+	multi 0			;# we're single-threaded
 
 	globaldocroot 1
 	backends 5
 	cmdport 8082
 
-	home [file normalize [file dirname [info script]]]
-	wubdir [file join $home ..]
-	local [file join [file dirname [info script]] local.tcl]
-	vars [file join [file dirname [info script]] vars.tcl]
+	application ""
+
+	wubdir [file join [file dirname [info script]] ..]
+	scriptdir [file dirname [info script]]
+	local [file join $home local.tcl]
+	vars [file join $home vars.tcl]
 
 	listener {-port 8080}
 	scgi {-port 8088 -scgi_send {::scgi Send}}
 	
 	backend [subst {
-	    scriptdir [file dirname [info script]]
 	    scriptname Worker.tcl
 	    dispatch Backend
 	}]
+
+	varnish {}		;# don't use varnish cache by default
+	cache {maxsize 204800}	;# use in-RAM cache by default
 
 	httpd {
 	    max 1
@@ -53,7 +74,9 @@ namespace eval Site {
 	}
     }] {
 	variable $name
-	set $name $val
+	if {![info exists $name]} {
+	    set $name $val
+	}
     }
 
     # load site configuration script (not under SVN control)
@@ -133,7 +156,7 @@ namespace eval Site {
 	if {$args ne {}} {
 	    variable {*}$args
 	}
-	variable docroot ; variable home ; variable cmdport
+	variable docroot
 
 	#### initialize Block
 	Block init logdir $docroot
@@ -152,7 +175,7 @@ namespace eval Site {
 	if {[info exists cache] && ($cache ne {})} {
 	    #### in-RAM Cache
 	    package require Cache 
-	    Cache init maxsize 204800
+	    Cache init {*}$cache
 	} else {
 	    #### Null Cache
 	    package provide Cache 2.0
@@ -160,9 +183,11 @@ namespace eval Site {
 	}
 
 	#### Mime init
+	variable home
 	Mime::Init -dsname [file join $home ext2mime.tie]
 
 	#### Console init
+	variable cmdport
 	if {$cmdport eq ""} {
 	    package require Stdin
 	    Stdin start	;# start a command shell on stdin
@@ -181,11 +206,15 @@ namespace eval Site {
 	    set Backend::incr $backends	;# reduce the backend thread quantum for faster testing
 
 	    variable backend
-	    Backend configure {*}$backend mkmutex [thread::mutex create]
+	    Backend configure [vars] {*}$backend mkmutex [thread::mutex create]
 
 	    package require HttpdThread	;# choose multithreaded
 	} else {
 	    package require HttpdSingle	;# choose singlethreaded
+	    if {$application ne ""} {
+		package require {*}$application
+	    }
+	    array set ::config [vars]
 	}
 
 	#### start Httpd protocol
