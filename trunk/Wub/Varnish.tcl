@@ -108,7 +108,7 @@ namespace eval Cache {
     }
 
     proc check {args} {
-	return 0
+	return {}
     }
 
     proc put {args} {
