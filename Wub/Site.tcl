@@ -8,30 +8,31 @@ namespace eval Site {
     # return all the configuration state of Site in a handy form
     proc vars {args} {
 	set vars {}
+	#puts stderr [info vars ::Site::*]
 	foreach var [info vars ::Site::*] {
-	    set var [namespace tail $var] 
-	    variable $var
-	    lappend vars $var [set $var]
+	    if {[info exists $var]} {
+		set svar [namespace tail $var] 
+		lappend vars $svar [set $var]
+	    }
 	}
+	puts stderr "VARS: $vars"
 	return $vars
     }
 
     # simple rc reader
     proc rc {text} {
 	set accum ""
-	set result {}
 	foreach line [split $text \n] {
 	    set line [string trim $line]
 	    if {$line eq ""} continue
 	    lassign [split $line {\#;}] line
-	    append accum " " $line
-	    if {[info complete $accum]} {
-		uplevel 1 variable [uplevel 1 [list subst $accum]]
-		set accum ""
-	    }
+	    append accum " " [string trim $line]
 	}
+	set accum [string trim $accum]
+	set result [uplevel 1 [list subst $accum]]
+	puts stderr "RC: $result"
+	return $result
     }
-
 
     variable home
     if {![info exists home]} {
@@ -55,24 +56,34 @@ namespace eval Site {
 	local [file join $home local.tcl]
 	vars [file join $home vars.tcl]
 
-	listener {-port 8080}
-	scgi {-port 8088 -scgi_send {::scgi Send}}
+	listener [list [rc {
+	    -port 8080
+	}]]
+
+	scgi [list [rc {
+	    -port 8088
+	    -scgi_send {::scgi Send}
+	}]]
 	
-	backend [subst {
+	backend [list [rc {
 	    scriptname Worker.tcl
 	    dispatch Backend
-	}]
+	}]]
 
-	varnish {}		;# don't use varnish cache by default
-	cache {maxsize 204800}	;# use in-RAM cache by default
+	varnish [list [rc { ;# don't use varnish cache by default
+	}]]
+	cache [list [rc { ;# use in-RAM cache by default
+	    maxsize 204800
+	}]]
 
-	httpd {
+	httpd [list [rc {
 	    max 1
 	    incr 1
 	    over 40
 	    dispatch ""
-	}
+	}]]
     }] {
+	puts "Default: $name '$val'"
 	variable $name
 	if {![info exists $name]} {
 	    set $name $val
@@ -211,7 +222,8 @@ namespace eval Site {
 	    package require HttpdThread	;# choose multithreaded
 	} else {
 	    package require HttpdSingle	;# choose singlethreaded
-	    if {$application ne ""} {
+	    variable application
+	    if {[info exists application] && $application ne ""} {
 		package require {*}$application
 	    }
 	    array set ::config [vars]
