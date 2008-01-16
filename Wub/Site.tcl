@@ -177,7 +177,8 @@ namespace eval Site {
 	    package require Varnish
 	    if {![catch {
 		Varnish init {*}$varnish
-	    }]} {
+	    } r eo]} {
+		Debug.error {varnish: $r ($eo)}
 		package forget Varnish
 		catch {unset cache}
 	    }
