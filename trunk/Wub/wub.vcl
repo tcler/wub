@@ -36,7 +36,7 @@ sub vcl_recv {
     }
     
     # We only care about the cookies used for authentication in Editing
-    if (req.http.Cookie && req.url ~ "^/_edit/.*$") {
+    if (req.http.Cookie && req.url ~ "^/_") {
 	pass;
     }
     lookup;
