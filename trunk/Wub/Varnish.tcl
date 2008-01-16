@@ -74,6 +74,8 @@ namespace eval Varnish {
 	if {[info exists debug]} {
 	    Debug on varnish $debug
 	}
+	Debug.varnish {Varnish starting}
+
 	variable vport
 	variable vaddress
 	variable varnish [socket $vaddress $vport]
