@@ -1,6 +1,7 @@
 # Block - manage a block list of sites
 
 package require fileutil
+package require Http
 
 package provide Block 2.0
 
@@ -10,6 +11,10 @@ namespace eval Block {
 
     proc block {ipaddr {reason ""}} {
 	variable blocked
+	if {[Http nonRouting? $ipaddr]} {
+	    Debug.block {Can't BLOCK: $ipaddr $reason as it's local}
+	    return
+	}
 	set blocked($ipaddr) [list [clock seconds] $reason]
 	variable logdir
 	::fileutil::appendToFile [file join $logdir blocked] "$ipaddr [list $blocked($ipaddr)]\n"
@@ -18,6 +23,9 @@ namespace eval Block {
 
     proc blocked? {ipaddr} {
 	variable blocked
+	if {[Http nonRouting? $ipaddr]} {
+	    return 0
+	}
 	return [info exists blocked($ipaddr)]
     }
 
