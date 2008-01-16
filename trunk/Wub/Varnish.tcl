@@ -1,7 +1,11 @@
 # Varnish - varnish cache support
 # see http://www.varnish-cache.org/ for what this marvellous beastie can do.
 
+package require Debug
+
 package provide Varnish 1.0
+
+Debug off varnish 10
 
 #interp bgerror {} bge
 #proc bge {args} {
@@ -35,7 +39,7 @@ namespace eval Varnish {
 	set status 0; set length 0
 	lassign [split $line] status length
 	set data [read $varnish $length]
-	#puts stderr "R: ($data)"
+	Debug.varnish {R: ($data)}
 	variable rx; lappend rx $data
 	gets $varnish
     }
@@ -46,7 +50,7 @@ namespace eval Varnish {
 	variable varnish
 	puts $varnish "$cmd $args"
 
-	#puts stderr "T: $cmd $args"
+	Debug.varnish {T: $cmd $args}
     }
 
     variable vclfile [file join [file dirname [file normalize [info script]]] wub.vcl]
@@ -55,6 +59,7 @@ namespace eval Varnish {
 	variable tx; lappend tx [list $cmd]
 
 	variable varnish
+	Debug.varnish {I: $cmd}
 	puts $varnish $cmd
 	response
 	return [collect]
@@ -65,6 +70,10 @@ namespace eval Varnish {
 	    variable {*}$args
 	}
 
+	variable debug
+	if {[info exists debug]} {
+	    Debug on varnish $debug
+	}
 	variable vport
 	variable vaddress
 	variable varnish [socket $vaddress $vport]
