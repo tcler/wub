@@ -92,13 +92,19 @@ namespace eval Varnish {
 	return [immediate vcl.list]
     }
 
+    namespace export -clear *
+    namespace ensemble create -subcommands {}
+}
+
+namespace eval Cache {
+
     #### Cache API
     proc delete {url} {
-	send url.purge $url
+	Varnish send url.purge $url
     }
 
     proc clear {} {
-	send url.purge *
+	Varnish send url.purge *
     }
 
     proc check {args} {
