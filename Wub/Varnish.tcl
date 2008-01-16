@@ -2,6 +2,7 @@
 # see http://www.varnish-cache.org/ for what this marvellous beastie can do.
 
 package require Debug
+package require Url
 
 package provide Varnish 1.0
 
@@ -100,7 +101,7 @@ namespace eval Cache {
 
     #### Cache API
     proc delete {url} {
-	Varnish send url.purge $url
+	Varnish send url.purge [dict get [Url parse $url] -path]
     }
 
     proc clear {} {
