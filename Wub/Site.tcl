@@ -172,6 +172,8 @@ namespace eval Site {
 	#### initialize Block
 	Block init logdir $docroot
 
+	variable varnish
+
 	if {[info exists varnish] && ($vanish ne {})} {
 	    #### Varnish cache
 	    package require Varnish
@@ -184,6 +186,7 @@ namespace eval Site {
 	    }
 	}
 
+	variable cache
 	if {[info exists cache] && ($cache ne {})} {
 	    #### in-RAM Cache
 	    package require Cache 
