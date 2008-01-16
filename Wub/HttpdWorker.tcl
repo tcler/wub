@@ -748,6 +748,14 @@ namespace eval HttpdWorker {
 	    dict set request if-modified-since [lindex [split [dict get $request if-modified-since] {;}] 0]
 	}
 
+	# trust x-forwarded-for if we get a forwarded request from a local ip
+	# (presumably local ip forwarders are trustworthy)
+	if {[Http nonRouting? [dict get $request -ipaddr]]
+	    && [dict exists $request x-forwarded-for]
+	} {
+	    dict set request -ipaddr [lindex [split [dict get $request x-forwarded-for] ,] 0]
+	}
+
 	# block spiders by UA
 	if {[info exists ::spiders([Dict get? $request user-agent])]} {
 	    indicate Block block [dict get $request -ipaddr] "spider UA ([Dict get? $request user-agent])"
@@ -757,14 +765,6 @@ namespace eval HttpdWorker {
 
 	# analyse the user agent strings.
 	dict set request -ua [ua [Dict get? $request user-agent]]
-
-	# trust x-forwarded-for if we get a forwarded request from a local ip
-	# (presumably local ip forwarders are trustworthy)
-	if {[Http nonRouting? [dict get $request -ipaddr]]
-	    && [dict exists $request x-forwarded-for]
-	} {
-	    dict set request -ipaddr [lindex [split [dict get $request x-forwarded-for] ,] 0]
-	}
 
 	dict incr connection pending
 	switch -- [dict get $request -method] {
