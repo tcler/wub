@@ -36,6 +36,7 @@ namespace eval Site {
 
     variable home
     if {![info exists home]} {
+	# if another package hasn't set home, then it's here
 	set home [file normalize [file dirname [info script]]]
     }
 
@@ -52,7 +53,7 @@ namespace eval Site {
 	application ""
 
 	wubdir [file join [file dirname [info script]] ..]
-	scriptdir [file dirname [info script]]
+	scriptdir [file normalize [file dirname [info script]]]
 	local [file join $home local.tcl]
 	vars [file join $home vars.tcl]
 
