@@ -238,8 +238,8 @@ package require Mime
 		} else {
 		    # TODO do something to return the whole dir in one hit
 		}
+
 		set indices [$self handle? [file join $suffix index]]
-		
 		if {[dict size $indices] != 0} {
 		    # we're going to re-try this request
 		    # after modifying the URL/path etc.
