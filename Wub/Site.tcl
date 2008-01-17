@@ -15,7 +15,7 @@ namespace eval Site {
 		lappend vars $svar [set $var]
 	    }
 	}
-	puts stderr "VARS: $vars"
+	#puts stderr "VARS: $vars"
 	return $vars
     }
 
