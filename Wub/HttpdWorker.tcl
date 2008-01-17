@@ -453,7 +453,7 @@ namespace eval HttpdWorker {
 	    indicate Httpd Got $request
 	    dict lappend connection req_log $request
 	} r eo]} {
-	    Debug.error {'get' error: '$r' ($eo)}
+	    Debug.error {'get' error: '$r' ($eo) ([dump $req])}
 	}
 
 	# reset the request dict to this connection prototype
