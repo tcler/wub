@@ -294,6 +294,12 @@ proc Responder::post {rsp} {
     return [::Convert do $rsp]
 }
 
+# Resume a suspended response
+proc ::Resume {r} {
+    catch {dict unset r -suspend}
+    ::Send $r
+}
+
 # this will be used to send responses to processed requests
 # since we're in a single thread, it's got to be fairly simple
 proc ::Send {r} {
