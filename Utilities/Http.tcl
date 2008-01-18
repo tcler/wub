@@ -211,6 +211,12 @@ namespace eval Http {
 	return $rsp
     }
 
+    # modify response so it will not be returned to client
+    proc Suspend {rsp} {
+	dict set rsp -suspend 1
+	return $rsp
+    }
+
     # modify response to indicate that the content is a cacheable file
     proc CacheableFile {rsp path {ctype ""}} {
 	set path [file normalize $path]
