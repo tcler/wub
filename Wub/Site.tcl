@@ -295,9 +295,14 @@ proc Responder::post {rsp} {
 }
 
 # Resume a suspended response
-proc ::Resume {r} {
-    catch {dict unset r -suspend}
-    ::Send $r
+proc ::Resume {rsp} {
+    catch {dict unset rsp -suspend}
+    if {[catch {Responder post $rsp} r eo]} { ;# postprocess response
+	set rsp [Http ServerError $rsp $r $eo]
+    } else {
+	set rsp $r
+    }
+    ::Send $rsp
 }
 
 # this will be used to send responses to processed requests
