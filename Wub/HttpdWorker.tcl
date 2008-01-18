@@ -327,6 +327,9 @@ namespace eval HttpdWorker {
     #	queues the response for sending by method responder
     proc Send {reply {cache 1}} {
 	#set reply [Access log $reply]
+	if {[dict exists $reply -suspend]} {
+	    return	;# this reply has been suspended
+	}
 
 	set sock [dict get $reply -sock]
 	upvar #0 ::HttpdWorker::connections($sock) connection
