@@ -224,6 +224,14 @@ proc <span>? {args} {
     }
 }
 
+foreach tag {author description copyright generator} {
+    eval [string map [list %T $tag] {
+	proc <%T> {content} {
+	    return [<meta> name %T content $content]
+	}
+    }]
+}
+
 # return an HTML <img> form
 proc <img> {args} {
     return "<[Html::attr img {*}$args] />"
@@ -235,6 +243,10 @@ foreach tag {br hr link meta} {
 	    return "<[Html::attr %T {*}$args] />"
 	}
     }]
+}
+
+proc <stylesheet> {url {media screen}} {
+    return [<link> rel StyleSheet type text/css media $media href $url]
 }
 
 foreach tag {html body head} {
