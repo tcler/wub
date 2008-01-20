@@ -113,7 +113,7 @@ namespace eval Session {
 
     proc with {rv body} {
 	if {[catch {
-	    uplevel "dict with [list $rv] -session [list $body]"
+	    uplevel "dict with $rv -session [list $body]"
 	} r eo]} {
 	    Debug.error {Session with: $r ($eo)}
 	} else {
