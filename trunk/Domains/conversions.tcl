@@ -58,6 +58,12 @@ namespace eval ::conversions {
 	}
     }
 
+    # an in-band redirection
+    proc .x-system/redirect.text/html {rsp} {
+	set to [dict get $rsp -content]
+	return [Http Redirect $rsp $to]
+    }
+
     # convert system text to an HTML fragment
     proc .x-text/system.x-text/html-fragment {rsp} {
 	# split out headers
