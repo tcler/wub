@@ -71,7 +71,7 @@ namespace eval Session {
     proc fetch {req} {
 	if {![dict exists $req -session]} {
 	    # got to locate session slot
-	    set req [Cookies 4Server $req cookie]
+	    set req [Cookies 4Server $req]
 
 	    variable cookie
 	    set slot [dict get [Cookies fetch [dict get $req -cookies] -name $cookie] -value]
