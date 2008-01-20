@@ -278,7 +278,7 @@ foreach tag {author description copyright generator} {
 }
 
 # return a HTML singleton tag
-foreach tag {img br hr link meta} {
+foreach tag {img br hr} {
     eval [string map [list %T $tag] {
 	proc <%T> {args} {
 	    if {$::Html::XHTML} {
@@ -287,6 +287,18 @@ foreach tag {img br hr link meta} {
 		set suff ""
 	    }
 	    return "<[Html::attr %T {*}$args]${suff}>"
+	}
+    }]
+}
+
+foreach tag {link meta} {
+    eval [string map [list %T $tag] {
+	proc <%T> {args} {
+	    if {$::Html::XHTML} {
+		return "<[Html::attr %T {*}$args]/>"
+	    } else {
+		return "<[Html::attr %T {*}$args]/></%T>"
+	    }
 	}
     }]
 }
