@@ -352,6 +352,7 @@ namespace eval Cookies {
 
     # decode a cookie header received from a client.
     proc parse4server {cookies} {
+	Debug.cookies {PARSING '$cookies'} 10
 	set cdict [dict create]	;# empty cookie dict
 
 	# hide and strip quoted strings
@@ -363,7 +364,6 @@ namespace eval Cookies {
 	    incr cnt
 	}
 
-	Debug.cookies {PARSING '$cookies'} 10
 	set cookies [string map {, ;} $cookies]	;# comma and ; are identical
 	set cookies [split $cookies ";"]
 
@@ -416,6 +416,7 @@ namespace eval Cookies {
 
     # decode cookie header into a request
     proc 4Server {req} {
+	Debug.cookies {4Server '[Dict get? $req cookie]'}
 	if {[dict exists $req -cookies]} {
 	    return $req
 	}
