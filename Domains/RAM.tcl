@@ -33,8 +33,18 @@ namespace eval RAM {
 
 	variable ram
 	Debug.RAM {exists ram $prefix$suffix [info exists ram($prefix$suffix)]}
+
 	variable content_type
-	set rsp [dict merge $rsp [list content-type $content_type -content {*}$ram($prefix$suffix)]]
+	set content [lindex $ram($prefix$suffix) 0]
+	set els {} 
+	foreach {el val} [lrange $ram($prefix$suffix) 1 end] {
+	    if {$el eq "-header"} {
+		dict lappend $rsp -headers $val
+	    } else {
+		dict set els $el $val
+	    }
+	}
+	set rsp [dict merge $rsp [list content-type $content_type {*}$els -content $content]]
 
 	return [Http Ok $rsp]
     }
