@@ -183,6 +183,7 @@ namespace eval Sinorca {
 	variable screen
 	variable print
 	set screen [string map $colours $screen]
+
 	variable path
 	RAM init ram $path
 
