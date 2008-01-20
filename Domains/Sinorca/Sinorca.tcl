@@ -292,6 +292,7 @@ namespace eval Sinorca {
     }]
     
     dict set index navbox {
+	"Wub Integration" #h-wub
 	"Making a Start" #h-making-start
 	"Main Design Elements" #h-main-design
 	"A Brief HTML Sampler" #h-html-sampler
