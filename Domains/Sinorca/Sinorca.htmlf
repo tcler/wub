@@ -9,6 +9,43 @@ Sinorcaish web site</a> for updated instructions, updated stylesheets
 and/or appropriate images.</p>
 
 
+<h2 id="h-wub"><a href="/_wub">Wub</a> Integration</h2>
+
+<p>The Sinorcaish stylesheet is implemented as a pseudo-mimetype within <a href="/_wub">Wub</a> standard distribution, integrated with Wub's Conversion facilities.  The conversion will take a tcl dict containing named components and assemble it into an HTML fragment under the Sinorcaish stylesheet.</p>
+
+<p> Named components expected in the dict are:</p>
+    <dl>
+      <dt>Header Section</dt>
+      <dd>
+	<dl>
+	  <dt>header</dt>
+	  <dt>globlinks</dt>
+	  <dt>global</dt>
+	  <dt>sitelinks</dt>
+	</dl>
+      </dd>
+
+
+      <dt>Main Section</dt>
+      <dd>
+	<dl>
+	  <dt>breadcrumbs</dt>
+	  <dt>navbox</dt>
+	  <dt>sidebar</dt>
+	  <dt>content</dt>
+	</dl>
+      </dd>
+
+      <dt>Footer Section</dt>
+      <dd>
+	<dl>
+	  <dt>footer</dt>
+	  <dt>copyright</dt>
+	  <dt>footlinks</dt>
+	</dl>
+      </dd>
+    </dl>
+
 <h2 id="h-making-start">Making a Start</h2>
 
 <p>The best way to use the Sinorcaish stylesheet is to start with the
