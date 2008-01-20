@@ -2,6 +2,11 @@
 
 # Single Threaded Simplistic Site
 lappend auto_path [pwd]	;# path to the Site.tcl file
+namespace eval Site {
+    variable varnish {go 1 debug 10}
+    variable cache {}
+}
+
 package require Site
 
 ###### Application Starts Here
@@ -73,6 +78,12 @@ ram set test.css "body {color: red} ;" content-type text/css
 # provides a bunch of HTML/JS/CSS widget sets
 package require Widget
 
+#### Sinorca package
+# provides a page-level conversion
+package require Sinorca
+Sinorca init
+Convert Namespace ::Sinorca
+
 #### introspection: example of a direct domain
 # Implemented as a Direct domain, used to introspect the server.
 Direct init introspect namespace ::Introspect prefix /introspect/ ctype "x-text/html-fragment"
@@ -131,6 +142,11 @@ proc Incoming {req} {
 	/widget/* -
 	/widget/ {
 	    Widget do $req
+	}
+
+	/sinorca/* -
+	/sinorca/ {
+	    Sinorca ram do $req
 	}
 
 	/ram/* -
