@@ -59,6 +59,8 @@ proc demoronizer {} {
 interp alias {} demoronizer {} string map [demoronizer]
 
 namespace eval Html {
+    variable XHTML 0
+
     # arrange a set of links as a list
     proc links {sep args} {
 	if {[llength $args] == 1} {
@@ -275,15 +277,16 @@ foreach tag {author description copyright generator} {
     }]
 }
 
-# return an HTML <img> form
-proc <img> {args} {
-    return "<[Html::attr img {*}$args] />"
-}
-
-foreach tag {br hr link meta} {
+# return a HTML singleton tag
+foreach tag {img br hr link meta} {
     eval [string map [list %T $tag] {
 	proc <%T> {args} {
-	    return "<[Html::attr %T {*}$args] />"
+	    if {$::Html::XHTML} {
+		set suff /
+	    } else {
+		set suff ""
+	    }
+	    return "<[Html::attr %T {*}$args]${suff}>"
 	}
     }]
 }
