@@ -74,7 +74,13 @@ namespace eval Session {
 	    set req [Cookies 4Server $req]
 
 	    variable cookie
-	    set slot [dict get [Cookies fetch [dict get $req -cookies] -name $cookie] -value]
+	    if {[catch {
+		dict get [Cookies fetch [dict get $req -cookies] -name $cookie] -value
+	    } slot eo]} {
+		Debug.error {fetch session: $slot ($eo)}
+		return $req
+	    }
+
 	    lassign [split $slot] slot key	;# fetch the slot
 	    if {$key ne ""} {
 		# non null key means active slot
