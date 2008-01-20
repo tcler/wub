@@ -363,6 +363,7 @@ namespace eval Cookies {
 	    incr cnt
 	}
 
+	Debug.cookies {PARSING '$cookies'} 10
 	set cookies [string map {, ;} $cookies]	;# comma and ; are identical
 	set cookies [split $cookies ";"]
 
