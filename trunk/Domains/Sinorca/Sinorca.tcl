@@ -288,7 +288,7 @@ namespace eval Sinorca {
     }]
     
     dict set index sidebar102 [<sidebox> title "W3C Validation" {
-	[<p> "[<a> href "http://validator.w3.org/check?uri=referer" [<img> src valid-xhtml10.png alt "Validate against the XHTML 1.0 Strict standard" width 88 height 31]][<br>] [<a> href http://jigsaw.w3.org/css-validator/check/referer [<img> src valid-css.png alt "Validate against the CSS 2.1 standard" width 88 height 31]][<br>] [<a> href http://www.w3.org/WAI/WCAG1AA-Conformance [<img> src wcag1AA.png alt "Conforms with Level Double-A of the Web Content Accessibility Guidelines 1.0" width 88 height 32]]"]
+	[<p> "[<a> href "http://validator.w3.org/check?uri=referer" [<img> src valid-xhtml10.png alt "Validate against the XHTML 1.0 Strict standard" width 88 height 31]][<br>] [<a> href http://jigsaw.w3.org/css-validator/check/referer [<img> src valid-css.png alt "Validate against the CSS 2.1 standard" width 88 height 31]][<br>] [<a> href http://www.w3.org/WAI/WCAG1AA-Conformance [<img> src wcag1AA.png alt "Conforms with Level Double-A of the Web Content Accessibility Guidelines 1.0" width 88 height 32]]<br>Note: this page doesn't actually validate."]
     }]
     
     dict set index navbox {
