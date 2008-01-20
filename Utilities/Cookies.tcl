@@ -449,7 +449,11 @@ namespace eval Cookies {
 	if {[llength $args] eq 1} {
 	    set args [lindex $args 0]
 	}
-
+	if {[dict exists $args -path]
+	    && [dict get $args -path] eq "/"
+	} {
+	    dict set args -path ""
+	}
 	foreach v {name path domain} {
 	    if {[dict exists $args -$v]} {
 		set $v [dict get $args -$v]
