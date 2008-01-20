@@ -105,7 +105,12 @@ namespace eval Session {
 	return $req
     }
 
-    # store a session in the db
+    proc with {req body} {
+	dict with req -session $body
+	return $req
+    }
+
+    # store a session in the db if it's changed
     proc store {req} {
 	if {[Dict get? $req -session] eq [Dict get? $req --session]} {
 	    return $req	;# no change to session vars - just skip it
@@ -173,5 +178,5 @@ namespace eval Session {
     }
 
     namespace export -clear *
-    namespace ensemble create -subcommands {}
+    namespace ensemble create -subcommands {} -map {}
 }
