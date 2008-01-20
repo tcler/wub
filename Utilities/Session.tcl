@@ -111,9 +111,14 @@ namespace eval Session {
 	return $req
     }
 
-    proc with {req body} {
-	dict with req -session $body
-	return $req
+    proc with {rv body} {
+	if {[catch {
+	    uplevel "dict with [list $rv] -session [list $body]"
+	} r eo]} {
+	    Debug.error {Session with: $r ($eo)}
+	} else {
+	    return $r
+	}
     }
 
     # store a session in the db if it's changed
