@@ -68,14 +68,14 @@ namespace eval Session {
     }
 
     # fetch a session slot in a request
-    proc fetch {req} {
+    proc fetch {req args} {
 	if {![dict exists $req -session]} {
 	    # got to locate session slot
 	    set req [Cookies 4Server $req]
 
 	    variable cookie
 	    if {[catch {
-		dict get [Cookies fetch [dict get $req -cookies] -name $cookie] -value
+		dict get [Cookies fetch [dict get $req -cookies] {*}$args -name $cookie] -value
 	    } slot eo]} {
 		Debug.error {fetch session: $slot ($eo)}
 		return $req
@@ -122,7 +122,7 @@ namespace eval Session {
     }
 
     # store a session in the db if it's changed
-    proc store {req} {
+    proc store {req args} {
 	if {[Dict get? $req -session] eq [Dict get? $req --session]} {
 	    return $req	;# no change to session vars - just skip it
 	}
@@ -158,7 +158,7 @@ namespace eval Session {
 
 	# add the accessor cookie to the request
 	variable cookie
-	dict set req -cookies [Cookies add [dict get $req -cookies] -name $cookie -value [list $slot $key]]
+	dict set req -cookies [Cookies add [dict get $req -cookies] {*}$args -name $cookie -value [list $slot $key]]
 
 	return $req
     }
