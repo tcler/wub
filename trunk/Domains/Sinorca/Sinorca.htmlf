@@ -762,9 +762,9 @@ standard elements are shown in the following example:</p>
       Again</cite> by J.&nbsp;R.&nbsp;R. Tolkien:</p>
 
     <blockquote>
-      <p>Alive without breath,<br />
-         As cold as death;<br />
-         Never thirsty, ever drinking,<br />
+      <p>Alive without breath,<br>
+         As cold as death;<br>
+         Never thirsty, ever drinking,<br>
          All in mail never clinking.</p>
     </blockquote>
 
@@ -1359,7 +1359,7 @@ left, right or centred (the default).  Some simple examples:</p>
       </tr>
       <tr>
         <td>ABCDEFGHIJKLM</td>
-        <td class="highlight">ABCDEFGHIJKLM<br />NOPQRSTUVWXYZ</td>
+        <td class="highlight">ABCDEFGHIJKLM<br>NOPQRSTUVWXYZ</td>
         <td>ABCDEFGHIJKLM</td>
       </tr>
       <tr>
@@ -1599,7 +1599,7 @@ the caption width reasonable.</p>
     <span class="floatleft">
       <br class="hidden" />
 
-      <img src="gradient.png" alt="[Gradient]" width="325" height="60" /><br />
+      <img src="gradient.png" alt="[Gradient]" width="325" height="60" /><br>
       <strong>Figure 1: Left-floating image</strong>
 
       <br class="hidden" />
@@ -1617,7 +1617,7 @@ the caption width reasonable.</p>
     <span class="floatright">
       <br class="hidden" />
 
-      <img src="gradient.png" alt="[Gradient]" width="325" height="60" /><br />
+      <img src="gradient.png" alt="[Gradient]" width="325" height="60" /><br>
       <strong>Figure 2: Right-floating image</strong>
 
       <br class="hidden" />
@@ -1876,9 +1876,9 @@ need to be vertically aligned with each other.</p>
       <tr>
         <td class="label nowrap">Input checkbox:</td>
         <td>
-          <label for="f-input-checkbox-1"><input type="checkbox" name="input-checkbox" id="f-input-checkbox-1" value="1" checked="checked"   />Check 1</label><br />
-          <label for="f-input-checkbox-2"><input type="checkbox" name="input-checkbox" id="f-input-checkbox-2" value="2"                     />Check 2</label><br />
-          <label for="f-input-checkbox-3"><input type="checkbox" name="input-checkbox" id="f-input-checkbox-3" value="3"                     />Check 3</label><br />
+          <label for="f-input-checkbox-1"><input type="checkbox" name="input-checkbox" id="f-input-checkbox-1" value="1" checked="checked"   />Check 1</label><br>
+          <label for="f-input-checkbox-2"><input type="checkbox" name="input-checkbox" id="f-input-checkbox-2" value="2"                     />Check 2</label><br>
+          <label for="f-input-checkbox-3"><input type="checkbox" name="input-checkbox" id="f-input-checkbox-3" value="3"                     />Check 3</label><br>
           <label for="f-input-checkbox-4"><input type="checkbox" name="input-checkbox" id="f-input-checkbox-4" value="4" disabled="disabled" />Check 4 (disabled)</label>
         </td>
       </tr>
