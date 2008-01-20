@@ -105,12 +105,29 @@ namespace eval Responder {
 	}
     }
 
+    proc Suspend {rsp} {
+	dict set rsp -suspend 1
+	return $rsp
+    }
+
+    proc Resume {rsp} {
+	catch {dict unset rsp -suspend}
+	if {[catch {Responder post $rsp} r eo]} { ;# postprocess response
+	    set rsp [Http ServerError $rsp $r $eo]
+	} else {
+	    set rsp $r
+	}
+	::Send $rsp
+    }
+
     variable working 0	;# set while we're working
     ::struct::queue inQ	;# create a queue of pending work
 
     # configure - configure namespace
     proc configure {args} {
-	variable {*}$args
+	if {$args ne {}} {
+	    variable {*}$args
+	}
     }
 
     namespace export -clear *
