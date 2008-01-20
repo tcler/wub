@@ -299,13 +299,6 @@ namespace eval Sinorca {
 	"The Final Word" #h-final-word
     }
 
-    dict set index navbox {
-	"Making a Start" #h-making-start
-	"Main Design Elements" #h-main-design
-	"A Brief HTML Sampler" #h-html-sampler
-	"The Final Word" #h-final-word
-    }
-
     variable home
     dict set index content [fileutil::cat [file join $home Sinorca.htmlf]]
     
