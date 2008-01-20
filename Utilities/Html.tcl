@@ -7,6 +7,8 @@
 package require know
 package provide Html 1.0
 
+alias tclarmour string map {\[ "&#x5B;" \] "&#x5D;" \{ "&#x7B;" \} "&#x7D;" $ "&#x24;"}
+
 interp alias {} armour {} string map [list &\# &\# & &amp\; < &lt\; > &gt\; \" &quot\; ' &\#39\;]
 
 # xmlarmour - remove characters offensive to xml
@@ -83,6 +85,36 @@ namespace eval Html {
 	return [<ol> [<li> [links </li><li> {*}$args]]]
     }
 
+
+    proc argsplit {} {
+	upvar args margs
+	upvar content content
+	
+	set content [lindex $margs end]
+	if {[llength $margs] > 1} {
+	    set margs [lrange $margs 0 end-1]
+	} else {
+	    set margs {}
+	}
+    }
+
+    proc template {name {template ""}} {
+	upvar args args
+	upvar $name var
+
+	if {[dict exists $args $name]} {
+	    if {[dict get $args $name] ne ""} {
+		set var [dict get $args $name]
+		if {$template ne ""} {
+		    set var [uplevel 1 [list subst $template]]
+		}
+	    }
+	    dict unset args $name
+	} else {
+	    set var ""
+	}
+    }
+
     # attr - Construct a properly formed attribute name/value string
     # for inclusion in an HTML element.
     proc attr {T args} {
@@ -112,6 +144,17 @@ namespace eval Html {
 	    return "$T class='[join $class]' [join $result]"
 	} else {
 	    return "$T [join $result]"
+	}
+    }
+
+    variable default {
+	script {type text/javascript}
+	style {type text/css}
+    }
+    proc default {tag args} {
+	variable default
+	if {[dict exists $default $tag]} {
+	    return [dict get $default $tag]
 	}
     }
 
@@ -247,6 +290,20 @@ foreach tag {br hr link meta} {
 
 proc <stylesheet> {url {media screen}} {
     return [<link> rel StyleSheet type text/css media $media href $url]
+}
+
+foreach tag {script style} {
+    eval [string map [list %T $tag] {
+	proc <%T> {args} {
+	    if {([llength $args] / 2) == 1} {
+		set content [lindex $args end]
+		set args [lrange $args 0 end-1]
+		return "<[Html::attr %T {*}[Html default %T]]{*}$args>$content</%T>"
+	    } else {
+		return "<[Html::attr %T {*}[Html default %T] {*}$args]/>"
+	    }
+	}
+    }]
 }
 
 foreach tag {html body head} {
