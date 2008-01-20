@@ -33,6 +33,10 @@ namespace eval RAM {
 
 	variable ram
 	Debug.RAM {exists ram $prefix$suffix [info exists ram($prefix$suffix)]}
+	if {![info exists ram($prefix$suffix)]} {
+	    # path isn't inside our domain suffix - error
+	    return [Http NotFound $rsp]
+	}
 
 	variable content_type
 	set content [lindex $ram($prefix$suffix) 0]
