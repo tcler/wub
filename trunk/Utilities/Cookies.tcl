@@ -551,8 +551,11 @@ namespace eval Cookies {
 	}
 
 	set matches [match $cookies $args]
+	if {[llength $matches] == 0} {
+	    error "No matches: '$args'"
+	}
 	if {[llength $matches] != 1} {
-	    error "Multiple matches: $matches"
+	    error "Multiple matches: '$matches'"
 	}
 
 	return [dict get $cookies [lindex $matches 0]]
