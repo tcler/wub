@@ -61,7 +61,7 @@ page.</p>
 
 
 <div class="floatbox">
-  <hr />
+  <hr>
   <p class="title">Maintaining a Largish Web Site</p>
 
   <p>If you are planning to maintain a medium to large web site, you most
@@ -69,7 +69,7 @@ page.</p>
     to other files, to be incorporated via server-side includes, dynamic
     content creation systems or other means.  But you probably already
     knew that.</p>
-  <hr />
+  <hr>
 </div>
 
 
@@ -295,7 +295,7 @@ and general <dfn>floating boxes</dfn> for sidebar-type content.</p>
 
 
 <div class="floatbox">
-  <hr />
+  <hr>
   <p class="hidden">[The following paragraphs represent a sidebar.  You
     may need to read some of the text following this sidebar to fully
     understand it.]</p>
@@ -314,7 +314,7 @@ and general <dfn>floating boxes</dfn> for sidebar-type content.</p>
     units other than <code class="markup">em</code> for the width of the
     navigational box.</p>
 
-  <hr />
+  <hr>
 </div>
 
 
@@ -948,7 +948,7 @@ are <em>not</em> printed to paper:</p>
     ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
     aliquip ex ea commodo consequat.</p>
 
-  <hr />
+  <hr>
 
   <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do
     eiusmod tempor incididunt ut labore et dolore magna aliqua.  Ut enim
@@ -1677,13 +1677,13 @@ used for non-visual or non-stylesheet-aware browsers only.</p>
     aliquip ex ea commodo consequat.</p>
 
   <div class="floatbox">
-    <hr />
+    <hr>
       <p class="title">Sample Floating Box 1</p>
 
       <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do
         eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
 
-    <hr />
+    <hr>
   </div>
 
   <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do
@@ -1702,7 +1702,7 @@ used for non-visual or non-stylesheet-aware browsers only.</p>
     officia deserunt mollit anim id est laborum.</p>
 
   <div class="floatbox" style="width: 65%">
-    <hr />
+    <hr>
       <p class="title">Sample Floating Box 2 (wider than normal)</p>
 
       <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do
@@ -1791,7 +1791,7 @@ used for non-visual or non-stylesheet-aware browsers only.</p>
       <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do
         eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
 
-    <hr />
+    <hr>
   </div>
 
   <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do
