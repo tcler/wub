@@ -955,7 +955,7 @@ are <em>not</em> printed to paper:</p>
     ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
     aliquip ex ea commodo consequat.</p>
 
-  <hr class="lighter" />
+  <hr class="lighter">
 
   <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do
     eiusmod tempor incididunt ut labore et dolore magna aliqua.  Ut enim
@@ -1530,7 +1530,7 @@ this for you.</p>
 
     <!-- Floating image to the left -->
     <img src="gradient.png" alt="[Gradient]" width="325" height="60"
-      class="floatleft" />
+      class="floatleft">
 
     reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
     pariatur.  Excepteur sint occaecat cupidatat non proident, sunt in
@@ -1540,7 +1540,7 @@ this for you.</p>
 
     <!-- Floating image to the right -->
     <img src="gradient.png" alt="[Gradient]" width="325" height="60"
-      class="floatright" />
+      class="floatright">
 
     quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea
     commodo consequat.  Duis aute irure dolor in reprehenderit in
@@ -1597,12 +1597,12 @@ the caption width reasonable.</p>
 
     <!-- Floating image and caption to the left -->
     <span class="floatleft">
-      <br class="hidden" />
+      <br class="hidden">
 
-      <img src="gradient.png" alt="[Gradient]" width="325" height="60" /><br>
+      <img src="gradient.png" alt="[Gradient]" width="325" height="60"><br>
       <strong>Figure 1: Left-floating image</strong>
 
-      <br class="hidden" />
+      <br class="hidden">
     </span>
 
     aliquip ex ea commodo consequat.  Duis aute irure dolor in
@@ -1615,12 +1615,12 @@ the caption width reasonable.</p>
 
     <!-- Floating image and caption to the right -->
     <span class="floatright">
-      <br class="hidden" />
+      <br class="hidden">
 
-      <img src="gradient.png" alt="[Gradient]" width="325" height="60" /><br>
+      <img src="gradient.png" alt="[Gradient]" width="325" height="60"><br>
       <strong>Figure 2: Right-floating image</strong>
 
-      <br class="hidden" />
+      <br class="hidden">
     </span>
 
     commodo consequat.  Duis aute irure dolor in reprehenderit in
@@ -1643,7 +1643,7 @@ icons</a>:</p>
 
   <p>Every good web designer should read the
     <a href="http://www.w3.org/TR/CSS21/css2.pdf"><img src="file-pdf.png"
-    alt="[PDF]" class="icon16" width="16" height="16" /></a>&nbsp;<a
+    alt="[PDF]" class="icon16" width="16" height="16"></a>&nbsp;<a
     href="http://www.w3.org/TR/CSS21/css2.pdf">Cascading Style Sheets 2.1
     Specification</a> (1.5&nbsp;MB).</p>
 
@@ -1859,36 +1859,36 @@ need to be vertically aligned with each other.</p>
     <table class="formtable" summary="Table to align sample form">
       <tr>
         <td class="label nowrap"><label for="f-input-text">Input text:</label>&nbsp;<span class="reqfield">&bull;</span></td>
-        <td><input type="text" name="input-text" id="f-input-text" value="" size="50" maxlength="250" /></td>
+        <td><input type="text" name="input-text" id="f-input-text" value="" size="50" maxlength="250"></td>
       </tr>
       <tr>
         <td class="label nowrap"><label for="f-input-text2">Input text (disabled):</label></td>
-        <td><input type="text" name="input-text2" id="f-input-text2" value="(Disabled text)" size="50" maxlength="250" disabled="disabled" /></td>
+        <td><input type="text" name="input-text2" id="f-input-text2" value="(Disabled text)" size="50" maxlength="250" disabled="disabled"></td>
       </tr>
       <tr>
         <td class="label nowrap"><label for="f-input-password">Input password:</label></td>
-        <td><input type="password" name="input-password" id="f-input-password" value="" size="25" maxlength="50" /></td>
+        <td><input type="password" name="input-password" id="f-input-password" value="" size="25" maxlength="50"></td>
       </tr>
       <tr>
         <td class="label nowrap"><label for="f-input-file">Input file:</label></td>
-        <td><input type="file" name="input-file" id="f-input-file" value="" accept="image/*" size="25" /></td>
+        <td><input type="file" name="input-file" id="f-input-file" value="" accept="image/*" size="25"></td>
       </tr>
       <tr>
         <td class="label nowrap">Input checkbox:</td>
         <td>
-          <label for="f-input-checkbox-1"><input type="checkbox" name="input-checkbox" id="f-input-checkbox-1" value="1" checked="checked"   />Check 1</label><br>
-          <label for="f-input-checkbox-2"><input type="checkbox" name="input-checkbox" id="f-input-checkbox-2" value="2"                     />Check 2</label><br>
-          <label for="f-input-checkbox-3"><input type="checkbox" name="input-checkbox" id="f-input-checkbox-3" value="3"                     />Check 3</label><br>
-          <label for="f-input-checkbox-4"><input type="checkbox" name="input-checkbox" id="f-input-checkbox-4" value="4" disabled="disabled" />Check 4 (disabled)</label>
+          <label for="f-input-checkbox-1"><input type="checkbox" name="input-checkbox" id="f-input-checkbox-1" value="1" checked="checked">Check 1</label><br>
+          <label for="f-input-checkbox-2"><input type="checkbox" name="input-checkbox" id="f-input-checkbox-2" value="2">Check 2</label><br>
+          <label for="f-input-checkbox-3"><input type="checkbox" name="input-checkbox" id="f-input-checkbox-3" value="3">Check 3</label><br>
+          <label for="f-input-checkbox-4"><input type="checkbox" name="input-checkbox" id="f-input-checkbox-4" value="4" disabled="disabled">Check 4 (disabled)</label>
         </td>
       </tr>
       <tr>
         <td class="label nowrap">Input radio:</td>
         <td>
-          <label for="f-input-radio-1"><input type="radio" name="input-radio" id="f-input-radio-1" value="1" checked="checked"   />Radio 1</label>&nbsp;
-          <label for="f-input-radio-2"><input type="radio" name="input-radio" id="f-input-radio-2" value="2"                     />Radio 2</label>&nbsp;
-          <label for="f-input-radio-3"><input type="radio" name="input-radio" id="f-input-radio-3" value="3"                     />Radio 3</label>&nbsp;
-          <label for="f-input-radio-4"><input type="radio" name="input-radio" id="f-input-radio-4" value="4" disabled="disabled" />Radio 4 (disabled)</label>
+          <label for="f-input-radio-1"><input type="radio" name="input-radio" id="f-input-radio-1" value="1" checked="checked">Radio 1</label>&nbsp;
+          <label for="f-input-radio-2"><input type="radio" name="input-radio" id="f-input-radio-2" value="2">Radio 2</label>&nbsp;
+          <label for="f-input-radio-3"><input type="radio" name="input-radio" id="f-input-radio-3" value="3">Radio 3</label>&nbsp;
+          <label for="f-input-radio-4"><input type="radio" name="input-radio" id="f-input-radio-4" value="4" disabled="disabled">Radio 4 (disabled)</label>
         </td>
       </tr>
       <tr>
@@ -1948,43 +1948,43 @@ Text line 2
               </tr>
               <tr>
                 <td class="label">Question 1</td>
-                <td><input type="radio" name="q1" id="f-q1-a" value="A" /></td>
-                <td><input type="radio" name="q1" id="f-q1-b" value="B" /></td>
-                <td><input type="radio" name="q1" id="f-q1-c" value="C" /></td>
-                <td><input type="radio" name="q1" id="f-q1-d" value="D" /></td>
-                <td><input type="radio" name="q1" id="f-q1-e" value="E" /></td>
+                <td><input type="radio" name="q1" id="f-q1-a" value="A"></td>
+                <td><input type="radio" name="q1" id="f-q1-b" value="B"></td>
+                <td><input type="radio" name="q1" id="f-q1-c" value="C"></td>
+                <td><input type="radio" name="q1" id="f-q1-d" value="D"></td>
+                <td><input type="radio" name="q1" id="f-q1-e" value="E"></td>
               </tr>
               <tr>
                 <td class="label">Question 2</td>
-                <td><input type="radio" name="q2" id="f-q2-a" value="A" /></td>
-                <td><input type="radio" name="q2" id="f-q2-b" value="B" /></td>
-                <td><input type="radio" name="q2" id="f-q2-c" value="C" /></td>
-                <td><input type="radio" name="q2" id="f-q2-d" value="D" /></td>
-                <td><input type="radio" name="q2" id="f-q2-e" value="E" /></td>
+                <td><input type="radio" name="q2" id="f-q2-a" value="A"></td>
+                <td><input type="radio" name="q2" id="f-q2-b" value="B"></td>
+                <td><input type="radio" name="q2" id="f-q2-c" value="C"></td>
+                <td><input type="radio" name="q2" id="f-q2-d" value="D"></td>
+                <td><input type="radio" name="q2" id="f-q2-e" value="E"></td>
               </tr>
               <tr>
                 <td class="label">Question 3</td>
-                <td><input type="radio" name="q3" id="f-q3-a" value="A" /></td>
-                <td><input type="radio" name="q3" id="f-q3-b" value="B" /></td>
-                <td><input type="radio" name="q3" id="f-q3-c" value="C" /></td>
-                <td><input type="radio" name="q3" id="f-q3-d" value="D" /></td>
-                <td><input type="radio" name="q3" id="f-q3-e" value="E" /></td>
+                <td><input type="radio" name="q3" id="f-q3-a" value="A"></td>
+                <td><input type="radio" name="q3" id="f-q3-b" value="B"></td>
+                <td><input type="radio" name="q3" id="f-q3-c" value="C"></td>
+                <td><input type="radio" name="q3" id="f-q3-d" value="D"></td>
+                <td><input type="radio" name="q3" id="f-q3-e" value="E"></td>
               </tr>
               <tr>
                 <td class="label">Question 4</td>
-                <td><input type="radio" name="q4" id="f-q4-a" value="A" /></td>
-                <td><input type="radio" name="q4" id="f-q4-b" value="B" /></td>
-                <td><input type="radio" name="q4" id="f-q4-c" value="C" /></td>
-                <td><input type="radio" name="q4" id="f-q4-d" value="D" /></td>
-                <td><input type="radio" name="q4" id="f-q4-e" value="E" /></td>
+                <td><input type="radio" name="q4" id="f-q4-a" value="A"></td>
+                <td><input type="radio" name="q4" id="f-q4-b" value="B"></td>
+                <td><input type="radio" name="q4" id="f-q4-c" value="C"></td>
+                <td><input type="radio" name="q4" id="f-q4-d" value="D"></td>
+                <td><input type="radio" name="q4" id="f-q4-e" value="E"></td>
               </tr>
               <tr>
                 <td class="label">Question 5</td>
-                <td><input type="radio" name="q5" id="f-q5-a" value="A" /></td>
-                <td><input type="radio" name="q5" id="f-q5-b" value="B" /></td>
-                <td><input type="radio" name="q5" id="f-q5-c" value="C" /></td>
-                <td><input type="radio" name="q5" id="f-q5-d" value="D" /></td>
-                <td><input type="radio" name="q5" id="f-q5-e" value="E" /></td>
+                <td><input type="radio" name="q5" id="f-q5-a" value="A"></td>
+                <td><input type="radio" name="q5" id="f-q5-b" value="B"></td>
+                <td><input type="radio" name="q5" id="f-q5-c" value="C"></td>
+                <td><input type="radio" name="q5" id="f-q5-d" value="D"></td>
+                <td><input type="radio" name="q5" id="f-q5-e" value="E"></td>
               </tr>
             </table>
           </fieldset>
@@ -1992,7 +1992,7 @@ Text line 2
       </tr>
       <tr>
         <td class="label"></td>
-        <td><input type="submit" value="Submit" />&nbsp;<input type="reset" value="Reset" /></td>
+        <td><input type="submit" value="Submit">&nbsp;<input type="reset" value="Reset"></td>
       </tr>
     </table>
 
@@ -2008,7 +2008,7 @@ Text line 2
   <form action="sample.html" method="get">
 
     <div>
-      <input type="hidden" name="form-id" value="42" />
+      <input type="hidden" name="form-id" value="42">
     </div>
 
     <h2>Evaluate the Sinorcaish Professional stylesheet</h2>
@@ -2043,11 +2043,11 @@ Text line 2
       </tr>
       <tr>
         <td class="label nowrap"><label for="f-firstname">First Name:</label>&nbsp;<span class="reqfield">&bull;</span></td>
-        <td><input type="text" name="firstname" id="f-firstname" value="" size="25" maxlength="50" /></td>
+        <td><input type="text" name="firstname" id="f-firstname" value="" size="25" maxlength="50"></td>
       </tr>
       <tr>
         <td class="label nowrap"><label for="f-lastname">Last Name:</label>&nbsp;<span class="reqfield">&bull;</span></td>
-        <td><input type="text" name="lastname" id="f-lastname" value="" size="25" maxlength="50" /></td>
+        <td><input type="text" name="lastname" id="f-lastname" value="" size="25" maxlength="50"></td>
       </tr>
       <tr>
         <td colspan="2" class="vertspace"></td>
@@ -2055,15 +2055,15 @@ Text line 2
 
       <tr>
         <td class="label nowrap"><label for="f-email">E-mail Address:</label>&nbsp;<span class="reqfield">&bull;</span></td>
-        <td><input type="text" name="email" id="f-email" value="" size="50" maxlength="250" /></td>
+        <td><input type="text" name="email" id="f-email" value="" size="50" maxlength="250"></td>
       </tr>
       <tr>
         <td class="label nowrap"><label for="f-password">Password:</label>&nbsp;<span class="reqfield">&bull;</span></td>
-        <td><input type="password" name="password" id="f-password" value="" size="25" maxlength="50" /></td>
+        <td><input type="password" name="password" id="f-password" value="" size="25" maxlength="50"></td>
       </tr>
       <tr>
         <td class="label nowrap"><label for="f-password2">Confirm Password:</label>&nbsp;<span class="reqfield">&bull;</span></td>
-        <td><input type="password" name="password2" id="f-password2" value="" size="25" maxlength="50" /></td>
+        <td><input type="password" name="password2" id="f-password2" value="" size="25" maxlength="50"></td>
       </tr>
       <tr>
         <td colspan="2" class="vertspace"></td>
@@ -2071,19 +2071,19 @@ Text line 2
 
       <tr>
         <td class="label nowrap"><label for="f-jobtitle">Job Title:</label></td>
-        <td><input type="text" name="jobtitle" id="f-jobtitle" value="" size="50" maxlength="250" /></td>
+        <td><input type="text" name="jobtitle" id="f-jobtitle" value="" size="50" maxlength="250"></td>
       </tr>
       <tr>
         <td class="label nowrap"><label for="f-company">Company/Organisation:</label></td>
-        <td><input type="text" name="company" id="f-company" value="" size="50" maxlength="250" /></td>
+        <td><input type="text" name="company" id="f-company" value="" size="50" maxlength="250"></td>
       </tr>
       <tr>
         <td class="label nowrap"><label for="f-address">Address:</label></td>
-        <td><input type="text" name="address" id="f-address" value="" size="50" maxlength="500" /></td>
+        <td><input type="text" name="address" id="f-address" value="" size="50" maxlength="500"></td>
       </tr>
       <tr>
         <td class="label nowrap"><label for="f-city">City/Town/Suburb:</label></td>
-        <td><input type="text" name="city" id="f-city" value="" size="25" maxlength="50" /></td>
+        <td><input type="text" name="city" id="f-city" value="" size="25" maxlength="50"></td>
       </tr>
       <tr>
         <td class="label nowrap"><label for="f-state">State/Province:</label></td>
@@ -2178,7 +2178,7 @@ Text line 2
       </tr>
       <tr>
         <td class="label nowrap"><label for="f-postcode">ZIP/Postcode:</label></td>
-        <td><input type="text" name="postcode" id="f-postcode" value="" size="10" maxlength="25" /></td>
+        <td><input type="text" name="postcode" id="f-postcode" value="" size="10" maxlength="25"></td>
       </tr>
       <tr>
         <td class="label nowrap"><label for="f-country">Country:</label>&nbsp;<span class="reqfield">&bull;</span></td>
@@ -2440,15 +2440,15 @@ Text line 2
 
       <tr>
         <td class="label nowrap"><label for="f-phone">Phone:</label></td>
-        <td><input type="text" name="phone" id="f-phone" value="" size="25" maxlength="50" /></td>
+        <td><input type="text" name="phone" id="f-phone" value="" size="25" maxlength="50"></td>
       </tr>
       <tr>
         <td class="label nowrap"><label for="f-fax">Fax:</label></td>
-        <td><input type="text" name="fax" id="f-fax" value="" size="25" maxlength="50" /></td>
+        <td><input type="text" name="fax" id="f-fax" value="" size="25" maxlength="50"></td>
       </tr>
       <tr>
         <td class="label nowrap"><label for="f-mobile">Cell/Mobile:</label></td>
-        <td><input type="text" name="mobile" id="f-mobile" value="" size="25" maxlength="50" /></td>
+        <td><input type="text" name="mobile" id="f-mobile" value="" size="25" maxlength="50"></td>
       </tr>
       <tr>
         <td class="label"></td>
@@ -2521,7 +2521,7 @@ Text line 2
 
       <tr>
         <td class="label"></td>
-        <td><input type="submit" value="Submit" />&nbsp;<input type="reset" value="Reset" /></td>
+        <td><input type="submit" value="Submit">&nbsp;<input type="reset" value="Reset"></td>
       </tr>
 
     </table>
@@ -2559,7 +2559,7 @@ class="markup">&lt;h1&gt;</code>.</p>
       Sinorcaish?</a></li>
   </ul>
 
-  <hr class="lighter" />
+  <hr class="lighter">
 
 
   <h4 id="faq-using">Is it hard to use the Sinorcaish stylesheet?</h4>
@@ -2568,7 +2568,7 @@ class="markup">&lt;h1&gt;</code>.</p>
     href="#h-making-start">Making a Start</a> &mdash; you&rsquo;ll be on
     your way in no time.</p>
 
-  <div class="totop"><a href="#main">Top <img src="totop.png" alt="^" width="10" height="10" /></a></div>
+  <div class="totop"><a href="#main">Top <img src="totop.png" alt="^" width="10" height="10"></a></div>
 
 
   <h4 id="faq-getting">Where can I download the Sinorcaish stylesheet?</h4>
@@ -2581,7 +2581,7 @@ class="markup">&lt;h1&gt;</code>.</p>
     site includes appropriate sample images that you can use in your own
     documents.</p>
 
-  <div class="totop"><a href="#main">Top <img src="totop.png" alt="^" width="10" height="10" /></a></div>
+  <div class="totop"><a href="#main">Top <img src="totop.png" alt="^" width="10" height="10"></a></div>
 
 
   <h4 id="faq-copyright">Can I remove your name from the template file?</h4>
@@ -2602,7 +2602,7 @@ class="markup">&lt;h1&gt;</code>.</p>
     href="logo.html">logo image instructions</a>.  This is essentially a
     matter of giving credit where credit is due.</p>
 
-  <div class="totop"><a href="#main">Top <img src="totop.png" alt="^" width="10" height="10" /></a></div>
+  <div class="totop"><a href="#main">Top <img src="totop.png" alt="^" width="10" height="10"></a></div>
 
 
   <h4 id="faq-googleads">Will you develop a right sidebar for Google Ads?</h4>
@@ -2612,7 +2612,7 @@ class="markup">&lt;h1&gt;</code>.</p>
     the CSS stylesheet files yourself &mdash; as long as you retain the
     original copyright notices in those files.</p>
 
-  <div class="totop"><a href="#main">Top <img src="totop.png" alt="^" width="10" height="10" /></a></div>
+  <div class="totop"><a href="#main">Top <img src="totop.png" alt="^" width="10" height="10"></a></div>
 
 
   <h4 id="faq-time">How long did it take you to develop Sinorcaish?</h4>
@@ -2622,7 +2622,7 @@ class="markup">&lt;h1&gt;</code>.</p>
     developing&rdquo; is probably as close an answer as the author can
     come up with for the first version of Sinorcaish!</p>
 
-  <div class="totop"><a href="#main">Top <img src="totop.png" alt="^" width="10" height="10" /></a></div>
+  <div class="totop"><a href="#main">Top <img src="totop.png" alt="^" width="10" height="10"></a></div>
 
 </div>
 
@@ -2684,5 +2684,5 @@ to send a short note to the same address should you use this stylesheet in
 one of your own web sites.  Happy coding!</p>
 
 
-<br id="endmain" />
+<br id="endmain">
 </div>
