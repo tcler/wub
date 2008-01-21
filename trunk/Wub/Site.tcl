@@ -89,8 +89,11 @@ namespace eval Site {
     }
 
     # load site configuration script (not under SVN control)
+    variable vars
     if {$vars ne ""} {
-	catch {eval [::fileutil::cat $vars]}
+	catch {
+	    eval [::fileutil::cat [file join $home $vars]]
+	}
     }
 
     # load command-line configuration vars
