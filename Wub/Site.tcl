@@ -111,7 +111,7 @@ namespace eval Site {
     proc Variable {name value} {
 	variable $name
 	if {![info exists $name]} {
-	    set $name $val
+	    set $name $value
 	}
     }
 
