@@ -32,60 +32,93 @@ namespace eval Site {
 	return $result
     }
 
-    variable home
-    if {![info exists home]} {
-	# if another package hasn't set home, then it's here
-	set home [file normalize [file dirname [info script]]]
-    }
-
-    #### Configuration
-    # set some default configuration flags and values
-    foreach {name val} [rc {
+    variable configuration {
+	home [file normalize [file dirname [info script]]] ;# home of application script
 	host [info hostname]	;# default home for relative paths
 	multi 0			;# we're single-threaded
 
-	globaldocroot 1
-	backends 5
-	cmdport 8082
+	globaldocroot 1		;# do we use Wub's docroot, or caller's
+	backends 5		;# number of backends to add on demand
+	cmdport 8082		;# Console listening socket
 
-	application ""
+	application ""		;# package to require as application
 
-	wubdir [file join [file dirname [info script]] ..]
-	scriptdir [file normalize [file dirname [info script]]]
-	local [file normalize [file join $home local.tcl]]
-	vars [file normalize [file join $home vars.tcl]]
+	wubdir [file normalize [file join [file dirname [info script]] ..]] ;# where's wub
+	scriptdir [file normalize [file dirname [info script]]] ;# scripts for Backend
+	local [file normalize [file join $home local.tcl]] ;# post-init localism
+	vars [file normalize [file join $home vars.tcl]] ;# pre-init localism
+	# topdir	;# Where to look for Wub libs - don't change
+	# docroot	;# Where to look for document root.
 
+	# HTTP Listener configuration
 	listener [list [rc {
-	    -port 8080
+	    -port 8080	;# Wub listener port
+	    #-host	;# listening host (default [info hostname]
+	    #-http	;# dispatch handler (default Http)
+	    #-tls	;# array passed to tls (default none=disabled)
 	}]]
 
+	# SCGI Listener configuration
 	scgi [list [rc {
-	    -port 8088
-	    -scgi_send {::scgi Send}
+	    -port 8088			;# what port does SCGI run on
+	    -port 0			;# disable SCGI - comment to enable
+	    -scgi_send {::scgi Send}	;# how does SCGI communicate incoming?
 	}]]
 	
+	# Backend configuration
 	backend [list [rc {
 	    scriptname Worker.tcl
 	    dispatch Backend
+	    # scriptdir ;# directory to find scripts
+	    # script ""	;# script to prime backend
+	    # max 257	;# maximum number of backend threads
+	    # incr 20	;# number of threads to add on exhaustion
 	}]]
 
+	# Varnish configuration
 	varnish [list [rc { ;# don't use varnish cache by default
-	}]]
-	cache [list [rc { ;# use in-RAM cache by default
-	    maxsize 204800
+	    # vaddress localhost	;# where is varnish running?
+	    # vport 6082		;# on what port is varnish control?
 	}]]
 
-	httpd [list [rc {
-	    max 1
-	    incr 1
-	    over 40
-	    dispatch ""
+	# Internal Cach configuration
+	cache [list [rc { ;# use in-RAM cache by default
+	    maxsize 204800	;# maximum size of object to cache
+	    # high 100	;# high water mark for cache
+	    # low 90	;# low water mark for cache
+	    # weight_age 0.02	;# age weight for replacement
+	    # weight_hits -2.0	;# hits weight for replacement
+	    # CC 0	;# do we bother to parse cache-control?
+	    # obey_CC 0	;# do we act on cache-control? (Not Implemented)
 	}]]
-    }] {
+
+	# Httpd protocol engine configuration
+	httpd [list [rc {
+	    max 1		;# max # of worker threads
+	    incr 1		;# number of threads to add on exhaustion
+	    over 40		;# degree of thread overcommittment
+	    dispatch ""		;# dispatcher for incoming requests
+
+	    # max_conn 10	;# max connections per IP
+	    # no_really 3	;# how many times to complain about max_conn
+	    # dispatch "Backend" ;# backend dispatcher
+	    # server_port	;# server's port, if different from Listener's
+	    # server_id		;# server ID to client (default "Wub")
+	    # retry_wait	;# 
+	}]]
+    }
+
+    proc Variable {name value} {
 	variable $name
 	if {![info exists $name]} {
 	    set $name $val
 	}
+    }
+
+    #### Configuration
+    # set some default configuration flags and values
+    foreach {name val} [rc $config] {
+	Variable $name $val
     }
 
     # load site configuration script (not under SVN control)
@@ -102,27 +135,27 @@ namespace eval Site {
 	set $name $val	;# set global config vars
     }
 
-    variable url "http://$host:[dict get $listener -port]/"
+    Variable url "http://$host:[dict get $listener -port]/"
 
     if {[info exists ::starkit::topdir]} {
 	# starkit startup
-	variable topdir $::starkit::topdir
-	variable docroot [file join $topdir docroot]
+	Variable topdir $::starkit::topdir
+	Variable docroot [file join $topdir docroot]
     } else {
 	# unpacked startup
 	lappend ::auto_path $home
 
 	# find Wub stuff
-	variable topdir [file normalize $wubdir]
+	Variable topdir [file normalize $wubdir]
 	foreach lib {Mime extensions Wub Domains Utilities stx} {
 	    lappend ::auto_path [file join $topdir $lib]
 	}
 
 	# find docroot
 	if {$globaldocroot} {
-	    variable docroot [file join $topdir docroot]
+	    Variable docroot [file join $topdir docroot]
 	} else {
-	    variable docroot [file join $home docroot]
+	    Variable docroot [file join $home docroot]
 	}
     }
 
