@@ -54,8 +54,8 @@ namespace eval Site {
 
 	wubdir [file join [file dirname [info script]] ..]
 	scriptdir [file normalize [file dirname [info script]]]
-	local [file join $home local.tcl]
-	vars [file join $home vars.tcl]
+	local [file normalize [file join $home local.tcl]]
+	vars [file normalize [file join $home vars.tcl]]
 
 	listener [list [rc {
 	    -port 8080
@@ -84,7 +84,6 @@ namespace eval Site {
 	    dispatch ""
 	}]]
     }] {
-	puts "Default: $name '$val'"
 	variable $name
 	if {![info exists $name]} {
 	    set $name $val
@@ -267,9 +266,15 @@ namespace eval Site {
 
 	#### Load local semantics from ./local.tcl
 	variable local
-	if {$local ne "" && [file exists $local]} {
-	    catch {source $local} r eo
-	    Debug.log {Site LOCAL: '$r' ($eo)}
+	variable home
+	if {$local ne ""} {
+	    if {[file pathtype $local] eq "relative"} {
+		set local [file normalize [file join $home $local]]
+	    }
+	    if {[file exists $local]} {
+		catch {source $local} r eo
+		Debug.log {Site LOCAL: '$r' ($eo)}
+	    }
 	}
 
 	variable done 0
