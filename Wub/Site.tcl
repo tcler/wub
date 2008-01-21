@@ -15,7 +15,6 @@ namespace eval Site {
 		lappend vars $svar [set $var]
 	    }
 	}
-	#puts stderr "VARS: $vars"
 	return $vars
     }
 
@@ -30,7 +29,6 @@ namespace eval Site {
 	}
 	set accum [string trim $accum]
 	set result [uplevel 1 [list subst $accum]]
-	puts stderr "RC: $result"
 	return $result
     }
 
