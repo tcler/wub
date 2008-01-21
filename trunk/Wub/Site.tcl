@@ -117,7 +117,7 @@ namespace eval Site {
 
     #### Configuration
     # set some default configuration flags and values
-    foreach {name val} [rc $config] {
+    foreach {name val} [rc $configuration] {
 	Variable $name $val
     }
 
