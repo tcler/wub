@@ -312,7 +312,7 @@ proc <stylesheet> {url {media screen}} {
 foreach tag {script style} {
     eval [string map [list %T $tag] {
 	proc <%T> {args} {
-	    if {([llength $args] / 2) == 1} {
+	    if {([llength $args] % 2) == 1} {
 		set content [lindex $args end]
 		set args [lrange $args 0 end-1]
 		return "<[Html::attr %T {*}[Html default %T] {*}$args]>$content</%T>"
