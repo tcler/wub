@@ -138,7 +138,7 @@ namespace eval Html {
 			lappend class [armour $c]
 		    }
 		}
-	    } elseif {![exists seen($n)]} {
+	    } elseif {![info exists seen($n)]} {
 		lappend result "[string trim $n]='[armour [string trim $v]]'"
 	    }
 	    set seen($n) 1
