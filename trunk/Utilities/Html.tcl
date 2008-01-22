@@ -126,9 +126,10 @@ namespace eval Html {
 
 	set result ""
 	set class {}
+	array set seen {}
 	foreach {n v} $args {
 	    if {$n in {checked disabled selected}} {
-		if {$v} {
+		if {$v && ![info exists seen($n)]} {
 		    lappend result $n
 		}
 	    } elseif {$n eq "class"} {
@@ -137,9 +138,10 @@ namespace eval Html {
 			lappend class [armour $c]
 		    }
 		}
-	    } else {
+	    } elseif {![exists seen($n)]} {
 		lappend result "[string trim $n]='[armour [string trim $v]]'"
 	    }
+	    set seen($n) 1
 	}
 
 	if {$class ne {}} {
@@ -313,9 +315,11 @@ foreach tag {script style} {
 	    if {([llength $args] / 2) == 1} {
 		set content [lindex $args end]
 		set args [lrange $args 0 end-1]
-		return "<[Html::attr %T {*}[Html default %T]]{*}$args>$content</%T>"
-	    } else {
+		return "<[Html::attr %T {*}[Html default %T] {*}$args]>$content</%T>"
+	    } elseif {$::Html::XHTML} {
 		return "<[Html::attr %T {*}[Html default %T] {*}$args]/>"
+	    } else {
+		return "<[Html::attr %T {*}[Html default %T] {*}$args]></%T>"
 	    }
 	}
     }]
