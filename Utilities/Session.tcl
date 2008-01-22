@@ -77,7 +77,7 @@ namespace eval Session {
 	    if {[catch {
 		dict get [Cookies fetch [dict get $req -cookies] {*}$args -name $cookie] -value
 	    } slot eo]} {
-		Debug.error {fetch session: $slot ($eo)}
+		#Debug.error {fetch session: $slot ($eo)}
 		return $req
 	    }
 
