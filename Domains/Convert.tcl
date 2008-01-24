@@ -139,7 +139,7 @@ namespace eval Convert {
 		if {$a eq $ctype} {
 		    # exact match - done
 		    Debug.convert {transform: matched $a}
-		    return [dict replace $rsp -raw 1]
+		    return [list * [dict replace $rsp -raw 1]]
 		}
 
 		if {$q eq ""} {
@@ -178,6 +178,10 @@ namespace eval Convert {
     proc transform {rsp} {
 	Debug.convert {transform: [dumpMsg $rsp]}
 	lassign [tpath $rsp] path rsp
+	if {$path eq "*"} {
+	    return $rsp
+	}
+
 	if {$path ne ""} {
 	    # there is a transforming path
 	    Debug.convert {TRANSFORMING: [dict get $rsp -url] $path}
