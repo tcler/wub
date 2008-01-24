@@ -756,7 +756,10 @@ namespace eval HttpdWorker {
 	if {[Http nonRouting? [dict get $request -ipaddr]]
 	    && [dict exists $request x-forwarded-for]
 	} {
-	    dict set request -ipaddr [lindex [split [dict get $request x-forwarded-for] ,] 0]
+	    set xff [string trim [lindex [split [dict get $request x-forwarded-for] ,] 0]]
+	    if {$xff ne "unknown" && ![Http nonRouting? $xff]} {
+		dict set request -ipaddr $xff
+	    }
 	}
 
 	# block spiders by UA
