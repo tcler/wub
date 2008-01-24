@@ -128,7 +128,7 @@ namespace eval Html {
 	set class {}
 	array set seen {}
 	foreach {n v} $args {
-	    if {$n in {checked disabled selected}} {
+	    if {$n in {checked disabled selected noshade}} {
 		if {$v && ![info exists seen($n)]} {
 		    lappend result $n
 		}
