@@ -114,10 +114,7 @@ namespace eval Convert {
 
     variable tcache	;# cache of known transformations
 
-    # perform applicable transformations on content
-    proc transform {rsp} {
-	Debug.convert {transform: [dumpMsg $rsp]}
-
+    proc tpath {rsp} {
 	if {![dict exists $rsp accept]} {
 	    dict set rsp accept "text/html"
 	} else {
@@ -174,6 +171,13 @@ namespace eval Convert {
 	    }
 	}
 
+	return [list $path $rsp]
+    }
+
+    # perform applicable transformations on content
+    proc transform {rsp} {
+	Debug.convert {transform: [dumpMsg $rsp]}
+	lassign [tpath $rsp] path rsp
 	if {$path ne ""} {
 	    # there is a transforming path
 	    Debug.convert {TRANSFORMING: [dict get $rsp -url] $path}
