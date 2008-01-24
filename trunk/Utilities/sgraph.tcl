@@ -24,6 +24,8 @@ namespace eval sgraph {
     proc path {g from to} {
 	if {$from eq $to} {
 	    return {}
+	} elseif {[string match $to $from]} {
+	    return {}
 	}
 
 	set length 999999	;# simulated infinity
@@ -32,7 +34,9 @@ namespace eval sgraph {
 	    set try [lpop todo]	;# first thing to do
 	    set last [lindex $try end]
 	    foreach node [neighbors $g $last] {
-		if {$node eq $to} {
+		if {($node eq $to)
+		    || [string match $to $node]
+		} {
 		    if {[llength $try] < $length} {
 			set length [llength $try]
 		    }
@@ -49,4 +53,7 @@ namespace eval sgraph {
 
 	return {}
     }
+
+    namespace export -clear *
+    namespace ensemble create -subcommands {}
 }
