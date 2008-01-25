@@ -113,7 +113,7 @@ namespace eval Dub {
 
 		set table [Html dict2table $dict [list {*}$layout]]
 
-		# use default view for new record
+		# use default view for new row
 		set form [<form> record action ${prefix}/add {
 		    [<fieldset> record {
 			[<hidden> view $view]
@@ -121,6 +121,7 @@ namespace eval Dub {
 			    [<hidden> name $l]
 			    [<text> value legend $l:]
 			}]
+			[<submit> add "New"]
 		    }]
 		}]
 		set rest [<a> href ${prefix}/ Back]
