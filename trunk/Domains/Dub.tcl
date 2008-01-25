@@ -115,17 +115,16 @@ namespace eval Dub {
 
 		# use default view for new row
 		set form [<form> record action ${prefix}/add {
-		    [<legend> [<submit> add1 "New"]]
+		    [<legend> [<submit> add1 "New Record"]]
 		    [<fieldset> record {
 			[<hidden> view $view]
 			[Foreach l $layout {
 			    [<hidden> name $l]
 			    [<text> value legend $l:]
 			}]
-			[<submit> add "New"]
 		    }]
 		}]
-		set rest [<a> href ${prefix}/ Back]
+		set rest "[<br>][<a> href ${prefix}/ Back]"
 		return [Http Ok $r "$table\n$form\n$rest" x-text/html-fragment]
 	    }
 	}
