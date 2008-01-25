@@ -111,7 +111,7 @@ namespace eval Dub {
 		    lappend layout [lindex [split $l :] 0]
 		}
 
-		set table [Html dict2table $dict [list {*}$layout edit delete]]
+		set table [Html dict2table $dict [list {*}$layout]]
 		set form [<form> record action ${prefix}/add {
 		    [<fieldset> record {
 			[<hidden> view $view]
