@@ -115,8 +115,8 @@ namespace eval Dub {
 
 		# use default view for new row
 		set form [<form> record action ${prefix}/add {
-		    [<legend> [<submit> add1 "New Record"]]
 		    [<fieldset> record {
+			[<legend> [<submit> add1 "New Record"]]
 			[<hidden> view $view]
 			[Foreach l $layout {
 			    [<hidden> name $l]
