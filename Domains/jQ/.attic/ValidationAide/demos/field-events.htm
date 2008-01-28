@@ -1,0 +1,71 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+	<title>ValidationAide - Field Events</title>
+	<link href="_client/styles/master.css" media="screen,projection" rel="stylesheet" type="text/css" />
+	<script type="text/javascript" src="_client/scripts/jquery/jquery.js"></script>
+	<script type="text/javascript" src="_client/scripts/jquery/stringaide.js"></script>
+	<script type="text/javascript" src="_client/scripts/jquery/validationaide.js"></script>
+	<script type="text/javascript">
+		jQuery.noConflict(); var $j = jQuery;
+		
+		$j(document).ready(function() {
+			$j("#TestForm").validationAideEnable(null, null, myPreFieldValidationHandler, myPostFieldValidationHandler);
+		});
+		
+		function myPreFieldValidationHandler(fieldValue, fieldObj){
+			alert("Pre " + fieldObj.id);
+		}
+		
+		function myPostFieldValidationHandler(fieldValue, fieldObj, success){
+			alert("Post " + fieldObj.id + " = " + success);
+		}
+	</script>
+</head>
+<body>
+
+<h1><a href="index.htm">ValidationAide</a> - Field Events</h1>
+
+<p>This form demonstrates field events. You can create your own functions that are fired each time a field is validated. There are two events for each field:</p>
+<ul>
+	<li><strong>PreFieldValidationHandler</strong> - Fires before a validation rule is checked.</li>
+	<li><strong>PostFieldValidationHandler</strong> - Fires after a validation rule has been checked.</li>
+</ul>
+
+<form id="TestForm">
+	
+	<div id="ClientValidationSummary"></div>
+	
+	<label for="FirstName" id="FirstNameLabel">
+		<span class="label">First name: <span class="required">*</span></span>
+		<input type="text" id="FirstName" title="First name" class="textbox validator-required" />
+	</label>
+	
+	<label for="Surname">
+		<span class="label">Surname: <span class="required">*</span></span>
+		<input type="text" id="Surname" title="Surname" class="textbox validator-required" />
+	</label>
+	
+	<label for="Email">
+		<span class="label">Email: <span class="required">*</span></span>
+		<input type="text" id="Email" class="textbox validator-required validator-email" />
+	</label>
+	
+	<label for="Company">
+		<span class="label">Company:</span>
+		<input type="text" id="Company" class="textbox" />
+	</label>
+	
+	<label for="HasReadTerms">
+		<span class="label">Read Terms?</span>
+		<input type="checkbox" id="HasReadTerms" title="Read Terms?" class="checkbox validator-required" />
+	</label>
+	
+	<div class="toolbar">
+		<input type="submit" value="Submit" />
+	</div>
+	
+</form>
+
+</body>
+</html>

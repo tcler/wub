@@ -1,0 +1,72 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+	<title>ValidationAide - Initialise Events</title>
+	<link href="_client/styles/master.css" media="screen,projection" rel="stylesheet" type="text/css" />
+	<script type="text/javascript" src="_client/scripts/jquery/jquery.js"></script>
+	<script type="text/javascript" src="_client/scripts/jquery/stringaide.js"></script>
+	<script type="text/javascript" src="_client/scripts/jquery/validationaide.js"></script>
+	<script type="text/javascript">
+		jQuery.noConflict(); var $j = jQuery;
+		
+		$j(document).ready(function() {
+			$j("#SubmitButton").validationAideEnableOnClick("#TestForm");
+			$j("#CancelButton").validationAideDisableOnClick("#TestForm");
+		});
+	</script>
+</head>
+<body>
+
+<h1><a href="index.htm">Form Validation</a> - Initialise Events</h1>
+
+<p>You can enable and disable the validator on click events:</p>
+
+<form id="TestForm">
+	
+	<div id="ClientValidationSummary"></div>
+	
+	<label for="FirstName">
+		<span class="label">First name: <span class="required">*</span></span>
+		<input type="text" id="FirstName" class="textbox validator-required" />
+	</label>
+	
+	<label for="Surname">
+		<span class="label">Surname: <span class="required">*</span></span>
+		<input type="text" id="Surname" class="textbox validator-required" />
+	</label>
+	
+	<label for="Email">
+		<span class="label">Email: <span class="required">*</span></span>
+		<input type="text" id="Email" class="textbox validator-required validator-email" />
+	</label>
+	
+	<label for="Company">
+		<span class="label">Company:</span>
+		<input type="text" id="Company" class="textbox" />
+	</label>
+	
+	<label for="HasReadTerms">
+		<span class="label">Read Terms?</span>
+		<input type="checkbox" id="HasReadTerms" class="checkbox validator-required" />
+	</label>
+	
+	<div class="toolbar">
+		<input type="submit" value="Submit" id="SubmitButton" />
+		<input type="submit" value="Cancel" id="CancelButton" />
+	</div>
+	
+</form>
+
+<p>More complex, says "hello" before the form validation kicks in:</p>
+<pre>
+$j(document).ready(function() {
+  jQuery.validationAide.resetForm("#TestForm");
+  $j("#SubmitButton").bind("click", function(){
+    alert("Hello");
+    jQuery("#TestForm").validationAideEnable();
+  });
+});
+</pre>
+
+</body>
+</html>

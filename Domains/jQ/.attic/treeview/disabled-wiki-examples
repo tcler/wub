@@ -1,0 +1,236 @@
+{{APIExample|
+|height=300
+|desc=Transforms the unordered list with id "navigation" into a treeview, starting with all branches collapsed, and allowing only one branch open at a time. The tree state is persisted by matching the current location.
+|code=<nowiki>try{$("#navigation").treeview({
+   persist: "location",
+   collapsed: true,
+   unique: true
+ });}catch(e){alert(e);}</nowiki>
+|html=<nowiki><link rel="stylesheet" href="http://dev.jquery.com/view/trunk/plugins/treeview/jquery.treeview.css" type="text/css" media="screen" />
+   <script type="text/javascript" src="http://dev.jquery.com/view/trunk/plugins/treeview/jquery.treeview.js"></script>
+   <ul id="navigation">
+ 	<li><a href="?1">Item 1</a>
+ 		<ul>
+ 			<li><a href="?1.0">Item 1.0</a>
+ 				<ul>
+ 					<li><a href="?1.0.0">Item 1.0.0</a></li>
+ 				</ul>
+ 			</li>
+ 			<li><a href="?1.1">Item 1.1</a></li>
+ 			<li><a href="?1.2">Item 1.2</a>
+ 				<ul>
+ 					<li><a href="?1.2.0">Item 1.2.0</a>
+ 					<ul>
+ 						<li><a href="?1.2.0.0">Item 1.2.0.0</a></li>
+ 						<li><a href="?1.2.0.1">Item 1.2.0.1</a></li>
+ 						<li><a href="?1.2.0.2">Item 1.2.0.2</a></li>
+ 					</ul>
+ 				</li>
+ 					<li><a href="?1.2.1">Item 1.2.1</a>
+ 					<ul>
+ 						<li><a href="?1.2.1.0">Item 1.2.1.0</a></li>
+ 					</ul>
+ 				</li>
+ 					<li><a href="?1.2.2">Item 1.2.2</a>
+ 					<ul>
+ 						<li><a href="?1.2.2.0">Item 1.2.2.0</a></li>
+ 						<li><a href="?1.2.2.1">Item 1.2.2.1</a></li>
+ 						<li><a href="?1.2.2.2">Item 1.2.2.2</a></li>
+ 					</ul>
+ 				</li>
+ 				</ul>
+ 			</li>
+ 		</ul>
+ 	</li>
+ 	<li><a href="?2">Item 2</a>
+ 		<ul>
+ 			<li><span>Item 2.0</span>
+ 				<ul>
+ 					<li><a href="?2.0.0">Item 2.0.0</a>
+ 					<ul>
+ 						<li><a href="?2.0.0.0">Item 2.0.0.0</a></li>
+ 						<li><a href="?2.0.0.1">Item 2.0.0.1</a></li>
+ 					</ul>
+ 				</li>
+ 				</ul>
+ 			</li>
+ 			<li><a href="?2.1">Item 2.1</a>
+ 				<ul>
+ 					<li><a href="?2.1.0">Item 2.1.0</a>
+ 					<ul>
+ 						<li><a href="?2.1.0.0">Item 2.1.0.0</a></li>
+ 					</ul>
+ 				</li>
+ 					<li><a href="?2.1.1">Item 2.1.1</a>
+ 					<ul>
+ 						<li><a href="?2.1.1.0">Item 2.1.1.0</a></li>
+ 						<li><a href="?2.1.1.1">Item 2.1.1.1</a></li>
+ 						<li><a href="?2.1.1.2">Item 2.1.1.2</a></li>
+ 					</ul>
+ 				</li>
+ 					<li><a href="?2.1.2">Item 2.1.2</a>
+ 					<ul>
+ 						<li><a href="?2.1.2.0">Item 2.1.2.0</a></li>
+ 						<li><a href="?2.1.2.1">Item 2.1.2.1</a></li>
+ 						<li><a href="?2.1.2.2">Item 2.1.2.2</a></li>
+ 					</ul>
+ 				</li>
+ 				</ul>
+ 			</li>
+ 		</ul>
+ 	</li>
+ 	<li><a href="?3">Item 3</a>
+ 		<ul>
+ 			<li class="open"><a href="?3.0">Item 3.0</a>
+ 				<ul>
+ 					<li><a href="?3.0.0">Item 3.0.0</a></li>
+ 					<li><a href="?3.0.1">Item 3.0.1</a>
+ 						<ul>
+ 							<li><a href="?3.0.1.0">Item 3.0.1.0</a></li>
+ 							<li><a href="?3.0.1.1">Item 3.0.1.1</a></li>
+ 						</ul>
+ 					</li>
+ 					<li><a href="?3.0.2">Item 3.0.2</a>
+ 						<ul>
+ 							<li><a href="?3.0.2.0">Item 3.0.2.0</a></li>
+ 							<li><a href="?3.0.2.1">Item 3.0.2.1</a></li>
+ 							<li><a href="?3.0.2.2">Item 3.0.2.2</a></li>
+ 						</ul>
+ 					</li>
+ 				</ul>
+ 			</li>
+ 		</ul>
+ 	</li>
+   </ul></nowiki>
+}}
+
+{{APIExample|
+|height=300
+|desc=Finds all div elements within an XML document from an AJAX response.
+|code=<nowiki> $("#red").treeview({
+ 	animated: "fast",
+ 	collapsed: true,
+ 	control: "#treecontrol",
+ 	persist: "cookie",
+ 	toggle: function() {
+ 		$("#log").append("<div>Toggled!");
+ 	}
+ });</nowiki>
+|html=<nowiki><link rel="stylesheet" href="http://dev.jquery.com/view/trunk/plugins/treeview/jquery.treeview.css" type="text/css" media="screen" />
+   <link rel="stylesheet" href="http://dev.jquery.com/view/trunk/plugins/treeview/red-treeview.css" type="text/css" media="screen" />
+   <script type="text/javascript" src="http://dev.jquery.com/view/trunk/plugins/cookie/jquery.cookie.js"></script>
+   <script type="text/javascript" src="http://dev.jquery.com/view/trunk/plugins/treeview/jquery.treeview.js"></script>
+ <style type="text/css">
+   	
+ #red.treeview li { background: url(images/red/tv-item.gif) 0 0 no-repeat; }
+ #red.treeview .collapsable { background-image: url(images/red/tv-collapsable.gif); }
+ #red.treeview .expandable { background-image: url(images/red/tv-expandable.gif); }
+ #red.treeview .last { background-image: url(images/red/tv-item-last.gif); }
+ #red.treeview .lastCollapsable { background-image: url(images/red/tv-collapsable-last.gif); }
+ #red.treeview .lastExpandable { background-image: url(images/red/tv-expandable-last.gif); }
+ 
+ #treecontrol { margin: 1em 0; }
+ 
+ </style>
+    <div id="treecontrol">
+    	<a href="#">Collapse All</a>
+    	<a href="#">Expand All</a>
+    	<a href="#">Toggle All</a>
+    </div>
+
+     <ul id="red">
+    <li>Item 1
+    	<ul>
+    		<li>Item 1.0
+    			<ul>
+    				<li>Item 1.0.0</li>
+    			</ul>
+    		</li>
+    		<li>Item 1.1</li>
+    		<li>Item 1.2
+    			<ul>
+    				<li>Item 1.2.0
+    				<ul>
+    					<li>Item 1.2.0.0</li>
+    					<li>Item 1.2.0.1</li>
+    					<li>Item 1.2.0.2</li>
+    				</ul>
+    			</li>
+    				<li>Item 1.2.1
+    				<ul>
+    					<li>Item 1.2.1.0</li>
+    				</ul>
+    			</li>
+    				<li>Item 1.2.2
+    				<ul>
+    					<li>Item 1.2.2.0</li>
+    					<li>Item 1.2.2.1</li>
+    					<li>Item 1.2.2.2</li>
+    				</ul>
+    			</li>
+    			</ul>
+    		</li>
+    	</ul>
+    </li>
+    <li>Item 2
+    	<ul>
+    		<li>Item 2.0
+    			<ul>
+    				<li>Item 2.0.0
+    				<ul>
+    					<li>Item 2.0.0.0</li>
+    					<li>Item 2.0.0.1</li>
+    				</ul>
+    			</li>
+    			</ul>
+    		</li>
+    		<li>Item 2.1
+    			<ul>
+    				<li>Item 2.1.0
+    				<ul>
+    					<li>Item 2.1.0.0</li>
+    				</ul>
+    			</li>
+    				<li>Item 2.1.1
+    				<ul>
+    					<li>Item 2.1.1.0</li>
+    					<li>Item 2.1.1.1</li>
+    					<li>Item 2.1.1.2</li>
+    				</ul>
+    			</li>
+    				<li>Item 2.1.2
+    				<ul>
+    					<li>Item 2.1.2.0</li>
+    					<li>Item 2.1.2.1</li>
+    					<li>Item 2.1.2.2</li>
+    				</ul>
+    			</li>
+    			</ul>
+    		</li>
+    	</ul>
+    </li>
+    <li class="open">Item 3
+    	<ul>
+    		<li class="open">Item 3.0
+    			<ul>
+    				<li>Item 3.0.0</li>
+    				<li>Item 3.0.1
+    				<ul>
+    					<li>Item 3.0.1.0</li>
+    					<li>Item 3.0.1.1</li>
+    				</ul>
+    				
+    			</li>
+    				<li>Item 3.0.2
+    				<ul>
+    					<li>Item 3.0.2.0</li>
+    					<li>Item 3.0.2.1</li>
+    					<li>Item 3.0.2.2</li>
+    				</ul>
+    			</li>
+    			</ul>
+    		</li>
+    	</ul>
+    </li>
+    </ul></nowiki>
+}}

@@ -1,0 +1,61 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+	<title>ValidationAide - Simple</title>
+	<link href="_client/styles/master.css" media="screen,projection" rel="stylesheet" type="text/css" />
+	<script type="text/javascript" src="_client/scripts/jquery/jquery.js"></script>
+	<script type="text/javascript" src="_client/scripts/jquery/stringaide.js"></script>
+	<script type="text/javascript" src="_client/scripts/jquery/validationaide.js"></script>
+	<script type="text/javascript">
+		jQuery.noConflict(); var $j = jQuery;
+		
+		$j(document).ready(function() {
+			$j("#TestForm").validationAideEnable();
+		});
+	</script>
+</head>
+<body>
+
+<h1><a href="index.htm">ValidationAide</a> - Simple</h1>
+
+<p>Below is a simple test of the form validator using it out of the box.</p>
+<h3>Remember!</h3>
+<p>To add a "title" attribute to each of your input fields you are validating. This value is then used for the "field" part of each validation summary message. If you don't the user will see the field id e.g. FirstName rather than First name.</p>
+
+<form id="TestForm">
+	
+	<div id="ClientValidationSummary"></div>
+	
+	<label for="FirstName" id="FirstNameLabel">
+		<span class="label">First name: <span class="required">*</span></span>
+		<input type="text" id="FirstName" title="First name" class="textbox validator-required" />
+	</label>
+	
+	<label for="Surname">
+		<span class="label">Surname: <span class="required">*</span></span>
+		<input type="text" id="Surname" title="Surname" class="textbox validator-required" />
+	</label>
+	
+	<label for="Email">
+		<span class="label">Email: <span class="required">*</span></span>
+		<input type="text" id="Email" class="textbox validator-required validator-email" />
+	</label>
+	
+	<label for="Company">
+		<span class="label">Company:</span>
+		<input type="text" id="Company" class="textbox" />
+	</label>
+	
+	<label for="HasReadTerms">
+		<span class="label">Read Terms?</span>
+		<input type="checkbox" id="HasReadTerms" title="Read Terms?" class="checkbox validator-required" />
+	</label>
+	
+	<div class="toolbar">
+		<input type="submit" value="Submit" />
+	</div>
+	
+</form>
+
+</body>
+</html>

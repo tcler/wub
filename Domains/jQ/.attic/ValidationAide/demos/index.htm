@@ -1,0 +1,61 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+	<title>ValidationAide</title>
+	<link href="_client/styles/master.css" media="screen,projection" rel="stylesheet" type="text/css" />
+</head>
+<body>
+
+<h1>ValidationAide</h1>
+
+<p>
+ValidationAide is part of the DNAide library. ValidationAide and DNAide are available for download at <a href="http://www.codeplex.com/DNAide" onclick="window.open(this.href);return false;">http://www.codeplex.com/DNAide</a>. Additional information / help can be found at <a href="http://dnaide.blogspot.com" onclick="window.open(this.href);return false;">http://dnaide.blogspot.com</a>.
+</p>
+
+<h2>Examples:</h2>
+<ul>
+	<li><strong><a href="simple.htm">Simple</a></strong></li>
+	<li><strong><a href="custom-messages.htm">Custom Messages</a></strong></li>
+	<li><strong><a href="inline.htm">Inline</a></strong></li>
+	<li><strong><a href="custom-rules.htm">Custom Rules</a></strong></li>
+	<li><strong><a href="init-events.htm">Initialise Events</a></strong></li>
+	<li><strong><a href="field-events.htm">Field Events</a></strong></li>
+</ul>
+
+
+<h2>Quick Reference:</h2>
+
+<h3>Default Validation Rules</h3>
+<ul>
+	<li>validator-required</li>
+	<li>validator-email</li>
+	<li>validator-number</li>
+	<li>validator-digits</li>
+	<li>validator-alphanum</li>
+	<li>validator-date-ddmmyyyy</li>
+	<li>validator-date-mmddyyyy</li>
+	<li>validator-url</li>
+</ul>
+
+<h3>Configuration Options</h3>
+<p>When initializing the validator, you can pass the following options:</p>
+<ul>
+	<li><strong>showInlineMessages</strong> - default false</li>
+	<li><strong>inlineShowSpeed</strong> - default "" (fastest)</li>
+	<li><strong>inlineMessageElementIdPrefix</strong> - default "ValidationInlineErrorMessage-"</li>
+	<li><strong>inlineMessageCssClass</strong> - default "validation-inline-error-message"</li>
+	<li><strong>showSummary</strong> - default true</li>
+	<li><strong>summaryElementId</strong> - default "ClientValidationSummary"</li>
+	<li><strong>summaryMessage</strong> - default "Please correct the following:"</li>
+	<li><strong>summaryFieldMessageFormat</strong> - default "##FIELD## - ##MESSAGE##"</li>
+	<li><strong>fieldErrorCssClass</strong> - default "validation-failed"</li>
+</ul>
+
+<p>e.g.</p>
+
+<pre>
+$j("#TestForm").validationAideEnable(null, {showInlineMessages:true, inlineShowSpeed:"fast"});
+</pre>
+
+</body>
+</html>

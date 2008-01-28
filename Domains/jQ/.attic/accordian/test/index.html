@@ -1,0 +1,191 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+	<title>jQuery Accordion Test Suite</title>
+	
+	<link rel="stylesheet" href="testsuite.css"/>
+	<script type="text/javascript" src="../jquery.js"></script>
+	<script type="text/javascript" src="../jquery.accordion.js"></script>
+	<script type="text/javascript" src="testrunner.js"></script>
+	<script type="text/javascript" src="test.js"></script>
+	<style type="text/css">
+		.xerror, .error { display: none }
+	</style>
+
+</head>
+<body>
+	<h1>jQuery - Form Validation Test Suite</h1>
+	<h2 id="banner"></h2>
+	<h2 id="userAgent"></h2>
+
+	<ol id="tests"></ol>
+
+<div id="main" style="position:absolute;top:-2000000px;">
+
+	<fieldset>
+		<legend>Standard, container is a div, header is h3 and content p</legend>	
+
+		<div id="list1">
+			<h3>There is one obvious advantage:</h3>
+			<p>
+				You've seen it coming!<br/>
+				Buy now and get nothing for free!<br/>
+				Well, at least no free beer. Perhaps a bear, if you can afford it.
+			</p>
+			<h3>Now that you've got...</h3>
+			<p>
+				your bear, you have to admit it!<br/>
+				No, we aren't selling bears.
+			</p>
+			<p>
+				We could talk about renting one.
+			</p>
+			<h3>Rent one bear, ...</h3>
+			<p>
+				get two for three beer.
+			</p>
+			<p>
+				And now, for something completely different.
+			</p>
+		</div>
+		
+		<h3>Code</h3>
+		<pre><code class="mix">jQuery('#list1').Accordion();</code></pre>
+	</fieldset>
+	
+	<fieldset>
+		<legend>Navigation - Unordered List with anchors and nested lists.</legend>
+		<p>The first item is cloned to allow the user to select it. The
+		active element is choosen based on location.hash: Open Drums and click
+		the first item ('Drums'), then reload the page.</p>
+
+		<ul id="navigation">
+			<li>
+				<a class="head" href="?p=1.1.1">Guitar</a>
+				<ul>
+					<li><a href="?p=1.1.1.1">Electric</a></li>
+					<li><a href="?p=1.1.1.2">Acoustic</a></li>
+					<li><a href="?p=1.1.1.3">Amps</a></li>
+					<li><a href="?p=1.1.1.4">Effects</a></li>
+					<li><a href="?p=1.1.1.5">Accessories</a></li>
+				</ul> 
+			</li>
+			<li>
+				<a class="head" href="?p=1.1.2">Bass</a>
+				<ul>
+					<li><a href="?p=1.1.2.1">Electric</a></li>
+					<li><a href="?p=1.1.2.2">Acoustic</a></li>
+					<li><a href="?p=1.1.2.3">Amps</a></li>
+					<li><a href="?p=1.1.2.4">Effects</a></li>
+					<li><a href="?p=1.1.2.5">Accessories</a></li>
+					<li><a href="?p=1.1.2.5">Accessories</a></li>
+					<li><a href="?p=1.1.2.5">Accessories</a></li>
+				</ul> 
+			</li>
+			<li>
+				<a class="head" href="?p=1.1.3">Drums</a>
+				<ul>
+					<li><a href="?p=1.1.3.2">Acoustic Drums</a></li>
+					<li><a href="?p=1.1.3.3">Electronic Drums</a></li>
+					<li><a href="?p=1.1.3.6">Accessories</a></li>
+				</ul> 
+			</li>
+		</ul>
+		
+		<h3>Code</h3>
+		<pre><code class="mix">jQuery('#navigation').Accordion({
+	active: false,
+	header: '.head',
+	alwaysOpen: false,
+	navigation: true
+});</code></pre>
+	</fieldset>
+
+	<fieldset>
+		<legend>With options, container is a definition list, header dt, content dd</legend>
+		
+		<dl id="list2">
+			<dt class="red">Red</dt>
+			<dd>
+				Fancy stuff about red thingies.
+			</dd>
+			<dt class="green selected">Green</dt>
+			<dd>
+				Green! Green! Green!
+			</dd>
+			<dt class="blue">Blue</dt>
+			<dd>
+				Cool kids are blue.
+			</dd>
+		</dl>
+		
+		<h3>Code</h3>
+		<pre><code class="mix">function simpleLog(message) {
+	jQuery('&lt;div&gt;' + message + '&lt;/div&gt;').appendTo('#log');
+}
+jQuery('#list2').Accordion({
+	event: "mouseover",
+	active: 'dt.selected',
+	selectedClass: "active"
+}).change(function(event, newHeader, oldHeader, newContent, oldContent) {
+	simpleLog(oldHeader.text() + ' hidden');
+	simpleLog(newHeader.text() + ' shown');
+});</code></pre>
+	</fieldset>
+
+	<fieldset>
+		<legend>Divitus structure, div container, div header (class title), div
+		content, no active on startup and can be completely closed</legend>
+
+		<div id="list3">
+			<div>
+				<div class="title">Tennis</div>
+				<div>
+					One ball, two players. Lots of fun.
+				</div>
+			</div>
+			<div>
+				<div class="title">Soccer</div>
+				<div>
+					One ball, 22 players. Lots of fun.
+				</div>
+			</div>
+			<div>
+				<div class="title">Baseball</div>
+				<div>
+					Well, one ball, some guys running around, some guys hitting others with a stick.<br/>
+					Sounds like fun, doesn't it?
+				</div>
+				<div>
+					Well, apart from the running part.
+				</div>
+			</div>
+		</div>
+		
+		<h3>Code</h3>
+		<pre><code class="mix">jQuery('#list3').Accordion({
+	showSpeed: 1000,
+	hideSpeed: 150,
+	header: 'div.title',
+	active: false,
+	alwaysOpen: false,
+	animated: false
+});</code></pre>
+	</fieldset>
+		
+		<div id="switch">
+			<select>
+				<option>Switch to...</option>
+				<option value="1">1</option>
+				<option value="2">2</option>
+				<option value="3">3</option>
+			</select>
+			<button id="close">Close all</button>
+			Activate via selector, eg. ':first' or 'a:first': <input id="switch2" />
+		</div>
+
+		<div id="log"><div><strong>Log of the 2nd accordion</strong></div></div>
+</div>
+	</body>
+</html>
