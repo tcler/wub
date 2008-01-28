@@ -11,7 +11,7 @@ package require jQ
 namespace eval Dub {
     variable db /tmp/dub.db
     variable toplevel
-    variable prefix
+    variable prefix /dub
 
     # default page
     proc /default {r args} {
@@ -236,11 +236,11 @@ namespace eval Dub {
 
 	return [/view $r $view]
     }
-    variable home dub
+
     variable page {}
     dict set page globlinks [subst {
 	Home /
-	Dub ../${home}/
+	Dub ${prefix}/
     }]
     dict set page global [<div> [<form> search action index.html {
 	[<text> q size 15 maxlength 250]
@@ -249,7 +249,7 @@ namespace eval Dub {
     dict set page header [<h1> "Wub[<fade> Dub]"]
     dict set page sitelinks [subst {
 	Home /
-	Dub ../${home}/
+	Dub ${prefix}/
     }]
     dict set page breadcrumbs {}
 
