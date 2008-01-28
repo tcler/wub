@@ -100,6 +100,7 @@ namespace eval Html {
 	}
     }
 
+    # do arg template substitution in parent
     proc template {name {template ""}} {
 	upvar args args
 	upvar $name var
@@ -117,6 +118,18 @@ namespace eval Html {
 	}
     }
 
+    # add a script to the response
+    proc script {r url args} {
+	dict set r -script $url $args
+	return $r
+    }
+
+    # add style to the response
+    proc style {r url args} {
+	dict set r -style $url $args
+	return $r
+    }
+
     # attr - Construct a properly formed attribute name/value string
     # for inclusion in an HTML element.
     proc attr {T args} {
@@ -124,10 +137,21 @@ namespace eval Html {
 	    set args [lindex $args 0]
 	}
 
+	# handle per-invocation defaults
+	if {[dict exists $args -defaults]} {
+	    set defaults [dict get $args -defaults]
+	    set args [list {*}$defaults {*}$args]
+	}
+
+	# handle per-tag defaults
+	set args [list {*}[Html default $T] {*}$args]
+
 	set result ""
 	set class {}
 	array set seen {}
 	foreach {n v} $args {
+	    if {$n eq "-defaults"} continue
+
 	    if {$n in {checked disabled selected noshade}} {
 		if {$v && ![info exists seen($n)]} {
 		    lappend result $n
@@ -315,11 +339,11 @@ foreach tag {script style} {
 	    if {([llength $args] % 2) == 1} {
 		set content [lindex $args end]
 		set args [lrange $args 0 end-1]
-		return "<[Html::attr %T {*}[Html default %T] {*}$args]>$content</%T>"
+		return "<[Html::attr %T {*}$args]>$content</%T>"
 	    } elseif {$::Html::XHTML} {
-		return "<[Html::attr %T {*}[Html default %T] {*}$args]/>"
+		return "<[Html::attr %T {*}$args]/>"
 	    } else {
-		return "<[Html::attr %T {*}[Html default %T] {*}$args]></%T>"
+		return "<[Html::attr %T {*}$args]></%T>"
 	    }
 	}
     }]
