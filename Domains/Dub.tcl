@@ -240,6 +240,7 @@ namespace eval Dub {
     variable page {}
     proc init_page {} {
 	variable page
+	variable prefix
 	dict set page globlinks [subst {
 	    Home /
 	    Dub ${prefix}/
