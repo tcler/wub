@@ -236,21 +236,21 @@ namespace eval Dub {
 
 	return [/view $r $view]
     }
-
+    variable home dub
     variable page {}
     dict set page globlinks [subst {
 	Home /
-	Dub ../dub/
+	Dub ../${home}/
     }]
     dict set page global [<div> [<form> search action index.html {
 	[<text> q size 15 maxlength 250]
 	[<image> submit src search.png alt Search]
     }]]
     dict set page header [<h1> "Wub[<fade> Dub]"]
-    dict set page sitelinks {
+    dict set page sitelinks [subst {
 	Home /
-	Dub ../dub/
-    }
+	Dub ../${home}/
+    }]
     dict set page breadcrumbs {}
 
     dict set page navbox {}
