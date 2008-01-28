@@ -232,7 +232,7 @@ namespace eval Form {
 	    dict unset config title
 	}
 
-	set result "<[attr textarea [Dict subset $config $textareaA]]>[armour $content]</textarea>"
+	set result "<[attr textarea [Dict subset $config $textareaA]]>$content</textarea>"
 
 	if {[dict exists $config label]} {
 	    set label [dict get $config label]
