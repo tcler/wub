@@ -77,13 +77,16 @@ namespace eval Sinorca {
 
 	set result ""
 
+	set breadcrumbs ""
 	Html template breadcrumbs {[<div> id navhead [subst {
 	    [<hr>][<span> class hidden {Path to this page:}]
 	    [Html links { &raquo; } {*}$breadcrumbs]
 	}]]}
+
+	set navbox ""
 	Html template navbox {[<navbox> $navbox]}
 
-	set result "$breadcrumbs\n$navbox"
+	set result "${breadcrumbs}\n${navbox}"
 	append result $content \n
 	append result [<br> id endmain]
 
@@ -97,7 +100,9 @@ namespace eval Sinorca {
 
     proc <footer> {args} {
 	Html argsplit
+	set copyright ""
 	Html template copyright
+	set links ""
 	Html template links {[<span> class notprinted [Html links . $links]][<br>]}
 
 	return [<div> id footer {*}$args [subst {
@@ -108,28 +113,27 @@ namespace eval Sinorca {
 	}]]
     }
 
-    proc sidebar {r args} {
-	set content [dict get $r content]
-	dict set content "sidebar[dict incr content _sides]" [<sidebox> {*}$args]
-	return [dict replace $r content $content]
+    proc sidebar {contents args} {
+	dict set contents "sidebar[dict incr content _sides]" [<sidebox> {*}$args]
+	return $contents
     }
 
     proc .style/sinorca.x-text/html-fragment {rsp} {
 	set contents [dict get $rsp -content]
+	#puts stderr "SINORCA: [dict keys $contents]"
 	foreach var {globlinks global header sitelinks breadcrumbs sidebar content copyright footlinks footer navbox} {
 	    set $var {}
 	}
-
-	variable path
-	variable home
-	dict lappend rsp -headers [<stylesheet> [file join $path screen.css]]
-	dict lappend rsp -headers [<stylesheet> [file join $path print.css] print]
 
 	foreach key [lsort -dictionary [dict keys $contents "side*"]] {
 	    append sidebar [dict get $contents $key] \n
 	    dict unset contents key
 	}
 
+	variable path
+	dict lappend rsp -headers [<stylesheet> [file join $path screen.css]]
+	dict lappend rsp -headers [<stylesheet> [file join $path print.css] print]
+	#puts stderr "SINORCA: [dict keys $contents]"
 	dict with contents {}
 	return [dict replace $rsp -raw 1 \
 		    content-type text/html \
@@ -187,8 +191,8 @@ namespace eval Sinorca {
 	variable path
 	RAM init ram $path
 
-	ram set screen.css $screen
-	ram set print.css $print
+	ram set screen.css $screen content-type text/css
+	ram set print.css $print content-type text/css
 
 	variable home 
 	foreach el {valid-css.png valid-xhtml10.png wcag1AA.png file-pdf.png totop.png gradient.png} {
