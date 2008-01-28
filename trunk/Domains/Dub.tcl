@@ -249,7 +249,7 @@ namespace eval Dub {
 	    [<text> q size 15 maxlength 250]
 	    [<image> submit src search.png alt Search]
 	}]]
-	dict set page header [<h1> "Wub[<fade> Dub]"]
+	dict set page header [<h1> "Wub[<span> class fade Dub]"]
 	dict set page sitelinks [subst {
 	    Home /
 	    Dub ${prefix}/
