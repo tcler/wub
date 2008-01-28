@@ -1,4 +1,0 @@
-syntax: glob
-*.html~
-*.js~
-.settings/*.prefs
