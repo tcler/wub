@@ -426,9 +426,10 @@ namespace eval ::MConvert {
 	}
 	set uroot [Dict get? $rsp -urlroot]
 	foreach js {common css standardista-table-sorting} {
-	    dict lappend rsp -headers [<script> type text/javascript src $uroot/scripts/$js.js {}]
+	    dict set rsp -script $uroot/scripts/$js.js {}
 	}
-	dict lappend rsp -headers [<style> type text/css media all "@import url($uroot/css/sorttable.css);"]
+
+	dict set rsp -style $uroot/css/sorttable.css) {}
 	dict set rsp content-type x-text/html-fragment
 
 	Debug.convert {x-text/dict.x-text/html-fragment conversion: $rsp}
