@@ -67,7 +67,7 @@ namespace eval Form {
 
     variable fieldsetA $allA
     variable accessA [subst {accesskey $allA}]
-    variable formA [subst {action method enctype accept-charset accept $allA}]
+    variable formA [subst {action method enctype accept-charset accept onsubmit $allA}]
     variable fieldA [subst {name disabled size tabindex accesskey onfocus onblur value $allA}]
     variable textareaA [subst {name rows cols disabled readonly tabindex accesskey onfocus onblur onselect onchange $allA}]
     variable buttonA [subst {value checked $fieldA onselect onchange type}]
@@ -122,6 +122,7 @@ namespace eval Form {
 		if {$name ne ""} {
 		    dict set config id $name
 		}
+
 		set content [uplevel 1 [list subst [lindex $args end]]]
 		set content [string trim $content " \t\n\r"]
 		
@@ -130,6 +131,7 @@ namespace eval Form {
 		} {
 		    set content [string map {\n <br>} $content]
 		}
+
 		return "<[attr @T [Dict subset $config $@TA]]>$content</@T>"
 	    }
 	}]
@@ -149,15 +151,29 @@ namespace eval Form {
     proc <select> {name args} {
 	variable selectA
 	variable Fdefaults
-	set config [dict merge [Dict get? $Fdefaults select] [lrange $args 0 end-1] [list name $name]]
-	
-	set result "<[attr select [Dict subset $config $selectA]]>[uplevel 1 [list subst [lindex $args end]]]</select>"
+	set content [lindex $args end]
+	set args [lrange $args 0 end-1]
+	set config [dict merge [Dict get? $Fdefaults select] $args [list name $name]]
+	if {![dict exists $config id]
+	    && [dict exists $config label]
+	} {
+	    dict set config id $name
+	}
+
+	set content [uplevel 1 [list subst $content]]
+
+	set result "<[attr select [Dict subset $config $selectA]]>$content</select>"
+
 	if {[dict exists $config title]} {
 	    set title [list title [dict get $config title]]
 	} else {
 	    set title {}
 	}
-	if {[dict exists $config legend]} {
+
+	if {[dict exists $config label]} {
+	    set label [dict get $config label]
+	    return "[<label> for $name $label] $result"
+	} elseif {[dict exists $config legend]} {
 	    set legend [dict get $config legend]
 	    return [<fieldset> "" {*}$title {
 		[<legend> $legend]
@@ -173,13 +189,22 @@ namespace eval Form {
 	    proc <@T> {args} {
 		variable @TA
 		variable Fdefaults
-		set config [dict merge [Dict get? $Fdefaults @T] [lrange $args 0 end-1]]
+
 		set content [lindex $args end]
+		set args [lrange $args 0 end-1]
+		set config [dict merge [Dict get? $Fdefaults @T] $args]
 		if {$content eq ""} {
 		    set content [dict get $config value]
 		} else {
 		    set content [uplevel 1 [list subst $content]]
 		}
+
+		if {[dict exist $config select?]} {
+		    if {[dict get $config select?] eq [dict get $config value]} {
+			dict set config selected 1
+		    }
+		}
+
 		return "<[attr @T [Dict subset $config $@TA]]>$content</@T>"
 	    }
 	}]
@@ -190,13 +215,37 @@ namespace eval Form {
 	variable Fdefaults
 	set config [dict merge [Dict get? $Fdefaults textarea] [lrange $args 0 end-1] [list name $name]]
 	set content [lindex $args end]
+
+	if {![dict exists $config id]
+	    && [dict exists $config label]
+	} {
+	    dict set config id $name
+	}
+
 	if {[dict exists $config compact]
 	    && [dict get $config compact]} {
 	    regsub -all {\n[ \t]+} $content \n content
 	}
-	#set content [tclarmour $content]
-	#puts "CONTENT: $content"
-	return "<[attr textarea [Dict subset $config $textareaA]]>[lindex $content 0]</textarea>"
+	set title {}
+	if {[dict exists $config title]} {
+	    set title [list title $title]
+	    dict unset config title
+	}
+
+	set result "<[attr textarea [Dict subset $config $textareaA]]>[armour $content]</textarea>"
+
+	if {[dict exists $config label]} {
+	    set label [dict get $config label]
+	    return "[<label> for $name $label] $result"
+	} elseif {[dict exists $config legend]} {
+	    set legend [dict get $config legend]
+	    return [<fieldset> "" {*}$title {
+		[<legend> $legend]
+		$result
+	    }]
+	} else {
+	    return $result
+	}
     }
     
     foreach type {reset submit} {
@@ -253,8 +302,19 @@ namespace eval Form {
 		variable @AA
 		variable Fdefaults
 		set config [dict merge [Dict get? $Fdefaults @T] $args [list name $name type @T @F [uplevel 1 [list subst $value]]]]
+
+		if {![dict exists $config id]
+		    && [dict exists $config label]
+		} {
+		    dict set config id $name
+		}
+
 		set result "<[attr input [Dict subset $config $@AA]]>"
-		if {[dict exists $config legend]} {
+
+		if {[dict exists $config label]} {
+		    set label [dict get $config label]
+		    return "[<label> for $name $label] $result"
+		} elseif {[dict exists $config legend]} {
 		    set legend [dict get $config legend]
 		    return "[<span> class ilegend $legend]$result"
 		} else {
