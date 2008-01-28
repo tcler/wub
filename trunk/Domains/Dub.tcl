@@ -238,25 +238,28 @@ namespace eval Dub {
     }
 
     variable page {}
-    dict set page globlinks [subst {
-	Home /
-	Dub ${prefix}/
-    }]
-    dict set page global [<div> [<form> search action index.html {
-	[<text> q size 15 maxlength 250]
-	[<image> submit src search.png alt Search]
-    }]]
-    dict set page header [<h1> "Wub[<fade> Dub]"]
-    dict set page sitelinks [subst {
-	Home /
-	Dub ${prefix}/
-    }]
-    dict set page breadcrumbs {}
-
-    dict set page navbox {}
-    dict set page copyright {}
-    dict set page footlinks {}
-    dict set page footer ""
+    proc init_page {} {
+	variable page
+	dict set page globlinks [subst {
+	    Home /
+	    Dub ${prefix}/
+	}]
+	dict set page global [<div> [<form> search action index.html {
+	    [<text> q size 15 maxlength 250]
+	    [<image> submit src search.png alt Search]
+	}]]
+	dict set page header [<h1> "Wub[<fade> Dub]"]
+	dict set page sitelinks [subst {
+	    Home /
+	    Dub ${prefix}/
+	}]
+	dict set page breadcrumbs {}
+	
+	dict set page navbox {}
+	dict set page copyright {}
+	dict set page footlinks {}
+	dict set page footer ""
+    }
 
     proc .style/dub.style/sinorca {rsp} {
 	variable page
@@ -452,6 +455,7 @@ namespace eval Dub {
 	if {$args ne {}} {
 	    variable {*}$args
 	}
+	init_page
 	Convert Namespace ::Dub
 
 	# invert type dict
