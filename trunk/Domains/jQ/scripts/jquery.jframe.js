@@ -102,8 +102,8 @@ jQuery.fn.activateJFrame = function() {
 	jQuery(this).find("form")
     .unbind("submit")
     .submit(function() {
-			this.find("input[@type='submit']", "button[@type='submit']")[0].click();
-		} ); 
+	      jQuery(this).find("input[@type='submit']", "button[@type='submit']")[0].click();
+	    } ); 
 };
 
 
