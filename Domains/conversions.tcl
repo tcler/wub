@@ -7,7 +7,8 @@ package provide conversions 1.0
 
 namespace eval ::conversions {
     # HTML DOCTYPE header
-    variable htmlhead {<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">}
+    variable htmlhead {<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">}
+    # <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 
     # convert an HTML fragment to HTML
     proc .x-text/html-fragment.text/html {rsp} {
@@ -22,9 +23,27 @@ namespace eval ::conversions {
 
 	    append content <html> \n
 	    append content <head> \n
+
 	    if {[dict exists $rsp -headers]} {
 		append content [join [dict get $rsp -headers] \n] \n
 	    }
+
+	    # add script and style preloads
+	    set preloads {}
+	    if {[dict exists $rsp -script]} {
+		dict for {n v} [dict get $rsp -script] {
+		    lappend preloads [<script> src $n {*}$v]
+		}
+	    }
+	    if {[dict exists $rsp -style]} {
+		dict for {n v} [dict get $rsp -style] {
+		    lappend preloads [<stylesheet> $n {*}$v]
+		}
+	    }
+	    if {$preloads ne {}} {
+		append content [join $preloads \n] \n
+	    }
+
 	    append content </head> \n
 
 	    append content <body> \n
