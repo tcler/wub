@@ -208,7 +208,7 @@ namespace eval Dub {
     }
 
     # edit field properties
-    proc /fieldE {r view field type} {
+    proc /fieldE {r view field type comment} {
 	variable types
 	if {![regexp {^[a-zA-Z][a-zA-Z_0-9]*$} $field]
 	    || ![dict exists $types $type]
@@ -220,10 +220,10 @@ namespace eval Dub {
 	    vfield find view $view field $field
 	} index eo]} {
 	    puts stderr "/fieldE new: $view.$field of $type"
-	    vfield append field $field view $view type $type
+	    vfield append field $field view $view type $type comment $comment
 	} else {
 	    puts stderr "/fieldE edit: $view.$field of $type"
-	    vfield set $index type $type
+	    vfield set $index type $type comment $comment
 	}
 
 	if {[catch {
