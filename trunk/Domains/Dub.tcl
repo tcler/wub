@@ -30,9 +30,9 @@ namespace eval Dub {
 	    ]
 
 	    [<form> view class dubform action view {
-		[<legend> "New View"]
 		[<fieldset> viewS {
-		    [<text> label "View: " view ""]
+		    [<legend> "New View"]
+		    [<text> view ""]
 		}]
 	    }]
 	}]
