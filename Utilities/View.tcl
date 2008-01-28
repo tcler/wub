@@ -4,6 +4,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     lappend auto_path /usr/lib/tcl8.5/Mk4tcl ../extensions/
 }
 
+lappend auto_path /usr/lib/tcl8.5/Mk4tcl
 package require Mk4tcl
 package require functional
 package require Debug
@@ -24,7 +25,7 @@ namespace eval View {
 	#puts stderr "unknown: [array get cmd2v]"
 	#set scmd [list {*}$cmd2v($cmd) {*}$args]
 	set scmd [list $cmd2v($cmd) $subcommand]
-	puts stderr "unknown: $scmd from '$cmd' '$args'"
+	#puts stderr "unknown: $scmd from '$cmd' '$args'"
 	return $scmd
     }
 
@@ -63,6 +64,7 @@ namespace eval View {
 	    set args [lindex $args 0]
 	}
 	Debug.view {set $view!$index keys: '[dict keys $args]'}
+	#Debug.view {set $view!$index args: '[string range $args 0 80]...'} 20
 	return [mk::set $view!$index {*}$args]
     }
 
@@ -124,9 +126,11 @@ namespace eval View {
 	}
 	set results {}
 	foreach _index [mk::select $view {*}$args] {
-	    set _record [mk::get $view!$_index]
 	    switch [catch {
-		dict with _record $script
+		uplevel 1 [string map [list %R [mk::get $view!$_index]] {
+		    set _ [list %R]
+		}]
+		uplevel 1 [list dict with _ $script]
 	    } result eo] {
 		1 {# error - re-raise the error
 		    return -options $eo $result
@@ -261,7 +265,7 @@ namespace eval View {
 	    set "_set $vpath"
 	    incr "_incr $vpath"
 	    dlappend "_dlappend $vpath"
-	    names "_names $vpath"
+	    names "_names $cmd"
 	}]
 
 	namespace ensemble create \
