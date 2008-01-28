@@ -314,6 +314,10 @@ namespace eval Http {
 	}
 	dict set rsp -modified $mtime
 
+	if {![dict exists $rsp cache-control]} {
+	    dict set rsp cache-control public
+	}
+
 	# Cacheable Content may have an -expiry clause
 	if {[dict exists $rsp -expiry]} {
 	    dict set rsp expires [Date [clock scan [dict get $rsp -expiry]]]
