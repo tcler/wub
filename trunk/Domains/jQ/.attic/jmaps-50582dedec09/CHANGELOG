@@ -1,0 +1,43 @@
+ * ^^^ Changelog ^^^
+ * Version 1.4 (08/08/2007)
+ * Added option to double click on map to add marker.  Single click on marker gives Lat/Lng details, while double click removes
+ * Moved searchAddress and searchDirections back into main function, can now be called via .searchAddress and .searchDirections, removed options for fields to pass in data
+ * Added support for new Google Ad's Manager for Maps.  Can be enabled with .mapAds()
+ * Added callback in searchAddress to return as a map, or as an array of Lat/Lng
+ * Added callback in addRss
+ * Added passing in custom icon
+ * ===============================================================================================================
+ * Version 1.3.1 (06/08/2007)
+ * Fixed bug with change in Google Maps API
+ * ===============================================================================================================
+ * Version 1.3 (31/07/2007)
+ * Added support for creating Yahoo! Maps, can create Map, Satallite or Hybrid.  Check out available options below
+ * Added support for creating points on Yahoo! maps.
+ * Added support for creating Polylines on Yahoo! maps.
+ * Added support for GeoRSS files on both Yahoo! and Google maps, as well as existing KML support for Google, method name was changed from .addKml to .addRss
+ * Moved directions search out of main namespace, now function that is called from within plugin by providing fields
+ * Added Yahoo! Geocoding support
+ * 
+ * Known 1.3 Bugs
+ * Event.MouseDoubleClick does not work on Yahoo maps within .addPoint method
+ * ===============================================================================================================
+ * Version 1.2 (25/07/2007)
+ * Moved GClientGeocoder into searchAddress method
+ * Fixed bug in searchAddress method regarding getPoint().
+ * ===============================================================================================================
+ * Version 1.1 (16/07/2007)
+ * Changed name to remove Google from main name - namespace now .jmap.
+ * Added additional options:
+ * 	+ Add map dragging enable/disable.
+ *	+ Add scroll wheel zooming.
+ *	+ Add smooth continuous zooming (on certain browsers).
+ *	+ Added clean unloading of Google objects.
+ * Added .addPoly method.  Allows the creation of polylines on the map.
+ * Added .addKml support for rendering KML Files.
+ * Added .directions Driving Direction support.
+ * ===============================================================================================================
+ * Version 1.0 (13/07/2007)
+ * Initial version.
+ * Creates Google Map.
+ * Add points to map.
+ * Takes address or postcode, Geocodes and centers map.  Also creates a draggable marker.

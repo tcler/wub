@@ -1,0 +1,27 @@
+{
+	"name": "jQuery-Accordion",
+	"version": 1.3,
+	"author": [
+		"Jörn Zaefferer <joern.zaefferer@gmail.com>"
+	],
+	"abstract": "Provides an accordion widget for the jQuery library",
+	"license": "mit, gpl",
+	"distribution_type": "enhancement",
+	"requires": {
+		"jQuery": 1.1
+	},
+	"provides": {
+		"jQuery.Accordion": {
+			"version": 1.3,
+			"file": "jquery.accordion.js"
+		}
+	},
+	"keywords": [
+		"accordion"
+	],
+	"meta-spec": {
+		"version": 1.3,
+		"url": "http://module-build.sourceforge.net/META-spec-v1.3.html"
+	},
+	"generated_by": "Yehuda Katz"
+}
