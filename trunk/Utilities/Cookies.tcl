@@ -574,7 +574,6 @@ namespace eval Cookies {
 	    set args [lindex $args 0]
 	}
 
-	set matches 
 	set result {}
 	foreach n [match $cookies $args] {
 	    lappend result $n [dict get $cookies $n]
