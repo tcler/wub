@@ -34,9 +34,6 @@ sub vcl_recv {
     if (req.http.Authenticate || req.http.Authorization) {
 	pass;
     }
-    if (req.url ~ "^/_toc") {
-	lookup;	# table of contents can be cached
-    }
     # We only care about the cookies used for authentication in Editing
     if (req.http.Cookie && req.url ~ "^/_") {
 	pass;
