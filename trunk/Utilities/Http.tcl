@@ -655,7 +655,7 @@ namespace eval Http {
 	if {$ref eq ""} {
 	    set ref /
 	}
-	return [Http genRedirect Redirect 302 $rsp $to "" "" {*}$args]
+	return [Http genRedirect Redirect 302 $rsp $ref "" "" {*}$args]
     }
 
     # construct an HTTP Found response
