@@ -259,7 +259,7 @@ namespace eval Http {
 
     # modify an HTTP response to indicate that its contents may not be Cached
     proc NoCache {rsp} {
-	dict set rsp cache-control "no-store, no-cache, must-revalidate, max-age=0"; # HTTP/1.1
+	dict set rsp cache-control "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0"; # HTTP/1.1
 	dict set rsp expires "Sun, 01 Jul 2005 00:00:00 GMT"
 	dict set rsp pragma "no-cache"	;# HTTP/1.0
 	dict set rsp -dynamic 1
