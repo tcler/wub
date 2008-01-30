@@ -323,7 +323,7 @@ foreach tag {link meta} {
 	    if {$::Html::XHTML} {
 		return "<[Html::attr %T {*}$args]/>"
 	    } else {
-		return "<[Html::attr %T {*}$args]></%T>"
+		return "<[Html::attr %T {*}$args]>"
 	    }
 	}
     }]
