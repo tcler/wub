@@ -154,10 +154,13 @@ namespace eval Form {
 	set content [lindex $args end]
 	set args [lrange $args 0 end-1]
 	set config [dict merge [Dict get? $Fdefaults select] $args [list name $name]]
-	if {![dict exists $config id]
-	    && [dict exists $config label]
-	} {
-	    dict set config id $name
+	if {![dict exists $config id]} {
+	    if {[dict exists $config label]} {
+		dict set config id $name
+		set id $name
+	    }
+	} else {
+	    set id [dict get $config id]
 	}
 
 	set content [uplevel 1 [list subst $content]]
@@ -172,7 +175,7 @@ namespace eval Form {
 
 	if {[dict exists $config label]} {
 	    set label [dict get $config label]
-	    return "[<label> for $name $label] $result"
+	    return "[<label> for $id $label] $result"
 	} elseif {[dict exists $config legend]} {
 	    set legend [dict get $config legend]
 	    return [<fieldset> "" {*}$title {
@@ -216,10 +219,13 @@ namespace eval Form {
 	set config [dict merge [Dict get? $Fdefaults textarea] [lrange $args 0 end-1] [list name $name]]
 	set content [lindex $args end]
 
-	if {![dict exists $config id]
-	    && [dict exists $config label]
-	} {
-	    dict set config id $name
+	if {![dict exists $config id]} {
+	    if {[dict exists $config label]} {
+		dict set config id $name
+		set id $name
+	    }
+	} else {
+	    set id [dict get $config id]
 	}
 
 	if {[dict exists $config compact]
@@ -236,7 +242,7 @@ namespace eval Form {
 
 	if {[dict exists $config label]} {
 	    set label [dict get $config label]
-	    return "[<label> for $name $label] $result"
+	    return "[<label> for $id $label] $result"
 	} elseif {[dict exists $config legend]} {
 	    set legend [dict get $config legend]
 	    return [<fieldset> "" {*}$title {
@@ -303,17 +309,20 @@ namespace eval Form {
 		variable Fdefaults
 		set config [dict merge [Dict get? $Fdefaults @T] $args [list name $name type @T @F [uplevel 1 [list subst $value]]]]
 
-		if {![dict exists $config id]
-		    && [dict exists $config label]
-		} {
-		    dict set config id $name
+		if {![dict exists $config id]} {
+		    if {[dict exists $config label]} {
+			dict set config id $name
+			set id $name
+		    }
+		} else {
+		    set id [dict get $config id]
 		}
 
 		set result "<[attr input [Dict subset $config $@AA]]>"
 
 		if {[dict exists $config label]} {
 		    set label [dict get $config label]
-		    return "[<label> for $name $label] $result"
+		    return "[<label> for $id $label] $result"
 		} elseif {[dict exists $config legend]} {
 		    set legend [dict get $config legend]
 		    return "[<span> class ilegend $legend]$result"
@@ -367,16 +376,32 @@ namespace eval Form {
 	eval [string map [list @T $type$sub] {
 	    proc <@T> {name args} {
 		if {[llength $args] % 2} {
-		    set value [lindex $args end]
+		    set content [lindex $args end]
 		    set args [lrange $args 0 end-1]
 		} else {
-		    set value ""
+		    set content ""
 		}
 		variable boxA
 		variable Fdefaults
 		set config [dict merge $args [list name $name type @T] [Dict get? $Fdefaults @T]]
-		set value [uplevel 1 [list subst $value]]
-		return "<[attr input [Dict subset $config $boxA]]>$value"
+
+		if {![dict exists $config id]} {
+		    if {[dict exists $config label]} {
+			dict set config id $name
+			set id $name
+		    }
+		} else {
+		    set id [dict get $config id]
+		}
+
+		set content [uplevel 1 [list subst $content]]
+		set result "<[attr input [Dict subset $config $boxA]]>$content"
+		if {[dict exists $config label]} {
+		    set label [dict get $config label]
+		    return "[<label> for $id $label] $result"
+		} else {
+		    return $result
+		}
 	    }
 	}]
     }

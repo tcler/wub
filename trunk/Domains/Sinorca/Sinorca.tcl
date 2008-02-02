@@ -114,7 +114,7 @@ namespace eval Sinorca {
     }
 
     proc sidebar {contents args} {
-	dict set contents "sidebar[dict incr content _sides]" [<sidebox> {*}$args]
+	dict set contents "sidebar[dict incr contents _sides]" [<sidebox> {*}$args]
 	return $contents
     }
 
@@ -163,7 +163,9 @@ namespace eval Sinorca {
 	%HEADER_FG #003399
 	%HEADER_BG #8CA8E6
 	%H1 #999999
-	
+
+	%BORDER transparent
+
 	%FOOTER_BG #6381DC
 	%FOOTER_FG white
 	
