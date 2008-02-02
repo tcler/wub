@@ -127,8 +127,8 @@ namespace eval View {
 	set results {}
 	foreach _index [mk::select $view {*}$args] {
 	    switch [catch {
-		uplevel 1 [string map [list %R [mk::get $view!$_index]] {
-		    set _ [list %R]
+		uplevel 1 [string map [list %I $_index %R [mk::get $view!$_index]] {
+		    set _ [list %R "" %I]
 		}]
 		uplevel 1 [list dict with _ $script]
 	    } result eo] {
@@ -175,7 +175,7 @@ namespace eval View {
 	}
 	set cursor [mk::row append $view {*}$args]
 	lassign [split $cursor !] row result
-	Debug.view {append $view keys: '[dict keys $args]' -> $result}
+	Debug.view {append $view keys: '[dict keys $args]' -> $result '[string range $args 0 80]'...}
 	return $result
     }
 
