@@ -8,13 +8,13 @@ package require spiders
 
 #puts stderr "Starting Httpd Worker [id]"
 proc bgerror {error eo} {
-    Debug.error {Thread [id]: $error ($eo)}
-    catch {
-	dict lappend ::request -debug bgerror [list [clock seconds] $error $eo]
-    }
-    catch {
-	Disconnect [dict get $::request -sock] $error $eo
-    }
+    Debug.error {Worker Error: $error ($eo)}
+    #catch {
+	#dict lappend ::request -debug bgerror [list [clock seconds] $error $eo]
+    #}
+    #catch {
+	#Disconnect [dict get $::request -sock] $error $eo
+    #}
 }
 
 interp bgerror {} ::bgerror
