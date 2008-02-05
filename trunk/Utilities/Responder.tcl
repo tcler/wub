@@ -60,48 +60,52 @@ namespace eval Responder {
     }
 
     proc Incoming {new args} {
-	inQ put $new	;# add the incoming request to the inQ
+	if {[catch {
+	    inQ put $new	;# add the incoming request to the inQ
 
-	# while idle and there are new requests to procecss
-	variable working	;# set while we're working
-	while {!$working && ![catch {inQ get} req eo]} {
-	    set working 1
-	    catch {uplevel 1 [list switch {*}$args]} r eo
-	    Debug.socket {Dispatcher: $eo}
-	    switch [dict get $eo -code] {
-		0 -
-		2 { # ok - return
-		    if {![dict exists $r -code]} {
-			set rsp [Http Ok $r]
-		    } else {
-			set rsp $r
+	    # while idle and there are new requests to procecss
+	    variable working	;# set while we're working
+	    while {!$working && ![catch {inQ get} req eo]} {
+		set working 1
+		catch {uplevel 1 [list switch {*}$args]} r eo
+		Debug.socket {Dispatcher: $eo}
+		switch [dict get $eo -code] {
+		    0 -
+		    2 { # ok - return
+			if {![dict exists $r -code]} {
+			    set rsp [Http Ok $r]
+			} else {
+			    set rsp $r
+			}
+		    }
+		    
+		    1 { # error
+			set rsp [Http ServerError $req $r $eo]
+		    }
+		    
+		    3 { # break
+			set working 0
+			break
+		    }
+		    
+		    4 { # continue
+			set working 0
+			continue
 		    }
 		}
 		
-		1 { # error
-		    set rsp [Http ServerError $req $r $eo]
+		if {[catch {post $rsp} r eo]} { ;# postprocess response
+		    set rsp [Http ServerError $rsp $r $eo]
+		} else {
+		    set rsp $r
 		}
-		
-		3 { # break
-		    set working 0
-		    break
-		}
-		    
-		4 { # continue
-		    set working 0
-		    continue
-		}
-	    }
 
-	    if {[catch {post $rsp} r eo]} { ;# postprocess response
-		set rsp [Http ServerError $rsp $r $eo]
-	    } else {
-		set rsp $r
+		#puts stderr "RESPONSE: $rsp"
+		Send $rsp 		;# send response
+		set working 0	;# go idle
 	    }
-
-	    #puts stderr "RESPONSE: $rsp"
-	    Send $rsp 		;# send response
-	    set working 0	;# go idle
+	} err eo]} {
+	    Debug.socket {Incoming: $err $eo}
 	}
     }
 
