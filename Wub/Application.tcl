@@ -121,6 +121,62 @@ namespace eval ::Introspect {
 	return [Http NoCache [Http Ok [sortable $r] $C x-text/html-fragment]]
     }
 
+    proc /state {r} {
+	set state [Activity state]
+	set result [<table> summary {} class sortable [subst {
+	    [<thead> [<tr> [<th> [join {cid socket thread backend ip start end log} </th><th>]]]]
+	    [<tbody> [Foreach row $state {
+		[<tr> [<td> [join $row </td><td>]]]
+	    }]]
+	}]]
+	
+	set r [sortable $r]	;# include the sortable js
+	
+	return [Http NoCache [Http Ok $r $result]]
+    }
+
+    proc /activity {r {L "current"} {F "html"} args} {
+	# generate an activity page
+	if {$L eq "log"} {
+	    set act [Activity log]
+	    set title "Activity Log"
+	    set alt [<a> href ".?L=current" "Current Activity"]
+	} else {
+	    set act [Activity current]
+	    set title "Current Activity"
+	    set alt [<a> href ".?L=log" "Activity Log"]
+	}
+
+	switch -- $F {
+	    csv {
+		package require csv
+		foreach a $act {
+		    append result [::csv::joinlist $a] \n
+		}
+		dict set r content-type text/plain
+	    }
+
+	    html -
+	    default {
+		set table [<table> summary {} class sortable [subst {
+		    [<thead> [<tr> [Foreach t [lindex $act 0] {
+			[<th> [string totitle $t]]
+		    }]]]
+		    [<tbody> [Foreach a [lrange $act 1 end] {
+			[<tr> class [If {[incr row] % 2} even else odd] \
+			     [<td> [join $a </td>\n<td>]]]
+		    }]]
+		}]]
+		set result "[<h1> $title]$table[<p> $alt]"
+		
+		set r [sortable $r]	;# include the sortable js
+		dict set r content-type x-text/html-fragment
+	    }
+	}
+	
+	return [Http NoCache [Http Ok $r $result]]
+    }
+
     namespace export -clear {*}
     namespace ensemble create -subcommands {}
 }
@@ -150,6 +206,24 @@ proc Incoming {req} {
     set rsp [Responder Incoming $req -glob -- [dict get $req -path] {
 	/ {
 	    Http Redir $req "/wub"
+	}
+
+	/suspend {
+	    variable suspend
+	    lappend suspend $req
+	    puts stderr "Suspending: [dict get $req -transaction] ($req)"
+	    return [Http Suspend $req]
+	}
+
+	/resume {
+	    variable suspend
+	    foreach r $suspend {
+		puts stderr "Resuming: [dict get $r -transaction] ($r)"
+		Send [Http NoCache [Http Ok $r [<h1> "Resumed [incr i] [dict get $r -transaction]"]]]
+	    }
+	    set count [llength $suspend]
+	    set suspend {}
+	    return [Http NoCache [Http Ok $req [<h1> "Completed Resume of $count pages"]]]
 	}
 
 	/jquery/* -
@@ -259,7 +333,7 @@ proc Incoming {req} {
 Debug on error 100
 Debug on log 10
 Debug on block 10
-    
+
 Debug off socket 10
 Debug off http 2
 Debug off cache 10
