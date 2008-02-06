@@ -110,6 +110,9 @@ namespace eval Responder {
     }
 
     proc Suspend {rsp} {
+	if {[dict get $rsp -method] ni {"POST" "PUT"}} {
+	    error "Can only Suspend on POST or PUT requests."
+	}
 	dict set rsp -suspend 1
 	return $rsp
     }
