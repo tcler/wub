@@ -98,6 +98,7 @@ namespace eval Query {
 	Debug.query {qparse $ct - [string range $qstring 0 80]}
 	switch -glob -- $ct {
 	    text/xml -
+	    application/xml -
 	    application/x-www-form-urlencoded -
 	    application/x-www-urlencoded -
 	    NONE {
