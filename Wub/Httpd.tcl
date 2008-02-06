@@ -155,7 +155,7 @@ namespace eval Httpd {
     array set connbyIP {}
     variable too_many		;# how many times has this IP address been told?
     array set too_many {}
-    variable no_really 3	;# after this many max_conns - it's blocked
+    variable no_really 30	;# after this many max_conns - it's blocked
 
     # connect - process a connection request
     proc Connect {sock ipaddr rport args} {
