@@ -439,11 +439,11 @@ namespace eval HttpdWorker {
 	    }
 
 	    # fix up non-standard X-Forwarded-For field
-	    if {[dict exists $request x-forwarded-for]} {
-		set xff [string trim [lindex [split [dict get $request x-forwarded-for] ,] 0]]
+	    foreach xff [string trim [lindex [split [Dict get? $request x-forwarded-for] ,] 0]] {
 		if {$xff ne "unknown" && ![Http nonRouting? $xff]} {
 		    dict set request -x-forwarding [Dict get? $request -ipaddr]
 		    dict set request -ipaddr $xff
+		    break
 		}
 	    }
 
