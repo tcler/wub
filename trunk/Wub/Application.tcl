@@ -209,7 +209,15 @@ proc Incoming {req} {
 	}
 
 	/suspend {
+	    if {[dict get $req -method] ne "POST"} {
+		set content [<form> suspender action /suspend "method" post {
+		    [<submit> doit Suspend]
+		}]
+		return [Http NoCache [Http Ok $req $content]]
+	    }
+
 	    variable suspend
+	    set req [Http NoCache [Http Ok $req [<h1> "Resumed"] text/html]]
 	    lappend suspend $req
 	    puts stderr "Suspending: [dict get $req -transaction] ($req)"
 	    return [Http Suspend $req]
@@ -219,7 +227,7 @@ proc Incoming {req} {
 	    variable suspend
 	    foreach r $suspend {
 		puts stderr "Resuming: [dict get $r -transaction] ($r)"
-		Send [Http NoCache [Http Ok $r [<h1> "Resumed [incr i] [dict get $r -transaction]"]]]
+		Send $r
 	    }
 	    set count [llength $suspend]
 	    set suspend {}
