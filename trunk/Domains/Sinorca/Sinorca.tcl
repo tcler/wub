@@ -67,8 +67,8 @@ namespace eval Sinorca {
     }
 
     # left sidebar
-    proc <sidebar> {content} {
-	return [<div> id sidebar [uplevel 1 [list subst $content]]]
+    proc <sidebar> {content args} {
+	return [<div> id sidebar {*}$args [uplevel 1 [list subst $content]]]
     }
 
     # main content
@@ -121,6 +121,7 @@ namespace eval Sinorca {
     proc .style/sinorca.x-text/html-fragment {rsp} {
 	set contents [dict get $rsp -content]
 	#puts stderr "SINORCA: [dict keys $contents]"
+
 	foreach var {globlinks global header sitelinks breadcrumbs sidebar content copyright footlinks footer navbox} {
 	    set $var {}
 	}
