@@ -231,7 +231,7 @@ namespace eval Html {
 	    [<thead> [<tr> [Foreach t $header {
 		[<th> [string totitle $t]]
 	    }]]]
-	    [If {$footer ne {}} {
+	    [Html If {$footer ne {}} {
 		[<tfoot> [<tr> [Foreach t $footer {[<th> [string totitle $t]]}]]]
 	    }]
 	    [<tbody> [Foreach {k v} $dict {
