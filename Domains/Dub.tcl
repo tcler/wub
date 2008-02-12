@@ -31,7 +31,8 @@ namespace eval Dub {
     proc /displays {r args} {
 	set content [subst {
 	    [<h1> "Dub Displays - A Wub Toy"]
-	    [<p> "Create a new view or edit an existing display by selecting from the left margin"]
+	    [<p> "Displays are collections of fields organised for screen presentation."]
+	    [<p> "Create a new display by entering its name, or edit an existing display by selecting it from the list in the left margin"]
 	}]
 
 	set r [Html style $r css/form.css]
@@ -43,8 +44,9 @@ namespace eval Dub {
     proc /views {r args} {
 	set content [subst {
 	    [<h1> "Dub Views - A Wub Toy"]
-	    [<p> "A view is a collection of fields which possess certain properties which can be edited.  Dub maintains metadata for each field within each view, allowing the simple construction of editing and reporting programs."]
-	    [<p> "Create a new view or edit an existing view by selecting from the left margin"]
+	    [<p> "A view is a collection of typed fields which are stored in a database."]
+	    [<p> "Dub maintains metadata for each field, allowing the simple construction of editing and reporting programs."]
+	    [<p> "You can create a new view by entering its name, or edit an existing view by selecting it from the left margin"]
 	}]
 
 	set r [Html style $r css/form.css]
@@ -195,7 +197,7 @@ namespace eval Dub {
 		form.%F fieldset p, form.%F fieldset fieldset {
 		    padding: 5px 10px 7px;
 		}
-	    
+		
 		form.%F label.error, label.error {
 		    /* remove the next line when you have trouble in IE6 with labels in list */
 		    display: none;
@@ -244,6 +246,7 @@ namespace eval Dub {
 	    vfield set $index type $type comment $comment unique $unique key $key hidden $hidden
 	}
 
+	mk::file commit db
 	return [/view $r $view]
     }
 
@@ -265,6 +268,8 @@ namespace eval Dub {
 	    Dub ${prefix}
 	    Views ${prefix}views
 	    Displays ${prefix}displays
+	    Export ${prefix}export
+	    Import ${prefix}import
 	}]
 	dict set page breadcrumbs {}
 	
@@ -274,27 +279,62 @@ namespace eval Dub {
 	dict set page footer ""
     }
 
-    proc views-sidebar {contents} {
+    # sidebar containing displays
+    proc displays-sidebar {contents args} {
+	set args [list url {display?display=$display} {*}$args]
+	set url [dict get $args url]
+	dict unset args url
+
+	if {[dict exists $args target]} {
+	    set target [list target [dict get $args target]]
+	    dict unset args target
+	} else {
+	    set target {}
+	}
+
+	set displays [dict values [vdisplay with {
+	    <li> [<a> href [subst $url] title $comment {*}$target $display]
+	}]]
+	if {$displays ne {}} {
+	    set contents [Sinorca sidebar $contents title "Displays" {*}$args [<ul> [join $displays \n]]]
+	}
+
+	return $contents
+    }
+
+    # sidebar containing views - divided into User and Dub views
+    proc views-sidebar {contents args} {
+	set args [list url {view?view=$view} {*}$args]
+	set url [dict get $args url]
+	dict unset args url
+
+	if {[dict exists $args target]} {
+	    set target [list target [dict get $args target]]
+	    dict unset args target
+	} else {
+	    set target {}
+	}
+
 	set views {}
 	set sysv {}
-	foreach {rec val} [vview with {
-	    list $system $view view?view=$view
-	}] {
-	    set val [lassign $val system]
+	foreach val [dict values [vview with {
+	    list $system [<li> [<a> href [subst $url] title $comment {*}$target $view]]
+	}]] {
+	    lassign $val system val
 	    if {$system} {
 		lappend sysv {*}$val
 	    } else {
 		lappend views {*}$val
 	    }
 	}
-	
-	set contents [Sinorca sidebar $contents title "New View" [<form> view class dubform action view {[<text> view size 16 ""]}]]
-	set contents [Sinorca sidebar $contents title "User Views" [Html ulinks  $views]]
-	set contents [Sinorca sidebar $contents title "Dub Views" [Html ulinks $sysv]]
-	return $contents
-    }
 
-    proc displays-sidebar {contents} {
+	if {$views ne {}} {
+	    set contents [Sinorca sidebar $contents title "User Views" {*}$args [<ul> title "User-defined views" [join $views \n]]]
+	}
+	if {$sysv ne {}} {
+	    set contents [Sinorca sidebar $contents title "Dub Views" {*}$args [<ul> title "Dub-defined views for storing metadata" class collapse [join $sysv \n]]]
+	}
+
 	return $contents
     }
 
@@ -302,169 +342,377 @@ namespace eval Dub {
 	return $contents
     }
 
+    # javascript to hide sidebar ULs
+    variable hidejs [<ready> {
+	function hider (what) {
+	    $(what).next().children("li").hide();
+	    $(what).click(function() {
+		shower($(this));
+	    });
+	};
+
+	function shower (what) {
+	    $(what).next().children("li").show();
+	    $(what).click(function() {
+		hider($(this));
+	    });
+	};
+
+	$('.title').click(function() {
+	    hider($(this));
+	});
+	
+	$('.collapse').prev('.title').click(function() {
+	    shower($(this));
+	});
+	$('.collapse').children("li").hide();
+    }]
+
+    # convert dub to sinorca styles
     proc .style/dub.style/sinorca {rsp} {
 	variable page
 	set contents $page
-	dict set contents content [dict get $rsp -content]
+
+	set content [dict get $rsp -content]
+
+	# add some js to hide sidebar uls
+	variable hidejs; append content $hidejs \n
+
+	dict set contents content $content
+
+	if {[dict exists $rsp -sidebar]} {
+	    set contents [Sinorca sidebar $contents {*}[dict get $rsp -sidebar]]
+	}
 
 	switch -- [file tail [dict get $rsp -path]] {
 	    views {
+		set contents [Sinorca sidebar $contents title "New View" [<form> view class dubform action ./view {[<text> view title "Create a new view by entering its name here" size 16 ""]}]]
 		set contents [views-sidebar $contents]
 	    }
+
 	    displays {
+		set contents [Sinorca sidebar $contents title "New Display" [<form> view class dubform action ./display {[<text> display title "Create a new display by entering its name here" size 16 ""]}]]
 		set contents [displays-sidebar $contents]
 	    }
+
+	    display {
+		set contents [displays-sidebar $contents src "\#" target dispFrame url {displayframe?display=$display}]
+		set contents [views-sidebar $contents src "\#" target detail url {viewframe?view=$view}]
+		set contents [Sinorca sidebar $contents title "New Display" [<form> view class dubform action ./display {[<text> display title "Create a new display by entering its name here" size 16 ""]}]]
+	    }
+
 	    fieldE -
 	    view {
+		set contents [Sinorca sidebar $contents title "New View" [<form> view class dubform action ./view {[<text> view title "Create a new view by entering its name here" size 16 ""]}]]
 	    }
 	    default {
 		set contents [dub-sidebar $contents]
 	    }
 	}
-	if {[dict exists $rsp -sidebar]} {
-	    set contents [Sinorca sidebar $contents {*}[dict get $rsp -sidebar]]
-	}
 
 	dict set rsp -content $contents
-
+	set rsp [jQ script $rsp jquery.js]
 	dict lappend rsp -headers [<stylesheet> /sinorca/screen.css]
 	return $rsp
     }
 
-    proc /cdisplay {r args} {
-	if {![dict exists $args display]} {
-	    dict set args display [dict get $args view]
+    variable dispstyle [<style> [subst {
+	.field {
+	    float: left;
+	    background-color: #68BFEF;
+	    border: 2px solid #0090DF;
+	    padding: 0.125em;	
+	    text-align: center;
+	    margin: 0.5em;
+	    cursor: pointer;
+	    z-index: 100;
 	}
-	set view [Dict get? $args view]
-	if {$view ne ""} {
-	    set drags [<div> class src [subst {
-		[<p> "View: [dict get $args view]"]
+	.el {
+	    float: left;
+	    background-color: #68BFEF;
+	    border: 2px solid #0090DF;
+	    padding: 0.125em;	
+	    text-align: center;
+	    margin: 0.5em;
+	    cursor: pointer;
+	    z-index: 100;
+	}
+	.display {
+	    background-color: yellow;
+	}
+	.dst {
+	    background-color: #c8c8c8;
+	    padding: 5px;
+	    text-align: center;
+	    overflow: auto;
+	    opacity: 0.7;
+	}
+	.src {
+	    background-color: #c8c8c8;
+	    padding: 5px;
+	    text-align: center;
+	    overflow: auto;
+	    opacity: 0.7;
+	}
+    }]]
+
+    # javascript to swap fields and elements
+    variable swapjs [<ready> {
+	function swap (what, from, to, whence, where) {
+	    var x = $(document.createElement('div'));
+	    x.attr("class", $(what).attr("class"));
+	    x.addClass(to); x.removeClass(from);
+	    
+	    x.attr("title", $(what).attr("title"));
+	    x.html($(what).html());
+
+	    x.click(function() {
+		swap($(this), to, from, where, whence);
+	    });
+
+	    $(where).append(x);
+	    $(what).remove();
+	};
+
+	$('.field').click(function() {
+	    swap($(this), 'field', 'el', '.src', '.dst');
+	});
+
+	$('.el').click(function() {
+	    swap($(this), 'el', 'field', '.dst', '.src');
+	});
+    }]
+
+    # javascript to select subviews
+    variable seljs [<ready> {
+	function selD (name) {
+	    if (name == "") return;
+	    var x = $(document.createElement('div'));
+	    x.addClass("el");
+	    x.addClass("display");
+	    x.attr("title", "subview");
+	    
+	    var html = "<input type='text' value='"+ name + "' name='view' style='border: 0pt none ; text-align: center;' readonly='1' size='8'/>";
+	    html += "<input type='hidden' value='' name='field'/>";
+	    
+	    x.html(html);
+
+	    $('.dst').append(x);
+	};
+
+	$('.selD').change(function() {
+	    selD(this.options[this.selectedIndex].value);
+	});
+    }]
+
+    proc viewframe {view} {
+	return [<form> view title "click a field to add it to the display" {
+	    [<fieldset> viewFS {
+		[<legend> "View: $view"]
 		[join [dict values [vfield with {
-		    <div> class field "$view<br>$name"
+		    <div> class field title $comment "[<text> view size 8 readonly 1 style {border:0;text-align:center;} $view]<br>[<text> field size 8 readonly 1 style {border:0;text-align:center;} $name]"
 		} view $view]] \n]
-	    }]]
-	}
-	puts stderr "CDISP: $drags"
-	set dropzone [<div> class dst [<p> "Display: [dict get $args display]"]]
-	
-	lappend r -headers [list [<style> [subst {
-	    .field {
-		float: left;
-		width: 5em;
-		height: 3em;
-		background-color: #68BFEF;
-		border: 2px solid #0090DF;
-		padding: 0.125em;	
-		text-align: center;
-		margin: 0.5em;
-		cursor: pointer;
-		z-index: 100;
-	    }
-	    .el {
-		float: left;
-		width: 5em;
-		height: 3em;
-		background-color: #68BFEF;
-		border: 2px solid #0090DF;
-		padding: 0.125em;	
-		text-align: center;
-		margin: 0.5em;
-		cursor: pointer;
-		z-index: 100;
-	    }
-	    .dst {
-		float: left;
-		width: 20em;
-		/*height: 20em;*/
-		background-color: gray; /*#e9b96e*/
-		/*border: 3px double #0090DF;*/
-		padding: 5px;
-		text-align: center;
-		overflow: auto;
-		opacity: 0.7;
-		margin: 2em;
-	    }
-	    .src {
-		float: left;
-		width: 20em;
-		/*height: 20em;*/
-		background-color: gray; /*#e9b96e*/
-		/*border: 3px double #0090DF;*/
-		padding: 5px;
-		text-align: center;
-		overflow: auto;
-		opacity: 0.7;
-		margin: 2em;
-	    }
-	}]]]
-
-	append content $dropzone
-	append content $drags
-	append content [<ready> {
-	    function swap (what, from, to, whence, where) {
-		var x = $(document.createElement('div'));
-		x.addClass(to);
-		
-		x.html($(what).html());
-		x.click(function() {
-		    swap($(this), to, from, where, whence);
-		});
-		$(where).append(x);
-		$(what).remove();
-	    }
-	    $('.field').click(function() {
-		swap($(this), 'field', 'el', '.src', '.dst');
-	    });
-	    $('.el').click(function() {
-		swap($(this), 'el', 'field', '.dst', '.src');
-	    });
+	    }]
 	}]
-
-	append xcontent [<ready> {
-	    $('.field').draggable(); /* {helper: 'clone'} */
-
-	    $('.dst').droppable({accept:'.field', tolerance: 'fit',
-		drop: function(ev, ui) {
-		    var x = $(document.createElement('div'));
-		    x.draggable();
-		    x.addClass('el');
-		    x.text($(ui.draggable.element).text());
-
-		    $(ui.draggable.element).remove();
-		    $(this).append(x);
-		    return 1;
-		}});
-
-	    $('.src').droppable({accept:'.el', tolerance: 'fit',
-		drop: function(ev, ui) {
-		    var x = $(document.createElement('div'));
-		    x.draggable();
-		    x.addClass('field');
-		    x.text($(ui.draggable.element).text());
-
-		    $(ui.draggable.element).remove();
-		    $(this).append(x);
-		    return 1;
-		}});
-	}]
-	#set r [jQ droppable $r {}]
-	set r [jQ script $r jquery.js]
-	return [Http NoCache [Http Ok $r $content style/dub]]
     }
 
-    # construct displays
-    proc /display {r {display ""} args} {
-	if {[catch {
-	    set index [vdisplay find display $display]
-	    array set D [vdisplay get $index]
-	} err eo]} {
-	    return [/default $r]
-	}
-	set els [velement with {
-	    <a> href element?element=${} [join [dict values [vfield get $field view name]] .]
-	} display $index]
+    proc /viewframe {r view} {
+	variable swapjs; append content $swapjs \n
+	append content [viewframe $view]
 
-	append content [<ul> <li>[join [dict values $els] "</li><li>"]]
+	#set r [jQ jframe $r]
+	return [Http NoCache [Http Ok $r $content x-text/html-fragment]]
+    }
+
+    proc getElements {dn} {
+	if {[catch {
+	    vdisplay find display $dn
+	} index eo]} {
+	    return {}
+	} else {
+	    # fill body of display with elements' names
+	    return [join [dict values [velement with {
+		If {$sub == 0} {
+		    [set f [vfield get $field]
+		     <div> class el title $comment "[<text> view size 8 readonly 1 style {border:0;text-align:center;} [dict get $f view]]<br>[<text> field size 8 readonly 1 style {border:0;text-align:center;} [dict get $f name]]"
+		    ]
+		} else {
+		    [<div> class el class display title $comment "[<text> view size 8 readonly 1 style {border:0;text-align:center;} [vdisplay get $field display]][<hidden> field {}]"]
+		}
+	    } display $dn -sort order]] \n]
+	}
+    }
+
+    proc displayframe {name} {
+	set values [join [dict values [vdisplay with {
+	    If {$display ne $name} {
+		[<option> value $display label $display $display]
+	    }
+	}]] \n]
+
+	if {$values ne ""} {
+	    set select [<select> subs label "Add:" id subs class selD title "Select an existing display for inclusion in '$name'" {
+		<OPTION selected value=''></OPTION>
+		$values
+	    }]
+	} else {
+	    set select ""
+	}
+
+	return [<form> display action ./displayE {
+	    [<hidden> display $name]
+	    [<submit> save jframe no title "Save Changes to '$name'" "Save"]
+	    $select
+	    [<br>]
+	    [<div> class dst title "click an element to remove it from '$name'" [getElements $name]]
+	}]
+    }
+
+    proc /displayframe {r display} {
+	append content [displayframe $display]
+	variable swapjs; append content $swapjs \n
+	variable seljs; append content $seljs \n
+
+	#set r [jQ jframe $r]
+
+	set r [Http Ok $r $content x-text/html-fragment]
+	return [Http NoCache $r]
+    }
+
+    # remove elements with fields not found in args
+    proc keepElements {di args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	puts stderr "keepElements [dict keys $args] from $di"
+	set delset {}
+	velement with {
+	    puts stderr "keepElements del $field ?"
+	    if {[dict exists $args $field]} {
+		if {$sub} {
+		    # it's a sub-display
+		    set v ""
+		} else {
+		    # it's a field element
+		    set v [vfield get $field view]
+		}
+		if {$v ni [dict get $args $field]} {
+		    lappend delset ${}
+		}
+	    } else {
+		lappend delset ${}
+	    }
+	} display $di
+	puts stderr "keepElements except $delset"
+	foreach el $delset {
+	    velement set $el display ""
+	}
+    }
+
+    proc /displayE {r display view field} {
+	set result [Http Redir $r "./display?display=$display"]
+
+	puts stderr "/displayE $display: ($view) ($field) [Http Referer $r]"
+	# get display record
+	if {[catch {
+	    vdisplay find display $display
+	} di eo]} {
+	    set di [vdisplay append display $display]
+	} else {
+	    # found named display 
+	}
+
+	# write all display elements to file in order
+	set counter 0
+	set fieldset {}
+	foreach v $view f $field {
+	    puts stderr "/displayE PROCESS: view: '$v' field: '$f'"
+	    if {$f ne ""} {
+		# normal field element
+		set fi [vfield find name $f view $v]
+		set comment [vfield get $fi comment]
+		dict lappend fieldset $fi $v
+		puts stderr "displayE EL: di: $di field:$f view:$v -> fi:$fi"
+		if {[catch {
+		    velement find display $display field $fi sub 0
+		} ei eo]} {
+		    if {[catch {
+			velement find display ""
+		    } empty eo]} {
+			# add a new element
+			set ei [velement append display $display field $fi name $v.$fi order [incr counter] comment $comment sub 0]
+		    } else {
+			# re-use an empty element
+			set ei [velement set $empty display $display field $fi name $v.$fi order [incr counter] comment $comment sub 0]
+		    }
+		} else {
+		    # set the order of display of this element
+		    velement set $ei order [incr counter]
+		}
+	    } else {
+		# sub-display element
+		set si [vdisplay find display $v]
+		set comment [vdisplay get $si comment]
+		dict lappend fieldset $si ""
+		puts stderr "displayE SUB: di: $display field:$f view:$v -> si:$si"
+		if {[catch {
+		    velement find display $display field $si sub 1
+		} ei eo]} {
+		    if {[catch {
+			velement find display ""
+		    } empty eo]} {
+			# add a new element
+			set ei [velement append display $display field $si name "display $v" order [incr counter] comment $comment sub 1]
+		    } else {
+			# re-use an empty element
+			set ei [velement set $empty display $display field $si name "display $v" order [incr counter] comment $comment sub 1]
+		    }
+		} else {
+		    # set the order of display of this element
+		    velement set $ei order [incr counter]
+		}
+	    }
+	}
+	keepElements $display $fieldset
+	mk::file commit db
+	return $result
+    }
+
+    proc /display {r args} {
+	# set up 'display' frame
+	set display [Dict get? $args display]
+	puts stderr "/display $display ($args)"
+	if {$display ne ""} {
+	    append content [<div> id dispFrame src displayframe?display=$display {}]
+	} else {
+	    append content [<div> id dispFrame {}]
+	}
+
+	# set up 'view' frame
+	set view [Dict get? $args view]
+	if {$view ne ""} {
+	    append content [<div> id detail class src src viewframe?view=$view {}]
+	} else {
+	    append content [<div> id detail class src {}]
+	}
+
+	# load jframe javascript
+	set r [jQ jframe $r]
+	append content [subst {
+	    [<ready> [string map [list %M {
+		<b>loading...</b>
+	    }] {
+		jQuery.fn.waitingJFrame = function () {
+		    /*$(this).html("%M");*/
+		}
+	    }]]
+	}]
+
+	variable dispstyle; lappend r -headers [list $dispstyle]
+
+	set r [jQ jframe $r]
+	variable swapjs; append content $swapjs \n
+
 	return [Http NoCache [Http Ok $r $content style/dub]]
     }
 
@@ -502,7 +750,7 @@ namespace eval Dub {
 		[<legend> "Comment"]
 		[<textarea> comment cols 40 compact 1 $F(comment)]
 	    }]
-		[<submit> Go $F(submit)]
+	    [<submit> Go $F(submit)]
 	}]
     }
 
@@ -538,6 +786,26 @@ namespace eval Dub {
 	set r [Html style $r css/form.css]
 
 	return [Http NoCache [Http Ok $r $content x-text/html-fragment]]
+    }
+
+    proc /export {r} {
+	set fields {}
+	set views [dict values [vview with {
+	    lappend fields {*}[dict values [vfield with {
+		list Field $view $name type $type key $key unique $unique hidden $hidden comment $comment
+	    } view $view]]
+	    list View $view system $system lastmod $lastmod comment $comment
+	} system 0]]
+
+	set elements {}
+	set displays [dict values [vdisplay with {
+	    lappend elements {*}[dict values [velement with {
+		list Element $display [expr {$sub?[vdisplay get $field display]:[join [vfield get $field view name] .]}]
+	    } display $display]]
+	    list Display $display comment $comment
+	}]]
+
+	return [Http NoCache [Http Ok $r "[join $views \n]\n[join $fields \n]\n[join $displays \n]\n[join $elements \n]\n" text/plain]]
     }
 
     # map of human comprehensible type names to db typenames by db maker
@@ -838,7 +1106,7 @@ namespace eval Dub {
 	}
 
 	set fieldrefs [dict values [vfield with {
-	    <tr> [<td> [<a> href fieldD?view=$view&name=$name {*}$target $name]]
+	    <tr> [<td> [<a> href fieldD?view=$view&name=$name title $comment {*}$target $name]]
 	} view $view]]
 
 	set content [<table> id selector style {margin-top: 1em;} [subst {
@@ -855,14 +1123,15 @@ namespace eval Dub {
 	set detail fieldD
 
 	puts stderr "/view $view: start"
-	if {[catch {vdisplay find display $view}]} {
-	    set ddisplay [<a> href cdisplay?view=$view "Create Display"]
-	} else {
-	    set ddisplay [<a> href display?display=$view "Default Display"]
+	set ddisplay {}
+	if {0} {
+	    if {[catch {vdisplay find display $view}]} {
+		lappend ddisplay [<li> [<a> href display?display=$view&view=$view title "Create a default display for $view" "Create Display"]]
+	    } else {
+		lappend ddisplay [<li> [<a> href display?display=$view&view=$view title "Edit default display of $view" "Default Display"]]
+	    }
 	}
-	dict set r -sidebar [list title "View $view" [subst {
-	    $ddisplay
-	}]]
+	dict set r -sidebar [list title "View $view" [<ul> [join $ddisplay \n]]]
 
 	if {[catch {
 	    vfield find view $view
@@ -910,94 +1179,127 @@ namespace eval Dub {
 	return [Http NoCache [Http Ok $r $content style/dub]]
     }
 
-    proc init {args} {
-	if {$args ne {}} {
-	    variable {*}$args
-	}
-	init_page
-	Convert Namespace ::Dub
-
-	# try to open wiki view
-	if {[catch {
-	    mk::file views db
-	    # we expect threads to be created *after* the db is initialized
-	    variable toplevel 0
-	} vlist eo]} {
-	    #puts stderr "views: $vlist ($eo)"
-	    # this is the top level process, need to create a db
-	    variable toplevel 1
-	    variable db
-	    mk::file open db $db -shared
-	}
-
-	if {![info exists views(field)]} {
-	    Debug on view 10
-	    mkview field {
-		name:S view:S type:S
-		key:I unique:I hidden:I
-		comment:S
-	    }
-	    mkview view {
-		view:S
-		system:I
-		fields:S keys:S
-		lastmod:L flushed:L
-		comment:S
-	    }
-	    mkview display {
-		display:S
-		elements:S
-		comment:S
-	    }
-	    mkview element {
-		display:S
-		name:S
-		field:I
-		order:I
-	    }
-
-	    foreach {v det comment} {
-		field {
-		    view link "the view this field belongs to"
-		    name string "the name of this field"
-		    type string "the type of this field"
-		    key boolean "is this field a key field?"
-		    unique boolean "is this key field unique?"
-		    hidden boolean "is this field usually hidden?"
-		    comment string "a description of this field"
-		} "Field details"
-
-		view {
-		    view string "a database view or table"
-		    fields dictionary "a calculated dict of field name -> type"
-		    keys list "a list of field names which are keys"
-		    system boolean "is this a system view?"
-		    lastmod long "time of last modification"
-		    flushed long "time last modification was reflected to the db"
-		    comment string "a description of this view"
-		} "View details"
-
-		display {
-		    display string "a collection of display elements"
-		    comment string "a description of this display"
-		    elements dictionary "list of elements in this display"
-		} "Display of fields"
-
-		element {
-		    display link "name of display in which this element appears"
-		    name string "name of field referenced by element"
-		    field link "field index"
-		    order integer "order of field within display"
-		} "Element of display"
-	    } {
-		puts stderr "$v: $det"
-		reflect $v
-		vview set [vview find view $v] comment $comment system 1
-		foreach {name type comment} $det {
-		    puts stderr "$v.$name $type '$comment'"
-		    vfield set [vfield find view $v name $name] type $type comment $comment
+    variable interp ""
+    proc import {text} {
+	variable interp
+	if {$interp eq ""} {
+	    set interp [interp create -safe -- importer]
+	    $interp eval {
+		variable order 1
+		proc View {view args} {
+		    return "vview view $view $args"
 		}
+		proc Field {view field args} {
+		    return "vfield append view $view name $field $args"
+		}
+		proc Display {display args} {
+		    return "velement append display $display $args"
+		}
+		proc Element {display name args} {
+		    variable order
+		    lassign [split $name .] view field
+		    if {$field eq ""} {
+			return [string map [list %O [incr order] %D $display %S $field %A $args] {velement append %A display %D sub 1 order %O field [vdisplay find display %S]}]
+		    } else {
+			return [string map [list %O [incr order] %D $display %V $view %F $field %A $args] {velement append %A display %D sub 0 order %O field [vfield find view %V name %F]}]
+		    }
+		}
+		rename proc {}
+		rename eval {}
 	    }
+	}
+
+	puts stderr "EVALUATE: $text"
+	set text [string map [list \[ "" \] "" \$ "" \; ""] $text]
+	set text [split $text \n]
+	set text "\[[join $text {]\n[}]\]"
+	catch {
+	    $interp eval subst [list $text]
+	} result eo
+	puts stderr "IMPORT: '$result' ($eo)"
+	return $result
+    }
+
+    proc /import {r {text ""}} {
+	if {$text ne ""} {
+	    set result [import $text]
+	    return [Http RedirectReferer $r]
+	}
+	return [Http NoCache [Http Ok $r [<form> importF action import method POST {
+	    [<textarea> text cols 80 rows 10 ""]
+	    [<br>]
+	    [<submit> import]
+	}] style/dub]]
+    }
+
+    proc _init {} {
+	mkview field {
+	    name:S view:S type:S
+	    key:I unique:I hidden:I
+	    comment:S
+	}
+	mkview view {
+	    view:S
+	    system:I
+	    fields:S keys:S
+	    lastmod:L flushed:L
+	    comment:S
+	}
+	mkview display {
+	    display:S
+	    comment:S
+	}
+	mkview element {
+	    display:S
+	    sub:I
+	    field:I
+	    order:I
+	    name:S
+	    comment:S
+	}
+	
+	foreach {v det comment} {
+	    field {
+		view link "the view this field belongs to"
+		name string "the name of this field"
+		type string "the type of this field"
+		key boolean "is this field a key field?"
+		unique boolean "is this key field unique?"
+		hidden boolean "is this field usually hidden?"
+		comment string "a description of this field"
+	    } "Field details"
+	    
+	    view {
+		view string "a database view or table"
+		fields dictionary "a calculated dict of field name -> type"
+		keys list "a list of field names which are keys"
+		system boolean "is this a system view?"
+		lastmod long "time of last modification"
+		flushed long "time last modification was reflected to the db"
+		comment string "a description of this view"
+	    } "View details"
+	    
+	    display {
+		display string "a collection of display elements"
+		comment string "a description of this display"
+	    } "Display of fields"
+	    
+	    element {
+		display link "name of display in which this element appears"
+		name string "name of field referenced by element (purely informational)"
+		sub boolean "Is this element a sub-display?"
+		field link "field index"
+		order integer "order of field within display"
+		comment string "a description of this element"
+	    } "Element of display"
+	} {
+	    puts stderr "$v: $det"
+	    reflect $v
+	    vview set [vview find view $v] comment $comment system 1
+	    foreach {name type comment} $det {
+		puts stderr "$v.$name $type '$comment'"
+		vfield set [vfield find view $v name $name] type $type comment $comment
+		}
 	}
 
 	foreach {view find value} {
@@ -1012,12 +1314,44 @@ namespace eval Dub {
 	    field {view element name display} {key 1}
 	    field {view element name field} {key 1}
 	    field {view element name name} {hidden 1}
-	    field {view display name elements} {hidden 1}
 	} {
 	    setfield $view $find $value
 	}
+    }
 
-	set vlist [mk::file views db]
+    proc init {args} {
+	if {$args ne {}} {
+	    variable {*}$args
+	}
+	init_page
+	Convert Namespace ::Dub
+
+	# try to open wiki view
+	if {[catch {
+	    mk::file views db
+	    # if this succeeds, we're a subthread and the db's open
+	    variable toplevel 0
+	    puts stderr "DUB views: $vlist ($eo)"
+	} vlist eo]} {
+	    # this is the top level process, need to create a db
+	    variable toplevel 1
+	    variable db
+	    mk::file open db $db -shared
+	    set vlist [mk::file views db]
+	    puts stderr "DUB views: $vlist ($eo)"
+	}
+
+	# construct base table views
+	foreach v {field view} {
+	    mkview $v
+	}
+
+	if {"field" ni $vlist} {
+	    # we need to construct all the Dub views
+	    _init
+	    set vlist [mk::file views db]
+	}
+
 	puts stderr "views: $vlist"
 
 	variable views
