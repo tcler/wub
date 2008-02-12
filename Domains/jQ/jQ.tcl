@@ -80,7 +80,7 @@ namespace eval jQ {
 
 	set script [string map [dict filter $args key %*] $script]
 	if {$script ne ""} {
-	    #puts stderr "WEAVE: $script"
+	    puts stderr "WEAVE: $script"
 	    dict append r -content [<script> "\$(document).ready(function()\{\n$script\n\});"]
 	}
 
@@ -199,7 +199,9 @@ namespace eval jQ {
 
     # http://bassistance.de/jquery-plugins/jquery-plugin-tooltip/
     proc tooltip {r selector args} {
-	return [weave $r {jquery.js jquery.tooltip.js
+	return [weave $r {
+	    jquery.js jquery.dimensions.js
+	    jquery.tooltip.js
 	} %SEL $selector %OPTS [opts confirm $args] {
 	    $('%SEL').Tooltip({%OPTS});
 	}]
