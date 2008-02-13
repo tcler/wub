@@ -63,6 +63,7 @@ sub vcl_hit {
 	error 200 "Purged";
     }
 }
+
 ## Called when the requested object was found in the cache
 #
 #sub vcl_hit {
@@ -77,6 +78,7 @@ sub vcl_miss {
 	error 404 "Not in cache";
     }
 }
+
 ## Called when the requested object was not found in the cache
 #
 #sub vcl_miss {
@@ -90,7 +92,12 @@ sub vcl_fetch {
     if (obj.ttl < 3600s) {
 	set obj.ttl = 3600s;
     }
+    if (obj.http.Pragma ~ "no-cache" || obj.http.Cache-Control ~ "no-cache" || obj.http.Cache-Control ~ "private") {
+      pass;
+    }
 }
+
+
 ## Called when the requested object has been retrieved from the
 ## backend, or the request to the backend has failed
 #
@@ -123,6 +130,15 @@ sub vcl_fetch {
 #sub vcl_pass {
 #	pass;
 #}
+
+sub vcl_hash {
+        if (req.http.Accept-Encoding ~ "gzip") {
+                set req.hash += "gzip";
+        }
+        else if (req.http.Accept-Encoding ~ "deflate") {
+                set req.hash += "deflate";
+        }
+}
 
 ## Called when entering an object into the cache
 #
