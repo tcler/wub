@@ -269,7 +269,6 @@ namespace eval Dub {
 	    Views ${prefix}views
 	    Displays ${prefix}displays
 	    Export ${prefix}export
-	    Import ${prefix}import
 	}]
 	dict set page breadcrumbs {}
 	
@@ -492,7 +491,7 @@ namespace eval Dub {
 	    x.addClass("display");
 	    x.attr("title", "subview");
 	    
-	    var html = "<input type='text' value='"+ name + "' name='view' style='border: 0pt none ; text-align: center;' readonly='1' size='8'/>";
+	    var html = "<input type='text' value='"+ name + "' name='view' style='border: 0pt none ; text-align: center; cursor:pointer' readonly='1' size='8'/>";
 	    html += "<input type='hidden' value='' name='field'/>";
 	    
 	    x.html(html);
@@ -510,7 +509,7 @@ namespace eval Dub {
 	    [<fieldset> viewFS {
 		[<legend> "View: $view"]
 		[join [dict values [vfield with {
-		    <div> class field title $comment "[<text> view size 8 readonly 1 style {border:0;text-align:center;} $view]<br>[<text> field size 8 readonly 1 style {border:0;text-align:center;} $name]"
+		    <div> class field title $comment "[<text> view size 8 readonly 1 style {border:0;text-align:center; cursor:pointer;} $view]<br>[<text> field size 8 readonly 1 style {border:0;text-align:center;cursor:pointer;} $name]"
 		} view $view]] \n]
 	    }]
 	}]
@@ -534,10 +533,10 @@ namespace eval Dub {
 	    return [join [dict values [velement with {
 		If {$sub == 0} {
 		    [set f [vfield get $field]
-		     <div> class el title $comment "[<text> view size 8 readonly 1 style {border:0;text-align:center;} [dict get $f view]]<br>[<text> field size 8 readonly 1 style {border:0;text-align:center;} [dict get $f name]]"
+		     <div> class el title $comment "[<text> view size 8 readonly 1 style {border:0;text-align:center;cursor:pointer;} [dict get $f view]]<br>[<text> field size 8 readonly 1 style {border:0;text-align:center;cursor:pointer;} [dict get $f name]]"
 		    ]
 		} else {
-		    [<div> class el class display title $comment "[<text> view size 8 readonly 1 style {border:0;text-align:center;} [vdisplay get $field display]][<hidden> field {}]"]
+		    [<div> class el class display title $comment "[<text> view size 8 readonly 1 style {border:0;text-align:center;cursor:pointer;} [vdisplay get $field display]][<hidden> field {}]"]
 		}
 	    } display $dn -sort order]] \n]
 	}
