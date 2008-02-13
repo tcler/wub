@@ -277,7 +277,7 @@ namespace eval Http {
 	if {[string is integer -strict $age]} {
 	    # it's an age
 	    if {($age != 0)} {
-		dict set rsp expires [Date expr {[clock seconds] + $age}]
+		dict set rsp expires [Date [expr {[clock seconds] + $age}]]
 	    } else {
 		catch {dict unset rsp expires}
 		catch {dict inset rsp -expiry}
