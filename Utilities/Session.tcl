@@ -1,31 +1,46 @@
 # Session - handle Session vars stored in a mk db, indexed by a cookie slot.
 #
 # This is to be run in the main thread, and to amend the -session var in
-# a request, to be passed to Workers.
+# a request, to be passed along with request to Workers.
 #
 # Use of a mk db allows sessions to be available to all threads in a
 # multithreaded environment.
 #
+# Sessions are records in a metakit database which are loaded into a subdict
+# of request, using the session key value passed in via a cookie.
+# If the session subdict changes during processing of the request, changes will
+# be rewritten to the database.
+#
 # Examples:
+#
 # 1) Fetch a session
+#
 #	set req [Session fetch $req] ;# fetch session specified by cookie
-#	set session [dict get $req -session]
+#	set session [dict get $req -session]	;# this is the session dict
 #	if {[dict exists $session _key]} {
 #		# this is an existing session
 #		puts "[dict get $session _key] is the session key"
 #	} else {
-#		# this is a brand new session
+#		# this is a brand new session (as no key has been assigned)
 #	}
 #
-# 2) Modify a session variable
+# 2) Modify/use session state
 #
+# FIRST:
 #	dict set req -session somevar $value	;# set a session variable
+#
+# THEN:
 #	dict with req -session {
 #		... modify existing variables - only works on existing sessions
 #		# risky unless you can control the contents of the dict,
 #		# as any element in dict *will* overwrite other vars.
 #	}
+# OR:
+#	Session with req {
+#		... modify existing variables
+#	}
 #
+# FINALLY:
 #	set rsp [Session store $req]	;# session doesn't exist until stored
 #	return $rsp			;# the rsp will have required cookies
 #
@@ -34,16 +49,24 @@
 #	set rsp [Session remove $req]
 #	return $rsp
 
-package provide Session 3.0
+package provide Session 3.1
 
 namespace eval Session {
+    variable db session.mk	;# session database
+
     variable salt [clock microseconds]	;# source of random session key
     variable size	;# total count of sessions
     variable empty	;# count of empty slots
 
-    # traverse the session db clearing old sessions
+    variable cookie "session"	;# session cookie name
+    variable cpath "/"		;# session cookie path
+
+    # traverse the session db clearing old session data
     #
-    # this should be done occasionally, whenever the db gets too big, for example
+    # we don't remove the rows, because we depend on the slot not changing,
+    # however we remove the data from each of the deleted records
+    # this should be done occasionally, whenever the db gets too big
+    # however, there's a race if new sessions can be made in parallel with gc, so don't.
     proc gc {} {
 	set dope {}
 	foreach el [session properties] {
@@ -69,29 +92,35 @@ namespace eval Session {
 
     # fetch a session slot in a request
     proc fetch {req args} {
-	if {![dict exists $req -session]} {
-	    # got to locate session slot
-	    set req [Cookies 4Server $req]
-
-	    variable cookie
-	    if {[catch {
-		dict get [Cookies fetch [dict get $req -cookies] {*}$args -name $cookie] -value
-	    } slot eo]} {
-		#Debug.error {fetch session: $slot ($eo)}
-		return $req
-	    }
-
-	    lassign [split $slot] slot key	;# fetch the slot
-	    if {$key ne ""} {
-		# non null key means active slot
-		set session [session get $slot]
-		if {[dict get session _key] eq $key} {
-		    dict set req -session $session
-		    dict set req --session $session
-		}
-	    }
-	} else {
+	if {[dict exists $req -session]} {
+	    # -session exists, ensure that
+	    # it's written back to the db by setting --session to empty
 	    dict set req --session {}
+	    return $req
+	}
+
+	# no session record in request dict
+	set req [Cookies 4Server $req]	;# first get cookies
+
+	variable cookie
+	if {[catch {
+	    dict get [Cookies fetch [dict get $req -cookies] {*}$args -name $cookie] -value
+	} slot eo]} {
+	    # there's no session cookie, we're done
+	    #Debug.error {fetch session: $slot ($eo)}
+	    return $req
+	}
+
+	# got a session cookie
+	lassign [split $slot] slot key	;# fetch the slot
+	if {$key ne ""} {
+	    # non null key means session has an active slot
+	    set session [session get $slot]	;# read session from db
+	    if {[dict get session _key] eq $key} {
+		#
+		dict set req -session $session	;# store the session in the request
+		dict set req --session $session	;# copy session to detect changes
+	    }
 	}
 
 	return $req
@@ -99,18 +128,25 @@ namespace eval Session {
 
     # remove the session associated with this request
     proc remove {req} {
-	set req [Cookies 4Server $req cookie]
-	if {[dict exists $req -session _slot]} {
-	    set slot [dict get $req -session _slot]
-	    dict unset req -session
-	    session set $slot _key ""
-
-	    variable cookie
-	    dict set req -cookies [Cookies remove [dict get $req -cookies] -name $cookie]
+	set req [Cookies 4Server $req cookie]	;# fetch the cookies
+	if {![dict exists $req -session _slot]} {
+	    return $req	;# no session in request, we're done
 	}
+
+	# there's a session in the request - remove it
+	set slot [dict get $req -session _slot]	;# get the session slot
+	catch {dict unset req -session}		;# remove -session from request
+	catch {dict unset req --session} 	;# remove comparison --session too
+	session set $slot _key ""	;# flag session as deleted in the db
+
+	# remove the cookie as well as the session
+	variable cookie
+	dict set req -cookies [Cookies clear [dict get $req -cookies] -name $cookie]
+
 	return $req
     }
 
+    # provide session vars as local vars in caller
     proc with {rv body} {
 	if {[catch {
 	    uplevel "dict with $rv -session [list $body]"
@@ -121,50 +157,46 @@ namespace eval Session {
 	}
     }
 
-    # store a session in the db if it's changed
+    # store the session in the db if it's changed
     proc store {req args} {
 	if {[Dict get? $req -session] eq [Dict get? $req --session]} {
 	    return $req	;# no change to session vars - just skip it
 	}
 
-	set req [Cookies 4Server $req cookie]
-	set session [dict get $req -session]
+	# write back changed -session state
+	set req [Cookies 4Server $req cookie]	;# get cookie (redundant?)
+	set session [dict get $req -session]	;# get the session
+
 	if {[dict exists $session _slot]} {
-	    # it's already been created
-	    set slot [dict get $session _slot]
-	    set key [dict get $session _key]
-	    session set [dict get $session _slot] {*}$session _mtime [clock seconds]
+	    # session is already stored in db - update it.
+	    set slot [dict get $session _slot]	;# remember session slot
+	    set key [dict get $session _key]	;# remember session key
+	    session set $_slot {*}$session _mtime [clock seconds]
 	} else {
-	    # need to create a new slot
+	    # need to create a new slot for the session
 	    variable salt;
-	    set key [md5::md5 [incr salt]]	;# new slot's key
-	    set now [clock seconds]
+	    set key [md5::md5 [incr salt]]	;# new slot's random key
+	    set now [clock seconds]		;# get current time
 	    if {[catch {
 		session find key ""	;# get a deleted session slot
 	    } slot]} {
 		# no empty slots - create a new slot
-		variable cookie
 		set slot [session append {*}$session _key $key _ctime $now _mtime $now]
-		session set $slot _slot $slot
-		variable size
-		incr size
+		session set $slot _slot $slot	;# fixup session's slot
+		variable size; incr size
 	    } else {
-		# use a deleted session slot
+		# use a deleted session slot - write session content
 		session set $slot {*}$session _key $key _ctime $now _mtime $now _slot $slot
-		variable empty
-		incr empty -1
+		variable empty; incr empty -1
 	    }
 	}
 
 	# add the accessor cookie to the request
-	variable cookie
-	dict set req -cookies [Cookies add [dict get $req -cookies] {*}$args -name $cookie -value [list $slot $key]]
+	variable cookie; variable cpath
+	dict set req -cookies [Cookies add [dict get $req -cookies] -path $cpath {*}$args -name $cookie -value [list $slot $key]]
 
 	return $req
     }
-
-    variable cookie "session"	;# session cookie name
-    variable db session.mk	;# session database
 
     # initialize the session accessor functions
     proc init {args} {
