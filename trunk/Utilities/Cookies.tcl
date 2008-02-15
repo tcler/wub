@@ -219,7 +219,7 @@ namespace eval Cookies {
 
 	# hide and strip quoted strings
 	catch {unset quoted}
-	set re {"([^"]+?)"}	;# quoted string
+	set re {"([^\"]+?)"}	;# quoted string
 	set cnt 0
 	while {[regexp $re $cookies -> quoted(\x84$cnt\x85)]} {
 	    regsub $re $cookies "\x84$cnt\x85" cookies
@@ -325,7 +325,7 @@ namespace eval Cookies {
 	    set val [dict get $cdict -value]
 	    set cookie "$name=[dict get $cdict -value]"
 	    if {[dict exists $cdict path]
-		&& [dict get $cdict -path] eq "/"
+		&& [dict get $cdict -path] eq ""
 	    } {
 		dict unset cdict -path
 	    }
@@ -357,7 +357,7 @@ namespace eval Cookies {
 
 	# hide and strip quoted strings
 	catch {unset quoted}
-	set re {"([^"]+?)"}	;# quoted string
+	set re {"([^\"]+?)"}	;# quoted string
 	set cnt 0
 	while {[regexp $re $cookies -> quoted(\x84$cnt\x85)]} {
 	    regsub $re $cookies "\x84$cnt\x85" cookies
@@ -451,11 +451,7 @@ namespace eval Cookies {
 	if {[llength $args] eq 1} {
 	    set args [lindex $args 0]
 	}
-	if {[dict exists $args -path]
-	    && [dict get $args -path] eq "/"
-	} {
-	    dict set args -path ""
-	}
+
 	foreach v {name path domain} {
 	    if {[dict exists $args -$v]} {
 		set $v [dict get $args -$v]
