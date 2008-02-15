@@ -213,7 +213,7 @@ namespace eval Session {
 	    # this is the top level process, need to create a db
 	    variable toplevel 1
 	    variable db
-	    mk::file open db $db -shared
+	    catch {mk::file open db $db -shared}
 	}
 	View init session db.session
 
