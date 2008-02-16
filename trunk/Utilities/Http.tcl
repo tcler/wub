@@ -997,6 +997,7 @@ namespace eval Http {
 	    }
 
 	    # handle Vary field and -vary dict
+	    dict set reply -vary Accept-Encoding
 	    if {[dict exists $reply -vary]} {
 		if {[dict exists $reply -vary *]} {
 		    dict set reply vary *
