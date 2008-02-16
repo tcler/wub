@@ -8,6 +8,9 @@ package require Cookies
 package require Responder
 package require jQ
 
+package require Debug
+Debug off dub 10
+
 namespace eval Dub {
     variable db /tmp/dub.db
     variable toplevel
@@ -70,11 +73,11 @@ namespace eval Dub {
 	# reflect fields to field table
 	foreach f [split [v$view properties]] {
 	    lassign [split $f :] field type
-	    puts stderr "reflect: $view $field of type '$type'"
+	    Debug.dub {reflect: $view $field of type '$type'}
 	    if {[catch {
 		vfield find view $view name $field
 	    } index eo]} {
-		#puts stderr "reflect adding: $view.$field of type [2native $type]"
+		#Debug.dub {reflect adding: $view.$field of type [2native $type]}
 		vfield append view $view name $field type [2native $type]
 	    } elseif {$type ne [vfield get $index type]} {
 		# got a field record, update type
@@ -88,20 +91,20 @@ namespace eval Dub {
     proc mkview {view {layout ""}} {
 	set layout [join $layout]
 	if {$layout ne ""} {
-	    puts stderr "mkview: making $view of '$layout'"
+	    Debug.dub {mkview: making $view of '$layout'}
 	    mk::view layout db.$view $layout
-	    puts stderr "mkview: made $view of '$layout'"
+	    Debug.dub {mkview: made $view of '$layout'}
 	}
 
 	if {[catch {View init v$view db.$view} r eo]} {
-	    puts stderr "View: $r ($eo)"
+	    Debug.error {View: $r ($eo)}
 	} else {
-	    puts stderr "cmd: $r - v$view - [info commands v*]"
+	    Debug.dub {cmd: $r - v$view - [info commands v*]}
 	}
 
 	variable views
 	set views($view) v$view
-	puts stderr "mkview: [mk::file views db]"
+	Debug.dub {mkview: [mk::file views db]}
     }
 
     # convert the field table field descriptors to mk view's active layout
@@ -220,7 +223,7 @@ namespace eval Dub {
 
     # edit field properties
     proc /fieldE {r view name type comment {unique 0} {key 0} {hidden 0}} {
-	puts stderr "/fieldE: $view.$name of $type key:$key"
+	Debug.dub {/fieldE: $view.$name of $type key:$key}
 	if {![regexp {^[a-zA-Z][a-zA-Z_0-9]*$} $name]} {
 	    return [/view $r $view message "Field names must be alphanumeric"]
 	}
@@ -239,10 +242,10 @@ namespace eval Dub {
 	if {[catch {
 	    vfield find view $view name $name
 	} index eo]} {
-	    puts stderr "/fieldE new $view.$name"
+	    Debug.dub {/fieldE new $view.$name}
 	    vfield append name $name view $view type $type comment $comment unique $unique key $key hidden $hidden
 	} else {
-	    puts stderr "/fieldE edit $view.$name: $index"
+	    Debug.dub {/fieldE edit $view.$name: $index}
 	    vfield set $index type $type comment $comment unique $unique key $key hidden $hidden
 	}
 
@@ -491,7 +494,7 @@ namespace eval Dub {
 	    x.addClass("display");
 	    x.attr("title", "subview");
 	    
-	    var html = "<input type='text' value='"+ name + "' name='view' style='border: 0pt none ; text-align: center; cursor:pointer' readonly='1' size='8'/>";
+	    var html = "<input type='text' value='"+ name + "' name='view' style='border: 0pt none; text-align: center; cursor: pointer;' readonly='1' size='8'/>";
 	    html += "<input type='hidden' value='' name='field'/>";
 	    
 	    x.html(html);
@@ -583,10 +586,10 @@ namespace eval Dub {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
-	puts stderr "keepElements [dict keys $args] from $di"
+	Debug.dub {keepElements [dict keys $args] from $di}
 	set delset {}
 	velement with {
-	    puts stderr "keepElements del $field ?"
+	    Debug.dub {keepElements del $field ?}
 	    if {[dict exists $args $field]} {
 		if {$sub} {
 		    # it's a sub-display
@@ -602,7 +605,7 @@ namespace eval Dub {
 		lappend delset ${}
 	    }
 	} display $di
-	puts stderr "keepElements except $delset"
+	Debug.dub {keepElements except $delset}
 	foreach el $delset {
 	    velement set $el display ""
 	}
@@ -611,7 +614,7 @@ namespace eval Dub {
     proc /displayE {r display view field} {
 	set result [Http Redir $r "./display?display=$display"]
 
-	puts stderr "/displayE $display: ($view) ($field) [Http Referer $r]"
+	Debug.dub {/displayE $display: ($view) ($field) [Http Referer $r]}
 	# get display record
 	if {[catch {
 	    vdisplay find display $display
@@ -625,13 +628,13 @@ namespace eval Dub {
 	set counter 0
 	set fieldset {}
 	foreach v $view f $field {
-	    puts stderr "/displayE PROCESS: view: '$v' field: '$f'"
+	    Debug.dub {/displayE PROCESS: view: '$v' field: '$f'}
 	    if {$f ne ""} {
 		# normal field element
 		set fi [vfield find name $f view $v]
 		set comment [vfield get $fi comment]
 		dict lappend fieldset $fi $v
-		puts stderr "displayE EL: di: $di field:$f view:$v -> fi:$fi"
+		Debug.dub {displayE EL: di: $di field:$f view:$v -> fi:$fi}
 		if {[catch {
 		    velement find display $display field $fi sub 0
 		} ei eo]} {
@@ -653,7 +656,7 @@ namespace eval Dub {
 		set si [vdisplay find display $v]
 		set comment [vdisplay get $si comment]
 		dict lappend fieldset $si ""
-		puts stderr "displayE SUB: di: $display field:$f view:$v -> si:$si"
+		Debug.dub {displayE SUB: di: $display field:$f view:$v -> si:$si}
 		if {[catch {
 		    velement find display $display field $si sub 1
 		} ei eo]} {
@@ -680,7 +683,7 @@ namespace eval Dub {
     proc /display {r args} {
 	# set up 'display' frame
 	set display [Dict get? $args display]
-	puts stderr "/display $display ($args)"
+	Debug.dub {/display $display ($args)}
 	if {$display ne ""} {
 	    append content [<div> id dispFrame src displayframe?display=$display {}]
 	} else {
@@ -758,11 +761,11 @@ namespace eval Dub {
 	if {[catch {
 	    set F [vfield get [vfield find name $name view $view]]
 	} err eo]} {
-	    puts stderr "/fieldD '$view.$name' err: $err ($eo)"
+	    Debug.dub {/fieldD '$view.$name' err: $err ($eo)}
 	    set F [list type "" name $name view $view key 0 unique 0 comment ""]
 	}
 	
-	puts stderr "/fieldD Record: [array get F]"
+	Debug.dub {/fieldD Record: [array get F]}
 
 	if {[catch {
 	    set viewD [vview get [vview find view $view]]
@@ -1088,7 +1091,7 @@ namespace eval Dub {
     }
 
     proc setfield {view find args} {
-	puts stderr "setfield: view '$view' keys '$find' = '$args'"
+	Debug.dub {setfield: view '$view' keys '$find' = '$args'}
 	v$view set [v$view find {*}$find] {*}$args
     }
 
@@ -1121,7 +1124,7 @@ namespace eval Dub {
 	set select fields
 	set detail fieldD
 
-	puts stderr "/view $view: start"
+	Debug.dub {/view $view: start}
 	set ddisplay {}
 	if {0} {
 	    if {[catch {vdisplay find display $view}]} {
@@ -1134,9 +1137,9 @@ namespace eval Dub {
 
 	if {[catch {
 	    vfield find view $view
-	    puts stderr "/view existing $view"
+	    Debug.dub {/view existing $view}
 	} err eo]} {
-	    puts stderr "/view new '$view': $err ($eo)"
+	    Debug.dub {/view new '$view': $err ($eo)}
 	    set fields [list view $view name $view key 1 type integer submit "New View"]
 	    set content [subst {
 		[<p> "Create a new View.  Enter view's key field"]
@@ -1208,14 +1211,14 @@ namespace eval Dub {
 	    }
 	}
 
-	puts stderr "EVALUATE: $text"
+	Debug.dub {EVALUATE: $text}
 	set text [string map [list \[ "" \] "" \$ "" \; ""] $text]
 	set text [split $text \n]
 	set text "\[[join $text {]\n[}]\]"
 	catch {
 	    $interp eval subst [list $text]
 	} result eo
-	puts stderr "IMPORT: '$result' ($eo)"
+	Debug.dub {IMPORT: '$result' ($eo)}
 	return $result
     }
 
@@ -1292,11 +1295,11 @@ namespace eval Dub {
 		comment string "a description of this element"
 	    } "Element of display"
 	} {
-	    puts stderr "$v: $det"
+	    Debug.dub {$v: $det}
 	    reflect $v
 	    vview set [vview find view $v] comment $comment system 1
 	    foreach {name type comment} $det {
-		puts stderr "$v.$name $type '$comment'"
+		Debug.dub {$v.$name $type '$comment'}
 		vfield set [vfield find view $v name $name] type $type comment $comment
 		}
 	}
@@ -1330,14 +1333,14 @@ namespace eval Dub {
 	    mk::file views db
 	    # if this succeeds, we're a subthread and the db's open
 	    variable toplevel 0
-	    puts stderr "DUB views: $vlist ($eo)"
+	    Debug.dub {DUB views: $vlist ($eo)}
 	} vlist eo]} {
 	    # this is the top level process, need to create a db
 	    variable toplevel 1
 	    variable db
 	    mk::file open db $db -shared
 	    set vlist [mk::file views db]
-	    puts stderr "DUB views: $vlist ($eo)"
+	    Debug.dub {DUB views: $vlist ($eo)}
 	}
 
 	# construct base table views
@@ -1351,7 +1354,7 @@ namespace eval Dub {
 	    set vlist [mk::file views db]
 	}
 
-	puts stderr "views: $vlist"
+	Debug.dub {views: $vlist}
 
 	variable views
 	foreach v $vlist {
@@ -1360,8 +1363,6 @@ namespace eval Dub {
 		reflect $v
 	    }
 	}
-
-	#puts stderr "views: [mk::file views db]"
     }
 
     namespace export -clear *
