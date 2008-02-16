@@ -997,7 +997,7 @@ namespace eval Http {
 	    }
 
 	    # handle Vary field and -vary dict
-	    dict set reply -vary Accept-Encoding
+	    dict set reply -vary Accept-Encoding 1
 	    if {[dict exists $reply -vary]} {
 		if {[dict exists $reply -vary *]} {
 		    dict set reply vary *
@@ -1029,7 +1029,7 @@ namespace eval Http {
 		    }
 		}
 
-		if {0 && $cache && ![dict exists $reply etag]} {
+		if {$cache && ![dict exists $reply etag]} {
 		    # generate an etag for cacheable responses
 		    variable etag_id
 		    dict set reply etag "\"H[incr etag_id]\""
