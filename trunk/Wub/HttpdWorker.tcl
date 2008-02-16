@@ -344,7 +344,7 @@ namespace eval HttpdWorker {
 	    variable ce_encodings	;# what encodings do we support?
 
 	    # wire-format the reply transaction
-	    lassign [Http Send $reply -cache $cache -encodings $ce_encodings] reply header content empty cache
+	    lassign [Http Send $reply -cache $cache -encoding $ce_encodings] reply header content empty cache
 	    set header "HTTP/1.1 $header" ;# add the HTTP signifier
 
 	    # record transaction reply and kick off the responder
