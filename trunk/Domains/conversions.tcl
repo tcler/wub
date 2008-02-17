@@ -48,6 +48,14 @@ namespace eval ::conversions {
 
 	    append content <body> \n
 	    append content $rspcontent
+
+	    # add script postloads
+	    if {[dict exists $rsp -postload]} {
+		dict for {n v} [dict get $rsp -postload] {
+		    append content $v \n
+		}
+	    }
+
 	    append content </body> \n
 	    append content </html> \n
 	}
