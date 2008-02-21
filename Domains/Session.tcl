@@ -209,6 +209,13 @@ namespace eval Session {
 	return $req
     }
 
+    proc /_snew {r} {
+	if {![dict exists $r -session]} {
+	    dict set r -session {}
+	}
+	return [Http NoCache [Http Ok $r "Session created" text/plain]]
+    }
+
     # delete current session
     proc /_sdel {r} {
 	return [Http NoCache [Http Ok [remove $r] "Session removed" text/plain]]
