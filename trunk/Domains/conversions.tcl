@@ -66,6 +66,15 @@ namespace eval ::conversions {
 		    content-type text/html]
     }
 
+    # STX CSS component dict
+    variable stxCSS {
+	rel stylesheet
+	type text/css
+	href /css/stx.css
+	media screen
+	title screen
+    }
+
     # convert STX to an HTML fragment
     proc .x-text/stx.x-text/html-fragment {rsp} {
 	package require stx2html
@@ -79,6 +88,7 @@ namespace eval ::conversions {
 	if {$code} {
 	    return [Http ServerError $rsp $result $eo]
 	} else {
+	    dict lappend rsp -headers [<link> {*}$stxCSS]
 	    return [dict replace $rsp \
 			-content $result \
 			content-type x-text/html-fragment]
@@ -376,6 +386,87 @@ namespace eval ::conversions {
 	}
 	dict set content-type x-text/table
 	return $rsp
+    }
+
+    # convert a directory list
+    proc .x-multipart/dirlist.x-text/system {rsp} {
+	set suffix [file dirname [dict get $rsp -suffix]]
+	set prefix [dict get $rsp -prefix]
+	set root [dict get $rsp -root]
+	set fulldir [file join $root [string trim $suffix /]]
+
+	set files {}
+	dict for {file stat} [dict get $rsp -content] {
+	    lappend files [list $file [dict get $stat mtime] [dict get $stat size]]
+	}
+
+	array set query [Query flatten [Query parse $rsp]]
+	if {[info exists query(sort)]} {
+	    set sort [string tolower $query(sort)]
+	} else {
+	    set sort name
+	}
+
+	array set sorter {name sort=name date sort=date size sort=size}
+
+	if {[info exists query(reverse)]} {
+	    set order -decreasing
+	} else {
+	    set order -increasing
+	    append sorter($sort) "&reverse"
+	}
+
+	switch -- $sort {
+	    name {
+		set files [lsort -index 0 $order -dictionary $files]
+	    }
+	    date {
+		set files [lsort -index 1 $order -integer $files]
+	    }
+	    size {
+		set files [lsort -index 2 $order -integer $files]
+	    }
+	}
+
+	set dp [file join $prefix $suffix]
+	set url [string trimright [dict get $rsp -url] /]
+	Debug.convert {dirList: $dp - $url - $suffix - ($files)}
+	
+	set dirlist "<table class='dirlist' border='1'>\n"
+	append dirlist "<thead>" \n
+	append dirlist "<tr><th>Name</th>" \n
+	append dirlist "<th>Modified</th>" \n
+	append dirlist "<th>Size</th></tr>" \n
+
+	set pdir [string trimright [file dirname ${dp}] /]
+	append dirlist "<tr><td><a href='${pdir}/'>..</a></td></tr>" \n
+	append dirlist "</thead>" \n
+
+	append dirlist "<tbody>" \n
+	foreach file $files {
+	    lassign $file name date size
+	    append dirlist "<tr>\n"
+	    append dirlist "<td><a href='${dp}/$name'>$name</a></td>" \n
+	    append dirlist "<td>[Http Date $date]</td>" \n
+	    append dirlist "<td>$size</td>" \n
+	    append dirlist "</tr>" \n
+	}
+	append dirlist "</tbody>" \n
+	append dirlist "</table>" \n
+
+	if {$suffix eq ""} {
+	    set dir /
+	} else {
+	    set dir $suffix
+	}
+
+	set result "title:${dir} Directory\n"
+	append result "<h1>$dir</h1>" \n
+	append result $dirlist \n
+
+	return [dict replace $rsp \
+		    -content $result \
+		    content-type x-text/system-text]
     }
 }
 
