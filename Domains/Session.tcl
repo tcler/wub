@@ -6,6 +6,17 @@
 # Use of a mk db allows sessions to be available to all threads in a
 # multithreaded environment.
 #
+# ARCHITECTURE:
+# Cookies shouldn't be sent with a path of /, because it screws up caching
+# Session maintains a key in cookie which is sent within a constrained path.
+# (a) how can a cookie within a constrained path be used
+# everywhere on a site when it's only sent for a subpath of the site - use a
+# web-bug technique - load some file from session domain on every page, don't cache
+# that subdomain.  Use Wub to associate the cookie with the whole session.
+# (b) how can a cookie within a sub-path impact on the whole page as seen by a 
+# client?  Javascript.  Send javascript from the web bug.
+#
+# IMPLEMENTATION:
 # Sessions are records in a metakit database which are loaded into a subdict
 # of request, using the session key value passed in via a cookie.
 # If the session subdict changes during processing of the request, changes will
@@ -59,7 +70,7 @@ namespace eval Session {
     variable empty	;# count of empty slots
 
     variable cookie "session"	;# session cookie name
-    variable cpath "/"		;# session cookie path
+    variable cpath "/"		;# session cookie path - this default is a bad idea.
 
     # traverse the session db clearing old session data
     #
@@ -198,6 +209,45 @@ namespace eval Session {
 	return $req
     }
 
+    # delete current session
+    proc /_sdel {r} {
+	return [Http NoCache [Http Ok [remove $r] "Session removed" text/plain]]
+    }
+
+    # show current session's values
+    proc /_sshow {r} {
+	set content [<table class session border 1 width 80% [subst {
+	    [<tr> [<th> "Session"]]
+	    For {n v} [Dict get? $r -session] {
+		[<tr> "[<td> $n] [<td> [armour $v]]"]
+	    }
+	}]]
+
+	return [Http NoCache [Http Ok $r $content x-text/html-fragment]]
+    }
+
+    # this is the default wildcard proc for Sessions
+    # it does nothing, but it causes the session to be
+    # presented to the server
+    proc / {r} {
+	return [Http NoCache [Http Ok $r "" text/plain]]
+    }
+
+    variable subdomains {}
+    proc do {rq} {
+	variable cpath	;# use the cookie path for our path
+	variable subdomains	;# set of domains to traverse
+	# TODO: this could be much more efficient using arrays to
+	# match direct domains, rather than iterating through Direct
+	foreach sd [list {*}$subdomains ::Session] {
+	    set rsp [Direct::_do $sd x-text/html-fragment $cpath "" $rq]
+	    if {[dict get $rsp code] <= 400} {
+		return $rsp
+	    }
+	}
+	return [Http NotFound $rq]
+    }
+
     # initialize the session accessor functions
     proc init {args} {
 	if {$args ne {}} {
@@ -209,11 +259,11 @@ namespace eval Session {
 	    mk::file views session
 	    # we expect threads to be created *after* the db is initialized
 	    variable toplevel 0
-	} views]} {
+	} views eo]} {
 	    # this is the top level process, need to create a db
 	    variable toplevel 1
 	    variable db
-	    catch {mk::file open db $db -shared}
+	    mk::file open db $db -shared
 	}
 	View init session db.session
 
