@@ -20,11 +20,10 @@ package provide Direct 1.0
 Debug off direct 10
 
 namespace eval Direct {
-
     # called as "do $request" causes procs defined within 
     # the specified namespace to be invoked, with the request as an argument,
     # expecting a response result.
-    proc _do {ns ctype prefix response} {
+    proc _do {ns ctype prefix wildcard response} {
 	Debug.direct {do direct $ns $prefix $ctype}
 
 	# get query dict
@@ -59,7 +58,7 @@ namespace eval Direct {
 	if {[info procs $cmd] eq {}} {
 	    # no match - use wildcard proc
 	    Debug.direct {$cmd not found looking for $fn in '$ns' ([info procs ${ns}::/*])}
-	    set cmd ${ns}::/default
+	    set cmd ${ns}::/$wildcard
 	    if {[info procs $cmd] eq {}} {
 		Debug.direct {default not found looking for $cmd in ([info procs ${ns}::/*])}
 		return [Http NotFound $response]
@@ -126,6 +125,8 @@ namespace eval Direct {
     proc init {cmd args} {
 	set ctype "text/html"
 	set prefix "/"
+	set wildcard /default
+
 	foreach {n v} $args {
 	    set $n $v
 	}
@@ -135,7 +136,7 @@ namespace eval Direct {
 	namespace ensemble create \
 	    -command $cmd -subcommands {} \
 	    -map [subst {
-		do "_do $namespace $ctype [list [file split $prefix]]"
+		do "_do $namespace $ctype [list [file split $prefix]] $wildcard"
 	    }]
 
 	return $cmd
