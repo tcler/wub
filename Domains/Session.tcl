@@ -237,7 +237,7 @@ namespace eval Session {
     # it does nothing, but it causes the session to be
     # presented to the server
     proc / {r} {
-	return [Http NoCache [Http Ok $r "" text/plain]]
+	return [Http NoCache [Http Ok $r "session default" text/plain]]
     }
 
     variable subdomains {}
@@ -278,5 +278,5 @@ namespace eval Session {
     }
 
     namespace export -clear *
-    namespace ensemble create -subcommands {} -map {}
+    namespace ensemble create -subcommands {}
 }
