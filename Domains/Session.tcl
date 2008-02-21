@@ -241,7 +241,7 @@ namespace eval Session {
 	# match direct domains, rather than iterating through Direct
 	foreach sd [list {*}$subdomains ::Session] {
 	    set rsp [Direct::_do $sd x-text/html-fragment $cpath "" $rq]
-	    if {[dict get $rsp code] <= 400} {
+	    if {[dict get $rsp -code] <= 400} {
 		return $rsp
 	    }
 	}
