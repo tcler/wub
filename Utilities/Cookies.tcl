@@ -329,7 +329,7 @@ namespace eval Cookies {
 	    } {
 		dict unset cdict -path
 	    }
-
+	    
 	    # cookie fields with values
 	    foreach k {comment domain max-age path expires} {
 		if {[dict exists $cdict -$k]} {
@@ -499,6 +499,13 @@ namespace eval Cookies {
 	if {0 && ![string is alnum -strict [dict get $args -name]]} {
 	    # not strictly true - can include _
 	    error "name must be alphanumeric, '[dict get $args -name]'"
+	}
+	if {[dict exists $args -expires]} {
+	    set expires [dict get $args -expires]
+	    if {![string is integer -strict $expires]} {
+		set expires [clock scan $expires]
+	    }
+	    dict set args -expires [clock format $expires -format "%a, %d-%b-%Y %H:%M:%S GMT" -gmt 1]
 	}
 	foreach {attr val} $args {
 	    dict set cookies $cn [string tolower $attr] $val
