@@ -23,7 +23,7 @@ namespace eval RAM {
 	    # assume we've been parsed by package Url
 	    # remove the specified prefix from path, giving suffix
 	    set path [dict get $rsp -path]
-	    set suffix [Url pstrip [file split $prefix] $path]
+	    set suffix [Url pstrip $prefix $path]
 	    Debug.RAM {-suffix not given - calculated '$suffix' from '$prefix' and '$path'}
 	    if {[string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
