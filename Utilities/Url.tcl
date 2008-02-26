@@ -21,7 +21,8 @@ namespace eval Url {
 	if {[string equal $prefix $path]} {
 	    return ""
 	}
-	
+
+	set prefix [file split $prefix]
 	set npath [file split $path]
 	if {[string match ${prefix}* $npath]} {
 	    return [file join {*}[lrange $npath [llength $prefix] end] {}]
