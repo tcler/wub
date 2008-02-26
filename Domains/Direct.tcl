@@ -136,7 +136,7 @@ namespace eval Direct {
 	namespace ensemble create \
 	    -command $cmd -subcommands {} \
 	    -map [subst {
-		do "_do $namespace $ctype [list [file split $prefix]] $wildcard"
+		do "_do $namespace $ctype $prefix $wildcard"
 	    }]
 
 	return $cmd
