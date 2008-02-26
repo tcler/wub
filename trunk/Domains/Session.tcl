@@ -13,7 +13,7 @@
 # everywhere on a site when it's only sent for a subpath of the site - use a
 # web-bug technique - load some file from session domain on every page, don't cache
 # that subdomain.  Use Wub to associate the cookie with the whole session.
-# (b) how can a cookie within a sub-path impact on the whole page as seen by a 
+# (b) how can a cookie within a sub-path impact on the whole page as seen by a
 # client?  Javascript.  Send javascript from the web bug.
 #
 # IMPLEMENTATION:
@@ -60,10 +60,16 @@
 #	set rsp [Session remove $req]
 #	return $rsp
 
+package require Debug
+package require md5
 package provide Session 3.1
 
+Debug on session 10
+
 namespace eval Session {
+    variable dir ""
     variable db session.mk	;# session database
+    variable fields		;# fields in session view
 
     variable salt [clock microseconds]	;# source of random session key
     variable size	;# total count of sessions
@@ -81,7 +87,8 @@ namespace eval Session {
     proc gc {} {
 	set dope {}
 	foreach el [session properties] {
-	    set type [split $el :] name
+	    Debug.session {gc $el}
+	    set type [lassign [split $el :] name]
 	    lappend dope $name
 	    switch $type {
 		I - D - F {
@@ -95,7 +102,11 @@ namespace eval Session {
 
 	variable size [session size]
 	variable empty 0
-	foreach slot [session lselect _key ""] {
+	Debug.session {gc size $size}
+	set slots [session lselect _key ""]
+	Debug.session {gc slot: $slots}
+	foreach slot $slots {
+	    Debug.session {gc slot $slot}
 	    session set $slot {*}$dope _slot $slot
 	    incr empty
 	}
@@ -106,6 +117,7 @@ namespace eval Session {
 	if {[dict exists $req -session]} {
 	    # -session exists, ensure that
 	    # it's written back to the db by setting --session to empty
+	    Debug.session {fetch preset -session ([dict get $req -session])} 10
 	    dict set req --session {}
 	    return $req
 	}
@@ -116,49 +128,75 @@ namespace eval Session {
 	variable cookie
 	if {[catch {
 	    dict get [Cookies fetch [dict get $req -cookies] {*}$args -name $cookie] -value
-	} slot eo]} {
+	} scookie eo]} {
 	    # there's no session cookie, we're done
-	    #Debug.error {fetch session: $slot ($eo)}
+	    Debug.session {fetch failed: no session cookie}
 	    return $req
 	}
 
 	# got a session cookie
-	lassign [split $slot] slot key	;# fetch the slot
+	set slot ""; set key ""
+	lassign [split $scookie @] slot key	;# fetch the slot
 	if {$key ne ""} {
 	    # non null key means session has an active slot
-	    set session [session get $slot]	;# read session from db
-	    if {[dict get session _key] eq $key} {
-		#
+	    if {![catch {
+		session get $slot	;# read session from db
+	    } session eo] && ([dict get $session _key] eq $key)} {
 		dict set req -session $session	;# store the session in the request
 		dict set req --session $session	;# copy session to detect changes
+	    } else {
+		# session keys don't match or no such session
+		Debug.session {session cookies didn't match $slot $key ($eo)}
+		dict set req -cookies [Cookies clear [dict get $req -cookies] -name $cookie {*}$args]
 	    }
 	}
 
+	Debug.session {fetch -session ([dict get $req -session]) --session ([dict get $req --session])} 10
+	return $req
+    }
+
+    proc rekey {req slot} {
+	variable cpath; variable cookie; variable salt
+	set key [md5::md5 -hex [incr salt]]	;# new slot's random key
+	session set $slot _key $key
+	dict set req -cookies [Cookies modify [dict get $req -cookies] -path $cpath {*}$args -name $cookie -value "$slot@$key"]
+	return $req
+    }
+
+    variable expires "next month"
+    proc attach {req slot} {
+	variable cpath; variable cookie; variable expires
+	set key [session get $slot _key]
+	dict set req -cookies [Cookies add [dict get $req -cookies] -path $cpath -expires $expires {*}$args -name $cookie -value "$slot@$key"]
+	return $req
+    }
+
+    proc detach {req} {
+	variable cookie
+	dict set req -cookies [Cookies clear [dict get $req -cookies] -name $cookie]
 	return $req
     }
 
     # remove the session associated with this request
     proc remove {req} {
-	set req [Cookies 4Server $req cookie]	;# fetch the cookies
+	set req [Cookies 4Server $req]	;# fetch the cookies
 	if {![dict exists $req -session _slot]} {
 	    return $req	;# no session in request, we're done
 	}
 
+	Debug.session {remove -session ([dict get $req -session]) --session ([dict get $req --session])} 10
 	# there's a session in the request - remove it
 	set slot [dict get $req -session _slot]	;# get the session slot
 	catch {dict unset req -session}		;# remove -session from request
 	catch {dict unset req --session} 	;# remove comparison --session too
 	session set $slot _key ""	;# flag session as deleted in the db
 
-	# remove the cookie as well as the session
-	variable cookie
-	dict set req -cookies [Cookies clear [dict get $req -cookies] -name $cookie]
-
-	return $req
+	return [detach $req]	;# remove cookies as well as session
     }
 
     # provide session vars as local vars in caller
     proc with {rv body} {
+	Debug.session {with -session ([dict get $req -session])} 10
 	if {[catch {
 	    uplevel "dict with $rv -session [list $body]"
 	} r eo]} {
@@ -170,64 +208,102 @@ namespace eval Session {
 
     # store the session in the db if it's changed
     proc store {req args} {
+	Debug.session {store -session ([Dict get? $req -session]) --session ([Dict get? $req --session])} 10
 	if {[Dict get? $req -session] eq [Dict get? $req --session]} {
+	    Debug.session {no change to store}
 	    return $req	;# no change to session vars - just skip it
 	}
 
 	# write back changed -session state
-	set req [Cookies 4Server $req cookie]	;# get cookie (redundant?)
+	set req [Cookies 4Server $req]	;# get cookie (redundant?)
 	set session [dict get $req -session]	;# get the session
 
+	# change layout to accomodate new fields
+	variable fields
+	set change 0
+	foreach field [dict keys $session] {
+	    if {![dict exists $fields $field]} {
+		dict set fields $field "$field:S"
+		set change 1
+	    }
+	}
+	if {$change} {
+	    mk::view layout sessdb.session [dict values $fields]
+	}
+
+	# locate a slot to store session in
 	if {[dict exists $session _slot]} {
-	    # session is already stored in db - update it.
+	    # session is already stored in db - update record.
 	    set slot [dict get $session _slot]	;# remember session slot
 	    set key [dict get $session _key]	;# remember session key
-	    session set $_slot {*}$session _mtime [clock seconds]
+	    Debug.session {storing session in old $slot with $key} 10
+	    session set $slot {*}$session _mtime [clock seconds] _slot $slot
 	} else {
 	    # need to create a new slot for the session
-	    variable salt;
-	    set key [md5::md5 [incr salt]]	;# new slot's random key
+	    variable salt; variable size; variable empty
+	    set key [md5::md5 -hex [incr salt]]	;# new slot's random key
 	    set now [clock seconds]		;# get current time
 	    if {[catch {
-		session find key ""	;# get a deleted session slot
+		session find _key ""	;# get a deleted session slot
 	    } slot]} {
 		# no empty slots - create a new slot
 		set slot [session append {*}$session _key $key _ctime $now _mtime $now]
 		session set $slot _slot $slot	;# fixup session's slot
-		variable size; incr size
+		incr size
+		Debug.session {storing session in new $slot with $key (db size $size)} 10
 	    } else {
 		# use a deleted session slot - write session content
+		Debug.session {found empty session: [session get $slot]}
 		session set $slot {*}$session _key $key _ctime $now _mtime $now _slot $slot
-		variable empty; incr empty -1
+		Debug.session {storing session in empty $slot with $key (db empty $empty size $size)} 10
+		incr empty -1
 	    }
 	}
+	session commit
 
 	# add the accessor cookie to the request
-	variable cookie; variable cpath
-	dict set req -cookies [Cookies add [dict get $req -cookies] -path $cpath {*}$args -name $cookie -value [list $slot $key]]
+	variable cookie; variable cpath; variable expires
+	dict set req -cookies [Cookies add [dict get $req -cookies] -path $cpath -expires $expires {*}$args -name $cookie -value "$slot@$key"]
 
 	return $req
     }
 
     proc /_snew {r} {
 	if {![dict exists $r -session]} {
-	    dict set r -session {}
+	    Debug.session {create new empty session}
+	    dict set r -session [list _ctime [clock seconds]]
+	} else {
+	    Debug.session {failed to create new empty session}
 	}
 	return [Http NoCache [Http Ok $r "Session created" text/plain]]
     }
 
+    # clear the current session cookie
+    proc /_sdetach {req} {
+	catch {dict unset req -session}; catch {dict unset req --session}
+	return [Http NoCache [Http Ok [detach $req] "Session detached" text/plain]]
+    }
+
     # delete current session
-    proc /_sdel {r} {
-	return [Http NoCache [Http Ok [remove $r] "Session removed" text/plain]]
+    proc /_sdel {req} {
+	return [Http NoCache [Http Ok [remove $req] "Session removed" text/plain]]
+    }
+
+    if {0} {
+	# store content - DANGEROUS DO NOT ENABLE
+	proc /_sstore {r args} {
+	    dict lappend r -session {*}$args
+	    return [Http Redir $r "_sshow"]
+	}
     }
 
     # show current session's values
     proc /_sshow {r} {
-	set content [<table class session border 1 width 80% [subst {
+	set content [<table> class session border 1 width 80% [subst {
 	    [<tr> [<th> "Session"]]
-	    For {n v} [Dict get? $r -session] {
+	    [Foreach {n v} [Dict get? $r -session] {
 		[<tr> "[<td> $n] [<td> [armour $v]]"]
-	    }
+	    }]
 	}]]
 
 	return [Http NoCache [Http Ok $r $content x-text/html-fragment]]
@@ -244,15 +320,29 @@ namespace eval Session {
     proc do {rq} {
 	variable cpath	;# use the cookie path for our path
 	variable subdomains	;# set of domains to traverse
+
 	# TODO: this could be much more efficient using arrays to
 	# match direct domains, rather than iterating through Direct
 	foreach sd [list {*}$subdomains ::Session] {
 	    set rsp [Direct::_do $sd x-text/html-fragment $cpath "" $rq]
+	    Debug.session {direct over $sd [dict get $rsp -code] [Dict get? $rsp -session]}
 	    if {[dict get $rsp -code] <= 400} {
 		return $rsp
 	    }
 	}
 	return [Http NotFound $rq]
+    }
+
+    # record fields in session view
+    proc fields {} {
+	variable fields
+	foreach field [mk::view layout sessdb.session] {
+	    set type [lassign [split $field :] name]
+	    if {$type eq ""} {
+		set type S
+	    }
+	    dict set fields $name "$name:$type"
+	}
     }
 
     # initialize the session accessor functions
@@ -261,18 +351,39 @@ namespace eval Session {
 	    variable {*}$args
 	}
 
+	if {[dict exists [mk::file open] sessdb]} {
+	    Debug.session {Got open db sessdb [dict get [mk::file open] sessdb]}
+	} else {
+	    variable db; variable dir
+	    set dbn [file join $dir $db]
+	    if {[catch {mk::file open sessdb $dbn -shared} r eo]} {
+		Debug.error {failed opening session db $dbn: $r ($eo)}
+	    } else {
+		Debug.session {opened $dbn: $r}
+	    }
+	}
+
 	# try to open wiki view
 	if {[catch {
-	    mk::file views session
+	    mk::file views sessdb
 	    # we expect threads to be created *after* the db is initialized
 	    variable toplevel 0
 	} views eo]} {
 	    # this is the top level process, need to create a db
+	    Debug.session {sessdb views: $views ($eo)}
 	    variable toplevel 1
-	    variable db
-	    catch {mk::file open db $db -shared}
+	} else {
+	    Debug.session {sessdb has views: $views}
 	}
-	View init session db.session
+
+	if {[catch {mk::view layout sessdb.session} lo eo]} {
+	    Debug.session {session no layout: $lo ($eo)}
+	    mk::view layout sessdb.session {_key:S _ctime:L _mtime:L _slot:I}
+	} else {
+	    Debug.session {session layout: $lo}
+	}
+	fields
+	View init session sessdb.session
 
 	gc	;# start up by garbage collecting Session db.
     }
