@@ -829,7 +829,7 @@ namespace eval Dub {
 
 	proc derived {type} {
 	    foreach {proc} [info procs ::Dub::type::${type}::*] {
-		puts "DER: [uplevel namespace current] [procText $proc]"
+		#puts "DER: [uplevel namespace current] [procText $proc]"
 		namespace eval [uplevel namespace current] [procText $proc]
 	    }
 	}
