@@ -242,19 +242,24 @@ namespace eval View {
 	return $result
     }
 
-    # initialize view ensemble
-    proc init {cmd vpath} {
-	lassign [split $vpath .] db view
-	set vcmd _V$cmd
-	set cmd [uplevel 1 namespace current]::$cmd
-	variable cmd2v;
-	#set cmd2v($cmd) [namespace code $vcmd]
-	set cmd2v($cmd) ::View::$vcmd
-	set cmd2v([namespace current]::$vcmd) $cmd
-	rename [mk::view open $db.$view] $vcmd	;# create mktoo cmd
-	namespace export -clear {[A-Za-z]*}
-	Debug.view {init: $cmd - $vpath}
+    proc _select {args} {
+	return [$vpath select {*}$args]
+    }
 
+    proc _view {vpath {cmd ""} args} {
+	switch -- $cmd {
+	    "" {
+		return $vpath
+	    }
+	}
+    }
+
+    proc _commit {vpath} {
+	lassign [split $vpath .] db view
+	return [mk::file commit $db]
+    }
+
+    proc _ensemble {vpath vcmd cmd} {
 	set map [subst {
 	    lselect "_lselect $vpath"
 	    with "_with $vpath"
@@ -266,6 +271,9 @@ namespace eval View {
 	    incr "_incr $vpath"
 	    dlappend "_dlappend $vpath"
 	    names "_names $cmd"
+	    view "_view $vpath $vcmd"
+	    select "_select $vpath $vcmd"
+	    commit "_commit $vpath"
 	}]
 
 	namespace ensemble create \
@@ -275,6 +283,40 @@ namespace eval View {
 	    -subcommands {}
 
 	trace add command $vcmd delete ::View::_uninit
+    }
+
+    proc _synthetic {cmd vpath} {
+	set vcmd _V$cmd
+	set cmd [uplevel 1 namespace current]::$cmd
+
+	variable cmd2v;
+	set cmd2v($cmd) ::View::$vcmd
+	set cmd2v(::View::$vcmd) $cmd
+
+	rename $cmd $vcmd	;# capture mktoo cmd
+	namespace export -clear {[A-Za-z]*}
+	Debug.view {synthetic: $cmd - $vpath}
+
+	_ensemble $vpath $vcmd $cmd
+
+	return $cmd
+    }
+
+    # initialize view ensemble
+    proc init {cmd vpath} {
+	lassign [split $vpath .] db view
+	set vcmd _V$cmd
+	set cmd [uplevel 1 namespace current]::$cmd
+	variable cmd2v;
+	#set cmd2v($cmd) [namespace code $vcmd]
+	set cmd2v($cmd) ::View::$vcmd
+	set cmd2v(::View::$vcmd) $cmd
+	rename [mk::view open $db.$view] $vcmd	;# create mktoo cmd
+	namespace export -clear {[A-Za-z]*}
+	Debug.view {init: $cmd - $vpath}
+
+	_ensemble $vpath $vcmd $cmd
+
 	return $cmd
     }
 
