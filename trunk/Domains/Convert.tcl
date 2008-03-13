@@ -211,8 +211,14 @@ namespace eval Convert {
     }
 
     # Convert - perform all content negotiation on a Wub response
-    proc Convert {rsp} {
+    proc Convert {rsp {to ""}} {
 	Debug.convert {Converting}
+	if {$to ne ""} {
+	    if {[dict get $rsp content-type] eq $to} {
+		return $rsp	;# don't need to process
+	    }
+	    dict set rsp accept $to
+	}
 
 	# perform any postprocessing on input type
 	if {[dict exists $rsp content-type]} {
@@ -239,11 +245,14 @@ namespace eval Convert {
     }
 
     # Convert! - perform a specified transformation on a Wub response
-    proc Convert! {rq mime to content} {
-	dict set rq accept $to
-	dict set rq content-type $mime
-	dict set rq -content $content
-	return [Convert $rq]
+    proc Convert! {rq mime to {content ""}} {
+	if {$mime ne ""} {
+	    dict set rq content-type $mime
+	}
+	if {$content ne ""} {
+	    dict set rq -content $content
+	}
+	return [Convert $rq $to]
     }
 
     # do - perform content negotiation and transformation
@@ -268,7 +277,7 @@ namespace eval Convert {
 
 	if {$code} {
 	    Debug.convert {Convert error: $code '$r' ($eo) - [dumpMsg $rsp]}
-	    set rsp [Http ServerError $rsp $r $eo]
+	    set rsp [Convert [Http ServerError $rsp $r $eo] text/html]
 	} else {
 	    # pass back the transformed response
 	    set rsp $r
