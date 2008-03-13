@@ -8,7 +8,6 @@ package provide conversions 1.0
 namespace eval ::conversions {
     # HTML DOCTYPE header
     variable htmlhead {<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">}
-    #variable htmlhead  {<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">}
 
     # convert an HTML fragment to HTML
     proc .x-text/html-fragment.text/html {rsp} {
@@ -59,11 +58,9 @@ namespace eval ::conversions {
 	    append content </body> \n
 	    append content </html> \n
 	}
+	dict set rsp -raw 1
 
-	return [dict replace $rsp \
-		    -content $content \
-		    -raw 1 \
-		    content-type text/html]
+	return [Http Ok $rsp $content text/html]
     }
 
     # STX CSS component dict
@@ -88,10 +85,9 @@ namespace eval ::conversions {
 	if {$code} {
 	    return [Http ServerError $rsp $result $eo]
 	} else {
+	    variable stxCSS
 	    dict lappend rsp -headers [<link> {*}$stxCSS]
-	    return [dict replace $rsp \
-			-content $result \
-			content-type x-text/html-fragment]
+	    return [Http Ok $rsp $result x-text/html-fragment]
 	}
     }
 
@@ -123,9 +119,7 @@ namespace eval ::conversions {
 
 	set content "[join [lrange $body $start end] \n]\n"
 
-	return [dict replace $rsp \
-		    -content $content \
-		    content-type x-text/html-fragment]
+	return [Http Ok $rsp $content x-text/html-fragment]
     }
 
     # convert a form into fragmentary html
@@ -142,9 +136,7 @@ namespace eval ::conversions {
 	catch {dict unset rsp -depends}
 
 	# process and return the form
-	return [dict replace [Http NoCache $rsp] \
-		    -content [Form html $form] \
-		    content-type x-text/html-fragment]
+	return [Http NoCache [Http Ok $rsp [Form html $form] x-text/html-fragment]]
     }
 
     # convert an aggregate into an HTML fragment
@@ -163,9 +155,7 @@ namespace eval ::conversions {
 	    append result [dict get $component -content] \n
 	}
 
-	return [dict replace $rsp \
-		    -content $result \
-		    content-type x-text/html-fragment]
+	return [Http Ok $rsp $result x-text/html-fragment]
     }
 
     variable safe 0		;# make safe interpreters?
@@ -180,46 +170,6 @@ namespace eval ::conversions {
 
 	return $interp
     }}
-
-    proc .x-application/tcl-template {rsp} {
-	# create an interp or use the request's -interp
-	if {![dict exists $req -interp]} {
-	    set interp [interp_create]
-	    interp alias $interp Httpd {} [dict get $req -http] 
-	    interp alias $interp Host {} ::[dict get $req -hostobj]
-	    interp alias $interp Self {} $self
-
-	    foreach cmd {Http Query Entity Cookies} {
-		interp alias $interp $cmd {} $cmd
-	    }
-	} else {
-	    # use the pre-existing interp
-	    set interp [dict get $req -interp]
-	}
-
-	# set up response in interp
-	catch {dict unset rsp -code}	;# let subst set -code value
-	dict set rsp -dynamic 1	;# default: not dynamic
-	dict set rsp content-type x-text/html-fragment ;# default mime type
-
-	$interp eval set ::response [list $rsp]
-
-	#trace add command $interp {rename delete} trace_pmod
-
-	# template signals dynamic content with this
-	interp alias $interp Template_Dynamic \
-	    $interp dict set ::response -dynamic 1
-	interp alias $interp Template_Static \
-	    $interp dict set ::response -dynamic 0
-
-	dict set rsp -interp $interp
-	set x [Url parse [dict get $rsp -url]]
-	set path [dict get $x -path]
-	dict set x -path [file join [file dirname $path] .tml]
-
-	# load .tml files up to root
-	do all $rsp [Url uri $x] ::conversions::tmls
-    }
 
     proc tmls {code rsp} {
 	Debug.convert {tmls $code: $rsp}
@@ -282,6 +232,46 @@ namespace eval ::conversions {
 			    [clock seconds] $result]
 	    }
 	}
+    }
+
+    proc .x-application/tcl-template {rsp} {
+	# create an interp or use the request's -interp
+	if {![dict exists $req -interp]} {
+	    set interp [interp_create]
+	    interp alias $interp Httpd {} [dict get $req -http] 
+	    interp alias $interp Host {} ::[dict get $req -hostobj]
+	    interp alias $interp Self {} $self
+
+	    foreach cmd {Http Query Entity Cookies} {
+		interp alias $interp $cmd {} $cmd
+	    }
+	} else {
+	    # use the pre-existing interp
+	    set interp [dict get $req -interp]
+	}
+
+	# set up response in interp
+	catch {dict unset rsp -code}	;# let subst set -code value
+	dict set rsp -dynamic 1	;# default: not dynamic
+	dict set rsp content-type x-text/html-fragment ;# default mime type
+
+	$interp eval set ::response [list $rsp]
+
+	#trace add command $interp {rename delete} trace_pmod
+
+	# template signals dynamic content with this
+	interp alias $interp Template_Dynamic \
+	    $interp dict set ::response -dynamic 1
+	interp alias $interp Template_Static \
+	    $interp dict set ::response -dynamic 0
+
+	dict set rsp -interp $interp
+	set x [Url parse [dict get $rsp -url]]
+	set path [dict get $x -path]
+	dict set x -path [file join [file dirname $path] .tml]
+
+	# load .tml files up to root
+	do all $rsp [Url uri $x] ::conversions::tmls
     }
 
     proc .x-application/directory.x-text/dict {rsp} {
@@ -359,9 +349,7 @@ namespace eval ::conversions {
 	append result "<h1>$dir</h1>" \n
 	append result $dirlist \n
 
-	return [dict replace $rsp \
-		    -content $result \
-		    content-type x-text/system]
+	return [Http Ok $rsp $result x-text/system]
     }
 
     # convert a directory list
@@ -460,19 +448,10 @@ namespace eval ::conversions {
 	    set dir $suffix
 	}
 
-	set result "title:${dir} Directory\n"
-	append result "<h1>$dir</h1>" \n
+	lappend result "title:${dir} Directory" \n \n
+	append result [<h1> $dir] \n
 	append result $dirlist \n
 
-	return [dict replace $rsp \
-		    -content $result \
-		    content-type x-text/system-text]
-    }
-}
-
-if {0} {
-    proc trace_pmod {args} {
-	puts stderr "MODIFIED!!!!  $args"
-	puts stderr "MODIFIED2!!! [info level -1]"
+	return [Http Ok $rsp $result x-text/system-text]
     }
 }
