@@ -120,7 +120,8 @@ text/plain                     txt
 text/richtext                  rtx             
 text/tab-separated-values      tsv             
 text/x-setext                  etx             
-text/xml		       xml kml
+text/xml		       xml
+application/vnd.google-earth.kml+xml kml
 application/xhtml+xml    xhtml
 text/css                       css
 
