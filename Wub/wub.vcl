@@ -17,7 +17,17 @@ acl purge {
     "localhost";
 }
 
+acl noref {
+	"rkeene.org";
+	"www.rkeene.org";
+}
+
 sub vcl_recv {
+    set req.x-refer = regsub(req.referer, "^http://([^/]+).*$", "$1");
+    if (req.x-refer ~ noref) {
+	error 405 "Roy Keene"
+    }
+
     if (req.request != "GET" && req.request != "HEAD") {
 	# PURGE request if zope asks nicely
 	if (req.request == "PURGE") {
