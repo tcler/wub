@@ -18,11 +18,12 @@ acl purge {
 }
 
 acl noref {
-	"rkeene.org";
-	"www.rkeene.org";
 }
 
 sub vcl_recv {
+    # try to prevent references from poorly behaved sites.
+    # this doesn't work yet, but can be useful if someone is stealing
+    # bandwidth, deep-linking, etc.
     set req.x-refer = regsub(req.referer, "^http://([^/]+).*$", "$1");
     if (req.x-refer ~ noref) {
 	error 405 "Roy Keene"
