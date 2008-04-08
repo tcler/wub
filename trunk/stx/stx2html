@@ -1,6 +1,6 @@
-#!/usr/bin/env tclsh
+#!/usr/bin/env tclsh8.5
 
-lappend auto_path [file dirname [info script]]
+lappend auto_path [file dirname [info script]] ../Utilities/
 package require stx2html
 
 set text [read stdin]

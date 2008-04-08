@@ -1,4 +1,5 @@
 package require struct::tree
+package require csv
 package require Debug
 Debug off STX
 
@@ -22,6 +23,7 @@ namespace eval stx {
 	> indent
 	- hr
 	. special
+	| table
 	\x82 li
 	\x83 li
     }
@@ -128,16 +130,18 @@ proc stx::char {text} {
 	\]\] \x85
 	\; \x87
     } $text]
+
     # handle naked http references
-    regsub -all {([^[]|^)(http:[^ ]+)} $text {\1[http:\2]} text
-	Debug.STX {Char: '$text'} 30
+    regsub -all "(\[^\[\]|^)(http:\[^ \]+)" $text {\1[http:\2]} text
+    Debug.STX {Char: '$text'} 30
     variable refs
-	#puts stderr "ENCODING REFS: $text"
-    while {[regexp -- {\[[^]]+\]} $text ref]} {
+    #puts stderr "ENCODING REFS: $text"
+
+    while {[regexp -- "\\\[\[^\]\]+\]" $text ref]} {
 	set index [array size refs]
 	Debug.STX {ENCODE REF: $index $ref} 10
 	set refs($index) [string trim $ref {[]}]
-	regsub -- {\[[^]]+\]} $text "(\x86$index)" text
+	regsub -- "\\\[\[^\]\]+\]" $text "(\x86$index)" text
     }
 
     set text [balance $text ''' italic]
@@ -245,6 +249,27 @@ proc stx::li {para} {
     #nodecdata [newnode li $li] [do_para $para]
 }
 
+# table elements
+proc stx::table {para {cpath ""}} {
+    set para [string trimleft $para |]
+    switch [string index $para 0] {
+	+ {
+	    set para [string trimleft $para +]
+	    set type hrow
+	}
+	default {
+	    set type row
+	}
+    }
+    set els [::csv::split -alternate $para "|"]
+    Debug.STX {TABLE: '$para' - $els}
+
+    set row [newnode $type table]
+    foreach el $els {
+	nodecdata $row [char $el]
+    }
+}
+
 # preprocess for dlist elements
 proc stx::dlist {para {cpath ""}} {
     set pp [split [char [string trimleft $para ";"]] :]
@@ -252,7 +277,7 @@ proc stx::dlist {para {cpath ""}} {
     set def [string trim [join [lrange $pp 1 end] ": "]]
     set dlnode [newnode dl dlist]
     Debug.STX {DLIST: '$para' - '[char $para]' - [char $term]}
-    nodecdata $dlnode $term	;#OR: nodecdata $dlnode $term ?
+    nodecdata $dlnode $term
     nodecdata $dlnode $def
 }
 
@@ -295,6 +320,7 @@ proc stx::translate {text {tagstart 0}} {
 	\n- \x81-
 	\n= \x81=
 	\n> \x81>
+	\n| \x81|
 
 	\n\n\n\n\n \x81
 	\n\n\n\n \x81
