@@ -57,7 +57,7 @@ proc stx2html::_title {args} {
 }
 
 proc stx2html::_message {args} {
-    Debug.log {STX Message: [join $args]}
+    Debug.STX {STX Message: [join $args]}
     return ""
 }
 
@@ -104,6 +104,26 @@ proc stx2html::hr {} {
 
 proc stx2html::indent {para} {
     return "<p>[subst $para]</p>"
+}
+
+proc stx2html::table {args} {
+    return "<table>[join $args \n]</table>\n"
+}
+
+proc stx2html::row {args} {
+    set els {}
+    foreach el $args {
+	lappend els [subst $el]
+    }
+    return "<tr><td>[join $els </td><td>]</td></tr>"
+}
+
+proc stx2html::hrow {args} {
+    set els {}
+    foreach el $args {
+	lappend els [subst $el]
+    }
+    return "<tr><th>[join $els </th><th>]</th></tr>"
 }
 
 proc stx2html::dlist {args} {
