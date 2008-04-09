@@ -87,9 +87,9 @@ namespace eval Varnish {
 	variable vcl
 	variable cookies
 
-	variable vclfile
-	immediate "vcl.load wub $vclfile"
-	immediate "vcl.use wub"
+	#variable vclfile
+	#immediate "vcl.load wub $vclfile"
+	#immediate "vcl.use wub"
 	return [immediate vcl.list]
     }
 
