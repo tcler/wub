@@ -4,6 +4,7 @@
 #
 # provides subst-versions of if, while, foreach and switch commands
 
+package require WubUtils
 package require know
 package provide Html 1.0
 
@@ -214,14 +215,12 @@ namespace eval Html {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
-	array set arg $args
-	append c "<table border='1' width='80%'>" \n
-	append c <tr> <th> $name </th> </tr> \n
-	foreach n [lsort [array names arg]] {
-	    append c <tr> <td> $n </td> <td> $arg($n) </td> </tr> \n
-	}
-	append c </table> \n
-	return $c
+	return [<table> border 1 width 80% [subst {
+	    [<tr> [<th> $name]]
+	    Foreach n [lsort [dict keys $args]] {
+		[<tr> [<td> $n] [<td> [dict get $arg $n]]]
+	    }
+	}]]
     }
 
     # dict2table - convert dict into sortable HTML table
