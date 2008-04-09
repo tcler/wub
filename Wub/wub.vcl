@@ -24,10 +24,10 @@ sub vcl_recv {
     # try to prevent references from poorly behaved sites.
     # this doesn't work yet, but can be useful if someone is stealing
     # bandwidth, deep-linking, etc.
-    set req.x-refer = regsub(req.referer, "^http://([^/]+).*$", "$1");
-    if (req.x-refer ~ noref) {
-	error 405 "Roy Keene"
-    }
+#    set req.x-refer = regsub(req.referer, "^http://([^/]+).*$", "$1");
+#    if (req.x-refer ~ noref) {
+#	error 405 "Roy Keene"
+#    }
 
     if (req.request != "GET" && req.request != "HEAD") {
 	# PURGE request if zope asks nicely
