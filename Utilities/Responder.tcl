@@ -62,7 +62,7 @@ namespace eval Responder {
     proc Incoming {new args} {
 	if {[catch {
 	    inQ put $new	;# add the incoming request to the inQ
-
+	    
 	    # while idle and there are new requests to procecss
 	    variable working	;# set while we're working
 	    while {!$working && ![catch {inQ get} req eo]} {
