@@ -245,7 +245,7 @@ namespace eval Convert {
     }
 
     # Convert! - perform a specified transformation on a Wub response
-    proc Convert! {rq mime to {content ""}} {
+    proc Convert! {rq to {mime ""} {content ""}} {
 	if {$mime ne ""} {
 	    dict set rq content-type $mime
 	}
