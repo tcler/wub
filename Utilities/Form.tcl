@@ -44,6 +44,7 @@ if {[info exists argv0] && ([info script] eq $argv0)} {
     lappend auto_path [file dirname [file normalize [info script]]] ../Utilities/ ../extensions/
 }
 
+package require textutil
 package require Dict
 package require Html
 
@@ -86,7 +87,7 @@ namespace eval Form {
 	fieldset {vertical 0}
 	submit {alt Submit}
 	reset {alt Reset}
-	option {value ""}
+	option {}
     }]
 
     # default - set attribute defaults for a given tag
@@ -154,6 +155,7 @@ namespace eval Form {
 	set content [lindex $args end]
 	set args [lrange $args 0 end-1]
 	set config [dict merge [Dict get? $Fdefaults select] $args [list name $name]]
+
 	if {![dict exists $config id]} {
 	    if {[dict exists $config label]} {
 		dict set config id $name
@@ -229,9 +231,12 @@ namespace eval Form {
 	}
 
 	if {[dict exists $config compact]
-	    && [dict get $config compact]} {
+	    && [dict get $config compact]
+	} {
 	    regsub -all {\n[ \t]+} $content \n content
 	}
+	set content [::textutil::undent [::textutil::tabify $content]]
+
 	set title {}
 	if {[dict exists $config title]} {
 	    set title [list title $title]
@@ -331,6 +336,21 @@ namespace eval Form {
 		}
 	    }
 	}]
+    }
+
+    proc <selectset> {args} {
+	set result ""
+	foreach {line} [split [lindex $args end] \n] {
+	    set line [string trim $line]
+	    if {$line eq ""} continue
+	    if {[string match +* $line]} {
+		set term [list <option> {*}[string trimleft $oname +]]
+	    } else {
+		set term [list <option> {*}$line]
+	    }
+	    append result \[ $term \] \n
+	}
+	return [uplevel 1 [list <select> {*}[lrange $args 0 end-1] $result]]
     }
     
     foreach type {radio check} sub {"" box} {
@@ -496,6 +516,10 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	    [<select> sort title "Sort By" {
 		[<option> title value title]
 		[<option> author value author]
+	    }]
+	    [<selectset> sort1 title "Sort By" {
+		title
+		author
 	    }]
 	}]
     }]
