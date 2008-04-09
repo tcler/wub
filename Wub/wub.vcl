@@ -17,8 +17,8 @@ acl purge {
     "localhost";
 }
 
-acl noref {
-}
+#acl noref {
+#}
 
 sub vcl_recv {
     # try to prevent references from poorly behaved sites.
