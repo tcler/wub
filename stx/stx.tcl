@@ -251,7 +251,7 @@ namespace eval stx {
 
     # table elements
     proc table {para {cpath ""}} {
-	set para [string trimleft $para |]
+	set para [string range $para 1 end]
 	switch [string index $para 0] {
 	    + {
 		set para [string trimleft $para +]
@@ -263,6 +263,7 @@ namespace eval stx {
 	}
 	set els [::csv::split -alternate $para "|"]
 	Debug.STX {TABLE: '$para' - $els}
+	#puts stderr "TABLE: '$para' - $els"
 	
 	set row [newnode $type table]
 	foreach el $els {
@@ -399,4 +400,15 @@ namespace eval stx {
 	Debug.STX {RESULT: ${result}}
 	return ${result}
     }
+
+    proc init {args} {
+	if {$args ne {}} {
+	    variable {*}$args
+	}
+    }
+
+    namespace export -clear *
+    namespace ensemble create -subcommands {}
 }
+
+stx init
