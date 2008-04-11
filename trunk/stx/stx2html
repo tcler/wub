@@ -1,8 +1,10 @@
 #!/usr/bin/env tclsh8.5
 
-lappend auto_path [file dirname [info script]] ../Utilities/
-package require stx2html
+lappend auto_path [file dirname [info script]] ../Utilities/ ../extensions/
+source safe.tcl
 
+package require stx2html
+stx2html init script 1
 set text [read stdin]
 
 puts {<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">

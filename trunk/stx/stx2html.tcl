@@ -1,5 +1,5 @@
 package require stx
-
+package require Form
 package provide stx2html 1.1
 
 namespace eval stx2html {
@@ -267,6 +267,51 @@ namespace eval stx2html {
 		set what "<img src='$body' class='imageright' $img_properties style='float:right' alt='$text' />"
 	    }
 
+	    fieldset {
+		catch {Form fieldsetS {*}$body {}} what eo
+	    }
+	    /fieldset {
+		set what </fieldset>
+	    }
+
+	    form {
+		catch {Form formS {*}$body {}} what eo
+	    }
+
+	    /form {
+		set what </form>
+	    }
+
+	    selectset {
+		set body [string map [list "\x89" \{ "\x8A" \}] $body]
+		set opts [join [lindex $body end] \n]
+
+		if {[catch {<${proto}> {*}[lrange $body 0 end-1] $opts} what eo]} {
+		    append what ($eo)
+		}
+		append what \n
+	    }
+
+	    radioset - checkset {
+		set body [string map [list "\x89" \{ "\x8A" \}] $body]
+		set opts {}
+		foreach {opt val} [lindex $body end] {
+		    lappend opts [list $opt $val]
+		}
+		set opts [join $opts \n]
+
+		if {[catch {<${proto}> {*}[lrange $body 0 end-1] $opts} what eo]} {
+		    append what ($eo)
+		}
+		append what \n
+	    }
+
+	    password - text - hidden - file - image - textarea -
+	    button - reset - submit - radio - checkbox - legend {
+		catch {<${proto}> {*}$body} what eo
+		append what \n
+	    }
+
 	    default {
 		variable local
 		set what "<a href='[$local $what]'>"
@@ -405,7 +450,10 @@ namespace eval stx2html {
 
     proc scope {num} {
 	Debug.STX {scope: $num}
-	return $::stx::scope($num)
+	variable script
+	if {$script} {
+	    return [interp eval istx subst [list $::stx::scope($num)]]
+	}
     }
 
     # convert structured text to html
@@ -451,4 +499,39 @@ namespace eval stx2html {
 
 	return [string map [list "\x88" "&\#" "\x89" "\{" "\x8A" "\}" "\x8B" "$" "\x87" "\;" "\x84" "&#91\;" "\x85" "&#93\;" "\\" ""] $content]
     }
+
+    variable packages {Form}
+    variable script 0
+    variable home [file dirname [file normalize [info script]]]
+    variable path [list /usr/share/tcltk/tcl8.5/ [file dirname $home]/Utilities/ [file dirname $home]/extensions/ /usr/lib/tcllib1.10/textutil/ /usr/lib/tcllib1.10/snit/]
+    #puts stderr "PATH:$path"
+    proc init {args} {
+	if {$args ne {}} {
+	    variable {*}$args
+	}
+
+	variable script
+	variable packages
+	variable path
+	variable home
+
+	if {$script && ![interp exists istx]} {
+	    # create our scope interpreter
+	    #puts stderr "Creating Safe istx"
+	    variable path
+	    ::safe::interpCreate istx -accessPath $path
+	    #puts stderr "Initing Safe istx"
+	    foreach p $packages {
+		#puts stderr "Installing $p"
+		interp eval istx [list package require $p]
+		#puts stderr "Installed $p"
+	    }
+	    #puts stderr "Created Safe istx"
+	}
+    }
+
+    namespace export -clear *
+    namespace ensemble create -subcommands {}
 }
+
+stx2html init
