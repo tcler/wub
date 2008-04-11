@@ -453,6 +453,8 @@ namespace eval stx2html {
 	variable script
 	if {$script} {
 	    return [interp eval istx subst [list $::stx::scope($num)]]
+	} else {
+	    return "evaluation disabled"
 	}
     }
 
