@@ -261,10 +261,11 @@ namespace eval stx {
 		set type row
 	    }
 	}
+
 	set els [::csv::split -alternate $para "|"]
 	Debug.STX {TABLE: '$para' - $els}
 	#puts stderr "TABLE: '$para' - $els"
-	
+
 	set row [newnode $type table]
 	foreach el $els {
 	    nodecdata $row [char $el]
