@@ -36,8 +36,9 @@
 # Sets - radio and checkboxes in groups
 # <radioset> name {attrs} content
 # <checkset> name {attrs} content
-# 
-# Sets group together radio and checkboxes into a single coherent unit.
+# <selectset> name {attrs} content
+#
+# Sets group together radioboxes, checkboxes and selects into a single coherent unit.
 # each content is assumed to be a list of name/value pairs
 
 if {[info exists argv0] && ([info script] eq $argv0)} {
@@ -54,35 +55,8 @@ package require Html
 package provide Form 2.0
 
 namespace eval Form {
-    variable coreA {id class style title}
-    variable i18nA {lang dir}
-    variable eventA {
-	onclick ondblclick onmousedown onmouseup onmouseover
-	onmousemove onmouseout onkeypress onkeydown onkeyup
-    }
-    variable allA [subst {
-	$coreA
-	$i18nA
-	$eventA
-    }]
-
-    variable fieldsetA $allA
-    variable accessA [subst {accesskey $allA}]
-    variable formA [subst {action method enctype accept-charset accept onsubmit $allA}]
-    variable fieldA [subst {name disabled size tabindex accesskey onfocus onblur value $allA}]
-    variable textareaA [subst {name rows cols disabled readonly tabindex accesskey onfocus onblur onselect onchange $allA}]
-    variable buttonA [subst {value checked $fieldA onselect onchange type}]
-    variable boxA [subst {value checked $fieldA onselect onchange type}]
-    variable textA [subst {$fieldA readonly maxlength onselect onchange alt type}]
-    variable imageA [subst {src alt $fieldA onselect onchange type}]
-    variable fileA [subst {accept $fieldA onselect onchange type}]
-    variable selectA [subst {name size multiple disabled tabindex onfocus onblur onchange $allA}]
-    variable optgroupA [subst {disabled label $allA}]
-    variable optionA [subst {selected disabled label value $allA}]
-    variable legendA [subst {$allA}]
-    
     variable Fdefaults [dict create {*}{
-	textarea {compact 0}
+	textarea {compact 1}
 	form {method get}
 	fieldset {vertical 0}
 	submit {alt Submit}
@@ -112,6 +86,26 @@ namespace eval Form {
 	    }
 	}
 	return [join $result]
+    }
+
+    proc fieldsetS {name args} {
+	variable fieldsetA
+	variable Fdefaults
+	set config [dict merge [Dict get? $Fdefaults fieldset] [lrange $args 0 end-1]]
+	if {$name ne ""} {
+	    dict set config id $name
+	}
+	return "<[attr fieldset [Dict subset $config $fieldsetA]]>\n"
+    }
+
+    proc formS {name args} {
+	variable formA
+	variable Fdefaults
+	set config [dict merge [Dict get? $Fdefaults form] [lrange $args 0 end-1]]
+	if {$name ne ""} {
+	    dict set config id $name
+	}
+	return "<[attr form [Dict subset $config $formA]]>\n"
     }
     
     foreach {type} {form fieldset} {
@@ -426,9 +420,62 @@ namespace eval Form {
 	}]
     }
 
+    variable scripting 1	;# permit scripting options
+    proc init {args} {
+	if {$args ne {}} {
+	    variable {*}$args
+	}
+	variable scripting
+	if {$scripting} {
+	    variable coreA {id class style title}
+	} else {
+	    variable coreA {id class title}
+	}
+	variable i18nA {lang dir}
+	set commonOn {
+	    onclick ondblclick onmousedown onmouseup onmouseover
+	    onmousemove onmouseout onkeypress onkeydown onkeyup
+	}
+	if {$scripting} {
+	    variable eventA $commonOn
+	} else {
+	    variable eventA {}
+	}
+
+	foreach on [list {*}$commonOn onsubmit onfocus onblur onselect onchange] {
+	    if {$scripting} {
+		set $on $on
+	    } else {
+		set $on ""
+	    }
+	}
+
+	variable allA [subst {
+	    $coreA
+	    $i18nA
+	    $eventA
+	}]
+
+	variable fieldsetA $allA
+	variable accessA [subst {accesskey $allA}]
+	variable formA [subst {action method enctype accept-charset accept $onsubmit $allA}]
+	variable fieldA [subst {name disabled size tabindex accesskey $onfocus $onblur value $allA}]
+	variable textareaA [subst {name rows cols disabled readonly tabindex accesskey $onfocus $onblur $onselect $onchange $allA}]
+	variable buttonA [subst {value checked $fieldA $onselect $onchange type}]
+	variable boxA [subst {value checked $fieldA $onselect $onchange type}]
+	variable textA [subst {$fieldA readonly maxlength $onselect $onchange alt type}]
+	variable imageA [subst {src alt $fieldA $onselect $onchange type}]
+	variable fileA [subst {accept $fieldA $onselect $onchange type}]
+	variable selectA [subst {name size multiple disabled tabindex $onfocus $onblur $onchange $allA}]
+	variable optgroupA [subst {disabled label $allA}]
+	variable optionA [subst {selected disabled label value $allA}]
+	variable legendA [subst {$allA}]
+    }
+
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
+Form init
 
 namespace import ::Form::<*>
 
