@@ -56,7 +56,7 @@ package provide Form 2.0
 
 namespace eval Form {
     variable Fdefaults [dict create {*}{
-	textarea {compact 1}
+	textarea {compact 0}
 	form {method get}
 	fieldset {vertical 0}
 	submit {alt Submit}
