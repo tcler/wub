@@ -55,7 +55,14 @@ namespace eval Site {
 	    -port 8080	;# Wub listener port
 	    #-host	;# listening host (default [info hostname]
 	    #-http	;# dispatch handler (default Http)
-	    #-tls	;# array passed to tls (default none=disabled)
+	}]]
+
+	# HTTPS Listener configuration
+	https [list [rc {
+	    -port 8081	;# Wub listener port
+	    #-host	;# listening host (default [info hostname]
+	    #-http	;# dispatch handler (default Http)
+	    -tls {}
 	}]]
 
 	# SCGI Listener configuration
@@ -283,10 +290,24 @@ namespace eval Site {
 
 	#### start Listener
 	variable listener
-	if {[dict exists $listener -port] && ([dict get $listener -port] > 0)} {
+	if {[dict exists $listener -port]
+	    && ([dict get $listener -port] > 0)
+	} {
 	    Listener listen -host $host -httpd Httpd {*}$listener
 
 	    Debug.log {Listening on http://$host:[dict get $listener -port]/ using docroot $docroot}
+	}
+
+	#### start HTTPS Listener
+	variable https
+	if {[dict exists $https -port]
+	    && ([dict get $https -port] > 0)
+	    && ![catch {
+		package require tls
+	    }]
+	} {
+	    Listener listen -host $host -httpd Httpd {*}$https
+	    Debug.log {Listening on https://$host:[dict get $https -port]/ using docroot $docroot}
 	}
 
 	#### start scgi Listener
