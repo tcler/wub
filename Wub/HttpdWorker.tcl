@@ -88,6 +88,9 @@ namespace eval HttpdWorker {
 
     # timeout - handle t
     proc timeout {sock timer args} {
+	upvar #0 ::HttpdWorker::connections($sock) connection
+	upvar #0 ::HttpdWorker::requests($sock) request
+	Debug.timer {timeout '$args': Connection: ($connection) Request: ($request)}
 	Disconnect $sock $args
     }
 
@@ -863,7 +866,17 @@ namespace eval HttpdWorker {
 	}
     }
 
-    variable prototype {}
+    # prototype of a new incoming request
+    # transaction count for current connection
+    # generation per socket
+    variable prototype {
+	replies {}
+	req_log {}
+	pending 0
+	transaction -1
+	response -1
+	generation $generation
+    }
 
     # Parent thread will call connect with the pro-forma request
     proc Connect {sock req} {
@@ -877,20 +890,12 @@ namespace eval HttpdWorker {
 	    }
 	}
 
-	variable gen_count; set generation [incr gen_count]
+	# generate a connection record
+	variable gen_count; set generation [incr gen_count]	;# unique generation
 	upvar #0 ::HttpdWorker::connections($sock) connection
-	set connection [subst {
-	    replies {}
-	    req_log {}
-	    pending 0
-	    transaction -1
-	    response -1
-	    generation $generation
-	}]
-	# transaction count for current connection
-	# generation per socket
+	variable prototype; set connection [subst $prototype]	;# connection record
 
-	# remember the request prototype
+	# associate the request with the socket
 	upvar #0 ::HttpdWorker::requests($sock) request
 	set request [dict merge $req [list -sock $sock -generation $generation]]
 	dict set connection prototype $request
