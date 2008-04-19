@@ -67,17 +67,19 @@ namespace eval Listener {
 		-id [incr id]
 	    }] $args]
 
-	    if {[Dict get? $args -tls] eq ""} {
+	    if {![dict exists $args -tls]} {
 		set cmd socket
 	    } else {
 		package require tls
 		::tls::init \
-		    -ssl2 1 \
 		    -ssl3 1 \
-		    -tls1 0 \
+		    -tls1 1 \
 		    -require 0 \
 		    -request 0
-	    
+		puts stderr "TLS: [dict get $args -tls]"
+		foreach proto {ssl3 tls1} {
+		    puts stderr "$proto: [tls::ciphers $proto 1]"
+		}
 		set cmd [list tls::socket -command ::Listener::progress {*}[dict get $args -tls]]
 	    }
 
