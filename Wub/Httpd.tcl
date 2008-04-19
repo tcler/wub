@@ -181,21 +181,31 @@ namespace eval Httpd {
 	# (sadly we can't do this if we're reverse-proxied)
 	variable connbyIP
 	variable max_conn
-	if {[::ip::type $ipaddr] eq "normal"
-	    && [incr connbyIP($ipaddr)] > $max_conn
-	} {
-	    # Too many connections for $ipaddr - no more than $max_conn
-	    variable too_many
-	    variable no_really
-	    if {[incr too_many($ipaddr)] > $no_really} {
-		# this client has been told repeatedly - block it.
-		Block block $ipaddr "Repeatedly too many connections"
-	    } else {
-		Debug.log {Too many connections for $ipaddr}
+
+	switch -- [::ip::type $ipaddr] {
+	    "normal" {
+		# normal external connection
+		if {[incr connbyIP($ipaddr)] > $max_conn} {
+		    # Too many connections for $ipaddr - no more than $max_conn
+		    variable too_many
+		    variable no_really
+		    if {[incr too_many($ipaddr)] > $no_really} {
+			# this client has been told repeatedly - block it.
+			Block block $ipaddr "Repeatedly too many connections"
+		    } else {
+			Debug.log {Too many connections for $ipaddr}
+		    }
+		    exhausted $sock
+		    incr connbyIP($ipaddr) -1
+		    return
+		}
 	    }
-	    exhausted $sock
-	    incr connbyIP($ipaddr) -1
-	    return
+
+	    "private" {
+		# TODO - this may not be desired behavior.  ReThink
+		# just because an ip connection is local doesn't mean it's
+		# unlimited, does it?
+	    }
 	}
 
 	# record significant values
