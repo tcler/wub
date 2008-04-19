@@ -187,6 +187,7 @@ namespace eval Site {
     Debug on log 10
     Debug on block 10
 
+    Debug off timer 10
     Debug off socket 10
     Debug off http 2
     Debug off cache 10
