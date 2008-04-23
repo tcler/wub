@@ -28,20 +28,12 @@ namespace eval Debug {
 	    variable fds
 	    set fd $fds($tag)
 
-	    upvar 1 self self
 	    set code [catch {
 		uplevel 1 subst [list $message]
 	    } result eo]
 	    if {$code} {
 		puts -nonewline $fd @@[string map {\n \\n \r \\r} "(DebugError from [info level -1] ($eo)):"]
 	    }
-
-	    if {[info exists self]} {
-		puts $fd "$tag @@$self: [string map {\n \\n} $result]"
-	    } else {
-		puts $fd "$tag @@[string map {\n \\n} $result]"
-	    }
-
 	} else {
 	    #puts stderr "$tag @@@ $detail($tag) >= $level"
 	}
