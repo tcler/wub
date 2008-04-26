@@ -12,7 +12,6 @@
 # (currently only stderr is used.  there is some complexity in efficient
 # cross-threaded streams.)
 
-
 package provide Debug 2.0
 
 namespace eval Debug {
@@ -33,6 +32,8 @@ namespace eval Debug {
 	    } result eo]
 	    if {$code} {
 		puts -nonewline $fd @@[string map {\n \\n \r \\r} "(DebugError from [info level -1] ($eo)):"]
+	    } else {
+		puts $fd "$tag @@[string map {\n \\n} $result]"
 	    }
 	} else {
 	    #puts stderr "$tag @@@ $detail($tag) >= $level"
@@ -49,7 +50,7 @@ namespace eval Debug {
 	variable detail
 	set result {}
 	foreach n [lsort [array names detail]] {
-	    if {[interp alias {} Debug.$n] ne "Debug::noop"} {
+	    if {[interp alias {} Debug.$n] ne "::Debug::noop"} {
 		lappend result $n $detail($n)
 	    } else {
 		lappend result $n -$detail($n)
@@ -78,13 +79,13 @@ namespace eval Debug {
     # turn on debugging for tag
     proc on {tag {level ""} {fd stderr}} {
 	level $tag $level $fd
-	interp alias {} Debug.$tag {} Debug::debug $tag
+	interp alias {} Debug.$tag {} ::Debug::debug $tag
     }
 
     # turn off debugging for tag
     proc off {tag {level ""} {fd stderr}} {
 	level $tag $level $fd
-	interp alias {} Debug.$tag {} Debug::noop
+	interp alias {} Debug.$tag {} ::Debug::noop
     }
 
     namespace export -clear *
