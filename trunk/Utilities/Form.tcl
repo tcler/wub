@@ -92,20 +92,28 @@ namespace eval Form {
 	variable fieldsetA
 	variable Fdefaults
 	set config [dict merge [Dict get? $Fdefaults fieldset] [lrange $args 0 end-1]]
-	if {$name ne ""} {
+	if {$name ne "" && ![dict exists $config id]} {
 	    dict set config id $name
 	}
-	return "<[attr fieldset [Dict subset $config $fieldsetA]]>\n"
+	set content "<[attr fieldset [Dict subset $config $fieldsetA]]>\n"
+	if {[dict exists $config legend]} {
+	    append content [<legend> [dict get $config legend]] \n
+	}
+	return $content
     }
 
     proc formS {name args} {
 	variable formA
 	variable Fdefaults
 	set config [dict merge [Dict get? $Fdefaults form] [lrange $args 0 end-1]]
-	if {$name ne ""} {
+	if {$name ne "" && ![dict exists $config id]} {
 	    dict set config id $name
 	}
-	return "<[attr form [Dict subset $config $formA]]>\n"
+	set content "<[attr form [Dict subset $config $formA]]>\n"
+	if {[dict exists $config legend]} {
+	    append content [<legend> [dict get $config legend]] \n
+	}
+	return $content
     }
     
     foreach {type} {form fieldset} {
@@ -114,13 +122,15 @@ namespace eval Form {
 		variable @TA
 		variable Fdefaults
 		set config [dict merge [Dict get? $Fdefaults @T] [lrange $args 0 end-1]]
-		if {$name ne ""} {
+		if {$name ne "" && ![dict exists $config id]} {
 		    dict set config id $name
 		}
-
-		set content [uplevel 1 [list subst [lindex $args end]]]
+		if {[dict exists $config legend]} {
+		    append content [<legend> [dict get $config legend]] \n
+		}
+		append content [uplevel 1 [list subst [lindex $args end]]]
 		set content [string trim $content " \t\n\r"]
-		
+
 		if {[dict exists $config vertical]
 		    && [dict get $config vertical]
 		} {
@@ -214,6 +224,9 @@ namespace eval Form {
 	variable Fdefaults
 	set config [dict merge [Dict get? $Fdefaults textarea] [lrange $args 0 end-1] [list name $name]]
 	set content [lindex $args end]
+	if {$name ne "" && ![dict exists $config id]} {
+	    dict set config id $name
+	}
 
 	if {![dict exists $config id]} {
 	    if {[dict exists $config label]} {
@@ -571,5 +584,4 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	}]
     }]
     puts "</body>\n</html>"
-
 }
