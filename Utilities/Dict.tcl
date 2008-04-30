@@ -181,6 +181,14 @@ namespace eval Dict {
 	return $content
     }
 
+    proc vars {dvar args} {
+	set script [list dict with $dvar]
+	foreach a $args {
+	    lappend script $a $a
+	}
+	uplevel 1 $script {{}}
+    }
+
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
