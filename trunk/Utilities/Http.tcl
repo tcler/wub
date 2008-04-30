@@ -643,7 +643,10 @@ namespace eval Http {
     }
 
     # construct an HTTP Redirect response
-    proc Redirect {rsp to {content ""} {ctype "text/html"} args} {
+    proc Redirect {rsp {to ""} {content ""} {ctype "text/html"} args} {
+	if {$to eq ""} {
+	    set to [dict get $rsp -url]
+	}
 	return [Http genRedirect Redirect 302 $rsp $to $content $ctype {*}$args]
     }
 
