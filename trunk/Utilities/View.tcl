@@ -76,6 +76,9 @@ namespace eval View {
 	Debug.view {lselect $view $args}
 	return [mk::select $view {*}$args]
     }
+    proc _select {vpath args} {
+	return [mk::select $vpath {*}$args]
+    }
 
     # update selected rows with a script's values
     proc _update {_view _select _script args} {
@@ -242,10 +245,6 @@ namespace eval View {
 	return $result
     }
 
-    proc _select {args} {
-	return [$vpath select {*}$args]
-    }
-
     proc _view {vpath {cmd ""} args} {
 	switch -- $cmd {
 	    "" {
@@ -300,6 +299,39 @@ namespace eval View {
 	_ensemble $vpath $vcmd $cmd
 
 	return $cmd
+    }
+
+    # construct or open a view
+    proc new {cmd args} {
+	foreach {n v} $args {
+	    set $n $v
+	}
+
+	# no view supplied
+	if {[info exists db] || [info exists file]} {
+	    if {[info exists file]} {
+		mk::file open $db $file
+	    } elseif {![info exists db]} {
+		error "Must specify view and either file and db or an open db"
+	    }
+
+	    if {$view ni [mk::file views $db]} {
+		Debug.view {layout '$layout'}
+		if {[info exists layout]} {
+		    mk::view layout $db.$view [View pretty $layout]
+		    set view [uplevel 1 View init ${cmd} $db.$view]	;# initialize the view
+		} else {
+		    error "Must specify a pre-existing view, or view and layout"
+		}
+	    } else {
+		# got a view in the db
+		set view [uplevel 1 View init ${cmd} $db.$view]	;# initialize the view
+		Debug.view {existing layout '[$view properties]'}
+	    }
+	} else {
+	    error "Must specify view and either file and db or an open db"
+	}
+	return $view
     }
 
     # initialize view ensemble
