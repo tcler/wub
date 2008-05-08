@@ -62,7 +62,7 @@ namespace eval Report {
 	    
 	    lappend h [<th> {*}$params [string totitle $htext]]
 	}
-	dict append args _header [<thead> [join $h]]
+	dict append args _header [<thead> \n[<tr> \n[join $h \n]\n]\n]
 	dict unset args header
 
 	return $args
@@ -70,7 +70,7 @@ namespace eval Report {
 
     # footer: process footer args in report dict into HTML within report dict
     # footer - list of report column footers
-    # hclass - report footer CSS class
+    # fclass - report footer CSS class
     # footerp - dict mapping footer to parameters for that element,
     #	including optonal title to display for that footer
     proc footer {args} {
@@ -83,7 +83,7 @@ namespace eval Report {
 	    set f {}
 	    foreach t [dict get $args footer] {
 		if {[dict exists $args fclass]} {
-		    set params [list class [dict get $args hclass]]
+		    set params [list class [dict get $args fclass]]
 		} else {
 		    set params {}
 		}
@@ -101,7 +101,7 @@ namespace eval Report {
 
 		lappend f [<th> {*}$params [string totitle $t]]
 	    }
-	    dict append args f [<tfoot> [join $f]]
+	    dict append args _footer [<tfoot> \n[<tr> \n[join $f \n]\n]\n]
 	    dict unset args footer
 	}
 	return $args
@@ -124,6 +124,7 @@ namespace eval Report {
 	variable defaults; set args [dict merge $defaults $args]
 
 	dict for {k v} $data {
+	    set row {}
 	    if {[dict exists $args rclass]} {
 		set rparams [list class [dict get $args rclass]]
 	    } else {
@@ -139,12 +140,12 @@ namespace eval Report {
 		}
 	    }
 	    # do column content string match for row parameters
-	    dict for {col val} [Dict get? $args rowp] {
-		set match [lassign [split $col ,] col]
+	    dict for {spec val} [Dict get? $args rowp] {
+		set match [lassign [split $spec ,] col]
 		if {[dict exists $v $col]
 		    && [string match $match [dict get $v $col]]
 		} {
-		    lappend rparams {*}[dict get $args rowp $col]
+		    lappend rparams {*}[dict get $args rowp $spec]
 		}
 	    }
 	    
@@ -171,7 +172,7 @@ namespace eval Report {
 		    lappend row [<td> {*}$params {}]
 		}
 	    }
-	    dict append args body [<tr> {*}$rparams [join $row \n]]
+	    dict append args body [<tr> {*}$rparams \n[join $row \n]] \n
 	}
 
 	return $args
@@ -219,7 +220,7 @@ namespace eval Report {
 	    lappend classT sortable
 	}
 	
-	return [<table> {*}classT "[dict get $args _header]\n[dict get $args body]\n[Dict get? $args _footer]\n"]
+	return [<table> {*}$classT "\n[dict get $args _header]\n[dict get $args body]\n[Dict get? $args _footer]\n"]
     }
 
     # convert a text formatted suitably for csv into a list containing:
@@ -274,7 +275,7 @@ namespace eval Report {
 	    }
 	    lappend result [string trim [lindex $r $key]] $row
 	}
-	return [list $result [list headers $header]]
+	return [list $result headers $header]
     }
 
     proc init {args} {
@@ -299,5 +300,20 @@ if {[info exists argv0] && ([info script] eq $argv0)} {
     }
     set r [Report csv2dict $csv]
     #puts stderr $r
-    puts [Report html {*}$r]
+    set params {
+	sortable 1
+	class table
+	hclass header
+	fclass footer
+	rclass row
+	eclass el
+	evenodd 1
+	footer {name address phone}
+    }
+    set params1 {
+	footerp {name {class fname}}
+	headerp {name {class hname}}
+	rowp {name,fred {class fred}}
+    }
+    puts [Report html {*}$r {*}$params {*}$params1]
 }
