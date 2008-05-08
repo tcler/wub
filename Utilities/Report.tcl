@@ -60,9 +60,15 @@ namespace eval Report {
 		set htext $t
 	    }
 	    
-	    lappend h [<th> {*}$params [string totitle $htext]]
+	    lappend h [<th> {*}$params {*}[Dict get? $args hparam] [string totitle $htext]]
 	}
-	dict append args _header [<thead> \n[<tr> \n[join $h \n]\n]\n]
+	dict append args _header [<thead> {*}[Dict get? $args thparam] \n[<tr> \n[join $h \n]\n]\n]
+
+	if {[dict exists $args footer] &&
+	    [dict get $args footer] eq ""
+	} {
+	    dict set args footer [dict get $args header]
+	}
 	dict unset args header
 
 	return $args
@@ -78,7 +84,6 @@ namespace eval Report {
 	    set args [lindex $args 0]
 	}
 	variable defaults; set args [dict merge $defaults $args]
-
 	if {[dict exists $args footer]} {
 	    set f {}
 	    foreach t [dict get $args footer] {
@@ -101,7 +106,7 @@ namespace eval Report {
 
 		lappend f [<th> {*}$params [string totitle $t]]
 	    }
-	    dict append args _footer [<tfoot> \n[<tr> \n[join $f \n]\n]\n]
+	    dict append args _footer [<tfoot> {*}[Dict get? $args tfparam] \n[<tr> \n[join $f \n]\n]\n]
 	    dict unset args footer
 	}
 	return $args
@@ -167,12 +172,12 @@ namespace eval Report {
 		    } else {
 			set datum [dict get $v $th]
 		    }
-		    lappend row [<td> {*}$params $datum]
+		    lappend row [<td> {*}$params {*}[Dict get? $args eparam] $datum]
 		} else {
-		    lappend row [<td> {*}$params {}]
+		    lappend row [<td> {*}$params {*}[Dict get? $args eparam] {}]
 		}
 	    }
-	    dict append args body [<tr> {*}$rparams \n[join $row \n]] \n
+	    dict append args body [<tr> {*}$rparams {*}[Dict get? $args rparam] \n[join $row \n]\n] \n
 	}
 
 	return $args
@@ -220,7 +225,7 @@ namespace eval Report {
 	    lappend classT sortable
 	}
 	
-	return [<table> {*}$classT "\n[dict get $args _header]\n[dict get $args body]\n[Dict get? $args _footer]\n"]
+	return [<table> {*}$classT {*}[Dict get? $args tparam] "\n[dict get $args _header]\n[dict get $args body]\n[Dict get? $args _footer]\n"]
     }
 
     # convert a text formatted suitably for csv into a list containing:
@@ -302,18 +307,26 @@ if {[info exists argv0] && ([info script] eq $argv0)} {
     #puts stderr $r
     set params {
 	sortable 1
-	class table
-	hclass header
-	fclass footer
-	rclass row
-	eclass el
 	evenodd 1
-	footer {name address phone}
     }
     set params1 {
-	footerp {name {class fname}}
-	headerp {name {class hname}}
+	class table
+	tparam {title table}
+	hclass header
+	hparam {title column}
+	thparam {class thead}
+	fclass footer
+	tfparam {class tfoot}
+	rclass row
+	rparam {title row}
+	eclass el
+	eparam {title element}
+	footer {}
+    }
+    set params2 {
+	footerp {name {class fname} phone {colspan 2}}
+	headerp {name {class hname} phone {colspan 2}}
 	rowp {name,fred {class fred}}
     }
-    puts [Report html {*}$r {*}$params {*}$params1]
+    puts [Report html {*}$r {*}$params {*}$params1 {*}$params2]
 }
