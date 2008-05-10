@@ -57,12 +57,13 @@ package provide Form 2.0
 namespace eval Form {
     variable Fdefaults [dict create {*}{
 	textarea {compact 0}
-	form {method get}
+	form {method post}
 	fieldset {vertical 0}
 	submit {alt Submit}
 	reset {alt Reset}
 	option {}
     }]
+    variable tabindex 0	;# taborder for fields
 
     # default - set attribute defaults for a given tag
     proc default {type args} {
@@ -117,7 +118,12 @@ namespace eval Form {
     }
     
     foreach {type} {form fieldset} {
-	eval [string map [list @T $type] {
+	if {0 && $type eq "form"} {
+	    set ti "variable tabindex 0"
+	} else {
+	    set ti ""
+	}
+	eval [string map [list @TI $ti @T $type] {
 	    proc <@T> {name args} {
 		variable @TA
 		variable Fdefaults
@@ -128,6 +134,7 @@ namespace eval Form {
 		if {[dict exists $config legend]} {
 		    append content [<legend> [dict get $config legend]] \n
 		}
+		@TI
 		append content [uplevel 1 [list subst [lindex $args end]]]
 		set content [string trim $content " \t\n\r"]
 
@@ -167,6 +174,11 @@ namespace eval Form {
 	    }
 	} else {
 	    set id [dict get $config id]
+	}
+
+	if {0 && ![dict exists $config tabindex]} {
+	    variable tabindex
+	    dict set config tabindex [incr tabindex]
 	}
 
 	set content [uplevel 1 [list subst $content]]
@@ -224,6 +236,12 @@ namespace eval Form {
 	variable Fdefaults
 	set config [dict merge [Dict get? $Fdefaults textarea] [lrange $args 0 end-1] [list name $name]]
 	set content [lindex $args end]
+
+	if {0 && ![dict exists $config tabindex]} {
+	    variable tabindex
+	    dict set config tabindex [incr tabindex]
+	}
+
 	if {$name ne "" && ![dict exists $config id]} {
 	    dict set config id $name
 	}
@@ -277,6 +295,11 @@ namespace eval Form {
 		    set content ""
 		}
 		set config [dict merge [Dict get? $Fdefaults @T] [list alt @T] $args [list name $name type @T]]
+		
+		if {0 && ![dict exists $config tabindex]} {
+		    variable tabindex
+		    dict set config tabindex [incr tabindex]
+		}
 
 		if {$content eq {}} {
 		    if {[dict exists $config content]} {
@@ -297,6 +320,12 @@ namespace eval Form {
     proc <button> {name args} {
 	variable Fdefaults
 	set config [dict merge [Dict get? $Fdefaults button] [lrange $args 0 end-1] [list name $name]]
+
+	if {0 && ![dict exists $config tabindex]} {
+	    variable tabindex
+	    dict set config tabindex [incr tabindex]
+	}
+
 	variable buttonA
 	return "<[attr button [Dict subset $config $buttonA]]>[uplevel 1 [list subst [lindex $args end]]]</button>"
     }
@@ -320,6 +349,11 @@ namespace eval Form {
 		variable @AA
 		variable Fdefaults
 		set config [dict merge [Dict get? $Fdefaults @T] $args [list name $name type @T @F [uplevel 1 [list subst $value]]]]
+
+		if {0 && ![dict exists $config tabindex]} {
+		    variable tabindex
+		    dict set config tabindex [incr tabindex]
+		}
 
 		if {![dict exists $config id]} {
 		    if {[dict exists $config label]} {
@@ -412,6 +446,17 @@ namespace eval Form {
 		variable Fdefaults
 		set config [dict merge $args [list name $name type @T] [Dict get? $Fdefaults @T]]
 
+		set content [uplevel 1 [list subst $content]]
+		if {![dict exists $config label] && $content ne ""} {
+		    dict set config label $content
+		    set content ""
+		}
+
+		if {0 && ![dict exists $config tabindex]} {
+		    variable tabindex
+		    dict set config tabindex [incr tabindex]
+		}
+
 		if {![dict exists $config id]} {
 		    if {[dict exists $config label]} {
 			dict set config id $name
@@ -420,12 +465,14 @@ namespace eval Form {
 		} else {
 		    set id [dict get $config id]
 		}
-
-		set content [uplevel 1 [list subst $content]]
 		set result "<[attr input [Dict subset $config $boxA]]>$content"
 		if {[dict exists $config label]} {
 		    set label [dict get $config label]
-		    return "[<label> for $id $label] $result"
+		    if {[dict exists $config title]} {
+			return "[<label> for $id title [dict get $config title] $label] $result"
+		    } else {
+			return "[<label> for $id $label] $result"
+		    }
 		} else {
 		    return $result
 		}
@@ -533,25 +580,44 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	    [<text> phone title "Phone number for official contact"]
 	}]
 	[<p> "When you create the account instructions will be emailed to you.  Make sure your email address is correct."]
-	[<textarea> te {
+	[<textarea> te compact 1 {
 	    This is some default text to be getting on with
 	    It's fairly cool.  Note how it's left aligned.
 	}]
 	<br>[<submit> submit "Create New Account"]
-    }]
-    [<div> class buttons [subst {
-	[<submit> class positive {
-	    [<img> src /images/icons/tick.png alt ""] Save
+
+	[<br>]
+	[<fieldset> permissions {
+	    [<legend> Permissions]
+	    [<text> group title "Which group owns this page?" label "Group: "]
+	    [<fieldset> gpermF style "float:left" title "Group Permissions." {
+		[<legend> Group]
+		[<checkbox> gperms value 1 checked 1 title "Can group members read this page?" read]
+		[<checkbox> gperms value 2 title "Can group members modify this page?" modify]
+		[<checkbox> gperms value 4 checked 1 title "Can group members add to this page?" add]
+	    }]
+	    [<fieldset> opermF style "float:left" title "Default Permissions." {
+		[<legend> Everyone]
+		[<checkbox> operms value 1 checked 1 title "Can anyone read this page?" read]
+		[<checkbox> operms value 2 title "Can anyone modify this page?" modify]
+		[<checkbox> operms value 4 title "Can anyone add to this page?" add]
+	    }]
 	}]
-
-	[<a> href /password/reset/ [subst {
-	    [<img> src /images/icons/textfield_key.png alt ""] Change Password
+	[<br>]
+	[<div> class buttons [subst {
+	    [<submit> class positive {
+		[<img> src /images/icons/tick.png alt ""] Save
+	    }]
+	    
+	    [<a> href /password/reset/ [subst {
+		[<img> src /images/icons/textfield_key.png alt ""] Change Password
+	    }]]
+	    
+	    [<a> href "#" class negative [subst {
+		[<img> src /images/icons/cross.png alt ""] Cancel
+	    }]]
 	}]]
-
-	[<a> href "#" class negative [subst {
-	    [<img> src /images/icons/cross.png alt ""] Cancel
-	}]]
-    }]]
+    }]
     puts "<hr />"
     puts [<form> yyy action http:moop.html {
 	[<fieldset> fsearch {
