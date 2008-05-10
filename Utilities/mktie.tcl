@@ -19,14 +19,6 @@ package provide mkdict_tie 2.0
 ## Implementation
 
 namespace eval mktie {
-
-    variable layout "tie "	;# default layout of view 'tie'
-    # Nb: the layout need only be specified for fields whose values aren't
-    # the default type (S)
-
-    variable max_id	;# maximum id
-    variable view ""	;# already open view
-
     # ### ### ### ######### ######### #########
     ## API : Construction & Destruction
 
@@ -37,6 +29,7 @@ namespace eval mktie {
 
     variable count 0
     proc init {args} {
+	Debug.mktie {init $args}
 	foreach {n v} $args {
 	    set $n $v
 	}
@@ -149,10 +142,6 @@ namespace eval mktie {
     # equiv $a($name)
     proc _getv {view index name} {
 	Debug.mktie {getv '$name'}
-	if {$name eq ""} {
-	    variable max_id
-	    return "max_id $max_id"
-	}
 	return [$view get [$view find $index $name]]
     }
 
