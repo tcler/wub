@@ -373,12 +373,13 @@ Debug off http 2
 Debug off cache 10
 Debug off cookies 10
 Debug on direct 10
-Debug off dispatch 10
+Debug on dispatch 10
 Debug off query 10
 Debug off direct 10
 Debug off convert 10
 Debug off cookies 10
-Debug on session 10
+Debug off session 10
+Debug off mason 10
 
 # Start Site Server(s)
 Site start
