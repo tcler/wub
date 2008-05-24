@@ -42,6 +42,11 @@ namespace eval ::conversions {
 	    if {$preloads ne {}} {
 		append content [join $preloads \n] \n
 	    }
+	    
+	    # add script preloads
+	    if {[dict exists $rsp -preload]} {
+		append content [join [dict get $rsp -preload] \n] \n
+	    }
 
 	    append content </head> \n
 
@@ -50,9 +55,7 @@ namespace eval ::conversions {
 
 	    # add script postloads
 	    if {[dict exists $rsp -postload]} {
-		dict for {n v} [dict get $rsp -postload] {
-		    append content $v \n
-		}
+		append content [join [dict get $rsp -postload] \n] \n
 	    }
 
 	    append content </body> \n
