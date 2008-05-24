@@ -1,10 +1,10 @@
 # View.tcl - Wrapper around Metakit
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
-    lappend auto_path /usr/lib/tcl8.5/Mk4tcl ../extensions/
+    lappend auto_path /usr/lib/${tcl_version}/Mk4tcl ../extensions/
 }
 
-lappend auto_path /usr/lib/tcl8.5/Mk4tcl
+lappend auto_path /usr/lib/${tcl_version}/Mk4tcl
 package require Mk4tcl
 package require functional
 package require Debug
