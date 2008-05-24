@@ -294,6 +294,10 @@ namespace eval Query {
 	return [lindex [dict get $query $el] [expr {$num * 2 + 1}]]
     }
 
+    proc metadict {query el} {
+	return {*}[lrange [dict get $query $el] 1 end]
+    }
+
     # exists -- does a value with the given name exist
     #
     # Arguments:
