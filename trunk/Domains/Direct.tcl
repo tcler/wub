@@ -41,7 +41,7 @@ namespace eval Direct {
 	    set path [file rootname [dict get $response -path]]
 	    set suffix [Url pstrip $prefix $path]
 	    Debug.direct {-suffix not given - calculated '$suffix' from '$prefix' and '$path'}
-	    if {[string match "/*" $suffix]} {
+	    if {($string ne "/") && [string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
 		return [Http NotFound $response]
 	    }
