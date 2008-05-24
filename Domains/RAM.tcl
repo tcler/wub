@@ -25,7 +25,7 @@ namespace eval RAM {
 	    set path [dict get $rsp -path]
 	    set suffix [Url pstrip $prefix $path]
 	    Debug.RAM {-suffix not given - calculated '$suffix' from '$prefix' and '$path'}
-	    if {[string match "/*" $suffix]} {
+	    if {($string ne "/") && [string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
 		return [Http NotFound $rsp]
 	    }

@@ -321,7 +321,6 @@ package provide Mason 1.0
     }
 
     method do {req} {
-	Debug.dispatch {do}
 	dict set req -root $options(-root)
 
 	if {[dict exists $req -suffix]} {
@@ -331,18 +330,21 @@ package provide Mason 1.0
 	    # assume we've been parsed by package Url
 	    # remove the specified prefix from path, giving suffix
 	    set suffix [Url pstrip $options(-url) [dict get $req -path]]
-	    if {[string match "/*" $suffix]} {
+	    if {($suffix ne "/") && [string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
+		Debug.mason {not found $suffix}
 		return [Http NotFound $req]
 	    }
 	    dict set req -suffix $suffix
 	}
 
+	Debug.mason {do $suffix}
+
 	set req [$self auth $req]	;# authenticate - must not be caught!
 	dict set req -dynamic 0		;# default: static content
 	set rsp [$self mason $req]	;# process request
 
-	Debug.dispatch {MASON Respond $rsp}
+	Debug.mason {processed $rsp}
 
 	# filter/reprocess this response
 	if {[string match 2* [Dict get? $rsp -code]] &&
@@ -350,7 +352,7 @@ package provide Mason 1.0
 	    [dict exists $rsp -content] &&
 	    ([set wrapper [$self findUp $rsp $options(-wrapper)]] ne "")
 	} {
-	    Debug.mason {MASON wrapper $options(-wrapper) - $wrapper}
+	    Debug.mason {wrapper $options(-wrapper) - $wrapper}
 
 	    # run template over request
 	    set rsp [$self template $rsp $wrapper]
@@ -366,6 +368,7 @@ package provide Mason 1.0
 	    }
 	}
 
+	Debug.mason {default response $rsp}
 	return $rsp
     }
 
