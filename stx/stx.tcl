@@ -1,7 +1,7 @@
 package require struct::tree
 package require csv
 package require Debug
-Debug off STX
+Debug off STX 10
 
 package provide stx 1.1
 
@@ -131,7 +131,7 @@ namespace eval stx {
 	} $text]
 	
 	# handle naked http references
-	regsub -all "(\[^\[\]|^)(http:\[^ \]+)" $text {\1[http:\2]} text
+	regsub -all "(\[^\[\]|^)http:(\[^ \]+)" $text {\1[http:\2]} text
 	Debug.STX {Char: '$text'} 30
 	variable refs
 	#puts stderr "ENCODING REFS: $text"
