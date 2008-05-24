@@ -196,8 +196,18 @@ namespace eval Form {
 	    return "[<label> for $id $label] $result"
 	} elseif {[dict exists $config legend]} {
 	    set legend [dict get $config legend]
-	    return [<fieldset> "" {*}$title {
-		[<legend> $legend]
+
+	    # get sub-attributes of form "{subel attr} value"
+	    set sattr {fieldset {} legend {}}
+	    dict for {k v} $config {
+		set k [split $k]
+		if {[llength $k] > 1} {
+		    dict set sattr [lindex $k 0] [lindex $k 1] $v
+		}
+	    }
+
+	    return [<fieldset> "" {*}[dict get $sattr fieldset] {*}$title {
+		[<legend> {*}[dict get $sattr legend] $legend]
 		$result
 	    }]
 	} else {
@@ -275,6 +285,16 @@ namespace eval Form {
 	    return "[<label> for $id $label] $result"
 	} elseif {[dict exists $config legend]} {
 	    set legend [dict get $config legend]
+
+	    # get sub-attributes of form "{subel attr} value"
+	    set sattr {fieldset {} legend {}}
+	    dict for {k v} $config {
+		set k [split $k]
+		if {[llength $k] > 1} {
+		    dict set sattr [lindex $k 0] [lindex $k 1] $v
+		}
+	    }
+
 	    return [<fieldset> "" {*}$title {
 		[<legend> $legend]
 		$result
@@ -424,6 +444,16 @@ namespace eval Form {
 		
 		if {[dict exists $rsconfig legend]} {
 		    set legend [dict get $rsconfig legend]
+
+		    # get sub-attributes of form "{subel attr} value"
+		    set sattr {fieldset {} legend {}}
+		    dict for {k v} $config {
+			set k [split $k]
+			if {[llength $k] > 1} {
+			    dict set sattr [lindex $k 0] [lindex $k 1] $v
+			}
+		    }
+
 		    return [<fieldset> "" {
 			[<legend> $legend]
 			[join $result $joiner]
@@ -525,7 +555,7 @@ namespace eval Form {
 	variable boxA [subst {value checked $fieldA $onselect $onchange type}]
 	variable textA [subst {$fieldA readonly maxlength $onselect $onchange alt type}]
 	variable imageA [subst {src alt $fieldA $onselect $onchange type}]
-	variable fileA [subst {accept $fieldA $onselect $onchange type}]
+	variable fileA [subst {$fieldA accept $onselect $onchange type}]
 	variable selectA [subst {name size multiple disabled tabindex $onfocus $onblur $onchange $allA}]
 	variable optgroupA [subst {disabled label $allA}]
 	variable optionA [subst {selected disabled label value $allA}]
@@ -589,18 +619,18 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	[<br>]
 	[<fieldset> permissions {
 	    [<legend> Permissions]
-	    [<text> group title "Which group owns this page?" label "Group: "]
 	    [<fieldset> gpermF style "float:left" title "Group Permissions." {
 		[<legend> Group]
-		[<checkbox> gperms value 1 checked 1 title "Can group members read this page?" read]
-		[<checkbox> gperms value 2 title "Can group members modify this page?" modify]
-		[<checkbox> gperms value 4 checked 1 title "Can group members add to this page?" add]
+		[<checkbox> gperms title "Can group members read this page?" value 1 checked 1 read]
+		[<checkbox> gperms title "Can group members modify this page?" value 2 checked 1 modify]
+		[<checkbox> gperms title "Can group members add to this page?" value 4 checked 1 add]
+		[<br>][<text> group title "Which group owns this page?" label "Group: "]
 	    }]
 	    [<fieldset> opermF style "float:left" title "Default Permissions." {
-		[<legend> Everyone]
-		[<checkbox> operms value 1 checked 1 title "Can anyone read this page?" read]
-		[<checkbox> operms value 2 title "Can anyone modify this page?" modify]
-		[<checkbox> operms value 4 title "Can anyone add to this page?" add]
+		[<legend> Anyone]
+		[<checkbox> operms title "Can anyone read this page?" value 1 checked 1 read]
+		[<checkbox> operms title "Can anyone modify this page?" value 2 modify]
+		[<checkbox> operms title "Can anyone add to this page?" value 4 add]
 	    }]
 	}]
 	[<br>]
@@ -627,23 +657,23 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 		+site 0
 		section 1
 	    }]
-	    [<select> newer legend "Newer Than" {
+	    [<select> newer {fieldset style} "float:left" legend "Newer Than" {
 		[<option> week value "last week"]
 		[<option> fortnight value "last fortnight"]
 		[<option> month value "last month"]
 		[<option> year value "last year"]
 	    }]
-	    [<select> older legend "Older Than" {
+	    [<select> older {fieldset style} "float:left" legend "Older Than" {
 		[<option> week value "last week"]
 		[<option> fortnight value "last fortnight"]
 		[<option> month value "last month"]
 		[<option> year value "last year"]
 	    }]
-	    [<select> sort title "Sort By" {
+	    [<select> sort style "float:left" title "Sort By" {
 		[<option> title value title]
 		[<option> author value author]
 	    }]
-	    [<selectset> sort1 title "Sort By" {
+	    [<selectset> sort1 style "float:left" title "Sort By" {
 		title
 		author
 	    }]
