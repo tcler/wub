@@ -77,6 +77,7 @@ namespace eval Httpd {
 	    catch {{*}$rqCallOut $request} request
 	    # this callout might transform request.
 	    # if it unsets -dispatch, the request is the reply
+	    # it can also set up -dispatch to whatever it wants
 	}
 
 	# check Cache for match
