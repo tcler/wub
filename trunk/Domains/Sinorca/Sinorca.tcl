@@ -165,7 +165,7 @@ namespace eval Sinorca {
 	%HEADER_BG #8CA8E6
 	%H1 #999999
 
-	%BORDER transparent
+	%BORDER black
 
 	%FOOTER_BG #6381DC
 	%FOOTER_FG white
