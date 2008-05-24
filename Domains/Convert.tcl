@@ -91,6 +91,7 @@ namespace eval Convert {
 
 	set paths($from,$to) $pairs	;# cache result
 
+	Debug.convert {path found $from -> $to == '$pairs'}
 	return $pairs
     }
 
@@ -135,7 +136,7 @@ namespace eval Convert {
 	    foreach a [split [dict get $rsp accept] ,] {
 		lassign [split [string trim $a] ";"] a q
 		
-		Debug.convert {transform matching '$a' '$q' against $ctype}
+		Debug.convert {transform matching '$a' '$q' against '$ctype'}
 		if {$a eq $ctype} {
 		    # exact match - done
 		    Debug.convert {transform: matched $a}
@@ -212,9 +213,10 @@ namespace eval Convert {
 
     # Convert - perform all content negotiation on a Wub response
     proc Convert {rsp {to ""}} {
-	Debug.convert {Converting}
+	Debug.convert {Converting '[dict get $rsp content-type]' to '$to'}
 	if {$to ne ""} {
 	    if {[dict get $rsp content-type] eq $to} {
+		Debug.convert {Identity Conversion}
 		return $rsp	;# don't need to process
 	    }
 	    dict set rsp accept $to
@@ -252,7 +254,10 @@ namespace eval Convert {
 	if {$content ne ""} {
 	    dict set rq -content $content
 	}
-	return [Convert $rq $to]
+	set oldaccept [dict get $rq accept]
+	set rq [Convert $rq $to]
+	dict set rq accept $oldaccept
+	return $rq
     }
 
     # do - perform content negotiation and transformation
