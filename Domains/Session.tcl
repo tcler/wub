@@ -61,10 +61,12 @@
 #	return $rsp
 
 package require Debug
+Debug on session 10
 package require md5
+package require View
+
 package provide Session 3.1
 
-Debug on session 10
 
 namespace eval Session {
     variable dir ""
@@ -228,7 +230,7 @@ namespace eval Session {
 	    }
 	}
 	if {$change} {
-	    mk::view layout sessdb.session [dict values $fields]
+	    ::mk::view layout sessdb.session [dict values $fields]
 	}
 
 	# locate a slot to store session in
@@ -336,7 +338,7 @@ namespace eval Session {
     # record fields in session view
     proc fields {} {
 	variable fields
-	foreach field [mk::view layout sessdb.session] {
+	foreach field [::mk::view layout sessdb.session] {
 	    set type [lassign [split $field :] name]
 	    if {$type eq ""} {
 		set type S
@@ -351,12 +353,12 @@ namespace eval Session {
 	    variable {*}$args
 	}
 
-	if {[dict exists [mk::file open] sessdb]} {
-	    Debug.session {Got open db sessdb [dict get [mk::file open] sessdb]}
+	if {[dict exists [::mk::file open] sessdb]} {
+	    Debug.session {Got open db sessdb [dict get [::mk::file open] sessdb]}
 	} else {
 	    variable db; variable dir
 	    set dbn [file join $dir $db]
-	    if {[catch {mk::file open sessdb $dbn -shared} r eo]} {
+	    if {[catch {::mk::file open sessdb $dbn -shared} r eo]} {
 		Debug.error {failed opening session db $dbn: $r ($eo)}
 	    } else {
 		Debug.session {opened $dbn: $r}
@@ -365,7 +367,7 @@ namespace eval Session {
 
 	# try to open wiki view
 	if {[catch {
-	    mk::file views sessdb
+	    ::mk::file views sessdb
 	    # we expect threads to be created *after* the db is initialized
 	    variable toplevel 0
 	} views eo]} {
@@ -376,9 +378,9 @@ namespace eval Session {
 	    Debug.session {sessdb has views: $views}
 	}
 
-	if {[catch {mk::view layout sessdb.session} lo eo]} {
+	if {[catch {::mk::view layout sessdb.session} lo eo]} {
 	    Debug.session {session no layout: $lo ($eo)}
-	    mk::view layout sessdb.session {_key:S _ctime:L _mtime:L _slot:I}
+	    ::mk::view layout sessdb.session {_key:S _ctime:L _mtime:L _slot:I}
 	} else {
 	    Debug.session {session layout: $lo}
 	}
