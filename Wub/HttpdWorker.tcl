@@ -459,7 +459,7 @@ namespace eval HttpdWorker {
 	    indicate Httpd Got $request
 	    dict lappend connection req_log $request
 	} r eo]} {
-	    Debug.error {'get' error: '$r' ($eo) ([dump $req])}
+	    Debug.error {'get' error: ($eo) '$r' ([dump $req])}
 	}
 
 	# reset the request dict to this connection prototype
@@ -476,7 +476,7 @@ namespace eval HttpdWorker {
     # read the entity, informing parent when complete
     proc identity {sock length} {
 	cancel $sock rxtimer
-	Debug.entity {identity from '$sock' ('$length' remaining)}
+	Debug.entity {identity from '$sock' ('$length' remaining) ([fconfigure $sock])}
 	upvar #0 ::HttpdWorker::requests($sock) request
 	if {[catch {
 	    # read as much of the entity as is available
@@ -922,6 +922,7 @@ Debug on log 10
 #Debug on close 10
 #Debug on socket 10
 #Debug on http 10
+Debug off entity 10
 # now we're able to process commands
 #puts stderr "Started Httpd Worker [id]"
 #puts stderr "~Thread: [thread::id]"
