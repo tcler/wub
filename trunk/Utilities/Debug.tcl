@@ -33,6 +33,9 @@ namespace eval Debug {
 	    if {$code} {
 		puts -nonewline $fd @@[string map {\n \\n \r \\r} "(DebugError from [info level -1] ($eo)):"]
 	    } else {
+		if {[string length $result] > 4096} {
+		    set result "[string range $result 1 4096]...(truncated) ... [string range $result end-1024 end]"
+		}
 		puts $fd "$tag @@[string map {\n \\n} $result]"
 	    }
 	} else {
