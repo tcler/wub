@@ -19,13 +19,18 @@ namespace eval Url {
 	# paths, for easy comparison, and also one which is easy to modify
 	# using list commands.
 	if {[string equal $prefix $path]} {
-	    return ""
+	    return "/"
 	}
 
 	set prefix [file split $prefix]
 	set npath [file split $path]
 	if {[string match ${prefix}* $npath]} {
-	    return [file join {*}[lrange $npath [llength $prefix] end] {}]
+	    # preserve dir suffix
+	    if {[string match */ $path]} {
+		return [file join {*}[lrange $npath [llength $prefix] end] {}]/
+	    } else {
+		return [file join {*}[lrange $npath [llength $prefix] end] {}]
+	    }
 	} else {
 	    return /$path
 	}
