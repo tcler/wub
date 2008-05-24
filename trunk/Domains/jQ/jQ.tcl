@@ -1,5 +1,7 @@
 package require Html
 package require File
+package require Debug
+Debug off jq 10
 
 package provide jQ 1.0
 
@@ -31,7 +33,61 @@ namespace eval jQ {
 	return $r
     }
 
-    variable defaults {}
+    variable defaults {
+	galleria {
+	    history true
+	    clickNext true
+	    insert \"#main_image\"
+	    onImage {
+		function(image,caption,thumb) { // let's add some image effects for demonstration purposes
+		    
+		    // fade in the image & caption
+		    image.css('display','none').fadeIn(1000);
+		    caption.css('display','none').fadeIn(1000);
+		    
+		    // fetch the thumbnail container
+		    var _li = thumb.parents('li');
+		    
+		    // fade out inactive thumbnail
+		    _li.siblings().children('img.selected').fadeTo(500,0.3);
+		    
+		    // fade in active thumbnail
+		    thumb.fadeTo('fast',1).addClass('selected');
+		    
+		    // add a title for the clickable image
+		    image.attr('title','Next image >>');
+		}
+	    }
+	    onThumb {
+		function(thumb) { // thumbnail effects goes here
+				
+		    // fetch the thumbnail container
+		    var _li = thumb.parents('li');
+		    
+		    // if thumbnail is active, fade all the way.
+		    var _fadeTo = _li.is('.active') ? '1' : '0.3';
+		    
+		    // fade in the thumbnail when finnished loading
+		    thumb.css({display:'none',opacity:_fadeTo}).fadeIn(1500);
+		    
+		    // hover effects
+		    thumb.hover(
+				function() { thumb.fadeTo('fast',1); },
+				function() { _li.not('.active').children('img').fadeTo('fast',0.3); } // don't fade out if the parent is active
+				)
+		}
+	    }
+	}
+
+	galleria1 {
+	    history false
+	    clickNext false
+	    insert undefined
+	    onImage {
+		function() { $('.nav').css('display','block'); }
+	    }
+	}
+    }
 
     proc opts {type args} {
 	if {[llength $args] == 1} {
@@ -80,7 +136,7 @@ namespace eval jQ {
 
 	set script [string map [dict filter $args key %*] $script]
 	if {$script ne ""} {
-	    puts stderr "WEAVE: $script"
+	    Debug.jq {WEAVE: $script}
 	    dict append r -content [<script> "\$(document).ready(function()\{\n$script\n\});"]
 	}
 
@@ -94,7 +150,7 @@ namespace eval jQ {
     proc datepicker {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.timeentry.js
-	} %SEL $selector %OPTS [opts confirm $args] {
+	} %SEL $selector %OPTS [opts datepicker $args] {
 	    $('%SEL').timeEntry({%OPTS});
 	}]
     }
@@ -103,25 +159,22 @@ namespace eval jQ {
     proc timeentry {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.timeentry.js
-	}  css jquery.timeentry.css %SEL $selector %OPTS [opts confirm $args] {
+	}  css jquery.timeentry.css %SEL $selector %OPTS [opts timeentry $args] {
 	    $('%SEL').timeEntry({%OPTS});
 	}]
     }
 
     # http://www.fyneworks.com/jquery/multiple-file-upload/
-    proc multifile {r selector args} {
-	return [weave $r {
-	    jquery.js jquery.MultiFile.js
-	} %SEL $selector %OPTS [opts confirm $args] {
-	    $('%SEL').MultiFile({%OPTS});
-	}]
+    proc multifile {r} {
+	# just supports the simple case
+	return [scripts $r jquery.js jquery.MultiFile.js]
     }
 
     # http://docs.jquery.com/UI/Tabs
     proc tabs {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.dimensions.js ui.tabs.js
-	} %SEL $selector %OPTS [opts confirm $args] {
+	} %SEL $selector %OPTS [opts tabs $args] {
 	    $('%SEL').tabs({%OPTS});
 	}]
     }
@@ -130,7 +183,7 @@ namespace eval jQ {
     proc accordian {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.dimensions.js ui.accordian.js
-	} %SEL $selector %OPTS [opts confirm $args] {
+	} %SEL $selector %OPTS [opts accordian $args] {
 	    $('%SEL').accordian({%OPTS});
 	}]
     }
@@ -140,7 +193,7 @@ namespace eval jQ {
 	return [weave $r {
 	    jquery.js jquery.dimensions.js ui.mouse.js
 	    ui.resizeable.js
-	} %SEL $selector %OPTS [opts confirm $args] {
+	} %SEL $selector %OPTS [opts resizeable $args] {
 	    $('%SEL').resizeable({%OPTS});
 	}]
     }
@@ -150,7 +203,7 @@ namespace eval jQ {
 	return [weave $r {
 	    jquery.js jquery.dimensions.js ui.mouse.js
 	    ui.draggable.js ui.draggable.ext.js
-	} %SEL $selector %OPTS [opts confirm $args] {
+	} %SEL $selector %OPTS [opts draggable $args] {
 	    $('%SEL').draggable({%OPTS});
 	}]
     }
@@ -161,7 +214,7 @@ namespace eval jQ {
 	    jquery.js jquery.dimensions.js ui.mouse.js
 	    ui.draggable.js ui.draggable.ext.js
 	    ui.droppable.js ui.droppable.ext.js
-	} %SEL $selector %OPTS [opts confirm $args] {
+	} %SEL $selector %OPTS [opts droppable $args] {
 	    $('%SEL').droppable({%OPTS});
 	}]
     }
@@ -172,7 +225,7 @@ namespace eval jQ {
 	    jquery.js jquery.dimensions.js ui.mouse.js
 	    ui.draggable.js ui.draggable.ext.js
 	    ui.droppable.js ui.droppable.js ui.sortable.js
-	} %SEL $selector %OPTS [opts confirm $args] {
+	} %SEL $selector %OPTS [opts sortable $args] {
 	    $('%SEL').sortable({%OPTS});
 	}]
     }
@@ -184,7 +237,7 @@ namespace eval jQ {
 	    ui.draggable.js ui.draggable.ext.js
 	    ui.droppabe.js ui.droppable.js
 	    ui.selectable.js
-	} %SEL $selector %OPTS [opts confirm $args] {
+	} %SEL $selector %OPTS [opts selectable $args] {
 	    $('%SEL').selectable({%OPTS});
 	}]
     }
@@ -192,7 +245,7 @@ namespace eval jQ {
     # http://www.aclevercookie.com/facebook-like-auto-growing-textarea/
     proc autogrow {r selector args} {
 	return [weave $r {jquery.js jquery.autogrow.js
-	} %SEL $selector %OPTS [opts confirm $args] {
+	} %SEL $selector %OPTS [opts autogrow $args] {
 	    $('%SEL').autogrow({%OPTS});
 	}]
     }
@@ -202,7 +255,7 @@ namespace eval jQ {
 	return [weave $r {
 	    jquery.js jquery.dimensions.js
 	    jquery.tooltip.js
-	} %SEL $selector %OPTS [opts confirm $args] {
+	} %SEL $selector %OPTS [opts tooltip $args] {
 	    $('%SEL').Tooltip({%OPTS});
 	}]
     }
@@ -211,8 +264,16 @@ namespace eval jQ {
     proc hoverimage {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.hoverimagetext.js
-	} %SEL $selector %OPTS [opts confirm $args] {
+	} %SEL $selector %OPTS [opts hoverimage $args] {
 	    $('%SEL').HoverImageText({%OPTS});
+	}]
+    }
+
+    proc galleria {r selector args} {
+	return [weave $r {
+	    jquery.js jquery.galleria.js
+	} %SEL $selector %OPTS [opts galleria $args] {
+	    $('ul.%SEL').galleria({%OPTS})
 	}]
     }
 
@@ -220,7 +281,7 @@ namespace eval jQ {
     proc gallery {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.galview.js
-	} %SEL $selector %OPTS [opts confirm $args] {
+	} %SEL $selector %OPTS [opts gallery $args] {
 	    $('%SEL').jqGalView({%OPTS});
 	}]
     }
@@ -228,12 +289,18 @@ namespace eval jQ {
     proc aaccordian {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.accordian.js
-	} %SEL $selector %OPTS [opts confirm $args] {
+	} %SEL $selector %OPTS [opts aaccordian $args] {
 	    $('%SEL').Accordian({%OPTS});
 	}]
     }
 
-    proc form  {r selector fn} {
+    proc editable {r selector fn} {
+	return [weave $r {
+	    jquery.js jquery.editable.js
+	} %SEL $selector %FN fn {$('%SEL').editable(%FN);}]
+    }
+
+    proc form  {r selector {fn ""}} {
 	return [weave $r {
 	    jquery.js jquery.form.js
 	} %SEL $selector %FN fn {$('%SEL').ajaxForm(%FN);}]
@@ -245,8 +312,16 @@ namespace eval jQ {
 	    jquery.js jquery.delegate.js
 	    jquery.maskedinput.js jquery.metadata.js
 	    jquery.validate.js jquery.validate-ext.js
-	} %SEL $selector %OPTS [opts confirm $args] {
+	} %SEL $selector %OPTS [opts validate $args] {
 	    $('%SEL').validate({%OPTS});
+	}]
+    }
+
+    proc autofill {r selector args} {
+	return [weave $r {
+	    jquery.js jquery.autofill.js
+	} %SEL $selector %OPTS [opts autofill $args] {
+	    $('%SEL').autofill({%OPTS});
 	}]
     }
 
