@@ -215,7 +215,7 @@ namespace eval Convert {
     proc Convert {rsp {to ""}} {
 	Debug.convert {Converting '[dict get $rsp content-type]' to '$to'}
 	if {$to ne ""} {
-	    if {[dict get $rsp content-type] eq $to} {
+	    if {[Dict get? $rsp content-type] eq $to} {
 		Debug.convert {Identity Conversion}
 		return $rsp	;# don't need to process
 	    }
@@ -254,9 +254,13 @@ namespace eval Convert {
 	if {$content ne ""} {
 	    dict set rq -content $content
 	}
-	set oldaccept [dict get $rq accept]
+	if {[dict exists $rq accept]} {
+	    set oldaccept [dict get $rq accept]
+	}
 	set rq [Convert $rq $to]
-	dict set rq accept $oldaccept
+	if {[info exists oldaccept]} {
+	    dict set rq accept $oldaccept
+	}
 	return $rq
     }
 
