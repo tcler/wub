@@ -34,6 +34,10 @@ namespace eval jQ {
     }
 
     variable defaults {
+	autogrow {
+		maxHeight 100
+		minHeight 3
+	}
 	galleria {
 	    history true
 	    clickNext true
