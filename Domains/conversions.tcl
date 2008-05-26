@@ -23,6 +23,10 @@ namespace eval ::conversions {
 	    append content <html> \n
 	    append content <head> \n
 
+	    if {[dict exists $rsp -title]} {
+		append content [<title> [dict get $rsp -title]] \n
+	    }
+
 	    if {[dict exists $rsp -headers]} {
 		append content [join [dict get $rsp -headers] \n] \n
 	    }
@@ -117,7 +121,11 @@ namespace eval ::conversions {
 
 	    # this is a header line
 	    set val [lassign [split $line :] tag]
-	    dict lappend rsp -headers [<$tag> [string trim [join $val]]]
+	    if {$tag eq "title"} {
+		dict append rsp -title $val
+	    } else {
+		dict lappend rsp -headers [<$tag> [string trim [join $val]]]
+	    }
 	}
 
 	set content "[join [lrange $body $start end] \n]\n"
@@ -348,7 +356,7 @@ namespace eval ::conversions {
 	    set dir $suffix
 	}
 
-	set result "title:${dir} Directory\n"
+	dict append rsp -title "${dir} Directory"
 	append result "<h1>$dir</h1>" \n
 	append result $dirlist \n
 
@@ -451,7 +459,7 @@ namespace eval ::conversions {
 	    set dir $suffix
 	}
 
-	lappend result "title:${dir} Directory" \n \n
+	dict append rsp -title "${dir} Directory"
 	append result [<h1> $dir] \n
 	append result $dirlist \n
 

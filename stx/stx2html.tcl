@@ -201,23 +201,16 @@ namespace eval stx2html {
 	#puts stderr "STX '$what' '$proto' '$body'"
 	Debug.STX {2HTML ref '$proto' '$body'}
 	switch -glob -- $proto {
-	    inc* -
 	    http {
 		set text [string trim [join [lassign [split $body] href]]]
 		set href [string trim $href]
 		if {$text eq ""} {
 		    set text $body
 		}
-		if {[string match inc* $proto]} {
-		    set class {class transclude}
-		} else {
-		    set class ""
-		}
-
 		if {![string match /* $href]} {
-		    set what [<a> href $href {*}$class $text]
+		    set what [<a> href $href $text]
 		} else {
-		    set what [<a> href http:$href {*}$class $text]
+		    set what [<a> href http:$href $text]
 		}
 	    }
 

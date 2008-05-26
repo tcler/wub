@@ -77,6 +77,10 @@ namespace eval View {
 	return [mk::select $view {*}$args]
     }
     proc _select {vpath args} {
+	if {[llength $args] eq 1} {
+	    set args [lindex $args 0]
+	}
+	Debug.view {select $view $args}
 	return [mk::select $vpath {*}$args]
     }
 

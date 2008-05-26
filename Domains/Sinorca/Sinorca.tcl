@@ -132,7 +132,7 @@ namespace eval Sinorca {
 	    append sidebar [dict get $contents $key] \n
 	    dict unset contents $key
 	}
-	if {$sidebar ne ""} {
+	if {[string trim $sidebar] ne ""} {
 	    set sidebar [<sidebar> $sidebar]
 	    set mainclass {class inset}
 	} else {
