@@ -23,7 +23,7 @@ namespace eval jQ {
 
     proc theme {r theme} {
 	variable prefix
-	dict set r -style ${prefix}/themes/$style/$style.all
+	dict set r -style ${prefix}/scripts/trunk/themes/$theme/$theme.all.css {}
 	return $r
     }
 
@@ -101,7 +101,7 @@ namespace eval jQ {
 	dict for {n v} $args {
 	    lappend opts "$n: $v"
 	}
-	return [join $opts ,]
+	return "\{[join $opts ,]\}"
     }
 
     # generate a DOM ready function
@@ -133,16 +133,21 @@ namespace eval jQ {
     proc weave {r scripts args} {
 	set script [lindex $args end]
 	set args [lrange $args 0 end-1]
-
+	if {[dict exists $args loader]} {
+	    set preload [dict get $args loader]
+	} else {
+	    set preload -postload
+	}
 	set script [string map [dict filter $args key %*] $script]
 	if {$script ne ""} {
 	    Debug.jq {WEAVE: $script}
-	    dict append r -content [<script> "\$(document).ready(function()\{\n$script\n\});"]
+	    dict lappend r $preload [<script> "\$(document).ready(function()\{\n$script\n\});"]
 	}
 
 	if {[dict exists $args css]} {
 	    set r [style $r {*}[dict get $args css]]
 	}
+
 	return [scripts $r {*}$scripts]
     }
     
@@ -151,7 +156,7 @@ namespace eval jQ {
 	return [weave $r {
 	    jquery.js jquery.timeentry.js
 	} %SEL $selector %OPTS [opts datepicker $args] {
-	    $('%SEL').timeEntry({%OPTS});
+	    $('%SEL').timeEntry(%OPTS);
 	}]
     }
 
@@ -160,7 +165,7 @@ namespace eval jQ {
 	return [weave $r {
 	    jquery.js jquery.timeentry.js
 	}  css jquery.timeentry.css %SEL $selector %OPTS [opts timeentry $args] {
-	    $('%SEL').timeEntry({%OPTS});
+	    $('%SEL').timeEntry(%OPTS);
 	}]
     }
 
@@ -173,10 +178,37 @@ namespace eval jQ {
     # http://docs.jquery.com/UI/Tabs
     proc tabs {r selector args} {
 	return [weave $r {
-	    jquery.js jquery.dimensions.js ui.tabs.js
-	} %SEL $selector %OPTS [opts tabs $args] {
-	    $('%SEL').tabs({%OPTS});
+	    jquery.js trunk/ui/ui.core.js trunk/ui/ui.tabs.js
+	} loader -preload %SEL $selector %OPTS [opts tabs $args] {
+	    $('%SEL').tabs();
 	}]
+    }
+
+    proc addtab {var name content} {
+	upvar 1 $var page
+	set id FT[llength [Dict get? $page _]]
+	dict set page $id $content
+	dict set page _ $id $name
+    }
+
+    proc gentab {r tabid var args} {
+	upvar 1 $var page
+	set r [tabs $r "#$tabid > ul" {*}$args]
+
+	set index ""
+	dict for {id name} [dict get $page _] {
+	    append index [<li> [<a> href "#$id" [<span> $name]]] \n
+	}
+	dict unset page _
+
+	set tabs ""
+	dict for {id content} $page {
+	    append tabs [<div> id $id \n$content] \n
+	}
+
+	dict append r -content [<div> id $tabid class flora "\n[<ul> \n$index]\n$tabs\n"]
+
+	return $r
     }
 
     # http://docs.jquery.com/UI/Accordian
@@ -184,7 +216,7 @@ namespace eval jQ {
 	return [weave $r {
 	    jquery.js jquery.dimensions.js ui.accordian.js
 	} %SEL $selector %OPTS [opts accordian $args] {
-	    $('%SEL').accordian({%OPTS});
+	    $('%SEL').accordian(%OPTS);
 	}]
     }
 
@@ -194,7 +226,7 @@ namespace eval jQ {
 	    jquery.js jquery.dimensions.js ui.mouse.js
 	    ui.resizeable.js
 	} %SEL $selector %OPTS [opts resizeable $args] {
-	    $('%SEL').resizeable({%OPTS});
+	    $('%SEL').resizeable(%OPTS);
 	}]
     }
 
@@ -204,7 +236,7 @@ namespace eval jQ {
 	    jquery.js jquery.dimensions.js ui.mouse.js
 	    ui.draggable.js ui.draggable.ext.js
 	} %SEL $selector %OPTS [opts draggable $args] {
-	    $('%SEL').draggable({%OPTS});
+	    $('%SEL').draggable(%OPTS);
 	}]
     }
 
@@ -215,7 +247,7 @@ namespace eval jQ {
 	    ui.draggable.js ui.draggable.ext.js
 	    ui.droppable.js ui.droppable.ext.js
 	} %SEL $selector %OPTS [opts droppable $args] {
-	    $('%SEL').droppable({%OPTS});
+	    $('%SEL').droppable(%OPTS);
 	}]
     }
 
@@ -226,7 +258,7 @@ namespace eval jQ {
 	    ui.draggable.js ui.draggable.ext.js
 	    ui.droppable.js ui.droppable.js ui.sortable.js
 	} %SEL $selector %OPTS [opts sortable $args] {
-	    $('%SEL').sortable({%OPTS});
+	    $('%SEL').sortable(%OPTS);
 	}]
     }
 
@@ -238,7 +270,7 @@ namespace eval jQ {
 	    ui.droppabe.js ui.droppable.js
 	    ui.selectable.js
 	} %SEL $selector %OPTS [opts selectable $args] {
-	    $('%SEL').selectable({%OPTS});
+	    $('%SEL').selectable(%OPTS);
 	}]
     }
 
@@ -246,7 +278,7 @@ namespace eval jQ {
     proc autogrow {r selector args} {
 	return [weave $r {jquery.js jquery.autogrow.js
 	} %SEL $selector %OPTS [opts autogrow $args] {
-	    $('%SEL').autogrow({%OPTS});
+	    $('%SEL').autogrow(%OPTS);
 	}]
     }
 
@@ -256,7 +288,7 @@ namespace eval jQ {
 	    jquery.js jquery.dimensions.js
 	    jquery.tooltip.js
 	} %SEL $selector %OPTS [opts tooltip $args] {
-	    $('%SEL').Tooltip({%OPTS});
+	    $('%SEL').Tooltip(%OPTS);
 	}]
     }
 
@@ -265,7 +297,7 @@ namespace eval jQ {
 	return [weave $r {
 	    jquery.js jquery.hoverimagetext.js
 	} %SEL $selector %OPTS [opts hoverimage $args] {
-	    $('%SEL').HoverImageText({%OPTS});
+	    $('%SEL').HoverImageText(%OPTS);
 	}]
     }
 
@@ -273,7 +305,7 @@ namespace eval jQ {
 	return [weave $r {
 	    jquery.js jquery.galleria.js
 	} %SEL $selector %OPTS [opts galleria $args] {
-	    $('ul.%SEL').galleria({%OPTS})
+	    $('ul.%SEL').galleria(%OPTS)
 	}]
     }
 
@@ -282,7 +314,7 @@ namespace eval jQ {
 	return [weave $r {
 	    jquery.js jquery.galview.js
 	} %SEL $selector %OPTS [opts gallery $args] {
-	    $('%SEL').jqGalView({%OPTS});
+	    $('%SEL').jqGalView(%OPTS);
 	}]
     }
 
@@ -290,20 +322,20 @@ namespace eval jQ {
 	return [weave $r {
 	    jquery.js jquery.accordian.js
 	} %SEL $selector %OPTS [opts aaccordian $args] {
-	    $('%SEL').Accordian({%OPTS});
+	    $('%SEL').Accordian(%OPTS);
 	}]
     }
 
     proc editable {r selector fn} {
 	return [weave $r {
 	    jquery.js jquery.editable.js
-	} %SEL $selector %FN fn {$('%SEL').editable(%FN);}]
+	} %SEL $selector %FN $fn {$('%SEL').editable(%FN);}]
     }
 
     proc form  {r selector {fn ""}} {
 	return [weave $r {
 	    jquery.js jquery.form.js
-	} %SEL $selector %FN fn {$('%SEL').ajaxForm(%FN);}]
+	} %SEL $selector %FN $fn {$('%SEL').ajaxForm(%FN);}]
     }
     
     # http://bassistance.de/jquery-plugins/jquery-plugin-validation/
@@ -313,7 +345,7 @@ namespace eval jQ {
 	    jquery.maskedinput.js jquery.metadata.js
 	    jquery.validate.js jquery.validate-ext.js
 	} %SEL $selector %OPTS [opts validate $args] {
-	    $('%SEL').validate({%OPTS});
+	    $('%SEL').validate(%OPTS);
 	}]
     }
 
@@ -321,7 +353,7 @@ namespace eval jQ {
 	return [weave $r {
 	    jquery.js jquery.autofill.js
 	} %SEL $selector %OPTS [opts autofill $args] {
-	    $('%SEL').autofill({%OPTS});
+	    $('%SEL').autofill(%OPTS);
 	}]
     }
 
@@ -329,7 +361,7 @@ namespace eval jQ {
 	return [weave $r {
 	    jquery.js jquery.confirm.js
 	} %SEL $selector %OPTS [opts confirm $args] {
-	    $('%SEL').confirm({%OPTS});
+	    $('%SEL').confirm(%OPTS);
 	}]
     }
 
@@ -337,7 +369,7 @@ namespace eval jQ {
 	return [weave $r {
 	    jquery.js jquery.ingrid.js
 	} css ingrid.css %SEL $selector %OPTS [opts ingrid $args] {
-	    $('%SEL').ingrid({%OPTS});
+	    $('%SEL').ingrid(%OPTS);
 	}]
     }
 

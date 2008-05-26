@@ -1,4 +1,6 @@
 package require fileutil
+package require Debug
+Debug off sinorca 10
 package require Html
 package require RAM
 package require Form
@@ -120,7 +122,7 @@ namespace eval Sinorca {
 
     proc .style/sinorca.x-text/html-fragment {rsp} {
 	set contents [dict get $rsp -content]
-	#puts stderr "SINORCA: [dict keys $contents]"
+	Debug.sinorca {[dict keys $contents]}
 
 	foreach var {globlinks global header sitelinks breadcrumbs sidebar content copyright footlinks footer navbox} {
 	    set $var {}
@@ -128,7 +130,13 @@ namespace eval Sinorca {
 
 	foreach key [lsort -dictionary [dict keys $contents "side*"]] {
 	    append sidebar [dict get $contents $key] \n
-	    dict unset contents key
+	    dict unset contents $key
+	}
+	if {$sidebar ne ""} {
+	    set sidebar [<sidebar> $sidebar]
+	    set mainclass {class inset}
+	} else {
+	    set mainclass {}
 	}
 
 	variable path
@@ -146,8 +154,8 @@ namespace eval Sinorca {
 			    [<global> "[Html links | $globlinks]\n$global"]
 			    [<site> [Html links | $sitelinks]]
 			}]]
-			[<sidebar> $sidebar]
-			[<content> navbox $navbox breadcrumbs $breadcrumbs $content]
+			$sidebar
+			[<content> {*}$mainclass navbox $navbox breadcrumbs $breadcrumbs $content]
 			[<footer> copyright $copyright links $footlinks $footer]
 		    }]]
     }
