@@ -130,7 +130,7 @@ namespace eval jQ {
     }
 
     # http://johannburkard.de/blog/programming/javascript/inc-a-super-tiny-client-side-include-javascript-jquery-plugin.html
-    proc inc {r selector args} {
+    proc inc {r} {
 	return [scripts $r jquery.js jquery.inc.js]
     }
 
