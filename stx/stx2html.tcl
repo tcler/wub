@@ -198,7 +198,7 @@ namespace eval stx2html {
     proc ref {what} {
 	set body [string trim [join [lassign [split $what :] proto] :]]
 	set proto [string trim $proto]
-	puts stderr "STX '$what' '$proto' '$body'"
+	#puts stderr "STX '$what' '$proto' '$body'"
 	Debug.STX {2HTML ref '$proto' '$body'}
 	switch -glob -- $proto {
 	    inc* -
