@@ -443,8 +443,12 @@ namespace eval Http {
 	    catch {append content [<p> "Caller: [armour [info level -1]]"]}
 	    set message [armour $message]
 	    catch {dict unset rsp expires}
-	    
-	    set rsp [sysPage $rsp "Server Error: $message" [subst {
+	    if {[string length $message] > 80} {
+		set tmessage [string range $message 0 80]...
+	    } else {
+		set tmessage $message
+	    }
+	    set rsp [sysPage $rsp "Server Error: $tmessage" [subst {
 		[<p> [tclarmour $message]]
 		<hr>
 		[tclarmour $content]
