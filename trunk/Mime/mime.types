@@ -47,7 +47,7 @@ application/remote-printing
 application/rtf                rtf             
 application/slate                              
 application/x-mif      mif
-application/x-javascript	js
+text/javascript	js
 application/wita                               
 application/wordperfect5.1
 application/x-cgi		cgi

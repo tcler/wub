@@ -62,7 +62,7 @@ proc magic::open {file} {
     }
 
     set fd [::open $file]
-    fconfigure $fd -translation binary
+    fconfigure $fd -translation binary -encoding binary
 
     # fill the string cache
     # the vast majority of magic strings are in the first 4k of the file.
