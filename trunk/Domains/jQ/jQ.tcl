@@ -186,7 +186,7 @@ namespace eval jQ {
 
     proc addtab {var name content} {
 	upvar 1 $var page
-	set id FT[llength [Dict get? $page _]]
+	set id "FT[llength [Dict get? $page _]]"
 	dict set page $id $content
 	dict set page _ $id $name
     }
