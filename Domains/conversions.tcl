@@ -24,7 +24,7 @@ namespace eval ::conversions {
 	    append content <head> \n
 
 	    if {[dict exists $rsp -title]} {
-		append content [<title> [dict get $rsp -title]] \n
+		append content [<title> [armour [dict get $rsp -title]]] \n
 	    }
 
 	    if {[dict exists $rsp -headers]} {
