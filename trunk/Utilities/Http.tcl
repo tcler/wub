@@ -424,7 +424,7 @@ namespace eval Http {
     # sysPage - generate a system page
     proc sysPage {rsp title content} {
 	dict set rsp content-type "x-text/system"
-	set rsp [title $title]
+	set rsp [title $rsp $title]
 	dict set rsp -content "<h1>$title</h1>\n$content"
 	return $rsp
     }
