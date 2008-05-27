@@ -79,12 +79,12 @@ h6 {
    padding:         0;
 }
 
-h1 { font-size:     125% }
-h2 { font-size:     105% }
-h3 { font-size:     100% }
-h4 { font-size:     80% }
-h5 { font-size:     72%  }
-h6 { font-size:     65%  }
+h1 { font-size:     150% }
+h2 { font-size:     125% }
+h3 { font-size:     105% }
+h4 { font-size:     100% }
+h5 { font-size:     80% }
+h7 { font-size:     72%  }
 
 
 /* Anchors */
@@ -839,7 +839,7 @@ table.formtable fieldset th {
 
 #footer {
    font-size:       90%;
-   text-align:      left;
+   text-align:      center;
    color:           %FOOTER_FG;
    background:      %FOOTER_BG;
    margin:          0;
