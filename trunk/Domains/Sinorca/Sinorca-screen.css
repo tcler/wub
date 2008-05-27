@@ -511,6 +511,18 @@ table.formtable fieldset th {
    margin:          0 0 0em 0;
 }
 
+#main h2 {			/* Should be used once, following navhead */
+   color:           %H1;
+   background:      transparent;
+   margin:          0 0 0em 0;
+}
+
+#main h3 {			/* Should be used once, following navhead */
+   color:           %H1;
+   background:      transparent;
+   margin:          0 0 0em 0;
+}
+
 #main .highlight {		/* Highlight box (for warnings, etc) */
    color:           inherit;
    background:      %HIGHLIGHT_BG;
