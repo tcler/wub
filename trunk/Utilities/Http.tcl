@@ -413,10 +413,19 @@ namespace eval Http {
 	return [OkResponse $rsp 206 PartialContent $content $ctype]
     }
 
+    proc title {r title} {
+	if {[string length $title] > 80} {
+	    set title [string range $title 0 80]...
+	}
+	dict set r -title $title
+	return $r
+    }
+
     # sysPage - generate a system page
     proc sysPage {rsp title content} {
 	dict set rsp content-type "x-text/system"
-	dict set rsp -content "title:${title}\n\n<h1>$title</h1>\n$content"
+	set rsp [title $title]
+	dict set rsp -content "<h1>$title</h1>\n$content"
 	return $rsp
     }
 
@@ -613,7 +622,13 @@ namespace eval Http {
 
 	if {$content eq ""} {
 	    dict set rsp content-type "text/html"
-	    dict set rsp -content "<html>\n<head>\n<title>$title</title>\n</head>\n<body>\n<h1>$title</h1>\n<p>The page may be found here: <a href='[armour $to]'>[armour $to]</a></p>\n</body>\n</html>\n"
+	    dict set rsp -content [<html> {
+		[<head> {[<title> $title]}]
+		[<body> {
+		    [<h1> $title]
+		    [<p> "The page may be found here: <a href='[armour $to]'>[armour $to]"]
+		}]
+	    }]
 	} else {
 	    dict set rsp content-type $ctype
 	    dict set rsp -content $content
