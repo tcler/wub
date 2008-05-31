@@ -105,7 +105,11 @@ namespace eval jQ {
 	dict for {n v} $args {
 	    lappend opts "$n: $v"
 	}
-	return "\{[join $opts ,]\}"
+	if {$opts eq ""} {
+	    return ""
+	} else {
+	    return "\{[join $opts ,]\}"
+	}
     }
 
     # generate a DOM ready function
@@ -170,6 +174,24 @@ namespace eval jQ {
 	    jquery.js jquery.timeentry.js
 	}  css jquery.timeentry.css %SEL $selector %OPTS [opts timeentry $args] {
 	    $('%SEL').timeEntry(%OPTS);
+	}]
+    }
+
+    # http://remysharp.com/2007/01/25/jquery-tutorial-text-box-hints/
+    proc hint {r {selector input[title!=""]} args} {
+	return [weave $r {
+	    jquery.js jquery.hint.js
+	}  %SEL $selector %OPTS [opts hint $args] {
+	    $('%SEL').hint(%OPTS);
+	}]
+    }
+
+    # http://tablesorter.com/addons/pager/jquery.tablesorter.pager.js
+    proc tablesorter {r selector args} {
+	return [weave $r {
+	    jquery.js jquery.tablesorter.js
+	}  %SEL $selector %OPTS [opts tablesorter $args] {
+	    $('%SEL').tablesorter(%OPTS);
 	}]
     }
 
@@ -258,9 +280,7 @@ namespace eval jQ {
     # http://docs.jquery.com/UI/Sortables
     proc sortable {r selector args} {
 	return [weave $r {
-	    jquery.js jquery.dimensions.js ui.mouse.js
-	    ui.draggable.js ui.draggable.ext.js
-	    ui.droppable.js ui.droppable.js ui.sortable.js
+	    jquery.js trunk/ui/ui.core.js trunk/ui/ui.sortable.js
 	} %SEL $selector %OPTS [opts sortable $args] {
 	    $('%SEL').sortable(%OPTS);
 	}]
