@@ -23,36 +23,36 @@ namespace eval Direct {
     # called as "do $request" causes procs defined within 
     # the specified namespace to be invoked, with the request as an argument,
     # expecting a response result.
-    proc _do {ns ctype prefix wildcard response} {
+    proc _do {ns ctype prefix wildcard rsp} {
 	Debug.direct {do direct $ns $prefix $ctype}
 
 	# get query dict
-	set qd [Query parse $response]
-	dict set response -Query $qd
+	set qd [Query parse $rsp]
+	dict set rsp -Query $qd
 	Debug.direct {Query: [Query dump $qd]}
 
-	if {[dict exists $response -suffix]} {
+	if {[dict exists $rsp -suffix]} {
 	    # caller has munged path already
-	    set suffix [dict get $response -suffix]
+	    set suffix [dict get $rsp -suffix]
 	    Debug.direct {-suffix given $suffix}
 	} else {
 	    # assume we've been parsed by package Url
 	    # remove the specified prefix from path, giving suffix
-	    set path [file rootname [dict get $response -path]]
+	    set path [file rootname [dict get $rsp -path]]
 	    set suffix [Url pstrip $prefix $path]
 	    Debug.direct {-suffix not given - calculated '$suffix' from '$prefix' and '$path'}
 	    if {($suffix ne "/") && [string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
-		return [Http NotFound $response]
+		return [Http NotFound $rsp]
 	    }
 	}
 
 	# record the suffix's extension
-	dict set response -extension [file extension $suffix]
+	dict set rsp -extension [file extension $suffix]
 
 	# remove suffix's extension and trim /s
 	set fn [string trim [file rootname $suffix] /]
-	dict set response -suffix $fn
+	dict set rsp -suffix $fn
 
 	set cmd ${ns}::/[armour $fn]
 	if {[info procs $cmd] eq {}} {
@@ -61,7 +61,7 @@ namespace eval Direct {
 	    set cmd ${ns}::/$wildcard
 	    if {[info procs $cmd] eq {}} {
 		Debug.direct {default not found looking for $cmd in ([info procs ${ns}::/*])}
-		return [Http NotFound $response]
+		return [Http NotFound $rsp]
 	    }
 	}
 
@@ -105,16 +105,21 @@ namespace eval Direct {
 	}
 
 	# TODO: armour commands
-	dict set response content-type $ctype
-	#dict set response cache-control no-cache	;# default - not cacheable
-	dict set response -dynamic 1
+	dict set rsp content-type $ctype
+	#dict set rsp cache-control no-cache	;# default - not cacheable
+	dict set rsp -dynamic 1
 
-	catch {dict unset response -content}
+	catch {dict unset rsp -content}
 	Debug.direct {calling $cmd [string range $argl 0 80]... [dict keys $argll]} 2
-	set response [dict merge $response [$cmd $response {*}$argl {*}$argll]]
-
-	#Debug.direct {Content: '[dict get $response -content]'} 2
-	return $response
+	if {[catch {
+	    dict merge $rsp [$cmd $rsp {*}$argl {*}$argll]
+	} result eo]} {
+	    Debug.direct {error: $result ($eo)}
+	    return [Http ServerError $rsp $result $eo]
+	} else {
+	    Debug.direct {Content: [dict get $result -code] '[string range [dict get $result -content] 0 80]...'} 2
+	    return $result
+	}
     }
 
     # init cmd {namespace ns} {ctype default-mime-type} {prefix prefix-of-domain}
