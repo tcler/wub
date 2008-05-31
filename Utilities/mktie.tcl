@@ -13,7 +13,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 }
 
 package require View
-package provide mkdict_tie 2.0
+package provide mktie 2.0
 
 # ### ### ### ######### ######### #########
 ## Implementation
