@@ -206,6 +206,8 @@ namespace eval Httpd {
 		# TODO - this may not be desired behavior.  ReThink
 		# just because an ip connection is local doesn't mean it's
 		# unlimited, does it?
+		# OTOH, it may just be from a local cache, and the original
+		# ip address may come from a higher level protocol.
 	    }
 	}
 
