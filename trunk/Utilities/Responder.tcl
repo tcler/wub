@@ -1,4 +1,6 @@
 package require struct::queue
+package require Debug
+Debug off responder 10
 package provide Responder 1.0
 
 namespace eval Responder {
@@ -18,7 +20,7 @@ namespace eval Responder {
 		if {![dict exists $req -code]} {
 		    dict set req -code $code
 		}
-		Debug.wikit {Response code: $code / [dict get $req -code]}
+		Debug.responder {Response code: $code / [dict get $req -code]}
 		return $req
 	    }
 	}
@@ -68,7 +70,7 @@ namespace eval Responder {
 	    while {!$working && ![catch {inQ get} req eo]} {
 		set working 1
 		catch {uplevel 1 [list switch {*}$args]} r eo
-		Debug.socket {Dispatcher: $eo}
+		Debug.responder {Dispatcher: $eo}
 		switch [dict get $eo -code] {
 		    0 -
 		    2 { # ok - return
@@ -94,18 +96,27 @@ namespace eval Responder {
 		    }
 		}
 		
-		if {[catch {post $rsp} r eo]} { ;# postprocess response
+		if {[catch {
+		    post $rsp
+		} r eo]} { ;# postprocess response
+		    Debug.responder {POST ERROR: $rsp} 1
 		    set rsp [Http ServerError $rsp $r $eo]
 		} else {
 		    set rsp $r
 		}
-
-		#puts stderr "RESPONSE: $rsp"
-		Send $rsp 		;# send response
+		
+		Debug.responder {RESPONSE: $rsp} 6
+		if {[catch {
+		    Send $rsp 		;# send response
+		} r eo]} {
+		    Debug.responder {SEND ERROR: $rsp} 1
+		} else {
+		    Debug.responder {Sent}
+		}
 		set working 0	;# go idle
 	    }
 	} err eo]} {
-	    Debug.socket {Incoming: $err $eo}
+	    Debug.responder {Incoming: $err $eo}
 	}
     }
 
