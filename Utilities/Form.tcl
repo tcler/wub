@@ -193,7 +193,7 @@ namespace eval Form {
 
 	if {[dict exists $config label]} {
 	    set label [dict get $config label]
-	    return "[<label> for $id $label] $result"
+	    return [<label> for $id "$label $result"]
 	} elseif {[dict exists $config legend]} {
 	    set legend [dict get $config legend]
 
@@ -282,7 +282,7 @@ namespace eval Form {
 
 	if {[dict exists $config label]} {
 	    set label [dict get $config label]
-	    return "[<label> for $id $label] $result"
+	    return [<label> for $id "$label $result"]
 	} elseif {[dict exists $config legend]} {
 	    set legend [dict get $config legend]
 
@@ -295,8 +295,8 @@ namespace eval Form {
 		}
 	    }
 
-	    return [<fieldset> "" {*}$title {
-		[<legend> $legend]
+	    return [<fieldset> "" {*}[dict get $sattr fieldset] {*}$title {
+		[<legend> {*}[dict get $sattr legend] $legend]
 		$result
 	    }]
 	} else {
@@ -368,7 +368,7 @@ namespace eval Form {
 		
 		variable @AA
 		variable Fdefaults
-		set config [dict merge [Dict get? $Fdefaults @T] $args [list name $name type @T @F [uplevel 1 [list subst $value]]]]
+		set config [dict merge [Dict get? $Fdefaults @T] $args [list name $name type @T @F [armour [uplevel 1 [list subst $value]]]]]
 
 		if {0 && ![dict exists $config tabindex]} {
 		    variable tabindex
@@ -384,14 +384,23 @@ namespace eval Form {
 		    set id [dict get $config id]
 		}
 
+		# get sub-attributes of form "{subel attr} value"
+		set sattr {label {} legend {}}
+		dict for {k v} $config {
+		    set k [split $k]
+		    if {[llength $k] > 1} {
+			dict set sattr [lindex $k 0] [lindex $k 1] $v
+		    }
+		}
+
 		set result "<[attr input [Dict subset $config $@AA]]>"
 
 		if {[dict exists $config label]} {
 		    set label [dict get $config label]
-		    return "[<label> for $id $label] $result"
+		    return [<label> for $id {*}[dict get $sattr label] "$label $result"]
 		} elseif {[dict exists $config legend]} {
 		    set legend [dict get $config legend]
-		    return "[<span> class ilegend $legend]$result"
+		    return "[<span> {*}[dict get $sattr legend] $legend]$result"
 		} else {
 		    return $result
 		}
@@ -454,8 +463,8 @@ namespace eval Form {
 			}
 		    }
 
-		    return [<fieldset> "" {
-			[<legend> $legend]
+		    return [<fieldset> "" {*}[dict get $sattr fieldset] {
+			[<legend> {*}[dict get $sattr legend] $legend]
 			[join $result $joiner]
 		    }]
 		} else {
@@ -496,12 +505,14 @@ namespace eval Form {
 		    set id [dict get $config id]
 		}
 		set result "<[attr input [Dict subset $config $boxA]]>$content"
-		if {[dict exists $config label]} {
+		if {[dict exists $config label]
+		    && [dict get $config label] ne ""
+		} {
 		    set label [dict get $config label]
 		    if {[dict exists $config title]} {
-			return "[<label> for $id title [dict get $config title] $label] $result"
+			return [<label> for $id title [dict get $config title] "$label $result"]
 		    } else {
-			return "[<label> for $id $label] $result"
+			return [<label> for $id "$label $result"]
 		    }
 		} else {
 		    return $result
