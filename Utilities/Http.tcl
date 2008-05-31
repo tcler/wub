@@ -362,6 +362,11 @@ namespace eval Http {
 	return [OkResponse $rsp 200 Ok $content $ctype]
     }
 
+    # construct an HTTP passthrough response
+    proc Pass {rsp {content ""} {ctype ""}} {
+	return [OkResponse $rsp [dict get $rsp -code] Ok $content $ctype]
+    }
+
     # construct an HTTP Created response
     proc Created {rsp location} {
 	dict set rsp -code 201
@@ -534,7 +539,7 @@ namespace eval Http {
     }
 
     # construct an HTTP Forbidden response
-    proc Forbidden {rsp {content ""} {ctype "text/x-html-fragment"}} {
+    proc Forbidden {rsp {content ""} {ctype "x-text/html-fragment"}} {
 	if {$content ne ""} {
 	    dict set rsp content-type $ctype
 	    dict set rsp -content $content
@@ -548,7 +553,7 @@ namespace eval Http {
     }
 
     # construct an HTTP Unauthorized response
-    proc Unauthorized {rsp challenge {content ""} {ctype "text/x-html-fragment"}} {
+    proc Unauthorized {rsp challenge {content ""} {ctype "x-text/html-fragment"}} {
 	dict lappend rsp -auth $challenge
 	if {$content ne ""} {
 	    dict set rsp content-type $ctype
