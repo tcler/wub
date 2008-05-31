@@ -153,7 +153,7 @@ namespace eval Session {
 	    }
 	}
 
-	Debug.session {fetch -session ([dict get $req -session]) --session ([dict get $req --session])} 10
+	Debug.session {fetch -session ([dict get $req -session])} 10
 	return $req
     }
 
