@@ -756,12 +756,14 @@ namespace eval HttpdWorker {
 
 	# trust x-forwarded-for if we get a forwarded request from a local ip
 	# (presumably local ip forwarders are trustworthy)
-	if {[Http nonRouting? [dict get $request -ipaddr]]
-	    && [dict exists $request x-forwarded-for]
-	} {
-	    set xff [string trim [lindex [split [dict get $request x-forwarded-for] ,] 0]]
-	    if {$xff ne "unknown" && ![Http nonRouting? $xff]} {
-		dict set request -ipaddr $xff
+	if {[Http nonRouting? [dict get $request -ipaddr]]} {
+	    if {[dict exists $request x-varnish-for]} {
+		dict set request -ipaddr [string trim [dict get $request x-varnish-for]]
+	    } elseif {[dict exists $request x-forwarded-for]} {
+		set xff [string trim [lindex [split [dict get $request x-forwarded-for] ,] 0]]
+		if {$xff ne "unknown" && ![Http nonRouting? $xff]} {
+		    dict set request -ipaddr $xff
+		}
 	    }
 	}
 

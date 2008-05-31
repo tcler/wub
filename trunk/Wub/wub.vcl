@@ -29,6 +29,10 @@ sub vcl_recv {
 #	error 405 "Roy Keene"
 #    }
 
+    # Add a unique header containing the client address
+    remove req.http.X-Varnish-For;
+    set req.http.X-Varnish-For = client.ip;
+
     if (req.request != "GET" && req.request != "HEAD") {
 	# PURGE request if zope asks nicely
 	if (req.request == "PURGE") {
@@ -65,7 +69,6 @@ sub vcl_recv {
 #	}
 #	lookup;
 #}
-
 
 # Do the PURGE thing
 sub vcl_hit {
