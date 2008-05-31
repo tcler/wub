@@ -58,6 +58,7 @@ body {
   background:      transparent;
 }
 .fade {color:#c8c8c8;}
+.blur {font-weight: italic; color:#c8c8c8;}
 
 /* Headings */
 
@@ -364,18 +365,18 @@ table.simple th.lighter {
    background:      %LIGHTER;
 }
 
-table.simple td.left,
-table.simple th.left {
+table td.left,
+table th.left {
    text-align:      left;
 }
 
-table.simple td.center,
-table.simple th.center {
+table td.center,
+table th.center {
    text-align:      center;
 }
 
-table.simple td.right,
-table.simple th.right {
+table td.right,
+table th.right {
    text-align:      right;
 }
 
@@ -872,3 +873,236 @@ table.formtable fieldset th {
 }
 
 /* End of the Sinorcaish style sheet */
+
+/* tables */
+table {
+	font-family:arial;
+	background-color: #CDCDCD;
+	margin:10px 0pt 15px;
+	font-size: 8pt;
+	width: auto;
+	text-align: left;
+}
+table thead tr th, table tfoot tr th {
+	background-color: #e6EEEE;
+	border: 1px solid #FFF;
+	font-size: 8pt;
+	padding: 4px;
+}
+table tbody td {
+	color: #3D3D3D;
+	padding: 4px;
+	background-color: #FFF;
+	vertical-align: top;
+}
+table tbody tr.odd td {
+	background-color:#F0F0F6;
+}
+
+/** *************************************************************************
+ * Base form styles
+ */
+
+/* Zero out padding and margin, adjust where needed later */
+form, fieldset, label, input, .checkbox, textarea, select, option, form div {
+	margin: 0;
+	padding: 0;
+}
+fieldset {
+	margin: 1em 0;
+	padding: 1em;
+	border: 1px solid #999;
+}
+legend {
+	font-weight: bold;
+	margin: 0 2% .5em 0;
+	padding: .2em .5em;
+}
+input.text, textarea, select { 
+	border: 1px solid #666; 
+	border-right: 1px solid #ccc; 
+	border-bottom: 1px solid #ccc;
+}
+option {
+	float: none;
+	clear: both;
+	margin-right: 2em;
+}
+input.radio, input.checkbox { 
+	margin-right: .5em;
+}
+/* Create a bit of padding for text inputs and selects */
+input.text, input.button, textarea, select {
+	padding: .2em;
+}
+input.button { 
+	margin-right: 1em;
+	padding: .2em .6em;
+}
+.readonly {	
+	color: #999;
+	background: #e7e7e7;
+}
+/* standard widths */
+.w12 { width: 12% }
+.w25 { width: 25% }
+.w37 { width: 37% }
+.w50 { width: 50% }
+.w62 { width: 62% }
+.w75 { width: 75% }
+.w87 { width: 87% }
+.wauto { width: auto; }
+
+
+/** *************************************************************************
+ * Provide proper vertical alignment for expanded and compact forms
+ */
+
+.expandedform .row div, 
+.compactform div div label {
+	padding-top: .5em;
+}
+
+
+/** *************************************************************************
+ * Expanded form layout styles
+ */
+
+.expandedform { overflow: hidden; } 
+.expandedform .row {
+	padding: .3em 0;
+	white-space: nowrap;
+	overflow: hidden;
+	clear: both;
+}
+.expandedform label, 
+.expandedform .row p, 
+.expandedform .row div, 
+.expandedform input, 
+.expandedform select, 
+.expandedform textarea {
+	float: left;
+}
+/* change column widths for labels and inputs */
+.expandedform .text { width: 80%; }
+.expandedform label, .expandedform .row p {
+	width: 15%; 
+	margin: .5em 1em .5em 0;
+	text-align: right;
+	white-space: normal;
+	overflow: hidden;
+}
+.expandedform .row div {
+	white-space: nowrap;
+	overflow: hidden;
+	clear: none;
+}
+/* labels and form inputs inside of divs should not float */
+.expandedform .row div * {
+	float: none;
+	clear: none;
+}
+.expanded input.checkbox, 
+.expanded input.radio, 
+.expanded select { 
+	margin-top: 1.5em;
+}
+.expandedform div div input { 
+	margin-right: 0;
+}
+
+
+/** *************************************************************************
+ * Compact form layout styles
+ */
+
+.compactform { overflow: hidden; } 
+.compactform div, 
+.compactform label, 
+.compactform input, 
+.compactform select, 
+.compactform textarea {
+	float: left;
+}
+.compactform input.text, 
+.compactform select, 
+.compactform textarea {
+	/* set width: auto to allow form element content 
+	to set width otherwise 90% is a good setting */
+	width: 90%; /* determines space between form elements */
+}
+
+/* Increase width of elements in twoper 
+   columns to provide better alignment */
+.compactform .twoper input.text, 
+.compactform .twoper select, 
+.compactform .twoper textarea {
+	width: 95%;
+}
+
+.compactform div {
+	width: 99%;
+	margin-bottom: 1em; /* space between rows */
+	clear: both;
+}
+
+/* Nested divs shouldn't clear floated elements */
+/* keeps nested divs from compounding margin value */
+.compactform div div {
+	margin-bottom: 0; 
+	clear: none;
+}
+/* Nested div label contents should determine their own width */
+.compactform div div label {
+	width: auto;
+	white-space: normal;
+	/* unccomment to stack form inputs inside a row */
+	/* clear: left; */
+	margin-right: 1em;
+}
+/* Fix paragraph white space in Safari */
+.compactform div div p {
+	margin: 0;
+	padding: 0;
+}
+
+/* Compact layout - Set item width within rows */
+.oneper label, .oneper div     { width: 99%; } /* can't be 100%, IE bug */
+.twoper label, .twoper div     { width: 46%; }
+.threeper label, .threeper div { width: 32%; }
+.fourper label, .fourper div   { width: 23%; }
+.fiveper label, .fiveper div   { width: 19%; }
+.sixper label, .sixper div     { width: 15%; }
+.sevenper label, .sevenper div { width: 13%; }
+.eightper label, .eightper div { width: 11%; }
+.nineper label, .nineper div   { width: 10%; }
+.tenper label, .tenper div     { width: 8.7%; }
+
+.oneper label, .oneper div, 
+.twoper label, .twoper div, 
+.threeper label, .threeper div, 
+.fourper label, .fourper div, 
+.fiveper label, .fiveper div, 
+.sixper label, .sixper div, 
+.sevenper label, .sevenper div, 
+.eightper label, .eightper div, 
+.nineper label, .nineper div, 
+.tenper label, .tenper div {
+	white-space: nowrap;
+	overflow: hidden;
+	border: none;
+	border-collapse: collapse;
+}
+
+/** ************************************************************************* 
+ * Browser hacks
+ */
+
+/* Keep containers holding only floated elements from collapsing in Safari */
+.clearfix:after {
+	content: ".";
+	display: block;
+	height: 0;
+	clear: both;
+	visibility: hidden;
+}
