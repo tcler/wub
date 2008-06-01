@@ -69,7 +69,7 @@ namespace eval Httpd {
 	    return
 	}
 
-	Activity activity $cid parsed [Dict get? $request -ipaddr] [Dict get? $request -url]
+	Activity activity $cid parsed ipaddr [Dict get? $request -ipaddr] url [Dict get? $request -url]
 
 	variable rqCallOut
 	if {[llength $rqCallOut] != 0} {
