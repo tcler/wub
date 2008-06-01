@@ -23,7 +23,23 @@ namespace eval Url {
 	}
 
 	set prefix [file split $prefix]
+	if {[lindex $prefix 0] eq "/"} {
+	    set prefix [lrange $prefix 1 end]
+	}
 	set npath [file split $path]
+	if {[lindex $npath 0] eq "/"} {
+	    set npath [lrange $npath 1 end]
+	}
+
+	# strip non-matching prolog
+	while {$npath ne ""
+	       &&
+	       ![string match ${prefix}* $npath]
+	   } {
+	    set npath [lrange $npath 1 end]
+	}
+
+	# now check if there's a match
 	if {[string match ${prefix}* $npath]} {
 	    # preserve dir suffix
 	    if {[string match */ $path]} {
@@ -32,6 +48,7 @@ namespace eval Url {
 		return [file join {*}[lrange $npath [llength $prefix] end] {}]
 	    }
 	} else {
+	    # the prefix doesn't match ... try stripping some leading prefix
 	    return /$path
 	}
     }
