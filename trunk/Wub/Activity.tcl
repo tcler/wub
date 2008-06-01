@@ -17,7 +17,7 @@ namespace eval Activity {
 	    catch {dict unset args -entity}
 	    dict lappend activity $cid $what [list -when [clock microseconds] {*}$args]
 	} r eo
-	#puts stderr "ACT: $cid $what ($args) ($activity)"
+	#puts stderr "ACT: $cid $what ($args)"
     }
 
     proc disconnect {cid args} {
