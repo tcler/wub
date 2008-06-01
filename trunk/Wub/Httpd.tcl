@@ -69,7 +69,7 @@ namespace eval Httpd {
 	    return
 	}
 
-	Activity activity $cid parsed ipaddr [Dict get? $request -ipaddr] url [Dict get? $request -url]
+	Activity activity parsed $cid $request
 
 	variable rqCallOut
 	if {[llength $rqCallOut] != 0} {
@@ -86,6 +86,7 @@ namespace eval Httpd {
 	    dict set cached -transaction [dict get $request -transaction]
 	    dict set cached -generation [dict get $request -generation]
 	    dict set cached -cid [dict get $request -cid]
+	    Activity activity cached $cid $request
 
 	    # send the reply
 	    send $cached 0
@@ -98,6 +99,7 @@ namespace eval Httpd {
 	    {*}[subst [dict get $request -dispatch]] Incoming $request
 	} else {
 	    # just send the reply as we have it
+	    Activity activity replied $cid $request
 	    send $request
 	}
     }
@@ -257,7 +259,7 @@ namespace eval Httpd {
 
 	# log new connection
 	Activity new $cid
-	Activity activity $cid connected {*}$connection($cid)
+	Activity activity connected $cid {*}$args
     }
 
     # a worker thread has completely processed input, or has hit a socket error
