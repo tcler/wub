@@ -747,12 +747,7 @@ namespace eval HttpdWorker {
 
 	# trust x-forwarded-for if we get a forwarded request from a local ip
 	# (presumably local ip forwarders are trustworthy)
-	if {[dict exists $request x-varnish-for]} {
-	    set xff [string trim [dict get $request x-varnish-for]]
-	    set forwards [lindex [split $xff :] 0]
-	} else {
-	    set forwards {}
-	}
+	set forwards {}
 	if {[dict exists $request x-forwarded-for]} {
 	    foreach xff [split [Dict get? $request x-forwarded-for] ,] {
 		set xff [string trim $xff]
@@ -765,7 +760,7 @@ namespace eval HttpdWorker {
 	    }
 	}
 	dict set request -forwards $forwards
-	dict set request -ipaddr [lindex $forwards end]
+	dict set request -ipaddr [lindex $forwards 0]
 
 	# block spiders by UA
 	if {[info exists ::spiders([Dict get? $request user-agent])]} {
