@@ -106,10 +106,10 @@ namespace eval Httpd {
 	    ::thread::send -async $thread [list HttpdWorker Connect $socket $request]
 	} result eo]} {
 	    Debug.error {Transfer Error: $result ($eo)}
-	    Activity activity $id transfer $result $eo
+	    Activity activity transfer $id -error $result -eo $eo {*}$request
 	} else {
 	    Debug.socket {Transferred: $result $eo}
-	    Activity activity $id transfer
+	    Activity activity transfer $id $request
 	}
     }
 
