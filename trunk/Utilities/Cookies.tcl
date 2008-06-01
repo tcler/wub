@@ -494,6 +494,8 @@ namespace eval Cookies {
 
 	set cn [unique $args]
 	if {[dict exists $cookies $cn]} {
+	    # modify the cookie instead of adding it.
+	    return [modify $cookies {*}$args]
 	    error "Duplicate cookie $args"
 	}
 	if {0 && ![string is alnum -strict [dict get $args -name]]} {
@@ -546,7 +548,7 @@ namespace eval Cookies {
 	    foreach {attr val} $mods {
 		dict set cookies $cookie $attr $val
 	    }
-	    dict cookies $cookie -changed 1
+	    dict set cookies $cookie -changed 1
 	}
 
 	return $cookies
