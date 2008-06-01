@@ -101,7 +101,7 @@ namespace eval Activity {
 		set vals(action) $n
 		set vals(duration) [expr {([dict get $cr -when] - $last) / 1000000.0}]
 		catch {set vals(thread) [dict get $cr -iworker]}
-		if {[dict get $cr -ipaddr] ne $ipaddr} {
+		if {[dict exists $cr -ipaddr] && [dict get $cr -ipaddr] ne $ipaddr} {
 		    set ipaddr [dict get $cr -ipaddr]
 		    set vals(ipaddr) $ipaddr
 		} else {
