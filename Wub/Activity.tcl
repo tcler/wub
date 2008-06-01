@@ -4,127 +4,139 @@ package provide Activity 2.0
 namespace eval Activity {
     # activity array - packet activity per socket
     # log the last packet parse time per socket.
-    variable activity
-    array set activity {}
+    variable activity {}
     variable actlog {}
     variable actsize 0
 
-    proc activity {cid what args} {
+    proc activity {what cid args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
 	variable activity
-	lappend activity($cid) $what [list [clock microseconds] {*}$args]
+	catch {
+	    catch {dict unset args -entity}
+	    dict lappend activity $cid $what [list -when [clock microseconds] {*}$args]
+	} r eo
+	#puts stderr "ACT: $cid $what ($args) ($activity)"
     }
 
-    proc disconnect {cid} {
-	variable activity; variable actlog; variable actsize
-	lappend activity($cid) disconnect [clock microseconds]
-	if {$actsize > 0} {
-	    lappend actlog [list $cid {*}$activity($cid)]
-	    if {[llength $actlog] > $actsize} {
-		set actlog [lrange $actlog 10 end]
-	    }
+    proc disconnect {cid args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
 	}
-	Debug.activity {$activity($cid)}
-	unset activity($cid)
+	catch {
+	    variable activity; variable actlog; variable actsize
+	    dict lappend activity $cid disconnect [list -when [clock microseconds] {*}$args]
+	    Debug.activity {[dict get $activity $cid]}
+	    #dict unset activity $cid
+	} r eo
+	#puts stderr "DIS: $cid ($args) ($activity)"
     }
 
-    proc new {cid} {
-	variable activity; variable actlog; variable actsize
-	if {[info exists activity($cid)]} {
-	    lappend activity($cid) ripped [clock microseconds]
-	    if {$actsize > 0} {
-		lappend actlog [list $cid {*}$activity($cid)]
-		if {[llength $actlog] > $actsize} {
-		    set actlog [lrange $actlog 10 end]
-		}
-	    }
-	    Debug.activity {$activity($cid)}
-	    unset activity($cid)
+    proc new {cid args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
 	}
-    }
-
-    proc inactive {{time 60}} {
-	set time [expr {$time * 1000000}]
-	set result {}
-	set now [clock microseconds]
-
-	foreach {s v} [array get ::Activity::activity] {
-	    set thread [lindex $v 1 2]
-	    set start [lindex $v 1 0]
-	    set last [lindex $v end 0]
-	    if {($now - $last) > $time} {
-		lappend result $thread
+	catch {
+	    variable activity; variable actlog; variable actsize
+	    if {[dict exists $activity $cid]} {
+		dict unset activity $cid
 	    }
-	}
-	return $result
+	} r eo
+	#puts stderr "NEW: $cid ($args) ($activity)"
     }
 
     # act2list - make a nested list from an activity list
     proc act2list {act} {
-	set headers {date connect age cid thread ipaddr transfer parsed disconnect errors}
+	set headers {cid date time duration thread ipaddr action value error}
 	set result [list $headers]
-	foreach a [lsort -dictionary -index {2 0} $act] {
+	set last [clock microseconds]
+
+	dict for {cid log} $act {
 	    catch {unset vals}
-
-	    # get connection record
-	    set a [lassign $a vals(cid) what connrec]
-
-	    # process connection event (must be first)
-	    set connrec [lassign $connrec connect]
-	    set s [expr {$connect / 1000000}]
-	    set vals(date) [clock format $s -format {%d/%m/%Y}]
-	    set vals(connect) [clock format $s -format {%T}]
-	    set last [clock microseconds]
-
-	    dict with connrec {
-		set vals(ipaddr) $ipaddr
-		if {[info exists thread]} {
-		    set vals(thread) $thread
-		    unset thread
-		}
-	    }
-
 	    # scan remaining activity events
-	    foreach {n v} $a {
-		switch $n {
-		    parsed {
-			#lappend vals(urls) [lindex $v 2]
-			#set vals(ipaddr) [lindex $v 1]
-		    }
-		    transfer {
-			if {[llength $v] > 1} {
-			    lappend vals(errors) [lrange $v 1 end]
-			}
-		    }
-		}
-		lappend vals($n) [expr {(([lindex $v 0] - $connect) / 1000)/1000.0}]s
-		set last [lindex $v 0]
-	    }
-	    set vals(age) [expr {(([clock microseconds] - $last)/1000)/1000.0}]s
+	    set vals(cid) $cid
 
-	    set row {}
-	    foreach n $headers {
-		if {[info exists vals($n)]} {
-		    if {$n eq "parsed"} {
-			lappend row "[llength $vals($n)]: [lindex $vals($n) 0]-[lindex $vals($n) end]"
-		    } else {
-			lappend row [armour $vals($n)]
-		    }
-		} else {
-		    lappend row {}
+	    #puts stderr "LOG $cid $log"
+	    if {[catch {
+		# one of these
+		dict get [lindex [dict get $log connected] 0] -when
+	    } start]} {
+		set start [dict get [lindex $log 1] -when]
+	    }
+	    set last $start
+
+	    if {[catch {
+		# one of these
+		dict get [lindex [dict get $log connected] 0] -ipaddr
+	    } ipaddr]} {
+		set ipaddr ""
+	    }
+	    set vals(ipaddr) $ipaddr
+
+	    if {[catch {
+		# one of these
+		dict get [lindex [dict get $log connected] 0] -iworker
+	    } thread]} {
+		if {[catch {dict get [lindex $log 1] -iworker} thread]} {
+		    set thread ""
 		}
 	    }
-	    lappend result $row
+	    set vals(thread) $thread
+
+	    set vals(date) [clock format $start -format {%d/%m/%Y}]
+	    set vals(time) [clock format $start -format {%T}]
+	    #puts stderr "START ($start)"
+
+	    foreach {n cr} $log {
+		catch {unset vals(action)}
+		catch {unset vals(value)}
+		catch {unset vals(error)}
+		#puts stderr "LIST: $cid $n $cr"
+		set when [dict get $cr -when]
+		set s [expr {$when / 1000000}]
+		if {[dict exists $cr -error]} {
+		    lappend vals(error) [dict get $cr -error]
+		}
+		set vals(action) $n
+		set vals(duration) [expr {([dict get $cr -when] - $last) / 1000000.0}]
+		catch {set vals(thread) [dict get $cr -iworker]}
+		if {[dict get $cr -ipaddr] ne $ipaddr} {
+		    set ipaddr [dict get $cr -ipaddr]
+		    set vals(ipaddr) $ipaddr
+		} else {
+		    catch {unset vals(ipaddr)}
+		}
+		if {[dict exists $cr -iworker] && [dict get $cr -iworker] ne $thread} {
+		    set thread [dict get $cr -iworker]
+		    set vals(thread) $thread
+		} else {
+		    catch {unset vals(thread)}
+		}
+		catch {set vals(value) [dict get $cr -url]}
+		set last $when
+
+		set row {}
+		foreach n $headers {
+		    if {[info exists vals($n)]} {
+			lappend row [armour $vals($n)]
+		    } else {
+			lappend row {}
+		    }
+		}
+		lappend result $row
+		catch {unset vals(date)}
+		catch {unset vals(time)}
+		catch {unset vals(cid)}
+	    }
+
 	}
 	return $result
     }
 
     proc current {} {
 	variable activity
-	set act {}
-	foreach {n v} [array get activity] {
-	    lappend act [list $n {*}$v]
-	}
-	return [act2list $act]
+	return [act2list $activity]
     }
 
     proc log {} {
