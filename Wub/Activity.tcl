@@ -27,6 +27,7 @@ namespace eval Activity {
 	catch {
 	    variable activity; variable actlog; variable actsize
 	    dict lappend activity $cid disconnect [list -when [clock microseconds] {*}$args]
+	    dict unset activity $cid
 	    Debug.activity {[dict get $activity $cid]}
 	    #dict unset activity $cid
 	} r eo
