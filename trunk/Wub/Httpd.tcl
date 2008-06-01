@@ -57,8 +57,6 @@ namespace eval Httpd {
 	Debug.http {Got: $request} 1
 	set cid [dict get $request -cid]
 
-	Activity activity $cid parsed [Dict get? $request -ipaddr] [Dict get? $request -url]
-
 	# check the incoming ip for blockage
 	if {[Block blocked? [Dict get? $request -ipaddr]]} {
 	    dict set request connection close
@@ -70,6 +68,8 @@ namespace eval Httpd {
 	    send $request
 	    return
 	}
+
+	Activity activity $cid parsed [Dict get? $request -ipaddr] [Dict get? $request -url]
 
 	variable rqCallOut
 	if {[llength $rqCallOut] != 0} {
