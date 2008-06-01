@@ -441,15 +441,6 @@ namespace eval HttpdWorker {
 		}
 	    }
 
-	    # fix up non-standard X-Forwarded-For field
-	    foreach xff [string trim [lindex [split [Dict get? $request x-forwarded-for] ,] 0]] {
-		if {$xff ne "unknown" && ![Http nonRouting? $xff]} {
-		    dict set request -x-forwarding [Dict get? $request -ipaddr]
-		    dict set request -ipaddr $xff
-		    break
-		}
-	    }
-
 	    dict incr connection transaction
 	    dict set request -transaction [dict get $connection transaction]
 
@@ -756,16 +747,23 @@ namespace eval HttpdWorker {
 
 	# trust x-forwarded-for if we get a forwarded request from a local ip
 	# (presumably local ip forwarders are trustworthy)
-	if {[Http nonRouting? [dict get $request -ipaddr]]} {
-	    if {[dict exists $request x-varnish-for]} {
-		dict set request -ipaddr [string trim [dict get $request x-varnish-for]]
-	    } elseif {[dict exists $request x-forwarded-for]} {
-		set xff [string trim [lindex [split [dict get $request x-forwarded-for] ,] 0]]
-		if {$xff ne "unknown" && ![Http nonRouting? $xff]} {
-		    dict set request -ipaddr $xff
-		}
+	if {[dict exists $request x-varnish-for]} {
+	    dict set forwards [string trim [dict get $request x-varnish-for]]
+	} else {
+	    set forwards {}
+	}
+	if {[dict exists $request x-forwarded-for]} {
+	    foreach xff [split [Dict get? $request x-forwarded-for] ,] {
+		set xff [string trim $xff]
+		if {$xff eq ""
+		    || $xff eq "unknown"
+		    || [Http nonRouting? $xff]
+		} continue
+		lappend forwards $xff
 	    }
 	}
+	dict set request -forwards $forwards
+	dict set request -ipaddr [lindex $forwards end]
 
 	# block spiders by UA
 	if {[info exists ::spiders([Dict get? $request user-agent])]} {
