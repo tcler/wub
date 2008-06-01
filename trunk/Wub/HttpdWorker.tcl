@@ -756,11 +756,12 @@ namespace eval HttpdWorker {
 	if {[dict exists $request x-forwarded-for]} {
 	    foreach xff [split [Dict get? $request x-forwarded-for] ,] {
 		set xff [string trim $xff]
+		set xff [lindex [split $xff :] 0]
 		if {$xff eq ""
 		    || $xff eq "unknown"
 		    || [Http nonRouting? $xff]
 		} continue
-		lappend forwards [lindex [split $xff :] 0]
+		lappend forwards $xff
 	    }
 	}
 	dict set request -forwards $forwards
