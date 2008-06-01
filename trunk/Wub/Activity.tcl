@@ -50,7 +50,6 @@ namespace eval Activity {
     proc act2list {act} {
 	set headers {cid date time duration thread ipaddr action value error}
 	set result [list $headers]
-	set last [clock microseconds]
 
 	dict for {cid log} $act {
 	    catch {unset vals}
@@ -65,6 +64,9 @@ namespace eval Activity {
 		set start [dict get [lindex $log 1] -when]
 	    }
 	    set last $start
+	    set s [expr {$start / 1000000}]
+	    set vals(date) [clock format $s -format {%d/%m/%Y}]
+	    set vals(time) [clock format $s -format {%T}]
 
 	    if {[catch {
 		# one of these
@@ -83,10 +85,6 @@ namespace eval Activity {
 		}
 	    }
 	    set vals(thread) $thread
-
-	    set vals(date) [clock format $start -format {%d/%m/%Y}]
-	    set vals(time) [clock format $start -format {%T}]
-	    #puts stderr "START ($start)"
 
 	    foreach {n cr} $log {
 		catch {unset vals(action)}
