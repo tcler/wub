@@ -748,7 +748,8 @@ namespace eval HttpdWorker {
 	# trust x-forwarded-for if we get a forwarded request from a local ip
 	# (presumably local ip forwarders are trustworthy)
 	if {[dict exists $request x-varnish-for]} {
-	    dict set forwards [string trim [dict get $request x-varnish-for]]
+	    set xff [string trim [dict get $request x-varnish-for]]
+	    dict set forwards [lindex [split $xff :] 0]
 	} else {
 	    set forwards {}
 	}
@@ -759,7 +760,7 @@ namespace eval HttpdWorker {
 		    || $xff eq "unknown"
 		    || [Http nonRouting? $xff]
 		} continue
-		lappend forwards $xff
+		lappend forwards [lindex [split $xff :] 0]
 	    }
 	}
 	dict set request -forwards $forwards
