@@ -749,7 +749,7 @@ namespace eval HttpdWorker {
 	# (presumably local ip forwarders are trustworthy)
 	if {[dict exists $request x-varnish-for]} {
 	    set xff [string trim [dict get $request x-varnish-for]]
-	    dict set forwards [lindex [split $xff :] 0]
+	    set forwards [lindex [split $xff :] 0]
 	} else {
 	    set forwards {}
 	}
