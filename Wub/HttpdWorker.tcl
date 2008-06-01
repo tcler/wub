@@ -747,7 +747,7 @@ namespace eval HttpdWorker {
 
 	# trust x-forwarded-for if we get a forwarded request from a local ip
 	# (presumably local ip forwarders are trustworthy)
-	set forwards {}
+	set forwards [dict get $request -ipaddr]
 	if {[dict exists $request x-forwarded-for]} {
 	    foreach xff [split [Dict get? $request x-forwarded-for] ,] {
 		set xff [string trim $xff]
