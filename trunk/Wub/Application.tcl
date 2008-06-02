@@ -45,9 +45,11 @@ package require Commenter
 Direct init code namespace ::Commenter prefix /code ctype "x-text/html-fragment"
 
 #### Dub database toy
-package require Dub
-Dub init prefix /dub/
-Direct init dub namespace ::Dub prefix /dub/ ctype "x-text/html-fragment"
+set dubfailed [catch {
+    package require Dub
+    Dub init prefix /dub/
+    Direct init dub namespace ::Dub prefix /dub/ ctype "x-text/html-fragment"
+}]
 
 #### jQ - jQuery framework
 package require jQ
