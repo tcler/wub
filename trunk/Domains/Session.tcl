@@ -67,11 +67,11 @@ package require View
 
 package provide Session 3.1
 
-
 namespace eval Session {
     variable dir ""
-    variable db session.mk	;# session database
+    variable db session.db	;# session database
     variable fields		;# fields in session view
+    variable layout {_key:S _ctime:L _mtime:L _slot:I}
 
     variable salt [clock microseconds]	;# source of random session key
     variable size	;# total count of sessions
@@ -238,7 +238,7 @@ namespace eval Session {
 	    # session is already stored in db - update record.
 	    set slot [dict get $session _slot]	;# remember session slot
 	    set key [dict get $session _key]	;# remember session key
-	    Debug.session {storing session in old $slot with $key} 10
+	    Debug.session {storing session in old $slot with $key ($session)} 10
 	    session set $slot {*}$session _mtime [clock seconds] _slot $slot
 	} else {
 	    # need to create a new slot for the session
@@ -252,12 +252,12 @@ namespace eval Session {
 		set slot [session append {*}$session _key $key _ctime $now _mtime $now]
 		session set $slot _slot $slot	;# fixup session's slot
 		incr size
-		Debug.session {storing session in new $slot with $key (db size $size)} 10
+		Debug.session {storing session in new $slot with $key (db size $size) ($session)} 10
 	    } else {
 		# use a deleted session slot - write session content
 		Debug.session {found empty session: [session get $slot]}
 		session set $slot {*}$session _key $key _ctime $now _mtime $now _slot $slot
-		Debug.session {storing session in empty $slot with $key (db empty $empty size $size)} 10
+		Debug.session {storing session in empty $slot with $key (db empty $empty size $size) ($session)} 10
 		incr empty -1
 	    }
 	}
@@ -268,6 +268,21 @@ namespace eval Session {
 	dict set req -cookies [Cookies add [dict get $req -cookies] -path $cpath -expires $expires {*}$args -name $cookie -value "$slot@$key"]
 
 	return $req
+    }
+
+    # find a session matching the given search form
+    proc find {r args} {
+	set r [store $r]
+	if {[catch {
+	    session find {*}$args
+	} slot]} {
+	    catch {dict unset r -store}
+	    catch {dict unset r --store}
+	} else {
+	    dict set r -store [session get $slot]
+	    dict set r --store [dict get $r -store]
+	}
+	return $r
     }
 
     proc /_snew {r} {
@@ -353,40 +368,10 @@ namespace eval Session {
 	    variable {*}$args
 	}
 
-	if {[dict exists [::mk::file open] sessdb]} {
-	    Debug.session {Got open db sessdb [dict get [::mk::file open] sessdb]}
-	} else {
-	    variable db; variable dir
-	    set dbn [file join $dir $db]
-	    if {[catch {::mk::file open sessdb $dbn -shared} r eo]} {
-		Debug.error {failed opening session db $dbn: $r ($eo)}
-	    } else {
-		Debug.session {opened $dbn: $r}
-	    }
-	}
-
-	# try to open wiki view
-	if {[catch {
-	    ::mk::file views sessdb
-	    # we expect threads to be created *after* the db is initialized
-	    variable toplevel 0
-	} views eo]} {
-	    # this is the top level process, need to create a db
-	    Debug.session {sessdb views: $views ($eo)}
-	    variable toplevel 1
-	} else {
-	    Debug.session {sessdb has views: $views}
-	}
-
-	if {[catch {::mk::view layout sessdb.session} lo eo]} {
-	    Debug.session {session no layout: $lo ($eo)}
-	    ::mk::view layout sessdb.session {_key:S _ctime:L _mtime:L _slot:I}
-	} else {
-	    Debug.session {session layout: $lo}
-	}
+	variable db; variable dir; variable layout
+	set dbn [file join $dir $db]
+	View new session file $dbn db sessdb view session layout $layout
 	fields
-	View init session sessdb.session
-
 	gc	;# start up by garbage collecting Session db.
     }
 
