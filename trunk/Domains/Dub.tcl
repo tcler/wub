@@ -97,7 +97,7 @@ namespace eval Dub {
 	}
 
 	if {[catch {View init v$view db.$view} r eo]} {
-	    Debug.error {View: $r ($eo)}
+	    Debug.dub {View: $r ($eo)}
 	} else {
 	    Debug.dub {cmd: $r - v$view - [info commands v*]}
 	}
