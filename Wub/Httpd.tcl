@@ -176,12 +176,6 @@ namespace eval Httpd {
 	    return
 	}
 
-	# check list of blocked ip addresses
-	if {[Block blocked? $ipaddr]} {
-	    forbidden $sock
-	    return
-	}
-
 	# ensure that client is not spamming us.
 	# (sadly we can't do this if we're reverse-proxied)
 	variable connbyIP
@@ -189,6 +183,12 @@ namespace eval Httpd {
 
 	switch -- [::ip::type $ipaddr] {
 	    "normal" {
+		# check list of blocked ip addresses
+		if {[Block blocked? $ipaddr]} {
+		    forbidden $sock	;# drop this connection with absolute contempt
+		    return
+		}
+
 		# normal external connection
 		if {[incr connbyIP($ipaddr)] > $max_conn} {
 		    # Too many connections for $ipaddr - no more than $max_conn
