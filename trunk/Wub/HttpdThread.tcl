@@ -19,7 +19,9 @@ namespace eval Httpd {
     # send - send a request to its associated thread
     proc send {request {cacheit 1}} {
 	variable connection
-	variable {*}[dict get $connection([dict get $request -cid])]
+	set cid [dict get $request -cid]
+	variable {*}[dict get $connection($cid)]
+	Activity activity sent $cid $request
 	::thread::send -async $thread [list HttpdWorker Send $request $cacheit]
     }
 

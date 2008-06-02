@@ -60,11 +60,13 @@ namespace eval Httpd {
 	# check the incoming ip for blockage
 	if {[Block blocked? [Dict get? $request -ipaddr]]} {
 	    dict set request connection close
+	    Activity activity blocked $cid $request
 	    send [Http Forbidden $request]
 	    return
 	} elseif {[Honeypot guard request]} {
 	    # check the incoming ip for bot detection
 	    # this is a bot - reply directly to it
+	    Activity activity honeypot $cid $request
 	    send $request
 	    return
 	}
