@@ -328,6 +328,7 @@ namespace eval HttpdWorker {
     #
     # Side Effects:
     #	queues the response for sending by method responder
+
     proc Send {reply {cache 1}} {
 	#set reply [Access log $reply]
 	if {[dict exists $reply -suspend]} {
@@ -399,13 +400,16 @@ namespace eval HttpdWorker {
     proc Handle {req} {
 	Debug.error {Handle: ([dump $req])}
 	set sock [dict get $req -sock]
-	readable $sock	;# suspend reading
+	catch {cancel $sock rxtimer}	;# shut down any timers
+
+	# we have an error, so we're going to try to reply then die.
+	fconfigure $sock -blocking 0	;# stop blocking on reads, if we even were
+	readable $sock junkit $sock	;# suspend reading - junk whatever's read
+	# must keep socket readable to detect close, but will chuck anything read.
 
 	upvar #0 ::HttpdWorker::connections($sock) connection
-	catch {cancel $sock rxtimer}
-
 	if {[catch {
-	    dict set req connection close
+	    dict set req connection close	;# we want to close this connection
 	    if {![dict exists $req -transaction]} {
 		dict set req -transaction [dict get $connection transaction]
 	    }
@@ -802,6 +806,19 @@ namespace eval HttpdWorker {
 		Debug.http {parse done: [dump $request]} 3
 		got $request
 	    }
+	}
+    }
+
+    # read and discard input, waiting for socket closure
+    proc junkit {sock} {
+	# we must keep the socket open to detect closure,
+	# but aren't interested in any data read
+	if {[chan eof $sock]} {
+	    # remote end closed - just forget it
+	    Disconnect $sock "closed connection"; return
+	} else {
+	    # read and discard input
+	    catch {read $sock}
 	}
     }
 
