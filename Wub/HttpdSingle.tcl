@@ -25,8 +25,8 @@ namespace eval Httpd {
 	variable connection
 	set cid [dict get $request -cid]
 	variable {*}[dict get $connection($cid)]
-	Activity activity sent $cid $request
 	interp eval $thread [list HttpdWorker Send $request $cacheit]
+	Activity activity sent $cid $request
     }
 
     # workers - command each worker
