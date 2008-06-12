@@ -300,17 +300,21 @@ namespace eval Cookies {
 
     # Save the -cookie sub-dict into fields ready to be sent by HTTP/1.1 server
     proc format4server {cookie_dict {secure 0}} {
+	Debug.cookies {format4server save $cookie_dict}
 	set cookies {}	;# collection of cookies in cookie1 format
 	dict for {name cdict} $cookie_dict {
 	    if {[string match "-*" $name]} {
+		Debug.cookies {format4server $name is synthetic}
 		continue
 	    }
 	    if {[dict exists $cdict -secure] && !$secure} {
+		Debug.cookies {format4server cookie $name is secure}
 		continue	;# secure cookies shouldn't be sent over insecure connection
 
 	    }
 	    if {![dict exists $cdict -changed]
 		|| ![dict get $cdict -changed]} {
+		Debug.cookies {format4server cookie $name has not changed}
 		continue
 	    }
 
@@ -322,8 +326,11 @@ namespace eval Cookies {
 	    # -name (the original name of the cookie)
 	    # -when (the absolute seconds when the cookie expires)
 	    set name [dict get $cdict -name]
-	    set val [dict get $cdict -value]
-	    set cookie "$name=[dict get $cdict -value]"
+	    set val [Dict get? $cdict -value]
+	    if {$val eq ""} {
+		set val ""
+	    }
+	    set cookie "$name=$val"
 	    if {[dict exists $cdict path]
 		&& [dict get $cdict -path] eq ""
 	    } {
@@ -343,6 +350,7 @@ namespace eval Cookies {
 		lappend cookie "Version=\"1\""
 	    }
 	    lappend cookies [join $cookie "; "]
+	    Debug.cookies {format4server cookie $name new value is '$cookie'}
 	}
 
 	Debug.cookies {format4server value: ($cookies)}
@@ -470,17 +478,18 @@ namespace eval Cookies {
     # note: the cookies are modified to a state intended to cause a client
     # to drop the cookie from their local cookie jar. YMMV.
     proc clear {cookies args} {
-	Debug.cookies {Cookie clear ($cookies) $args}
+	Debug.cookies {clear ($cookies) $args}
 	if {[llength $args] eq 1} {
 	    set args [lindex $args 0]
 	}
 
 	foreach n [match $cookies $args] {
-	    Debug.cookies {Cookie clear $n}
+	    Debug.cookies {clearing '$n'}
 	    dict set cookies $n -value ""
 	    dict set cookies $n -max-age 0
 	    dict set cookies $n -changed 1
 	}
+
 	return $cookies
     }
 
