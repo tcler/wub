@@ -363,9 +363,7 @@ namespace eval Cache {
 	# old style no-cache request
 	variable obey_CC
 	variable CC
-	if {$CC
-	    && "no-cache" in [split [Dict get? $req pragma] ,]
-	} {
+	if {$CC && "no-cache" in [split [Dict get? $req pragma] ,]} {
 	    # ignore no-cache, because we're the server, and in the best
 	    # position to judge the freshness of our content.
 	    Debug.cache {no-cache requested - we're ignoring those!}
@@ -373,9 +371,7 @@ namespace eval Cache {
 	}
 
 	# split any cache control into an array
-	if {$CC
-	    && [dict exists $req -cache-control]
-	} {
+	if {$CC && [dict exists $req -cache-control]} {
 	    foreach directive [split [dict get $req -cache-control] ,] {
 		set body [string trim [join [lassign [split $directive =] d] =]]
 		set d [string trim $d]
