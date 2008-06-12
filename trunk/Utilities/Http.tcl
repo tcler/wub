@@ -263,7 +263,7 @@ namespace eval Http {
     # modify an HTTP response to indicate that its contents may not be Cached
     proc NoCache {rsp} {
 	dict set rsp cache-control "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0"; # HTTP/1.1
-	dict set rsp expires "Sun, 01 Jul 2005 00:00:00 GMT"
+	dict set rsp expires "Sun, 01 Jul 2005 00:00:00 GMT"	;# deep past
 	dict set rsp pragma "no-cache"	;# HTTP/1.0
 	dict set rsp -dynamic 1
 	catch {dict unset rsp -modified}
@@ -287,6 +287,7 @@ namespace eval Http {
 	    dict set rsp expires [Date [clock scan $age]]
 	    set age [expr {[clock scan $age] - [clock seconds]}]
 	}
+	catch {dict unset rsp -dynamic}
 	#dict set rsp cache-control "$realm, max-age=$age"
 	dict set rsp cache-control $realm
 	return $rsp
@@ -299,6 +300,7 @@ namespace eval Http {
 	return $rsp
     }
 
+    # set default content type if needed
     proc setCType {rsp ctype} {
 	# new ctype passed in?
 	if {$ctype ne ""} {
@@ -359,7 +361,12 @@ namespace eval Http {
 
     # construct an HTTP Ok response
     proc Ok {rsp {content ""} {ctype ""}} {
-	return [OkResponse $rsp 200 Ok $content $ctype]
+	if {[dict exists $rsp -code]} {
+	    set code [dict get $rsp -code]
+	} else {
+	    set code 200
+	}
+	return [OkResponse $rsp $code Ok $content $ctype]
     }
 
     # construct an HTTP passthrough response
@@ -680,12 +687,12 @@ namespace eval Http {
     }
 
     # construct an HTTP Redirect response to Referer of request
-    proc RedirectReferer {rsp args} {
+    proc RedirectReferer {rsp {content ""} {ctype ""} args} {
 	set ref [Referer $rsp]
 	if {$ref eq ""} {
 	    set ref /
 	}
-	return [Http genRedirect Redirect 302 $rsp $ref "" "" {*}$args]
+	return [Http genRedirect Redirect 302 $rsp $ref $content $ctype {*}$args]
     }
 
     # construct an HTTP Found response
@@ -981,10 +988,14 @@ namespace eval Http {
 
 	    # format up and send each cookie
 	    if {[dict exists $reply -cookies]} {
+		Debug.cookies {Http processing: [dict get $reply -cookies]}
 		set c [dict get $reply -cookies]
 		foreach cookie [Cookies format4server $c] {
+		    Debug.cookies {Http set: '$cookie'}
 		    append header "set-cookie: $cookie\r\n"
 		}
+	    } else {
+		Debug.cookies {Http processing: no cookies}
 	    }
 
 	    # there is content data
