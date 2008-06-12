@@ -26,7 +26,7 @@ package require WubUtils
 package require Debug
 Debug off url
 Debug off http 10
-Debug off cookies
+Debug off cookies 10
 Debug off close 10
 Debug off socket 10
 
