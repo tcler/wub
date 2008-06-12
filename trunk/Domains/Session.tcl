@@ -143,17 +143,21 @@ namespace eval Session {
 	    # non null key means session has an active slot
 	    if {![catch {
 		session get $slot	;# read session from db
-	    } session eo] && ([dict get $session _key] eq $key)} {
+	    } session eo]
+		&& ([dict get $session _key] eq $key)
+	    } {
 		dict set req -session $session	;# store the session in the request
 		dict set req --session $session	;# copy session to detect changes
 	    } else {
 		# session keys don't match or no such session
 		Debug.session {session cookies didn't match $slot $key ($eo)}
 		dict set req -cookies [Cookies clear [dict get $req -cookies] -name $cookie {*}$args]
+		catch {dict unset req -session}
+		catch {dict unset req --session}
 	    }
 	}
 
-	Debug.session {fetch -session ([dict get $req -session])} 10
+	Debug.session {fetch -session ([Dict get? $req -session])} 10
 	return $req
     }
 
@@ -174,8 +178,12 @@ namespace eval Session {
     }
 
     proc detach {req} {
-	variable cookie
-	dict set req -cookies [Cookies clear [dict get $req -cookies] -name $cookie]
+	variable cookie; variable cpath
+	set cookies [Cookies remove [dict get $req -cookies] -name $cookie]
+	Debug.session {detach remove '$cookies'}
+	set cookies [Cookies add [dict get $req -cookies] -path $cpath -max-age 0 -name $cookie -changed 1 -value ""]
+	Debug.session {detach expire '$cookies'}
+	dict set req -cookies $cookies
 	return $req
     }
 
@@ -212,7 +220,7 @@ namespace eval Session {
     proc store {req args} {
 	Debug.session {store -session ([Dict get? $req -session]) --session ([Dict get? $req --session])} 10
 	if {[Dict get? $req -session] eq [Dict get? $req --session]} {
-	    Debug.session {no change to store}
+	    Debug.session {no change to store / code [Dict get? $req -code] (C: [Dict get? $req -cookies])}
 	    return $req	;# no change to session vars - just skip it
 	}
 
@@ -267,6 +275,7 @@ namespace eval Session {
 	variable cookie; variable cpath; variable expires
 	dict set req -cookies [Cookies add [dict get $req -cookies] -path $cpath -expires $expires {*}$args -name $cookie -value "$slot@$key"]
 
+	Debug.session {cookie added '[Dict get? req -cookies]'}
 	return $req
     }
 
