@@ -296,6 +296,7 @@ namespace eval Convert {
 	    }
 	}
 
+	Debug.convert {Convert complete: $code '$rsp' ($eo) - [dumpMsg $rsp]}
 	return $rsp
     }
 
