@@ -414,7 +414,7 @@ namespace eval Form {
 	    set line [string trim $line]
 	    if {$line eq ""} continue
 	    if {[string match +* $line]} {
-		set term [list <option> {*}[string trimleft $oname +]]
+		set term [list <option> selected 1 {*}[string trimleft $line +]]
 	    } else {
 		set term [list <option> {*}$line]
 	    }
