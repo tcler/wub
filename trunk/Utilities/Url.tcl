@@ -193,24 +193,39 @@ namespace eval Url {
     }
 
     # process a possibly local URI for redirection
+    # provides a limited ability to add query $args
+    # limits: overwrites existing args, ignores and removes duplicates
     proc redir {dict to args} {
-	set todict [parse $to 0]	;# parse the destination URL
-
-	# parse args as additional -query elements
-	set query {}
+	Debug.url {redir dict:$dict to:$to args:$args}
+	#puts stderr "redir dict:($dict) to:$to args:$args"
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
-	foreach {name val} $args {
-	    lappend query "$name=[Query encode $val]"
+
+	set todict [parse $to 0]	;# parse the destination URL
+
+	if {[dict exists $todict -query]} {
+	    foreach {n v} [Query flatten [Query parse $todict]] {
+		dict set query $n $v
+	    }
+	} else {
+	    set query {}
 	}
-	if {$query ne {}} {
-	    if {[dict exists $todict -query]} {
-		dict append todict -query & [join $query &]
+
+	# parse args as additional -query elements
+	foreach {name val} $args {
+	    dict set query $name $val
+	}
+
+	set q ""
+	dict for {n v} $query {
+	    if {$v ne ""} {
+		lappend q "$n=[Query encode $v]"
 	    } else {
-		dict set todict -query [join $query &]
+		lappend q $n
 	    }
 	}
+	dict set todict -query [join $q &]
 
 	if {([Dict get? $todict -host] ne [Dict get? $dict -host])
 	    || ([Dict get? $todict -port] ne [Dict get? $dict -port])
