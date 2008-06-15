@@ -181,6 +181,7 @@ namespace eval Session {
 	variable cookie; variable cpath
 	set cookies [Cookies remove [dict get $req -cookies] -name $cookie]
 	Debug.session {detach remove '$cookies'}
+	catch {dict unset req -session user}
 	set cookies [Cookies add [dict get $req -cookies] -path $cpath -max-age 0 -name $cookie -changed 1 -value ""]
 	Debug.session {detach expire '$cookies'}
 	dict set req -cookies $cookies
