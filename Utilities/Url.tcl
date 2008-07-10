@@ -225,7 +225,9 @@ namespace eval Url {
 		lappend q $n
 	    }
 	}
-	dict set todict -query [join $q &]
+	if {$q ne {}} {
+	    dict set todict -query [join $q &]
+	}
 
 	if {([Dict get? $todict -host] ne [Dict get? $dict -host])
 	    || ([Dict get? $todict -port] ne [Dict get? $dict -port])
