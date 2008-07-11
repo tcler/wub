@@ -219,12 +219,18 @@ namespace eval Report {
 
 	set classT {}
 	if {[dict exists $args class]} {
-	    lappend classT [dict get $args class]
+	    lappend classT class [dict get $args class]
 	}
-	if {[dict get $args sortable]} {
-	    lappend classT sortable
+	if {[dict exists $args sortable] && [dict get $args sortable]} {
+	    lappend classT class sortable
+	} else {
 	}
-	
+	if {[dict exists $args summary]} {
+	    lappend classT summary [dict get $args summary]
+	} else {
+	    lappend classT summary ""
+	}
+
 	return [<table> {*}$classT {*}[Dict get? $args tparam] "\n[dict get $args _header]\n[dict get $args body]\n[Dict get? $args _footer]\n"]
     }
 
