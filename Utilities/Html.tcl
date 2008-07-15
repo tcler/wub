@@ -226,7 +226,7 @@ namespace eval Html {
     # dict2table - convert dict into sortable HTML table
     proc dict2table {dict header {footer {}}} {
 	set row 0
-	return [<table> class sortable [subst {
+	return [<table> class sortable summary "" [subst {
 	    [<thead> [<tr> [Foreach t $header {
 		[<th> [string totitle $t]]
 	    }]]]
@@ -250,7 +250,7 @@ namespace eval Html {
     # provisional new version
     proc dict2table {dict header {footer {}} {tag ""}} {
 	set row 0
-	return [<table> class sortable {*}[If {$tag ne ""} { class $tag }] [subst {
+	return [<table> class sortable summary "" {*}[If {$tag ne ""} { class $tag }] [subst {
 	    [<thead> [<tr> [Foreach t $header {
 		[<th> class $t [string totitle $t]]
 	    }]]]
