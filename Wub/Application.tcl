@@ -15,6 +15,9 @@ package require Session
 ###### Application Starts Here
 set docroot [file normalize [file join $::Site::docroot .. docs]]
 
+#### CGI domain
+CGI init cgi root [file normalize [file dirname [info script]]]
+
 #### Wub documentation directory
 # This creates a Mason domain which responds to urls of the form /wub/*
 # It will search through the ../docs/ directory for its files,
@@ -292,6 +295,10 @@ proc Incoming {req} {
 	    # block the originator by IP
 	    Block block [dict get $req -ipaddr] "Bogus URL '[dict get $req -path]'"
 	    Http Forbidden $req
+	}
+
+	/CGI/* {
+	    return [cgi do $req]
 	}
 
 	/wub -
