@@ -56,6 +56,7 @@ namespace eval RAM {
     # _get - gets keyed content only
     proc _get {prefix key} {
 	variable ram
+	Debug.RAM {$prefix$key get '$ram($prefix$key)'}
 	return [lindex $ram($prefix$key) 0]
     }
 
@@ -66,6 +67,7 @@ namespace eval RAM {
 	if {$args ne {}} {
 	    # calculate an accurate content length
 	    lappend args content-length [string length [lindex $args 0]]
+	    Debug.RAM {$prefix$key set '$args'}
 	    set ram($prefix$key) $args
 	}
 
