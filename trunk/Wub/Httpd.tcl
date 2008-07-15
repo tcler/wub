@@ -40,7 +40,7 @@ namespace eval Httpd {
     variable rqCallOut {}
     variable dispatch "Backend"
     variable server_port ;# server's port (if different from Listener's)
-    variable server_id "Wub [package provide Httpd]"
+    variable server_id "Wub/[package provide Httpd]"
 
     proc dump {} {
 	variable connection
