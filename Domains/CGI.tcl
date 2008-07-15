@@ -69,7 +69,7 @@ namespace eval CGI {
 	# If necessary, the server may choose to exclude any or all of these headers
 	# if including them would exceed any system environment limits.
 	variable fields
-	foreach field $field {
+	foreach field $fields {
 	    if {[dict exists $r $field]} {
 		lappend env [string map {- _} [string toupper $field]] [dict get $r $field]
 	    }
@@ -115,7 +115,7 @@ namespace eval CGI {
 	set ext [string trimleft $ext .]	;# remove leading .
 
 	# keep the file variables in request dict for future reference
-	foreach v {suffix ext tail ftail path inode dir} {
+	foreach v {suffix ext tail ftail path dir} {
 	    dict set retval $v [set $v]
 	}
 
@@ -131,6 +131,9 @@ namespace eval CGI {
 	    lappend executors $ext $l
 	}
     }
+
+    variable maxcgi 10
+    variable cgi 0
 
     proc _do {mount root r} {
 	# grab some useful file values from request's url
@@ -154,46 +157,52 @@ namespace eval CGI {
 	if {[catch {
 	    parseSuffix $suffix
 	} fparts eo]} {
+	    Debug.cgi {parseSuffix '$fparts' ($eo)}
 	    return [Http NotFound $r $fparts]
 	}
-	Debug.pub {parsed URL into '$fparts'}
+	Debug.cgi {parsed URL into '$fparts'}
 
 	dict set req -fparts $fparts	;# record file parts in request
 	dict with req -fparts {}	;# grab some useful values from req
 	dict set req -suffix $suffix	;# remember the calculated suffix in req
 
 	# derive a script path from the URL path fields
-	Debug.pub {searching for [file join $root $suffix]}
+	Debug.cgi {searching for [file join $root $suffix]}
 	set extlc [string tolower $ext]
-	set suff [file split $path$extlc]
+	set suff [file split $path.$ext]
 	dict set r -info {}
 	while {$suff ne {}} {
 	    set probe [file join $root {*}$suff]
 	    set ext [file extension $probe]
 	    set extlc [string tolower $ext]
 	    set probe [file root $probe]$extlc
+	    Debug.cgi {probing for '$probe'}
 	    if {[file exists $probe]} {
 		break
 	    }
-	    dict lappend r -info "[lindex $suff end]$extlc"
+	    dict lappend r -info "[lindex $suff end].$extlc"
 	    set suff [lrange $suff 0 end-1]
 	}
 	dict set r -translated $probe[dict get $r -info]
 
 	# only execute scripts with appropriate extension
+	variable executors
 	if {[catch {
+	    Debug.cgi {executors '$ext' in ($executors)}
 	    dict get $executors $ext
 	} executor]} {
-	    return [Http Forbidden $r [<p> "Can't execute files of type $ext"]]
+	    return [Http Forbidden $r [<p> "Can't execute files of type '$ext'"]]
 	}
 
 	if {$suff eq {}} {
 	    # we've failed to find a match
+	    Debug.cgi {could not find script}
 	    return [Http NotFound $r]
 	    # could do a search with different variant extensions
 	} else {
 	    # found our script
-	    set script [file join $mount {*}$suff]
+	    set script [file rootname [file join $root {*}$suff]][string tolower [file extension $suff]]
+	    Debug.cgi {found script '$script'}
 	    dict set req -script $script
 	}
 
@@ -215,9 +224,9 @@ namespace eval CGI {
 	cd [file dirname $script]
 
 	# execute the script
-	Debug.cgi {running: open "|{*}$executor $script {*}$arglist"}
+	Debug.cgi {running: open "|$executor $script $arglist"}
 	if {[catch {
-	    open "|{*}$executor $script {*}$arglist <<[Dict get? $r -entity] 2>@1" r+
+	    open "|$executor $script $arglist <<[Dict get? $r -entity] 2>@1" r
 	} pipe eo]} {
 	    cd $pwd
 	    Debug.error {CGI: Error $pipe ($eo) "|{*}$executor $script {*}$arglist"}
@@ -231,29 +240,78 @@ namespace eval CGI {
 	while {1} {
 	    set n [gets $pipe line]
 	    if {$n == -1} {
+		Debug.cgi {end of input}
+		break
 		# cgi dead
-		return [Http Ok $r ""]
 	    } elseif {$n == 0} {
 		break	;# end of header
 	    } elseif {[string index $line 0] ne " "} {
 		# read a new header
 		set line [string trim [join [lassign [split line :] header] :]]
-		dict set r $header $line
+		dict set r [string tolower $header] $line
 		Debug.cgi {header: $header '$line'}
 	    } else {
 		# get field continuation
-		dict append r $header " " [string trim $line]
+		dict append r [string tolower $header] " " [string trim $line]
 		Debug.cgi {continuation: $header '$line'}
 	    }
 	}
 
 	# read the rest of the content
 	fconfigure $pipe -translation {binary binary}
-	set content [read $pipe]
-	close $pipe
+	dict set r -content [read $pipe]
+	incr cgi -1
+	
+	set status [catch {close $pipe} result]
+	if { $status == 0 } {
+	    # The command succeeded, and wrote nothing to stderr.
+	    # $result contains what it wrote to stdout, unless you
+	    # redirected it
+	    
+	} elseif { [string equal $::errorCode NONE] } {
 
-	Debug.cgi {read body '$content'}
-	return [Http Ok $r $content]
+	    # The command exited with a normal status, but wrote something
+	    # to stderr, which is included in $result.
+
+	} else {
+
+	    switch -exact -- [lindex $::errorCode 0] {
+		CHILDKILLED {
+		    lassign $::errorCode - pid sigName msg
+		    Debug.cgi {CHILDKILLED: $pid $sigName '$msg'}
+		    # A child process, whose process ID was $pid,
+		    # died on a signal named $sigName.  A human-
+		    # readable message appears in $msg.
+		}
+
+		CHILDSTATUS {
+		    lassign $::errorCode - pid code
+		    Debug.cgi {CHILDSTATUS: $pid $code}
+		    # A child process, whose process ID was $pid,
+		    # exited with a non-zero exit status, $code.
+		}
+
+		CHILDSUSP {
+		    lassign $::errorCode - pid sigName msg
+		    Debug.cgi {CHILDSUSP: $pid $sigName '$msg'}
+		    # A child process, whose process ID was $pid,
+		    # has been suspended because of a signal named
+		    # $sigName.  A human-readable description of the
+		    # signal appears in $msg.
+		}
+
+		POSIX {
+		    lassign $::errorCode - errName msg
+		    Debug.cgi {CHILDSUSP: $errName '$msg'}
+		    # One of the kernel calls to launch the command
+		    # failed.  The error code is in $errName, and a
+		    # human-readable message is in $msg.
+		}
+	    }
+	}
+
+	Debug.cgi {read body '[dict get $r -content]'}
+	return [Http Ok $r]
     }
 
     variable mount /CGI/
