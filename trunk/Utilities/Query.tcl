@@ -26,6 +26,7 @@ namespace eval Query {
 	    if {![string match {[a-zA-Z0-9]} $c]} {
 		lappend map $c %[format %.2X $i]
 		lappend dmap %[format %.2X $i] [binary format c $i]
+		lappend dmap %[format %.2x $i] [binary format c $i]
 	    }
 	}
 
