@@ -13,6 +13,7 @@ package ifneeded Honeypot 1.0 [list source [file join $dir Honeypot.tcl]]
 package ifneeded Dub 1.0 [list source [file join $dir Dub.tcl]]
 package ifneeded Commenter 1.0 [list source [file join $dir Commenter.tcl]]
 package ifneeded jQ 1.0 [list source [file join $dir jQ jQ.tcl]]
+package ifneeded CGI 1.0 [list source [file join $dir CGI.tcl]]
 
 #package ifneeded Host 2.0 [list source [file join $dir Host.tcl]]
 #package ifneeded Snit 1.0 [list source [file join $dir Snit.tcl]]
