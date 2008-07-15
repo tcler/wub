@@ -4,6 +4,7 @@ Debug off sinorca 10
 package require Html
 package require RAM
 package require Form
+package require Color
 
 package provide Sinorca 1.0
 
@@ -163,24 +164,35 @@ namespace eval Sinorca {
     variable colours {
 	%BODY_FG black
 	%BODY_BG white
+	%BORDER black
+	%FOOTER_FG white
+    }
+
+    variable vcolours {
 	%HIGHLIGHT_BG #F0F0F0
 	%LIGHTER #F8F8F8
 	%SUBHEAD #FDA05E
 	%LEFT #FF9800
 	%HR #999999
 	
+	%HEADER_LEFT #4088b8
 	%HEADER_FG #003399
 	%HEADER_BG #8CA8E6
 	%H1 #999999
 
-	%BORDER black
-
 	%FOOTER_BG #6381DC
-	%FOOTER_FG white
-	
+
 	%TOOLTIP #CCCCCC
 	%VISITED #003399
 	%LINK #0066CC
+
+	%FADE #c8c8c8
+	%BLUR #c8c8c8
+
+	%TABLE_BG #CDCDCD
+	%TABLE_HBG #E6EEEE
+	%TABLE_BBG #3D3D3D
+	%TABLE_ODD #F0F0F6
     }
 
     variable home [file dirname [info script]]
@@ -189,20 +201,32 @@ namespace eval Sinorca {
     variable index ""
 
     variable path "/sinorca/"
+    variable hue 0
+
+    proc rehue {hue} {
+	variable vcolours
+	foreach {n v} $vcolours {
+	    lassign [Color webToHsv $v] h s v
+	    set h [expr {($h + $hue)%360}]
+	    dict set vc $n [Color hsvToWeb $h $s $v]
+	}
+	Debug.sinorca {($vcolours)->($vc)}
+
+	variable colours
+	variable screen
+	ram set screen.css [string map [dict merge $colours $vc] $screen] content-type text/css
+    }
 
     proc init {args} {
 	if {$args ne {}} {
 	    variable {*}$args
 	}
-	variable colours
-	variable screen
-	variable print
-	set screen [string map $colours $screen]
-
 	variable path
 	RAM init ram $path
 
-	ram set screen.css $screen content-type text/css
+	variable hue; rehue $hue
+
+	variable print
 	ram set print.css $print content-type text/css
 
 	variable home 
