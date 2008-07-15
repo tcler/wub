@@ -20,6 +20,7 @@ package ifneeded View 1.0 [list source [file join $dir View.tcl]]
 package ifneeded mktie 2.0 [list source [file join $dir mktie.tcl]]
 package ifneeded UA 1.0 [list source [file join $dir UA.tcl]]
 package ifneeded Report 1.0 [list source [file join $dir Report.tcl]]
+package ifneeded Color 1.0 [list source [file join $dir Color.tcl]]
 
 package ifneeded sgraph 1.0 [list source [file join $dir sgraph.tcl]]
 package ifneeded mkdict_tie 1.0 [list source [file join $dir mkdict_tie.tcl]]
