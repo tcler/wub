@@ -520,6 +520,14 @@ namespace eval Http {
 	return $rsp
     }
 
+    proc GatewayTimeout {rsp message} {
+	set rsp [sysPage $rsp "Service Unavailable" [<p> $message]]
+
+	dict set rsp -code 504
+	dict set rsp -rtype GatewayUnavailable
+	return $rsp
+    }
+
     # construct an HTTP Bad response
     proc Bad {rsp message {code 400}} {
 	set rsp [sysPage $rsp "Bad Request" [<p> $message]]
