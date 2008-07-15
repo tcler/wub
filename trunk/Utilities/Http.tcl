@@ -474,7 +474,7 @@ namespace eval Http {
 		<hr>
 		[tclarmour $content]
 		<hr>
-		[dump [tclarmour $rsp]]
+		[tclarmour [dump $rsp]]
 	    }]]
 		     
 	    dict set rsp -code 500
@@ -560,7 +560,10 @@ namespace eval Http {
     }
 
     # construct an HTTP Unauthorized response
-    proc Unauthorized {rsp challenge {content ""} {ctype "x-text/html-fragment"}} {
+    proc Unauthorized {rsp
+		       challenge
+		       {content ""}
+		       {ctype "x-text/html-fragment"}} {
 	dict lappend rsp -auth $challenge
 	if {$content ne ""} {
 	    dict set rsp content-type $ctype
@@ -629,7 +632,10 @@ namespace eval Http {
     }
 
     # internal redirection generator
-    proc genRedirect {title code rsp to {content ""} {ctype "text/html"} args} {
+    proc genRedirect {title
+		      code rsp to
+		      {content ""} {ctype "text/html"}
+		      args} {
 	set to [Url redir $rsp $to {*}$args]
 
 	if {$content eq ""} {
@@ -772,26 +778,27 @@ namespace eval Http {
 		append c </tr> \n
 	    }
 	    append c </table> \n
-	    
+
 	    append c "<table border='1' width='80%'>" \n
 	    append c <tr> <th> HTTP </th> </tr> \n
 	    foreach n [lsort [dict keys $req {[a-zA-Z]*}]] {
 		append c <tr> <td> $n </td> <td> [armour [dict get $req $n]] </td> </tr> \n
 	    }
 	    append c </table> \n
-	    
+
 	    append c "<table border='1' width='80%'>" \n
 	    append c <tr> <th> Query </th> </tr> \n
 	    array set q [Query flatten [Query parse $req]]
 	    foreach {n} [lsort [array names q]] {
-		append c <tr> <td> $n </td> <td> $q($n) </td> </tr> \n
+		append c <tr> <td> [armour $n] </td> <td> [armour $q($n)] </td> </tr> \n
 	    }
 	    append c </table> \n
-	
+
 	    append c "<table border='1' width='80%'>" \n
 	    append c <tr> <th> Session </th> </tr> \n
-	    foreach key [lsort [Session rdict $req keys]] {
-		append c <tr> <td> $key </td> <td> [Session rdict $req get $key] </td> </tr> \n
+	    set session [Dict get? $req -session]
+	    foreach key [lsort [dict keys $session]] {
+		append c <tr> <td> [armour $key] </td> <td> [armour [dict get $session $key]] </td> </tr> \n
 	    }
 	    append c </table> \n
 	} r eo
