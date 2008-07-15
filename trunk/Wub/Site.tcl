@@ -172,7 +172,7 @@ namespace eval Site {
 	Httpd
 	Debug Http Html Listener Block
 	File Mason Convert Direct Mime
-	Url Query Form Cookies
+	Url Query Form Cookies CGI
 	Sitemap stx Responder
     } {
 	package require $package
