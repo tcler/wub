@@ -213,11 +213,22 @@ namespace eval Http {
 
     # modify response so it will not be returned to client
     proc Suspend {rsp} {
-	if {[dict get $rsp -method] ni {"POST" "PUT"}} {
-	    error "Can only Suspend on POST or PUT requests."
-	}
+	Debug.log {Suspend [dict merge $rsp {-content <elided>}]}
 	dict set rsp -suspend 1
 	return $rsp
+    }
+
+    # finally resume a suspended response
+    proc Resume {rsp} {
+	Debug.log {Resume [dict merge $rsp [list -content "<elided>[string length [Dict get? $rsp -content]]"]]}
+	catch {dict unset rsp -suspend}
+	dict set rsp -resumed 1
+	if {[catch {Responder post $rsp} r eo]} { ;# postprocess response
+	    set rsp [Http ServerError $rsp $r $eo]
+	} else {
+	    set rsp $r
+	}
+	::Send $rsp
     }
 
     # modify response to indicate that the content is a cacheable file

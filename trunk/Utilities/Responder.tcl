@@ -106,9 +106,10 @@ namespace eval Responder {
 		}
 		
 		Debug.responder {RESPONSE: $rsp} 6
-		if {[catch {
-		    Send $rsp 		;# send response
-		} r eo]} {
+		if {![dict exists $rsp -suspend]
+		    && [catch {
+			Send $rsp 		;# send response
+		    } r eo]} {
 		    Debug.responder {SEND ERROR: $rsp} 1
 		} else {
 		    Debug.responder {Sent}
@@ -118,24 +119,6 @@ namespace eval Responder {
 	} err eo]} {
 	    Debug.responder {Incoming: $err $eo}
 	}
-    }
-
-    proc Suspend {rsp} {
-	if {[dict get $rsp -method] ni {"POST" "PUT"}} {
-	    error "Can only Suspend on POST or PUT requests."
-	}
-	dict set rsp -suspend 1
-	return $rsp
-    }
-
-    proc Resume {rsp} {
-	catch {dict unset rsp -suspend}
-	if {[catch {Responder post $rsp} r eo]} { ;# postprocess response
-	    set rsp [Http ServerError $rsp $r $eo]
-	} else {
-	    set rsp $r
-	}
-	::Send $rsp
     }
 
     variable working 0	;# set while we're working
