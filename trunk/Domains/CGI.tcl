@@ -132,6 +132,116 @@ namespace eval CGI {
 	}
     }
 
+    proc closed {r pipe} {
+	Debug.cgi {closed '[dict get $r -content]'}
+	if {[catch {
+	    variable cgi; incr cgi -1
+
+	    # close the pipe and investigate the consequences
+	    catch {fileevent $pipe readable {}}
+
+	    set status [catch {close $pipe} result]
+	    if { $status == 0 } {
+		# The command succeeded, and wrote nothing to stderr.
+		# $result contains what it wrote to stdout, unless you
+		# redirected it
+		set r [Http Ok $r]
+	    } elseif {$::errorCode eq "NONE"} {
+		# The command exited with a normal status, but wrote something
+		# to stderr, which is included in $result.
+		set r [Http Ok $r]
+	    } else {
+		switch -exact -- [lindex $::errorCode 0] {
+		    CHILDKILLED {
+			lassign $::errorCode - pid sigName msg
+			Debug.cgi {CHILDKILLED: $pid $sigName '$msg'}
+			set r [Http ServerError "Child Killed $pid $sigName $msg"]
+			# A child process, whose process ID was $pid,
+			# died on a signal named $sigName.  A human-
+			# readable message appears in $msg.
+		    }
+
+		    CHILDSTATUS {
+			lassign $::errorCode - pid code
+			Debug.cgi {CHILDSTATUS: $pid $code}
+			set r [Http ServerError "Child Status $pid $code"]
+			# A child process, whose process ID was $pid,
+			# exited with a non-zero exit status, $code.
+		    }
+		    
+		    CHILDSUSP {
+			lassign $::errorCode - pid sigName msg
+			Debug.cgi {CHILDSUSP: $pid $sigName '$msg'}
+			set r [Http ServerError "Child Suspended $pid $sigName $msg"]
+			# A child process, whose process ID was $pid,
+			# has been suspended because of a signal named
+			# $sigName.  A human-readable description of the
+			# signal appears in $msg.
+		    }
+		    
+		    POSIX {
+			lassign $::errorCode - errName msg
+			Debug.cgi {CHILDSUSP: $errName '$msg'}
+			set r [Http ServerError "Child Error $errName $msg"]
+			# One of the kernel calls to launch the command
+			# failed.  The error code is in $errName, and a
+			# human-readable message is in $msg.
+		    }
+		}
+	    }
+	} e eo]} {
+	    Debug.error {cgi closed: $e ($eo)}
+	}
+	Http Resume $r
+    }
+
+    proc entity {r pipe} {
+	if {[catch {
+	    if {[eof $pipe]} {
+		closed $r $pipe
+	    } else {
+		# read the rest of the content
+		fconfigure $pipe -translation {binary binary}
+		dict append r -content [read $pipe]
+		fileevent $pipe readable [namespace code [list entity $r $pipe]]
+		Debug.cgi {read body '[dict get $r -content]'}
+	    }
+	} e eo]} {
+	    Debug.error {cgi entity: $e ($eo)}
+	}
+    }
+
+    proc headers {r pipe} {
+	if {[catch {
+	    # get headers from CGI process
+	    if {[eof $pipe]} {
+		closed $r $pipe
+	    } else {
+		set n [gets $pipe line]
+		if {$n == -1} {
+		    Debug.cgi {end of input}
+		    closed $r $pipe
+		    # cgi dead
+		} elseif {$n == 0} {
+		    fileevent $pipe readable [namespace code [list entity $r $pipe]]
+		} elseif {[string index $line 0] ne " "} {
+		    # read a new header
+		    set line [string trim [join [lassign [split line :] header] :]]
+		    dict set r [string tolower $header] $line
+		    fileevent $pipe readable [namespace code [list headers $r $pipe]]
+		    Debug.cgi {header: $header '$line'}
+		} else {
+		    # get field continuation
+		    dict append r [string tolower $header] " " [string trim $line]
+		    fileevent $pipe readable [namespace code [list headers $r $pipe]]
+		    Debug.cgi {continuation: $header '$line'}
+		}
+	    }
+	} e eo]} {
+	    Debug.error {cgi header: $e ($eo)}
+	}
+    }
+
     variable maxcgi 10
     variable cgi 0
 
@@ -207,11 +317,16 @@ namespace eval CGI {
 	}
 
 	array set ::env [env $r]	;# construct the environment per CGI 1.1
+	# TODO - need to clean up a lot of sensitive stuff from the ::env
+
+	# limit the number of CGIs running
 	variable maxcgi
 	variable cgi
 	if {[incr cgi] > $maxcgi} {
 	    return [Http GatewayTimeout $r "Maximum CGI count exceeded"]
 	}
+
+	# collect arguments for GET methods
 	dict set r -Query [Query parse $r]
 	if {[dict get $r -method] ne "POST"} {
 	    set arglist [Query flatten [dict get $r -Query]]
@@ -226,92 +341,24 @@ namespace eval CGI {
 	# execute the script
 	Debug.cgi {running: open "|$executor $script $arglist"}
 	if {[catch {
+	    # run the script under the executor
 	    open "|$executor $script $arglist <<[Dict get? $r -entity] 2>@1" r
 	} pipe eo]} {
+	    # execution failed
 	    cd $pwd
 	    Debug.error {CGI: Error $pipe ($eo) "|{*}$executor $script {*}$arglist"}
 	    return [Http ServerError $r $pipe $eo]
 	} else {
-	    fconfigure $pipe -translation {auto binary}
+	    # execution succeeded
+	    fconfigure $pipe -translation {auto binary} -blocking 0
 	    cd $pwd
 	}
 
-	# get content from CGI process
-	while {1} {
-	    set n [gets $pipe line]
-	    if {$n == -1} {
-		Debug.cgi {end of input}
-		break
-		# cgi dead
-	    } elseif {$n == 0} {
-		break	;# end of header
-	    } elseif {[string index $line 0] ne " "} {
-		# read a new header
-		set line [string trim [join [lassign [split line :] header] :]]
-		dict set r [string tolower $header] $line
-		Debug.cgi {header: $header '$line'}
-	    } else {
-		# get field continuation
-		dict append r [string tolower $header] " " [string trim $line]
-		Debug.cgi {continuation: $header '$line'}
-	    }
-	}
+	# collect input from the proc
+	fileevent $pipe readable [namespace code [list headers $r $pipe]]
 
-	# read the rest of the content
-	fconfigure $pipe -translation {binary binary}
-	dict set r -content [read $pipe]
-	incr cgi -1
-	
-	set status [catch {close $pipe} result]
-	if { $status == 0 } {
-	    # The command succeeded, and wrote nothing to stderr.
-	    # $result contains what it wrote to stdout, unless you
-	    # redirected it
-	    
-	} elseif { [string equal $::errorCode NONE] } {
-
-	    # The command exited with a normal status, but wrote something
-	    # to stderr, which is included in $result.
-
-	} else {
-
-	    switch -exact -- [lindex $::errorCode 0] {
-		CHILDKILLED {
-		    lassign $::errorCode - pid sigName msg
-		    Debug.cgi {CHILDKILLED: $pid $sigName '$msg'}
-		    # A child process, whose process ID was $pid,
-		    # died on a signal named $sigName.  A human-
-		    # readable message appears in $msg.
-		}
-
-		CHILDSTATUS {
-		    lassign $::errorCode - pid code
-		    Debug.cgi {CHILDSTATUS: $pid $code}
-		    # A child process, whose process ID was $pid,
-		    # exited with a non-zero exit status, $code.
-		}
-
-		CHILDSUSP {
-		    lassign $::errorCode - pid sigName msg
-		    Debug.cgi {CHILDSUSP: $pid $sigName '$msg'}
-		    # A child process, whose process ID was $pid,
-		    # has been suspended because of a signal named
-		    # $sigName.  A human-readable description of the
-		    # signal appears in $msg.
-		}
-
-		POSIX {
-		    lassign $::errorCode - errName msg
-		    Debug.cgi {CHILDSUSP: $errName '$msg'}
-		    # One of the kernel calls to launch the command
-		    # failed.  The error code is in $errName, and a
-		    # human-readable message is in $msg.
-		}
-	    }
-	}
-
-	Debug.cgi {read body '[dict get $r -content]'}
-	return [Http Ok $r]
+	# suspend this response
+	return [Http Suspend $r]
     }
 
     variable mount /CGI/
