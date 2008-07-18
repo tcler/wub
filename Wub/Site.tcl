@@ -355,17 +355,6 @@ proc Responder::post {rsp} {
     return [::Convert do $rsp]
 }
 
-# Resume a suspended response
-proc ::Resume {rsp} {
-    catch {dict unset rsp -suspend}
-    if {[catch {Responder post $rsp} r eo]} { ;# postprocess response
-	set rsp [Http ServerError $rsp $r $eo]
-    } else {
-	set rsp $r
-    }
-    ::Send $rsp
-}
-
 # this will be used to send responses to processed requests
 # since we're in a single thread, it's got to be fairly simple
 proc ::Send {r} {
