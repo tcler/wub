@@ -218,7 +218,7 @@ namespace eval Html {
 	return [<table> border 1 width 80% [subst {
 	    [<tr> [<th> $name]]
 	    Foreach n [lsort [dict keys $args]] {
-		[<tr> [<td> $n] [<td> [dict get $arg $n]]]
+		[<tr> [<td> $n] [<td> [dict get $args $n]]]
 	    }
 	}]]
     }
