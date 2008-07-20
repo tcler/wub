@@ -236,15 +236,13 @@ namespace eval Url {
 	    set to [uri $todict]
 	} else {
 	    # local URL
-	    set host [dict get $dict -host]
-	    set port [dict get $dict -port]
-	    set path [dict get $dict -path]
 	    set npath [dict get $todict -path]
-
 	    if {[file pathtype $npath] eq "relative"} {
-		set npath [normalize [file join $path $npath]]
+		set npath [normalize [file join [dict get $dict -path] $npath]]
 	    }
 
+	    set host [dict get $dict -host]
+	    set port [dict get $dict -port]
 	    set to [uri [dict replace $todict \
 			     -path $npath \
 			     -host $host \
