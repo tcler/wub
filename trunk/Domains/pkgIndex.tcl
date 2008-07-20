@@ -22,7 +22,8 @@ package ifneeded CGI 1.0 [list source [file join $dir CGI.tcl]]
 #package ifneeded Home 1.0 [list source [file join $dir Home.tcl]]
 #package ifneeded WubTest 1.0 [list source [file join $dir WubTest.tcl]]
 
-package ifneeded RAM  1.0 [list source [file join $dir RAM.tcl]]
+package ifneeded RAM  1.1 [list source [file join $dir RAM.tcl]]
+package ifneeded Rest  1.1 [list source [file join $dir Rest.tcl]]
 package ifneeded Widget 1.0 [list source [file join $dir Widget.tcl]]
 
 package ifneeded Sinorca 1.0 [list source [file join $dir Sinorca Sinorca.tcl]]
