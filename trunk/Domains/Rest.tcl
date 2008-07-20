@@ -43,6 +43,7 @@ package provide Rest 1.0
 namespace eval Rest {
 
     proc do {rsp} {
+	variable mount
 	# compute suffix
 	if {[dict exists $rsp -suffix]} {
 	    # caller has munged path already
@@ -52,8 +53,8 @@ namespace eval Rest {
 	    # assume we've been parsed by package Url
 	    # remove the specified prefix from path, giving suffix
 	    set path [dict get $rsp -path]
-	    set suffix [Url pstrip $prefix $path]
-	    Debug.rest {-suffix not given - calculated '$suffix' from '$prefix' and '$path'}
+	    set suffix [Url pstrip $mount $path]
+	    Debug.rest {-suffix not given - calculated '$suffix' from '$mount' and '$path'}
 	    if {($suffix ne "/") && [string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
 		return [Http NotFound $rsp]
@@ -81,11 +82,12 @@ namespace eval Rest {
 	# construct a dummy proc
 	proc dummy $params {}
 
+	# collect named args from query
 	array set used {}
 	set needargs 0
 	set argl {}
 	Debug.rest {params:$params ([dict keys $qd])}
-	foreach arg $params {
+	foreach arg [lrange $params 1 end] {
 	    if {[Query exists $qd $arg]} {
 		Debug.rest {param $arg exists} 2
 		incr used($arg)
@@ -123,7 +125,7 @@ namespace eval Rest {
 	dict set rsp -dynamic 1
 
 	catch {dict unset rsp -content}
-	Debug.rest {applying $apply [string range $argl 0 80]... [dict keys $argll]} 2
+	Debug.rest {applying '$apply' [string range $argl 0 80]... [dict keys $argll]} 2
 	if {[catch {
 	    ::apply $apply [dict merge $rsp $env] {*}$argl {*}$argll
 	} result eo]} {
@@ -137,9 +139,10 @@ namespace eval Rest {
 	    }
 
 	    if {[dict exists $env -count]
-		&& [dict env incr -count -1] <= 0
+		&& [lindex [dict incr env -count -1] 1] <= 0
 	    } {
 		# we need to remove the content
+		Debug.rest {unsetting $suffix / [dict get $env -count]}
 		cstore unset $suffix
 	    } else {
 		# refresh stored environment
@@ -151,15 +154,21 @@ namespace eval Rest {
 	}
     }
 
-    variable mount "/_c/"
+    variable mount "/_r/"
 
     # emit - construct a temporary with the apply and environment
     # -count determines for how many calls the temporary is valid.
-    proc emit {rsp apply args} {
-	# find a (currently-)unique random key
-	set key [clock microseconds][expr {int(rand() * 10000)}]
-	while {[cstore exists $key]} {
+    proc emit {r apply args} {
+	Debug.rest {emit ($r) '$apply' ($args)}
+	if {[dict exists $args -key]} {
+	    set key [dict get $args -key]
+	    dict unset args -key
+	} else {
+	    # find a (currently-)unique random key
 	    set key [clock microseconds][expr {int(rand() * 10000)}]
+	    while {[cstore exists $key]} {
+		set key [clock microseconds][expr {int(rand() * 10000)}]
+	    }
 	}
 
 	# ensure there's a -count environment field
@@ -171,6 +180,7 @@ namespace eval Rest {
 	cstore set $key $apply {*}$args -atime [clock seconds]
 
 	# generate a Url to the temp content
+	variable mount
 	return [Url redir $r [file join $mount $key]]
     }
 
@@ -209,6 +219,10 @@ namespace eval Rest {
 	if {$maxage > 0} {
 	    variable gc [after $maxage [namespace code gc]]
 	}
+    }
+
+    proc _exists {key} {
+	return [cstore exists $key]
     }
 
     proc init {args} {
