@@ -29,6 +29,9 @@
 # After each invocation, a -count field (by default, 1) is decremented
 # The lambda is removed when -count falls to 0.
 #
+# The environment of each lambda may also contain a -maxage component
+# which is the maximum age (in seconds) may reach before being 
+# accessed, after which a lambda may be garbage collected.
 
 package require Debug
 Debug off rest 10
@@ -179,14 +182,23 @@ namespace eval Rest {
 	return $r
     }
 
+    # default maximum idle age for a lambda. (0 means no gc)
     variable maxage [expr {60 * 60}]	;# default an hour
+    variable gc	;# the gc [after] id, in case it's useful.
+
     proc gc {} {
 	if {[catch {
 	    variable maxage
 	    set now [clock seconds]
 	    foreach key [cstore keys] {
-		set acc [dict get [lassign [cstore set $key] fn] -atime]
-		if {{$now - $acc} > $maxage} {
+		set env [lassign [cstore set $key] fn]
+		set acc [dict get $env -atime]
+		if {[dict exists $env -maxage]} {
+		    set age [dict get $env -maxage]
+		} else {
+		    set age $maxage
+		}
+		if {{$now - $acc} > $age} {
 		    cstore unset $key	;# remove stale lambdas
 		}
 	    }
