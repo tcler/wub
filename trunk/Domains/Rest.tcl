@@ -70,7 +70,6 @@ namespace eval Rest {
 
 	# fetch the rest content
 	set env [lassign [cstore set $suffix] apply]
-	set org_env $env
 	dict set rsp -env $env	;# store the complete environment
 
 	# unpack the apply
@@ -139,9 +138,9 @@ namespace eval Rest {
 	    } {
 		# we need to remove the content
 		cstore unset $suffix
-	    } elseif {$env ne $org_env} {
+	    } else {
 		# refresh stored environment
-		cstore set $suffix $apply {*}$env
+		cstore set $suffix $apply {*}$env -atime [clock seconds]
 	    }
 
 	    # merge the result into the response 
@@ -166,7 +165,7 @@ namespace eval Rest {
 	}
 
 	# store the apply and its args in a temp store
-	cstore set $key $apply {*}$args
+	cstore set $key $apply {*}$args -atime [clock seconds]
 
 	# generate a Url to the temp content
 	return [Url redir $r [file join $mount $key]]
@@ -180,12 +179,38 @@ namespace eval Rest {
 	return $r
     }
 
+    variable maxage [expr {60 * 60}]	;# default an hour
+    proc gc {} {
+	if {[catch {
+	    variable maxage
+	    set now [clock seconds]
+	    foreach key [cstore keys] {
+		set acc [dict get [lassign [cstore set $key] fn] -atime]
+		if {{$now - $acc} > $maxage} {
+		    cstore unset $key	;# remove stale lambdas
+		}
+	    }
+	} e eo]} {
+	    Debug.error {Rest gc - $e ($eo)}
+	}
+	# reschedule garbage collection
+	if {$maxage > 0} {
+	    variable gc [after $maxage [namespace code gc]]
+	}
+    }
+
     proc init {args} {
 	if {$args ne {}} {
 	    variable {*}$args
 	}
 	variable mount
 	RAM init cstore $mount
+
+	# schedule garbage collection
+	variable maxage
+	if {$maxage > 0} {
+	    variable gc [after $maxage [namespace code gc]]
+	}
     }
 
     namespace export -clear *
