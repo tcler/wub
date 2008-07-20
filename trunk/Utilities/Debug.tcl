@@ -28,7 +28,7 @@ namespace eval Debug {
 	    set fd $fds($tag)
 
 	    set code [catch {
-		uplevel 1 subst [list $message]
+		uplevel 1 subst -nobackslashes [list $message]
 	    } result eo]
 	    if {$code} {
 		puts -nonewline $fd @@[string map {\n \\n \r \\r} "(DebugError from [info level -1] ($eo)):"]
