@@ -89,7 +89,37 @@ namespace eval Icons {
     foreach file [glob [file join $home images *.ico]] {
 	set icons([file tail $file]) [list [::fileutil::cat -translation binary $file] image/vnd.microsoft.icon]
     }
-    Debug.icons {Icons: [array names icons]}
+    #Debug.icons {Icons: [array names icons]}
+
+    variable dirparams {
+	sortable 1
+	evenodd 1
+	class table
+	tparam {title table}
+	hclass header
+	hparam {title column}
+	thparam {class thead}
+	fclass footer
+	tfparam {class tfoot}
+	rclass row
+	rparam {title row}
+	eclass el
+	eparam {title element}
+	footer {}
+    }
+
+    proc dir {rsp} {
+	Debug.icons {dir $rsp}
+	variable icons; variable mount
+	set idict {}
+	foreach name [array names icons] {
+	    dict set idict $name [list name $name icon [<img> src [file join $mount $name]]]
+	}
+	variable dirparams
+	set report [Report html $idict {*}$dirparams headers {name icon}]
+	Debug.icons "Report: $report"
+	return [Http Ok $rsp $report x-text/html-fragment]
+    }
 
     proc do {rsp} {
 	variable mount
