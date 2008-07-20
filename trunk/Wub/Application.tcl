@@ -299,7 +299,7 @@ proc Incoming {req} {
 	}
 
 	/_r/* {
-	    if {![Rest _exists test]} {
+	    if {![Rest exists test]} {
 		Rest emit $req {r {
 		    Rest again $r	;# ensure this persists
 		    set url [Rest emit $r {{r count} {
