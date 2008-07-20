@@ -18,6 +18,21 @@ set docroot [file normalize [file join $::Site::docroot .. docs]]
 #### CGI domain
 CGI init cgi root [file normalize [file dirname [info script]]]
 
+#### Rest domain
+package require Rest
+Rest init mount /_r/
+Rest emit {r {
+    Rest again	;# ensure this persists
+    return [Http Ok $r [Form action [Rest emit {r count} {
+	# this is the action for the form,
+	# it will be constructed anew for,
+	# and applied on each form submit
+	return [Http Ok [<p> "Count: $count"]]
+    }] {
+	[<text> count legend "Count:"]
+    }]]
+} -key test
+
 #### Wub documentation directory
 # This creates a Mason domain which responds to urls of the form /wub/*
 # It will search through the ../docs/ directory for its files,
