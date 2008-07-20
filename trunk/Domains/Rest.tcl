@@ -1,4 +1,17 @@
 # Rest - store apply exprs in a random temporary URL
+#
+# method [Rest emit {lambda} args...] generates a temporary Url
+# mapping to the lambda. The temporary Url is a random integer.
+#
+# The lambda will be passed the request and any query args, its
+# return value is the response.
+# The default is for the lambda to be destroyed after invocation,
+# but it can persist indefinitely using the [Rest again $r] method.
+#
+# This is useful, for example, for form temporary result processing.
+# [Form action [Rest emit {{r a b c args} {do something with the request and args}}] {... form containing a b c etc ...}]
+# saves the hassle of having to create a Direct domain
+# for short-lived stuff
 # 
 # store a lambda in a temporary store addressable 
 # by a generated random Url.
@@ -15,6 +28,7 @@
 #
 # After each invocation, a -count field (by default, 1) is decremented
 # The lambda is removed when -count falls to 0.
+#
 
 package require Debug
 Debug off rest 10
