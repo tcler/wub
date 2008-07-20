@@ -152,8 +152,8 @@ namespace eval Sinorca {
 			
 			[<div> id header [subst {
 			    [<header> $header]
-			    [<global> "[Html links | $globlinks]\n$global"]
-			    [<site> [Html links | $sitelinks]]
+			    [<global> "[Html links {} $globlinks]\n$global"]
+			    [<site> [Html links {} $sitelinks]]
 			}]]
 			$sidebar
 			[<content> {*}$mainclass navbox $navbox breadcrumbs $breadcrumbs $content]
