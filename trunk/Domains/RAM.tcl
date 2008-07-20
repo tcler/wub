@@ -2,10 +2,9 @@
 
 package require Http
 package require Debug
-
-package provide RAM 1.0
-
 Debug off RAM 10
+
+package provide RAM 1.1
 
 namespace eval RAM {
     variable ram
@@ -56,8 +55,15 @@ namespace eval RAM {
     # _get - gets keyed content only
     proc _get {prefix key} {
 	variable ram
-	Debug.RAM {$prefix$key get '$ram($prefix$key)'}
+	Debug.RAM {get $prefix$key '$ram($prefix$key)'}
 	return [lindex $ram($prefix$key) 0]
+    }
+
+    # _exists - does keyed content exist?
+    proc _exists {prefix key} {
+	variable ram
+	Debug.RAM {exists $prefix$key '[info exists ram($prefix$key)]'}
+	return [info exists ram($prefix$key)]
     }
 
     # _set - assumes first arg is content, rest are to be merged
@@ -75,6 +81,14 @@ namespace eval RAM {
 	return $ram($prefix$key)
     }
 
+    # _unset - remove content
+    proc _unset {prefix key} {
+	# unset ram for prefix
+	variable ram;
+	Debug.RAM {unset $prefix$key '$ram($prefix$key)'}
+	unset ram($prefix$key)
+    }
+
     # initialize view ensemble for RAM
     proc init {cmd prefix args} {
 	if {$args ne {}} {
@@ -85,7 +99,9 @@ namespace eval RAM {
 	    -command $cmd -subcommands {} \
 	    -map [subst {
 		set "_set $prefix"
+		unset "_unset $prefix"
 		get "_get $prefix"
+		exists "_exists $prefix"
 		do "_do $prefix"
 	    }]
 
