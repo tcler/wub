@@ -26,12 +26,13 @@ namespace eval CGI {
 	lappend env SERVER_PORT [Dict get? $r -port]
 	# port number to which the request was sent.
 
+	set url [Url parse [Dict get? $r -uri]]
 	lappend env REQUEST_URI [Dict get? $r -uri]
 	lappend env REQUEST_METHOD [Dict get? $r -method]
 	# method with which the request was made.
 	# For HTTP, this is "GET", "HEAD", "POST", etc.
 
-	lappend env QUERY_STRING [Dict get? $r -query]
+	lappend env QUERY_STRING [Dict get? $url -query]
 	# information which follows the ? in the URL which referenced this script.
 	# This is the query information. It should not be decoded in any fashion.
 	# This variable should always be set when there is query information,
@@ -133,7 +134,7 @@ namespace eval CGI {
     }
 
     proc closed {r pipe} {
-	Debug.cgi {closed '[dict get $r -content]'}
+	Debug.cgi {closed [string length [Dict get? $r -content]]}
 	if {[catch {
 	    variable cgi; incr cgi -1
 
@@ -149,6 +150,7 @@ namespace eval CGI {
 	    } elseif {$::errorCode eq "NONE"} {
 		# The command exited with a normal status, but wrote something
 		# to stderr, which is included in $result.
+		Debug.log {CGI stderr: $result}
 		set r [Http Ok $r]
 	    } else {
 		switch -exact -- [lindex $::errorCode 0] {
@@ -197,14 +199,18 @@ namespace eval CGI {
 
     proc entity {r pipe} {
 	if {[catch {
+	    fconfigure $pipe -translation {binary binary} -encoding binary
 	    if {[eof $pipe]} {
+		set c [read $pipe]
+		dict append r -content $c
+		Debug.cgi {done body [string length $c]'}
 		closed $r $pipe
 	    } else {
 		# read the rest of the content
-		fconfigure $pipe -translation {binary binary}
-		dict append r -content [read $pipe]
+		set c [read $pipe]
+		dict append r -content $c
 		fileevent $pipe readable [namespace code [list entity $r $pipe]]
-		Debug.cgi {read body '[dict get $r -content]'}
+		Debug.cgi {read body [string length $c]'}
 	    }
 	} e eo]} {
 	    Debug.error {cgi entity: $e ($eo)}
@@ -223,10 +229,12 @@ namespace eval CGI {
 		    closed $r $pipe
 		    # cgi dead
 		} elseif {$n == 0} {
+		    Debug.cgi {end of headers}
+		    fconfigure $pipe -translation {binary binary} -encoding binary
 		    fileevent $pipe readable [namespace code [list entity $r $pipe]]
 		} elseif {[string index $line 0] ne " "} {
 		    # read a new header
-		    set line [string trim [join [lassign [split line :] header] :]]
+		    set line [string trim [join [lassign [split $line :] header] :]]
 		    dict set r [string tolower $header] $line
 		    fileevent $pipe readable [namespace code [list headers $r $pipe]]
 		    Debug.cgi {header: $header '$line'}
