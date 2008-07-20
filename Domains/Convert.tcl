@@ -98,7 +98,7 @@ namespace eval Convert {
     # perform applicable postprocess on content of given type
     proc postprocess {rsp} {
 	set ctype [dict get $rsp content-type]
-	Debug.convert {postprocess: $ctype}
+	Debug.convert {postprocess type: $ctype ($rsp)}
 	variable postprocess
 	if {[info exists postprocess($ctype)]} {
 	    # there is a postprocessor
@@ -110,6 +110,7 @@ namespace eval Convert {
 	    catch {dict unset rsp -file}	;# forget that there's a file connected
 	    Debug.convert {postprocessed: $postprocess($ctype)}
 	}
+	Debug.convert {postprocessed type: $ctype ($rsp)}
 	return $rsp
     }
 
@@ -136,10 +137,10 @@ namespace eval Convert {
 	    foreach a [split [dict get $rsp accept] ,] {
 		lassign [split [string trim $a] ";"] a q
 		
-		Debug.convert {transform matching '$a' '$q' against '$ctype'}
+		Debug.convert {tpath matching '$a' '$q' against '$ctype'}
 		if {$a eq $ctype} {
 		    # exact match - done
-		    Debug.convert {transform: matched $a}
+		    Debug.convert {tpath: matched $a}
 		    return [list * [dict replace $rsp -raw 1]]
 		}
 
@@ -180,6 +181,7 @@ namespace eval Convert {
 	Debug.convert {transform: [dumpMsg $rsp]}
 	lassign [tpath $rsp] path rsp
 	if {$path eq "*"} {
+	    Debug.convert {transform identity}
 	    return $rsp
 	}
 
@@ -233,16 +235,19 @@ namespace eval Convert {
 	while {![dict exists $rsp -raw]
 	       && [dict exists $rsp content-type]} {
 	    # transform according to mime type
+	    Debug.convert {convert transform: [dumpMsg $rsp]}
 	    set rsp [transform $rsp]
 	    
 	    # perform any postprocessing on *transformed* type
 	    if {$ctype ne [dict get $rsp content-type]} {
+		Debug.convert {post-postprocess: [dumpMsg $rsp]}
 		set rsp [postprocess $rsp]
 	    }
 	    
-	    Debug.convert {Converted: [dumpMsg $rsp]}
+	    Debug.convert {Converted ($ctype [dict get $rsp content-type]): [dumpMsg $rsp]}
 	}
 
+	Debug.convert {Conversion complete: [dumpMsg $rsp]}
 	return $rsp
     }
 
@@ -268,9 +273,7 @@ namespace eval Convert {
     proc do {rsp} {
 	variable transform
 	variable postprocess
-	Debug.convert {Respond: [dumpMsg $rsp]
-	    with: [array get transform]
-	    postproc: [array get postprocess]
+	Debug.convert {DO Respond: [dumpMsg $rsp] with: [array get transform] postproc: [array get postprocess]
 	}
 
 	# -raw overrides content negotiation
