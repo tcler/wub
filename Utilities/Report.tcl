@@ -32,6 +32,7 @@ namespace eval Report {
 	}
 	variable defaults; set args [dict merge $defaults $args]
 	Debug.report {header $args}
+
 	if {![dict exists $args header]} {
 	    if {![dict exists $args headers]} {
 		return $args
@@ -84,6 +85,8 @@ namespace eval Report {
 	    set args [lindex $args 0]
 	}
 	variable defaults; set args [dict merge $defaults $args]
+	Debug.report {footer $args}
+
 	if {[dict exists $args footer]} {
 	    set f {}
 	    foreach t [dict get $args footer] {
@@ -127,6 +130,7 @@ namespace eval Report {
 	    set args [lindex $args 0]
 	}
 	variable defaults; set args [dict merge $defaults $args]
+	Debug.report {body $args}
 
 	dict for {k v} $data {
 	    set row {}
@@ -180,6 +184,7 @@ namespace eval Report {
 	    dict append args body [<tr> {*}$rparams {*}[Dict get? $args rparam] \n[join $row \n]\n] \n
 	}
 
+	Debug.report {body done: [dict get $args body]}
 	return $args
     }
 
@@ -191,6 +196,7 @@ namespace eval Report {
 	}
 	variable defaults; set args [dict merge $defaults $args]
 	dict append args body $text
+	Debug.report {interpolate $args}
 	return $args
     }
 
@@ -204,6 +210,7 @@ namespace eval Report {
 	    set args [lindex $args 0]
 	}
 	variable defaults; set args [dict merge $defaults $args]
+	Debug.report {html $args}
 
 	if {![dict exists $args _header]} {
 	    set args [header {*}$args]
