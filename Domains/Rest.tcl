@@ -35,12 +35,12 @@
 
 package require Debug
 Debug off rest 10
-package require RAM
 package require Url
 
 package provide Rest 1.0
 
 namespace eval Rest {
+    variable rest; array set rest {}
 
     proc do {rsp} {
 	variable mount
@@ -61,8 +61,9 @@ namespace eval Rest {
 	    }
 	}
 
-	Debug.rest {exists $suffix [cstore exists $suffix]}
-	if {![cstore exists $suffix]} {
+	variable rest
+	Debug.rest {exists $suffix [info exists rest($suffix)]}
+	if {![info exists rest($suffix)]} {
 	    # path isn't inside our domain suffix - error
 	    return [Http NotFound $rsp]
 	}
@@ -73,7 +74,8 @@ namespace eval Rest {
 	Debug.direct {Query: [Query dump $qd]}
 
 	# fetch the rest content
-	set env [lassign [cstore set $suffix] apply]
+	variable rest
+	set env [lassign $rest($suffix) apply]
 	dict set rsp -env $env	;# store the complete environment
 
 	# unpack the apply
@@ -143,10 +145,10 @@ namespace eval Rest {
 	    } {
 		# we need to remove the content
 		Debug.rest {unsetting $suffix / [dict get $env -count]}
-		cstore unset $suffix
+		unset rest($suffix)
 	    } else {
 		# refresh stored environment
-		cstore set $suffix $apply {*}$env -atime [clock seconds]
+		set rest($suffix) [list $apply {*}$env -atime [clock seconds]]
 	    }
 
 	    # merge the result into the response 
@@ -160,13 +162,14 @@ namespace eval Rest {
     # -count determines for how many calls the temporary is valid.
     proc emit {r apply args} {
 	Debug.rest {emit ($r) '$apply' ($args)}
+	variable rest
 	if {[dict exists $args -key]} {
 	    set key [dict get $args -key]
 	    dict unset args -key
 	} else {
 	    # find a (currently-)unique random key
 	    set key [clock microseconds][expr {int(rand() * 10000)}]
-	    while {[cstore exists $key]} {
+	    while {[info exists rest($key)]} {
 		set key [clock microseconds][expr {int(rand() * 10000)}]
 	    }
 	}
@@ -177,7 +180,7 @@ namespace eval Rest {
 	}
 
 	# store the apply and its args in a temp store
-	cstore set $key $apply {*}$args -atime [clock seconds]
+	set rest($key) [list $apply {*}$args -atime [clock seconds]]
 
 	# generate a Url to the temp content
 	variable mount
@@ -192,6 +195,11 @@ namespace eval Rest {
 	return $r
     }
 
+    proc exists {key} {
+	variable rest
+	return [info exists rest($key)]
+    }
+
     # default maximum idle age for a lambda. (0 means no gc)
     variable maxage [expr {60 * 60}]	;# default an hour
     variable gc	;# the gc [after] id, in case it's useful.
@@ -200,8 +208,9 @@ namespace eval Rest {
 	if {[catch {
 	    variable maxage
 	    set now [clock seconds]
-	    foreach key [cstore keys] {
-		set env [lassign [cstore set $key] fn]
+	    variable rest
+	    foreach key [array names rest] {
+		set env [lassign $rest($key) fn]
 		set acc [dict get $env -atime]
 		if {[dict exists $env -maxage]} {
 		    set age [dict get $env -maxage]
@@ -209,7 +218,7 @@ namespace eval Rest {
 		    set age $maxage
 		}
 		if {{$now - $acc} > $age} {
-		    cstore unset $key	;# remove stale lambdas
+		    unset rest($key)	;# remove stale lambdas
 		}
 	    }
 	} e eo]} {
@@ -221,16 +230,10 @@ namespace eval Rest {
 	}
     }
 
-    proc _exists {key} {
-	return [cstore exists $key]
-    }
-
     proc init {args} {
 	if {$args ne {}} {
 	    variable {*}$args
 	}
-	variable mount
-	RAM init cstore $mount
 
 	# schedule garbage collection
 	variable maxage
