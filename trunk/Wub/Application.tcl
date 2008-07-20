@@ -21,17 +21,6 @@ CGI init cgi root [file normalize [file dirname [info script]]]
 #### Rest domain
 package require Rest
 Rest init mount /_r/
-Rest emit {r {
-    Rest again	;# ensure this persists
-    return [Http Ok $r [Form action [Rest emit {r count} {
-	# this is the action for the form,
-	# it will be constructed anew for,
-	# and applied on each form submit
-	return [Http Ok [<p> "Count: $count"]]
-    }] {
-	[<text> count legend "Count:"]
-    }]]
-} -key test
 
 #### Wub documentation directory
 # This creates a Mason domain which responds to urls of the form /wub/*
@@ -57,7 +46,7 @@ foreach {dom expiry} {
 File bindir -root [file join $docroot bin] -expires 0
 
 #### Commenter is a tcl code comment formatter
-# 'code' is a Direct domain over the Commenter packeage,
+# 'code' is a Direct domain over the Commenter package,
 # which serves /code/* and presents tcl code comments in a summary form.
 package require Commenter
 Direct init code namespace ::Commenter prefix /code ctype "x-text/html-fragment"
@@ -307,6 +296,24 @@ proc Incoming {req} {
 
 	/CGI/* {
 	    return [cgi do $req]
+	}
+
+	/_r/* {
+	    if {![Rest _exists test]} {
+		Rest emit $req {r {
+		    Rest again $r	;# ensure this persists
+		    set url [Rest emit $r {{r count} {
+			# this is the action for the form,
+			# it will be constructed anew for,
+			# and applied on each form submit
+			return [Http Ok $r [<p> "Count: $count"]]
+		    }} -count 2]
+		    return [Http Ok $r [<form> f action $url {
+			[<text> count legend "Count:" value 10]
+		    }]]
+		}} -key test
+	    }
+	    Rest do $req
 	}
 
 	/wub -
