@@ -94,7 +94,7 @@ namespace eval RAM {
 	set result {}
 	set len [string length $prefix]
 	foreach name [array names ram $prefix*] {
-	    lappend result [string range $len end]
+	    lappend result [string range $name $len end]
 	}
 	return $result
     }
