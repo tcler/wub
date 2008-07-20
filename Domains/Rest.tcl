@@ -1,5 +1,20 @@
 # Rest - store apply exprs in a random temporary URL
 # 
+# store a lambda in a temporary store addressable 
+# by a generated random Url.
+#
+# The lambda gets the current request and query args, like Direct
+# it returns a completed dict fragment which is merged with
+# the request dict and returned as the response.
+#
+# Prior to the lambda application, the environment dict passed in
+# at emit-construction time is merged into the request dict.
+#
+# The return dict may also set an -env field in the request dict
+# which becomes the environment for the next invocation (if any).
+#
+# After each invocation, a -count field (by default, 1) is decremented
+# The lambda is removed when -count falls to 0.
 
 package require Debug
 Debug off rest 10
@@ -141,6 +156,14 @@ namespace eval Rest {
 
 	# generate a Url to the temp content
 	return [Url redir $r [file join $mount $key]]
+    }
+
+    # make this Url persist for another use
+    proc again {r} {
+	set env [dict get $r -env]
+	dict incr env -count 1
+	dict set r -env $env
+	return $r
     }
 
     proc init {args} {
