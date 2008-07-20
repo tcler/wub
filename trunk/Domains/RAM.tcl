@@ -89,6 +89,16 @@ namespace eval RAM {
 	unset ram($prefix$key)
     }
 
+    proc _keys {prefix} {
+	variable ram
+	set result {}
+	set len [string length $prefix]
+	foreach name [array names ram $prefix*] {
+	    lappend result [string range $len end]
+	}
+	return $result
+    }
+
     # initialize view ensemble for RAM
     proc init {cmd prefix args} {
 	if {$args ne {}} {
@@ -102,6 +112,7 @@ namespace eval RAM {
 		unset "_unset $prefix"
 		get "_get $prefix"
 		exists "_exists $prefix"
+		keys "_keys $prefix"
 		do "_do $prefix"
 	    }]
 
