@@ -21,7 +21,7 @@ namespace eval Sinorca {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
-	return [<div> class navbox [<ol> <li>[Html links "</li>\n<li>" $args]</li>]]
+	return [<div> class navbox [<ol> <li>[Html links "</li>\n<li>" {*}$args]</li>]]
     }
 
     proc <floatbox> {args} {
@@ -106,7 +106,7 @@ namespace eval Sinorca {
 	set copyright ""
 	Html template copyright
 	set links ""
-	Html template links {[<span> class notprinted [Html links . $links]][<br>]}
+	Html template links {[<span> class notprinted [Html links . {*}$links]][<br>]}
 
 	return [<div> id footer {*}$args [subst {
 	    [<hr>]
@@ -152,8 +152,8 @@ namespace eval Sinorca {
 			
 			[<div> id header [subst {
 			    [<header> $header]
-			    [<global> "[Html links {} $globlinks]\n$global"]
-			    [<site> [Html links {} $sitelinks]]
+			    [<global> "[Html links $globlinks]\n$global"]
+			    [<site> [Html links $sitelinks]]
 			}]]
 			$sidebar
 			[<content> {*}$mainclass navbox $navbox breadcrumbs $breadcrumbs $content]

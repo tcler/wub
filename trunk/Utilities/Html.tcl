@@ -63,13 +63,23 @@ namespace eval Html {
     variable XHTML 0
 
     # arrange a set of links as a list
-    proc links {sep args} {
+    proc links {args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
+	if {[llength $args] % 2} {
+	    set sep [lindex $args 0]
+	    set args [lrange $args 1 end]
+	} else {
+	    set sep ""
+	}
 	set content {}
 	foreach {n url} $args {
-	    lappend content [<a> href $url $n]
+	    if {[llength $url] == 1} {
+		lappend content [<a> href $url $n]
+	    } else {
+		lappend content [<a> {*}$url $n]
+	    }
 	}
 	return [join $content $sep]
     }
