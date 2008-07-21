@@ -388,7 +388,8 @@ namespace eval stx {
 	variable refs
 	while {[regexp -- "\[(\]\x86(\[^)\]+)\[)\]" $result index]} {
 	    Debug.STX {REFSUB $index -> $refs([string trim $index \x86()])}
-	    regsub -- "\[(\]\x86\[^)\]+\[)\]" $result "\[ref \{$refs([string trim $index \x86()])\}\]" result
+	    set sub [string map {\\ \\\\ & \\&} $refs([string trim $index \x86()])]
+	    regsub -- "\[(\]\x86\[^)\]+\[)\]" $result "\[ref \{$sub\}\]" result
 	}
 	
 	# substitute scopes back in
