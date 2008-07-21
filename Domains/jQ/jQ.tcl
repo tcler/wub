@@ -138,6 +138,19 @@ namespace eval jQ {
 	return [scripts $r jquery.js jquery.inc.js]
     }
 
+    proc history {r args} {
+	set r [scripts $r jquery.js jquery.history-remote.js]
+	dict lappend r -postload [<script> "\$(document).ready(function()\{\n$.ajaxHistory.initialize();\n\});"]
+	return $r
+    }
+
+    # combine a selector/initializer and set of script
+    # dependencies to call a jQ package.
+    # relies upon preload and postload capabilities of
+    # conversion scripts to ensure code is initialized in the correct
+    # order, as a postload.
+    # relies upon the script and css capabilities to ensure packages
+    # are loaded correctly
     proc weave {r scripts args} {
 	set script [lindex $args end]
 	set args [lrange $args 0 end-1]
