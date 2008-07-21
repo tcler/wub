@@ -54,10 +54,7 @@ namespace eval Sinorca {
     # Site Links
     proc <site> {args} {
 	Html argsplit
-	return [<div> {*}$args class subheader [subst {
-	    [<span> class hidden {Navigation:}]
-	    [uplevel 1 [list subst $content]]
-	}]]
+	return [<div> {*}$args class subheader [subst {[<span> class hidden {Navigation:}][uplevel 1 [list subst $content]]}]]
     }
 
     proc <sidebox> {args} {
@@ -153,7 +150,7 @@ namespace eval Sinorca {
 			[<div> id header [subst {
 			    [<header> $header]
 			    [<global> "[Html links $globlinks]\n$global"]
-			    [<site> [Html links $sitelinks]]
+			    [<site> "[Html links $sitelinks] $search"]
 			}]]
 			$sidebar
 			[<content> {*}$mainclass navbox $navbox breadcrumbs $breadcrumbs $content]
