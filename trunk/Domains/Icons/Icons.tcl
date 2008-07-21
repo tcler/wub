@@ -87,7 +87,7 @@ namespace eval Icons {
     }
 
     foreach file [glob [file join $home images *.ico]] {
-	set icons([file tail $file]) [list [::fileutil::cat -translation binary $file] image/vnd.microsoft.icon]
+	set icons([file tail $file]) [list [::fileutil::cat -translation binary $file] image/x-ico]
     }
     #Debug.icons {Icons: [array names icons]}
 
