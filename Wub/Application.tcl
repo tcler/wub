@@ -1,4 +1,4 @@
-#! /usr/bin/env tclsh8.5
+#! /usr/bin/env tclsh
 
 # Single Threaded Simplistic Site
 lappend auto_path [pwd]	;# path to the Site.tcl file
