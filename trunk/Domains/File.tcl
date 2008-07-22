@@ -3,6 +3,7 @@
 # A domain to present a file system as a series of URLs
 
 package provide File 1.0
+#Debug on file 10
 
 package require snit
 package require Query
@@ -62,25 +63,25 @@ package require Mime
 	    }
 	}
 
-	set dp [file join [string trimright $options(-prefix) /] [string trimleft $suffix /]]
+	set dp [dict get $req -path]
 	set url [string trimright [dict get $req -url] /]
 	Debug.file {dirList: $dp - $url - $suffix - ($files)}
 	
 	set dirlist "<table class='dirlist' border='1'>\n"
 	append dirlist "<thead>" \n
-	append dirlist "<tr><th><a href='${dp}/?$sorter(name)'>Name</a></th>" \n
-	append dirlist "<th><a href='${dp}/?$sorter(date)'>Modified</a></th>" \n
-	append dirlist "<th><a href='${dp}/?$sorter(size)'>Size</a></th></tr>" \n
+	append dirlist "<tr><th><a href='${dp}?$sorter(name)'>Name</a></th>" \n
+	append dirlist "<th><a href='${dp}?$sorter(date)'>Modified</a></th>" \n
+	append dirlist "<th><a href='${dp}?$sorter(size)'>Size</a></th></tr>" \n
 
 	set pdir [string trimright [file dirname ${dp}] /]
-	append dirlist "<tr><td><a href='${pdir}/'>..</a></td></tr>" \n
+	append dirlist "<tr><td><a href='${pdir}'>..</a></td></tr>" \n
 	append dirlist "</thead>" \n
 
 	append dirlist "<tbody>" \n
 	foreach file $files {
 	    lassign $file name date size
 	    append dirlist "<tr>\n"
-	    append dirlist "<td><a href='${dp}/$name'>$name</a></td>" \n
+	    append dirlist "<td><a href='${dp}$name'>$name</a></td>" \n
 	    append dirlist "<td>[Http Date $date]</td>" \n
 	    append dirlist "<td>$size</td>" \n
 	    append dirlist "</tr>" \n
