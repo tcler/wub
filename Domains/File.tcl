@@ -73,7 +73,7 @@ package require Mime
 	append dirlist "<th><a href='${dp}?$sorter(date)'>Modified</a></th>" \n
 	append dirlist "<th><a href='${dp}?$sorter(size)'>Size</a></th></tr>" \n
 
-	set pdir [string trimright [file dirname ${dp}] /]
+	set pdir [file dirname [string trimright ${dp} /]]
 	append dirlist "<tr><td><a href='${pdir}'>..</a></td></tr>" \n
 	append dirlist "</thead>" \n
 
@@ -130,12 +130,12 @@ package require Mime
 	    }
 	}
 
-	Debug.file {handle? $basedir - $glob [glob -nocomplain -directory $basedir -tails $glob]}
+	Debug.file {handle? $basedir - $glob ([glob -nocomplain -directory $basedir -tails $glob.*])}
 	foreach fname [glob -nocomplain -directory $basedir -tails ${glob}.*] {
 	    set file [file join $basedir $fname]
 	    Dict modify result {*}[f2dict $fname $file $baseurl]
 	}
-
+	Debug.file {handle? result: $result}
 	return $result
     }
 
@@ -156,7 +156,7 @@ package require Mime
 
     method do {req} {
 	Debug.dispatch {File}
-
+	Debug on file 10
 	if {[dict exists $req -suffix]} {
 	    # caller has munged path already
 	    set suffix [dict get $req -suffix]
@@ -207,7 +207,7 @@ package require Mime
 		    set mtime [dict get $alternatives $key -modified]
 		    dict set req -modified $mtime
 		    dict set req last-modified [Http Date $mtime]
-		    Debug.file {Chose alternative: $path - $options(-root) - $suffix}
+		    Debug.file {Chose alternative: $path - $options(-root) - $suffix -> [Url uri $req]}
 		    return [Http Redirect $req [Url uri $req]]
 		}
 	    }
@@ -245,7 +245,8 @@ package require Mime
 		    # we're going to re-try this request
 		    # after modifying the URL/path etc.
 		    set path [dict get $req -path]
-		    dict set req -path [file join $path index.*]
+		    set key [lindex [dict keys $indices] 0]
+		    dict set req -path [file join $path $key]
 		    
 		    # re-dispatch to allow caching, etc
 		    return [Http Redirect $req [Url uri $req]]
@@ -353,7 +354,8 @@ package require Mime
 		    # we're going to re-try this request
 		    # after modifying the URL/path etc.
 		    set path [dict get $req -path]
-		    dict set req -path [file join $path index.*]
+		    set key [lindex [dict keys $indices] 0]
+		    dict set req -path [file join $path $key]
 		    
 		    # re-dispatch to allow caching, etc
 		    return [Http Redirect $req [Url uri $req]]
