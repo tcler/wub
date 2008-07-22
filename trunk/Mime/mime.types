@@ -6,6 +6,8 @@ application/x-characterspecial
 application/x-blockspecial
 application/x-fifo
 application/x-socket
+application/vnd.google-earth.kml+xml
+application/vnd.google-earth.kmz
 
 x-text/html-fragment htmf
 x-text/stx stx
