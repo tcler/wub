@@ -319,6 +319,14 @@ namespace eval jQ {
 	}]
     }
 
+    # http://jquery.autoscale.js.googlepages.com/
+    proc autoscale {r selector args} {
+	return [weave $r {jquery.js jquery.autoscale.js
+	} %SEL $selector %OPTS [opts autoscale $args] {
+	    $('%SEL').autoscale(%OPTS);
+	}]
+    }
+
     # http://bassistance.de/jquery-plugins/jquery-plugin-tooltip/
     proc tooltip {r selector args} {
 	return [weave $r {
