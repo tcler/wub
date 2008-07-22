@@ -21,14 +21,18 @@ namespace eval Site {
     # simple rc reader
     proc rc {text} {
 	set accum ""
+	set result {}
 	foreach line [split $text \n] {
 	    set line [string trim $line]
 	    if {$line eq ""} continue
 	    lassign [split $line {\#;}] line
 	    append accum " " [string trim $line]
+	    if {$accum ne "" && [info complete $accum]} {
+		set pass [uplevel 1 list $accum]
+		lappend result {*}$pass
+		set accum ""
+	    }
 	}
-	set accum [string trim $accum]
-	set result [uplevel 1 [list subst $accum]]
 	return $result
     }
 
@@ -45,51 +49,51 @@ namespace eval Site {
 
 	wubdir [file normalize [file join [file dirname [info script]] ..]] ;# where's wub
 	scriptdir [file normalize [file dirname [info script]]] ;# scripts for Backend
-	local [file normalize [file join $home local.tcl]] ;# post-init localism
+	local [file normalize [file join [list $home] local.tcl]] ;# post-init localism
 	vars [file normalize [file join $home vars.tcl]] ;# pre-init localism
 	# topdir	;# Where to look for Wub libs - don't change
 	# docroot	;# Where to look for document root.
 
 	# HTTP Listener configuration
-	listener [list [rc {
+	listener [rc {
 	    -port 8080	;# Wub listener port
 	    #-host	;# listening host (default [info hostname]
 	    #-http	;# dispatch handler (default Http)
-	}]]
+	}]
 
 	# HTTPS Listener configuration
-	https [list [rc {
+	https [rc {
 	    -port 8081	;# Wub listener port
 	    #-host	;# listening host (default [info hostname]
 	    #-http	;# dispatch handler (default Http)
 	    -tls {}
-	}]]
+	}]
 
 	# SCGI Listener configuration
-	scgi [list [rc {
+	scgi [rc {
 	    -port 8088			;# what port does SCGI run on
 	    -port 0			;# disable SCGI - comment to enable
 	    -scgi_send {::scgi Send}	;# how does SCGI communicate incoming?
-	}]]
+	}]
 	
 	# Backend configuration
-	backend [list [rc {
+	backend [rc {
 	    scriptname Worker.tcl
 	    dispatch Backend
 	    # scriptdir ;# directory to find scripts
 	    # script ""	;# script to prime backend
 	    # max 257	;# maximum number of backend threads
 	    # incr 20	;# number of threads to add on exhaustion
-	}]]
+	}]
 
 	# Varnish configuration
-	varnish [list [rc { ;# don't use varnish cache by default
+	varnish [rc { ;# don't use varnish cache by default
 	    # vaddress localhost	;# where is varnish running?
 	    # vport 6082		;# on what port is varnish control?
-	}]]
+	}]
 
 	# Internal Cach configuration
-	cache [list [rc { ;# use in-RAM cache by default
+	cache [rc { ;# use in-RAM cache by default
 	    maxsize 204800	;# maximum size of object to cache
 	    # high 100	;# high water mark for cache
 	    # low 90	;# low water mark for cache
@@ -97,10 +101,10 @@ namespace eval Site {
 	    # weight_hits -2.0	;# hits weight for replacement
 	    # CC 0	;# do we bother to parse cache-control?
 	    # obey_CC 0	;# do we act on cache-control? (Not Implemented)
-	}]]
+	}]
 
 	# Httpd protocol engine configuration
-	httpd [list [rc {
+	httpd [rc {
 	    max 1		;# max # of worker threads
 	    incr 1		;# number of threads to add on exhaustion
 	    over 40		;# degree of thread overcommittment
@@ -112,7 +116,7 @@ namespace eval Site {
 	    # server_port	;# server's port, if different from Listener's
 	    # server_id		;# server ID to client (default "Wub")
 	    # retry_wait	;# 
-	}]]
+	}]
     }
 
     proc Variable {name value} {
