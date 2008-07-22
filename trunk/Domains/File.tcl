@@ -62,7 +62,7 @@ package require Mime
 	    }
 	}
 
-	set dp [file join $options(-prefix) $suffix]
+	set dp [file join [string trimright $options(-prefix) /] [string trimleft $suffix /]]
 	set url [string trimright [dict get $req -url] /]
 	Debug.file {dirList: $dp - $url - $suffix - ($files)}
 	
