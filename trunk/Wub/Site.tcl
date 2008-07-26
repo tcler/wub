@@ -311,6 +311,10 @@ namespace eval Site {
 		package require tls
 	    }]
 	} {
+	    #### Simplistic Certificate Authority
+	    package require CA
+	    CA init dir $home/CA host $host port [dict get $https -port]
+	    dict lappend https -tls -cafile [CA cafile] -certfile [CA certificate $host] 
 	    Listener listen -host $host -httpd Httpd {*}$https
 	    Debug.log {Listening on https://$host:[dict get $https -port]/ using docroot $docroot}
 	}

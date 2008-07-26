@@ -2,12 +2,19 @@
 multipart/x-directory
 multipart/x-search
 multipart/x-aggregate
+
 application/x-characterspecial
 application/x-blockspecial
 application/x-fifo
 application/x-socket
 application/vnd.google-earth.kml+xml
 application/vnd.google-earth.kmz
+
+application/x-x509-ca-cert .cacert
+application/x-x509-user-cert .ucert
+application/x-x509-server-cert .scert
+application/x-x509-user-cert .ucert
+application/x-x509-email-cert .ecert
 
 x-text/html-fragment htmf
 x-text/stx stx

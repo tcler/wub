@@ -15,6 +15,7 @@ package ifneeded Commenter 1.0 [list source [file join $dir Commenter.tcl]]
 package ifneeded jQ 1.0 [list source [file join $dir jQ jQ.tcl]]
 package ifneeded CGI 1.0 [list source [file join $dir CGI.tcl]]
 package ifneeded Icons 1.0 [list source [file join $dir Icons Icons.tcl]]
+package ifneeded CA 1.0 [list source [file join $dir CA.tcl]]
 
 #package ifneeded Host 2.0 [list source [file join $dir Host.tcl]]
 #package ifneeded Snit 1.0 [list source [file join $dir Snit.tcl]]
