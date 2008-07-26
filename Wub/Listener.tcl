@@ -43,11 +43,6 @@ namespace eval Listener {
 	Debug.socket {accepted: $sock $ipaddr $rport}
 
 	if {[catch {
-	    # start tls on port
-	    if {[Dict get? $opts -tls] ne ""} {
-		::tls::import $sock -command ::Listener::progress {*}[Dict get? $opts -tls]
-	    }
-
 	    # select an Http object to handle incoming
 	    {*}[dict get $opts -httpd] Connect $sock $ipaddr $rport {*}$opts
 	} result eo]} {
@@ -68,24 +63,17 @@ namespace eval Listener {
 	    }] $args]
 
 	    if {![dict exists $args -tls]} {
-		set cmd socket
+		set cmd [list socket -server [list ::Listener::accept $args]]
 	    } else {
 		package require tls
-		::tls::init \
-		    -ssl3 1 \
-		    -tls1 1 \
-		    -require 0 \
-		    -request 0
-		if {0} {
-		    puts stderr "TLS: [dict get $args -tls]"
-		    foreach proto {ssl3 tls1} {
-			puts stderr "$proto: [tls::ciphers $proto 1]"
-		    }
-		}
-		set cmd [list tls::socket -command ::Listener::progress {*}[dict get $args -tls]]
+		puts stderr "TLS:$args"
+		dict set args -tls [dict merge {
+		    -ssl3 1 -ssl2 0 -tls1 1
+		} [dict get $args -tls]]
+		dict set args -certfile server-public.pem
+		dict set args -keyfile  server-private.pem
+		set cmd [list tls::socket -server [list ::Listener::accept $args] -command ::Listener::progress {*}[dict get $args -tls]]
 	    }
-
-	    lappend cmd -server [namespace code [list accept $args]]
 	    
 	    if {[dict exists $args -myaddr] &&
 		[dict get $args -myaddr] != 0
@@ -96,6 +84,7 @@ namespace eval Listener {
 	    lappend cmd [dict get $args -port]
 
 	    Debug.socket {server: $cmd}
+	    puts stderr "LL: $cmd"
 	    if {[catch $cmd listen eo]} {
 		error "[dict get $args -host]:[dict get $args -port] $listen\ncmd=$cmd"
 	    }
