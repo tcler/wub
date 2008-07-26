@@ -183,7 +183,7 @@ namespace eval CGI {
 		    
 		    POSIX {
 			lassign $::errorCode - errName msg
-			Debug.cgi {CHILDSUSP: $errName '$msg'}
+			Debug.cgi {POSIX: $errName '$msg'}
 			set r [Http ServerError "Child Error $errName $msg"]
 			# One of the kernel calls to launch the command
 			# failed.  The error code is in $errName, and a
