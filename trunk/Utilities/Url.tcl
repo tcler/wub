@@ -119,12 +119,15 @@ namespace eval Url {
 	return [array get x]
     }
 
-    proc url {x} {
-	Debug.url {Url url $x}
+    proc url {args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	Debug.url {Url url $args}
 
 	# minimize -port
-	if {[dict exists $x -port]
-	    && ([dict get $x -port] eq "" || [dict get $x -port] eq "80")} {
+	if {[dict exists $args -port]
+	    && ([dict get $args -port] eq "" || [dict get $args -port] eq "80")} {
 	    dict unset x -port
 	}
 
@@ -134,11 +137,11 @@ namespace eval Url {
 	    -port : ""
 	    -path "" ""
 	} {
-	    if {[dict exists $x $part]} {
-		append result "${pre}[dict get $x $part]${post}"
+	    if {[dict exists $args $part]} {
+		append result "${pre}[dict get $args $part]${post}"
 	    }
 	}
-	#puts stderr "Url url $x -> $result"
+	#puts stderr "Url url $args -> $result"
 	return $result
     }
 
