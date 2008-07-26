@@ -139,6 +139,16 @@ namespace eval Dict {
 	}]
     }
 
+    # return the values specified by args
+    proc getall {dict args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	return [dict values [dict filter $dict script {k v} {
+	    expr {$k in $args}
+	}]]
+    }
+
     # convert directory to dict
     proc dir {dir {glob *}} {
 	set content {}
