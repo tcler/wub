@@ -40,16 +40,40 @@ namespace eval stx2html {
 	return "[<pre> $para]\n[join $args]\n"
     }
 
+    # process .special lines
     proc special {para args} {
-	set p [split $para]
-	set cmd [string tolower [lindex $p 0]]
-	Debug.STX {special: $cmd}
+	Debug.STX {special: $para}
+	set para [string map {
+	    "\x87" ;
+	    "\x89" \{
+	    "\x8A" \}
+	    "\x8B" $
+	} $para]
+	set para [string map {
+	    "&lt;" <
+	    "&gt;" >
+	} $para]
+	Debug.STX {special: $para}
+
+	set p [join [lassign [split $para] cmd]]
+	set cmd [string trimleft [string tolower $cmd] .]
 	if {[llength [info commands "_$cmd"]] == 1} {
-	    set para [_$cmd [lrange $p 1 end]]
+	    # substitute function value into output
+	    set para [_$cmd {*}$p]
 	} else {
-	    set para [<p> [::stx::char $para]]
+	    # add to features array
+	    variable features
+	    set features($cmd) $p
+	    set para "<!-- special: $cmd $p -->\n"
+	    #set para [<p> [::stx::char $para]]
 	}
 	return "$para\n[join $args]\n"
+    }
+
+    # give contents of features array to caller
+    proc features {} {
+	variable features
+	return [array get features]
     }
 
     proc _title {args} {
@@ -406,7 +430,7 @@ namespace eval stx2html {
 
 	Debug.STX {TRANSLATING}
 	set stx [stx::translate $text $tagstart]
-	Debug.STX {TRANSLATE: $stx}
+	#Debug.STX {TRANSLATE: $stx}
 	set content [lindex [namespace inscope ::stx2html subst [list $stx]] 0]
 
 	if {0} {
@@ -433,6 +457,11 @@ namespace eval stx2html {
 	}
 
 	return [string map [list "\x88" "&\#" "\x89" "\{" "\x8A" "\}" "\x8B" "$" "\x87" "\;" "\x84" "&#91\;" "\x85" "&#93\;" "\\" ""] $content]
+    }
+
+    proc Translate {text locallink} {
+	variable features
+	return [list [translate $text $locallink] [array get features]]
     }
 
     variable packages {Form}

@@ -418,6 +418,9 @@ namespace eval jQ {
 	}]
     }
 
+    proc jmap {r selector args} {
+    }
+
     variable root [file dirname [info script]]
     variable prefix /jquery/
     proc do {r} {
