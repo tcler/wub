@@ -238,7 +238,7 @@ namespace eval Report {
 	    lappend classT summary ""
 	}
 
-	return [<table> {*}$classT {*}[Dict get? $args tparam] "\n[dict get $args _header]\n[dict get $args body]\n[Dict get? $args _footer]\n"]
+	return [<table> {*}$classT {*}[Dict get? $args tparam] "\n[Dict get? $args _header]\n[Dict get? $args body]\n[Dict get? $args _footer]\n"]
     }
 
     # convert a text formatted suitably for csv into a list containing:
