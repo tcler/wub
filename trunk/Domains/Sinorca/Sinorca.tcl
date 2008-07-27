@@ -128,7 +128,7 @@ namespace eval Sinorca {
 	#puts stderr "SINORCA: [dict keys $page]"
 
 	# process singleton vara
-	foreach var {global header content copyright footer navbox} {
+	foreach var {global header copyright footer navbox} {
 	    set $var {}
 	}
 
@@ -156,6 +156,13 @@ namespace eval Sinorca {
 	    set mainclass {class inset}
 	} else {
 	    set mainclass {}
+	}
+
+	# process sidebars
+	set content {}
+	foreach key [lsort -dictionary [dict keys $page "content*"]] {
+	    append content [dict get $page $key] \n
+	    dict unset page $key
 	}
 
 	dict with page {}

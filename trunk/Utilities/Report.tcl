@@ -331,9 +331,9 @@ if {[info exists argv0] && ([info script] eq $argv0)} {
 	fclass footer
 	tfparam {class tfoot}
 	rclass row
-	rparam {title row}
+	rparam {}
 	eclass el
-	eparam {title element}
+	eparam {}
 	footer {}
     }
     set params2 {
