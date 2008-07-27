@@ -382,6 +382,9 @@ namespace eval Http {
 
     # construct an HTTP passthrough response
     proc Pass {rsp {content ""} {ctype ""}} {
+	if {![dict exists $rsp -code]} {
+	    dict set rsp -code 200
+	}
 	return [OkResponse $rsp [dict get $rsp -code] Ok $content $ctype]
     }
 
