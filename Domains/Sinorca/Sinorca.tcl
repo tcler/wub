@@ -119,43 +119,60 @@ namespace eval Sinorca {
     }
 
     proc .style/sinorca.x-text/html-fragment {rsp} {
-	set contents [dict get $rsp -content]
-	Debug.sinorca {[dict keys $contents]}
+	set page [dict get $rsp -content]
+	Debug.sinorca {[dict keys $page]}
 
-	foreach var {globlinks global header sitelinks breadcrumbs sidebar content copyright footlinks footer navbox} {
+	variable path
+	dict lappend rsp -headers [<stylesheet> [file join $path screen.css]]
+	dict lappend rsp -headers [<stylesheet> [file join $path print.css] print]
+	#puts stderr "SINORCA: [dict keys $page]"
+
+	# process singleton vara
+	foreach var {global header content copyright footer navbox} {
 	    set $var {}
 	}
 
-	foreach key [lsort -dictionary [dict keys $contents "side*"]] {
-	    append sidebar [dict get $contents $key] \n
-	    dict unset contents $key
+	Debug.sinorca {page keys: ([dict keys $page])}
+	
+	# process link vars
+	foreach var {globlinks sitelinks breadcrumbs footlinks} {
+	    set $var {}
+	    set v [string trimright $var s]
+	    foreach key [lsort -dictionary [dict keys $page "$v*"]] {
+		lappend $var {*}[dict get $page $key]
+		dict unset page $key
+	    }
+	    Debug.sinorca {link var $var: ([set $var])}
 	}
-	if {[string trim $sidebar] ne ""} {
-	    set sidebar [<sidebar> $sidebar]
+
+	# process sidebars
+	set sidebars {}
+	foreach key [lsort -dictionary [dict keys $page "sidebar*"]] {
+	    append sidebars [dict get $page $key] \n
+	    dict unset page $key
+	}
+	if {[string trim $sidebars] ne ""} {
+	    set sidebars [<sidebar> $sidebars]
 	    set mainclass {class inset}
 	} else {
 	    set mainclass {}
 	}
 
-	variable path
-	dict lappend rsp -headers [<stylesheet> [file join $path screen.css]]
-	dict lappend rsp -headers [<stylesheet> [file join $path print.css] print]
-	#puts stderr "SINORCA: [dict keys $contents]"
-	dict with contents {}
-	return [dict replace $rsp -raw 1 \
-		    content-type text/html \
-		    -content [subst {
-			[<div> id mainlink [<a> href "\#main" "Skip to main content."]]
-			
-			[<div> id header [subst {
-			    [<header> $header]
-			    [<global> "[Html links $globlinks]\n$global"]
-			    [<site> "[Html links $sitelinks] $search"]
-			}]]
-			$sidebar
-			[<content> {*}$mainclass navbox $navbox breadcrumbs $breadcrumbs $content]
-			[<footer> copyright $copyright links $footlinks $footer]
-		    }]]
+	dict with page {}
+	set rsp [dict replace $rsp -raw 1 content-type x-text/html-fragment]
+	dict set rsp -content [subst {
+	    [<div> id mainlink [<a> href "\#main" "Skip to main content."]]
+	    [<div> id header [subst {
+		[<header> $header]
+		[<global> "[Html links $globlinks]\n$global"]
+		[<site> "[Html links $sitelinks] $search"]
+	    }]]
+	    $sidebars
+	    [<content> {*}$mainclass navbox $navbox breadcrumbs $breadcrumbs $content]
+	    [<footer> copyright $copyright links $footlinks $footer]
+	}]
+
+	return $rsp
     }
 
     variable colours {
