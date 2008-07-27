@@ -202,7 +202,7 @@ namespace eval jQ {
     # http://tablesorter.com/addons/pager/jquery.tablesorter.pager.js
     proc tablesorter {r selector args} {
 	return [weave $r {
-	    jquery.js jquery.tablesorter.js
+	    jquery.js jquery.metadata.js jquery.tablesorter.js
 	}  %SEL $selector %OPTS [opts tablesorter $args] {
 	    $('%SEL').tablesorter(%OPTS);
 	}]
