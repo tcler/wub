@@ -940,7 +940,7 @@ namespace eval Http {
     proc CE {reply args} {
 	# default to identity encoding
 	set content [dict get $reply -content]
-
+	Debug.http {CE -encoding:[Dict get? $args -encoding]}
 	if {![dict exists $reply -gzip]
 	    && ("gzip" in [Dict get? $args -encoding])
 	} {
@@ -986,7 +986,6 @@ namespace eval Http {
     proc Send {reply args} {
 	set sock [dict get $reply -sock]
 	set cache [expr {[Dict get? $args -cache] eq "1"}]
-
 	if {[catch {
 	    # unpack and consume the reply from replies queue
 	    set code [dict get $reply -code]
@@ -1046,6 +1045,7 @@ namespace eval Http {
 			# correctly charset-encode content
 			set reply [charset $reply]
 
+			#Debug.http {pre-CE content length [string length [dict get $reply -content]]}
 			# also gzip content so cache can store that.
 			lassign [CE $reply {*}$args] reply content
 
@@ -1055,6 +1055,7 @@ namespace eval Http {
 			    catch {dict unset reply content-length}
 			} else {
 			    # ensure content-length is correct
+			    #Debug.http {post-CE content length [string length $content]}
 			    dict set reply content-length [string length $content]
 			}
 		    } else {
