@@ -69,6 +69,7 @@ namespace eval Responder {
 	    variable working	;# set while we're working
 	    while {!$working && ![catch {inQ get} req eo]} {
 		set working 1
+		set org $req	;# keep a copy in case
 		catch {uplevel 1 [list switch {*}$args]} r eo
 		Debug.responder {Dispatcher: $eo}
 		switch [dict get $eo -code] {
@@ -95,11 +96,11 @@ namespace eval Responder {
 			continue
 		    }
 		}
-		
+
 		if {[catch {
 		    post $rsp
 		} r eo]} { ;# postprocess response
-		    Debug.responder {POST ERROR: $rsp} 1
+		    Debug.responder {POST ERROR: $rsp ($eo)} 1
 		    set rsp [Http ServerError $rsp $r $eo]
 		} else {
 		    set rsp $r
@@ -110,7 +111,15 @@ namespace eval Responder {
 		    && [catch {
 			Send $rsp 		;# send response
 		    } r eo]} {
-		    Debug.responder {SEND ERROR: $rsp} 1
+		    # failed to send!
+		    Debug.responder {SEND ERROR: $r ($eo)} 1
+		    if {[catch {
+			# we've completely failed to send
+			Send [Http ServerError $org $r $eo]
+		    } r eo]} {
+			Debug.responder {DOUBLE SEND ERROR: $r ($eo)} 1
+			# give up
+		    }
 		} else {
 		    Debug.responder {Sent}
 		}
