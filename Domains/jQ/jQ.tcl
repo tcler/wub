@@ -15,9 +15,18 @@ namespace eval jQ {
 
     proc scripts {r args} {
 	variable prefix
+	#puts stderr "PRESCRIPT: $r"
+
+	# use the google AJAX repository
+	dict set r -script http://www.google.com/jsapi {}
+	dict set r -script !google [<script> {google.load("jquery", "1.2.6");}]
+
+	# load each script
 	foreach script $args {
+	    if {$script eq "jquery.js"} continue ;# needn't load jquery.js
 	    dict set r -script ${prefix}/scripts/$script {}
 	}
+	#puts stderr "SCRIPT: $r"
 	return $r
     }
 
@@ -152,23 +161,31 @@ namespace eval jQ {
     # relies upon the script and css capabilities to ensure packages
     # are loaded correctly
     proc weave {r scripts args} {
+	#puts stderr "WEAVE: $r"
 	set script [lindex $args end]
 	set args [lrange $args 0 end-1]
 	if {[dict exists $args loader]} {
 	    set preload [dict get $args loader]
+	    dict unset args loader
+	    set ldfn "\$(document).ready(function()\{\n%S\n\});"
+	    set script [<script> $script]
 	} else {
-	    set preload -postload
+	    #set preload -postload
+	    set preload -google
+	    set ldfn "\$(document).ready(function()\{\n%S\n\});"
+	    #set ldfn "%S\n"
 	}
 	set script [string map [dict filter $args key %*] $script]
 	if {$script ne ""} {
 	    Debug.jq {WEAVE: $script}
-	    dict lappend r $preload [<script> "\$(document).ready(function()\{\n$script\n\});"]
+	    dict lappend r $preload [string map [list %S $script] $ldfn]
 	}
 
 	if {[dict exists $args css]} {
 	    set r [style $r {*}[dict get $args css]]
 	}
 
+	#puts stderr "POST WEAVE: $r"
 	return [scripts $r {*}$scripts]
     }
     
@@ -218,9 +235,10 @@ namespace eval jQ {
     proc tabs {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.ui.js
-	} loader -preload %SEL $selector %OPTS [opts tabs $args] {
+	} %SEL $selector %OPTS [opts tabs $args] {
 	    $('%SEL').tabs();
 	}]
+	#loader -preload
     }
 
     proc addtab {var name content} {

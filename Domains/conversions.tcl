@@ -11,6 +11,8 @@ namespace eval ::conversions {
 
     # convert an HTML fragment to HTML
     proc .x-text/html-fragment.text/html {rsp} {
+	Debug.convert {x-text/html-fragment conversion: $rsp}
+	puts stderr "FRAGMENT: $rsp"
 	set rspcontent [dict get $rsp -content]
 
 	if {[string match "<!DOCTYPE*" $rspcontent]} {
@@ -35,7 +37,11 @@ namespace eval ::conversions {
 	    set preloads {}
 	    if {[dict exists $rsp -script]} {
 		dict for {n v} [dict get $rsp -script] {
-		    lappend preloads [<script> src $n {*}$v]
+		    if {[string match !* $n]} {
+			lappend preloads $v
+		    } else {
+			lappend preloads [<script> src $n {*}$v]
+		    }
 		}
 	    }
 	    if {[dict exists $rsp -style]} {
@@ -57,6 +63,21 @@ namespace eval ::conversions {
 	    append content <body> \n
 	    append content $rspcontent
 
+	    # add script postscripts
+	    if {[dict exists $rsp -postscript]} {
+		foreach n [lsort -dictionary [dict keys [dict get $rsp -postscript]]] {
+		    append content [dict get $rsp -postscript $n] \n
+		}
+	    }
+
+	    # stuff to start on google api
+	    if {[dict exists $rsp -google]} {
+		append google "google.setOnLoadCallback(function() \{" \n
+		append google [join [dict get $rsp -google] \n] \n
+		append google "\});" \n
+		append content [<script> $google]
+	    }
+
 	    # add script postloads
 	    if {[dict exists $rsp -postload]} {
 		append content [join [dict get $rsp -postload] \n] \n
@@ -67,6 +88,8 @@ namespace eval ::conversions {
 	}
 	dict set rsp -raw 1
 
+	Debug.convert {x-text/html-fragment DONE: $rsp}
+	puts stderr "FRAGMENT done: $rsp"
 	return [Http Ok $rsp $content text/html]
     }
 
