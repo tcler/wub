@@ -9,24 +9,29 @@ namespace eval jQ {
     
     proc script {r script args} {
 	variable prefix
-	dict set r -script ${prefix}/scripts/$script $args
+	dict set r -postscripts ${prefix}/scripts/$script $args
 	return $r
     }
 
+    variable google 0
     proc scripts {r args} {
 	variable prefix
-	#puts stderr "PRESCRIPT: $r"
+	#puts stderr "PRESCRIPT: [Dict get? $r -postscript]"
 
-	# use the google AJAX repository
-	dict set r -script http://www.google.com/jsapi {}
-	dict set r -script !google [<script> {google.load("jquery", "1.2.6");}]
-
+	variable google
+	if {$google} {
+	    # use the google AJAX repository
+	    dict set r -postscript http://www.google.com/jsapi {}
+	    dict set r -postscript !google [<script> {google.load("jquery", "1.2.6");}]
+	}
 	# load each script
 	foreach script $args {
-	    if {$script eq "jquery.js"} continue ;# needn't load jquery.js
-	    dict set r -script ${prefix}/scripts/$script {}
+	    if {$google
+		&& $script eq "jquery.js"
+	    } continue ;# needn't load jquery.js
+	    dict set r -postscript ${prefix}/scripts/$script {}
 	}
-	#puts stderr "SCRIPT: $r"
+	#puts stderr "SCRIPT: [dict get $r -postscript]"
 	return $r
     }
 
@@ -55,14 +60,14 @@ namespace eval jQ {
 		function(image,caption,thumb) { // let's add some image effects for demonstration purposes
 		    
 		    // fade in the image & caption
-		    image.css('display','none').fadeIn(1000);
-		    caption.css('display','none').fadeIn(1000);
+		    image.css('display','none').fadeIn(100);
+		    caption.css('display','none').fadeIn(100);
 		    
 		    // fetch the thumbnail container
 		    var _li = thumb.parents('li');
 		    
 		    // fade out inactive thumbnail
-		    _li.siblings().children('img.selected').fadeTo(500,0.3);
+		    _li.siblings().children('img.selected').fadeTo(50,0.3);
 		    
 		    // fade in active thumbnail
 		    thumb.fadeTo('fast',1).addClass('selected');
@@ -164,29 +169,36 @@ namespace eval jQ {
 	#puts stderr "WEAVE: $r"
 	set script [lindex $args end]
 	set args [lrange $args 0 end-1]
-	if {[dict exists $args loader]} {
-	    set preload [dict get $args loader]
-	    dict unset args loader
-	    set ldfn "\$(document).ready(function()\{\n%S\n\});"
-	    set script [<script> $script]
-	} else {
-	    #set preload -postload
-	    set preload -google
-	    set ldfn "\$(document).ready(function()\{\n%S\n\});"
-	    #set ldfn "%S\n"
-	}
 	set script [string map [dict filter $args key %*] $script]
+	set script "\$(document).ready(function()\{\n${script}\n\});"
+
+	switch -- [Dict get? $args loader] {
+	    "" {
+		set preload -postload
+		set script [<script> $script]
+	    }
+	    google {
+		set preload -google
+	    }
+	    default {
+		set preload [dict get $args loader]
+		set script [<script> $script]
+	    }
+	}
+	dict unset args loader
+
 	if {$script ne ""} {
 	    Debug.jq {WEAVE: $script}
-	    dict lappend r $preload [string map [list %S $script] $ldfn]
+	    dict lappend r $preload $script
 	}
 
 	if {[dict exists $args css]} {
 	    set r [style $r {*}[dict get $args css]]
 	}
 
+	set r [scripts $r {*}$scripts]
 	#puts stderr "POST WEAVE: $r"
-	return [scripts $r {*}$scripts]
+	return $r
     }
     
     # http://docs.jquery.com/UI/Datepicker
@@ -438,6 +450,7 @@ namespace eval jQ {
 	fs do $r
     }
 
+    variable expires 0
     proc init {args} {
 	if {$args ne {}} {
 	    variable {*}$args
@@ -446,7 +459,8 @@ namespace eval jQ {
 	# construct a File wrapper for the jscript dir
 	variable prefix
 	variable root
-	File ::jQ::fs -prefix $prefix -root $root
+	variable expires
+	File ::jQ::fs -prefix $prefix -root $root -expires $expires
 	
 	return $prefix
     }

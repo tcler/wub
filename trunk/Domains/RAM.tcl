@@ -39,8 +39,9 @@ namespace eval RAM {
 
 	variable content_type
 	set content [lindex $ram($prefix$suffix) 0]
-	set els {} 
-	foreach {el val} [lrange $ram($prefix$suffix) 1 end] {
+	set els {}
+	set extra [lrange $ram($prefix$suffix) 1 end]
+	foreach {el val} $extra {
 	    if {$el eq "-header"} {
 		dict lappend $rsp -headers $val
 	    } else {

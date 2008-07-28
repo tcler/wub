@@ -154,7 +154,7 @@ namespace eval Icons {
 	dict set rsp accept image/*
 	lassign $icons($suffix) icon mime
 
-	return [Http Ok $rsp $icon $mime]
+	return [Http Ok [Http Cache $rsp "next week"] $icon $mime]
     }
 
     variable mount /icons/

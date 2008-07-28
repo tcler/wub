@@ -46,7 +46,11 @@ namespace eval ::conversions {
 	    }
 	    if {[dict exists $rsp -style]} {
 		dict for {n v} [dict get $rsp -style] {
-		    lappend preloads [<stylesheet> $n {*}$v]
+		    if {[string match !* $n]} {
+			lappend preloads $v
+		    } else {
+			lappend preloads [<stylesheet> $n {*}$v]
+		    }
 		}
 	    }
 	    if {$preloads ne {}} {
@@ -65,8 +69,12 @@ namespace eval ::conversions {
 
 	    # add script postscripts
 	    if {[dict exists $rsp -postscript]} {
-		foreach n [lsort -dictionary [dict keys [dict get $rsp -postscript]]] {
-		    append content [dict get $rsp -postscript $n] \n
+		dict for {n v} [dict get $rsp -postscript] {
+		    if {[string match !* $n]} {
+			append content $v \n
+		    } else {
+			append content [<script> src $n {*}$v] \n
+		    }
 		}
 	    }
 
@@ -106,7 +114,7 @@ namespace eval ::conversions {
     proc .x-text/stx.x-text/html-fragment {rsp} {
 	package require stx2html
 
-	dict lappend rsp -headers {<link rel="stylesheet" type="text/css" href="/css/stx.css" media="screen" title="screen">}
+	#dict lappend rsp -headers {<link rel="stylesheet" type="text/css" href="/css/stx.css" media="screen" title="screen"><!--convert-->}
 
 	set code [catch {
 	    stx2html::translate [dict get $rsp -content]
