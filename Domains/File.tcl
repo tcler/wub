@@ -156,7 +156,6 @@ package require Mime
 
     method do {req} {
 	Debug.dispatch {File}
-	Debug on file 10
 	if {[dict exists $req -suffix]} {
 	    # caller has munged path already
 	    set suffix [dict get $req -suffix]

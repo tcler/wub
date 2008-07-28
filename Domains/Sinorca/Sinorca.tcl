@@ -235,9 +235,11 @@ namespace eval Sinorca {
 
 	variable colours
 	variable screen
-	ram set screen.css [string map [dict merge $colours $vc] $screen] content-type text/css
+	variable expires
+	ram set screen.css [string map [dict merge $colours $vc] $screen] content-type text/css {*}[Http Cache {} $expires]
     }
 
+    variable expires "next week"
     proc init {args} {
 	if {$args ne {}} {
 	    variable {*}$args
@@ -248,7 +250,8 @@ namespace eval Sinorca {
 	variable hue; rehue $hue
 
 	variable print
-	ram set print.css $print content-type text/css
+	variable expires
+	ram set print.css $print content-type text/css {*}[Http Cache {} $expires]
 
 	variable home 
 	foreach el {valid-css.png valid-xhtml10.png wcag1AA.png file-pdf.png totop.png gradient.png} {
