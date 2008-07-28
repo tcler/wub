@@ -934,9 +934,9 @@ namespace eval HttpdWorker {
 catch {source [file join [file dirname [info script]] wlocal.tcl]}
 
 Debug on log 10
-#Debug on close 10
-#Debug on socket 10
-#Debug on http 10
+Debug off close 10
+Debug off socket 10
+Debug off http 10
 Debug off entity 10
 # now we're able to process commands
 #puts stderr "Started Httpd Worker [id]"
