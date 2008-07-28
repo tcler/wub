@@ -12,7 +12,7 @@ namespace eval ::conversions {
     # convert an HTML fragment to HTML
     proc .x-text/html-fragment.text/html {rsp} {
 	Debug.convert {x-text/html-fragment conversion: $rsp}
-	puts stderr "FRAGMENT: $rsp"
+	#puts stderr "FRAGMENT: $rsp"
 	set rspcontent [dict get $rsp -content]
 
 	if {[string match "<!DOCTYPE*" $rspcontent]} {
@@ -89,7 +89,7 @@ namespace eval ::conversions {
 	dict set rsp -raw 1
 
 	Debug.convert {x-text/html-fragment DONE: $rsp}
-	puts stderr "FRAGMENT done: $rsp"
+	#puts stderr "FRAGMENT done: $rsp"
 	return [Http Ok $rsp $content text/html]
     }
 
