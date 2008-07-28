@@ -217,7 +217,7 @@ namespace eval jQ {
     # http://docs.jquery.com/UI/Tabs
     proc tabs {r selector args} {
 	return [weave $r {
-	    jquery.js trunk/ui/ui.core.js trunk/ui/ui.tabs.js
+	    jquery.js jquery.ui.js
 	} loader -preload %SEL $selector %OPTS [opts tabs $args] {
 	    $('%SEL').tabs();
 	}]
@@ -253,7 +253,7 @@ namespace eval jQ {
     # http://docs.jquery.com/UI/Accordian
     proc accordian {r selector args} {
 	return [weave $r {
-	    jquery.js jquery.dimensions.js ui.accordian.js
+	    jquery.js jquery.dimensions.js jquery.ui.js
 	} %SEL $selector %OPTS [opts accordian $args] {
 	    $('%SEL').accordian(%OPTS);
 	}]
@@ -262,8 +262,7 @@ namespace eval jQ {
     # http://docs.jquery.com/UI/Resizeables
     proc resizeable {r selector args} {
 	return [weave $r {
-	    jquery.js jquery.dimensions.js ui.mouse.js
-	    ui.resizeable.js
+	    jquery.js jquery.dimensions.js jquery.ui.js
 	} %SEL $selector %OPTS [opts resizeable $args] {
 	    $('%SEL').resizeable(%OPTS);
 	}]
@@ -272,8 +271,7 @@ namespace eval jQ {
     # http://docs.jquery.com/UI/Draggables
     proc draggable {r selector args} {
 	return [weave $r {
-	    jquery.js jquery.dimensions.js ui.mouse.js
-	    ui.draggable.js ui.draggable.ext.js
+	    jquery.js jquery.dimensions.js jquery.ui.js
 	} %SEL $selector %OPTS [opts draggable $args] {
 	    $('%SEL').draggable(%OPTS);
 	}]
@@ -282,9 +280,7 @@ namespace eval jQ {
     # http://docs.jquery.com/UI/Droppables
     proc droppable {r selector args} {
 	return [weave $r {
-	    jquery.js jquery.dimensions.js ui.mouse.js
-	    ui.draggable.js ui.draggable.ext.js
-	    ui.droppable.js ui.droppable.ext.js
+	    jquery.js jquery.dimensions.js jquery.ui.js
 	} %SEL $selector %OPTS [opts droppable $args] {
 	    $('%SEL').droppable(%OPTS);
 	}]
@@ -293,7 +289,7 @@ namespace eval jQ {
     # http://docs.jquery.com/UI/Sortables
     proc sortable {r selector args} {
 	return [weave $r {
-	    jquery.js trunk/ui/ui.core.js trunk/ui/ui.sortable.js
+	    jquery.js jquery.ui.js
 	} %SEL $selector %OPTS [opts sortable $args] {
 	    $('%SEL').sortable(%OPTS);
 	}]
@@ -302,10 +298,7 @@ namespace eval jQ {
     # http://docs.jquery.com/UI/Selectables
     proc selectable {r selector args} {
 	return [weave $r {
-	    jquery.js jquery.dimensions.js ui.mouse.js
-	    ui.draggable.js ui.draggable.ext.js
-	    ui.droppabe.js ui.droppable.js
-	    ui.selectable.js
+	    jquery.js jquery.dimensions.js jquery.ui.js
 	} %SEL $selector %OPTS [opts selectable $args] {
 	    $('%SEL').selectable(%OPTS);
 	}]
