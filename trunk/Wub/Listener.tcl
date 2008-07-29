@@ -65,7 +65,6 @@ namespace eval Listener {
 	    if {![dict exists $args -tls]} {
 		set cmd [list socket -server [list ::Listener::accept $args]]
 	    } else {
-		package require tls
 		puts stderr "TLS:$args"
 		dict set args -tls [dict merge {
 		    -ssl3 1 -ssl2 0 -tls1 1
