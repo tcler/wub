@@ -1,3 +1,5 @@
+package require Debug
+
 package require Httpd 3.0
 
 package provide HttpdSingle 1.0
@@ -55,10 +57,6 @@ namespace eval Httpd {
 	return $result
     }
 
-    proc indication {args} {
-	{*}$args
-    }
-
     # mkinterp - make and enqueue $incr new interps,
     # up to a limit of $max
     proc mkinterp {} {
@@ -90,7 +88,10 @@ namespace eval Httpd {
 		set workers($new) {}
 		lappend nt $new
 
-		$new alias indicate ::Httpd::indication
+		$new alias Httpd ::Httpd
+		$new alias Honeypot ::Honeypot
+		$new alias Cache ::Cache
+		$new alias Block ::Block
 	    }
 
 	    # overcommmit each thread to some degree
