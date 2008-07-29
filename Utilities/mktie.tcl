@@ -110,7 +110,7 @@ namespace eval mktie {
     
     # equiv array set
     proc _set {view index dict} {
-	for dict {n v} $dict {
+	dict for {n v} $dict {
 	    catch {dict unset v $index}
 	    if {[catch {$view find $index $n} cursor]} {
 		$view append $ov $n {*}$v
