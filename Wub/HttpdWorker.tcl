@@ -362,9 +362,9 @@ namespace eval HttpdWorker {
 	    Debug.http {ADD TRANS: $header ([array names ::replies])}
 
 	    # global consequences - botting and caching
-	    if {![indicate Honeypot newbot? $reply] && $cache} {
+	    if {![Honeypot newbot? $reply] && $cache} {
 		# handle caching (under no circumstances cache bot replies)
-		indicate Cache put $reply
+		Cache put $reply
 	    }
 	} r eo]} {
 	    Debug.error {Sending Error: '$r' ($eo)}
@@ -393,7 +393,7 @@ namespace eval HttpdWorker {
 	catch {close $sock}
 
 	# inform parent of Disconnect - this thread will now be recycled
-	indicate Httpd Disconnect [dict get $request -cid] $error $eo
+	Httpd Disconnect [dict get $request -cid] $error $eo
     }
 
     # Handle - handle a protocol error
@@ -451,7 +451,7 @@ namespace eval HttpdWorker {
 	    #set request [Access log $request]	;# log the request
 
 	    # inform parent of parsing completion
-	    indicate Httpd Got $request
+	    Httpd Got $request
 	    dict lappend connection req_log $request
 	} r eo]} {
 	    Debug.error {'get' error: ($eo) '$r' ([dump $req])}
@@ -769,7 +769,7 @@ namespace eval HttpdWorker {
 
 	# block spiders by UA
 	if {[info exists ::spiders([Dict get? $request user-agent])]} {
-	    indicate Block block [dict get $request -ipaddr] "spider UA ([Dict get? $request user-agent])"
+	    Block block [dict get $request -ipaddr] "spider UA ([Dict get? $request user-agent])"
 	    Handle [Http NotImplemented $request "Spider Service"]
 	    return
 	}
@@ -797,7 +797,7 @@ namespace eval HttpdWorker {
 
 	    CONNECT {
 		# stop the bastard SMTP spammers
-		indicate Block block [dict get $request -ipaddr] "CONNECT method"
+		Block block [dict get $request -ipaddr] "CONNECT method"
 		Handle [Http NotImplemented $request "Spider Service"]
 		return
 	    }
