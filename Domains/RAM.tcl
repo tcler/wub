@@ -46,8 +46,8 @@ namespace eval RAM {
 	if {[dict exists $rsp if-modified-since]
 	    && (![dict exists $extra -dynamic] || ![dict get $extra -dynamic])
 	} {
-	    set since [Http DateInSeconds [dict get $extra last-modified]]
-	    if {[file mtime $path] <= $since} {
+	    set since [Http DateInSeconds [dict get $rsp if-modified-since]]
+	    if {[dict get $extra -modified] <= $since} {
 		Debug.RAM {NotModified: $path - [dict get $extra last-modified] < [dict get $extra if-modified-since]}
 		Debug.RAM {if-modified-since: not modified}
 		return [Http NotModified $rsp]
