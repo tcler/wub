@@ -134,6 +134,14 @@ namespace eval Dict {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
+	set result {}
+	dict for {k v} $dict {
+	    if {$k in $args} {
+		dict set result $k $v
+	    }
+	}
+	return $result
+
 	return [dict filter $dict script {k v} {
 	    expr {$k in $args}
 	}]
