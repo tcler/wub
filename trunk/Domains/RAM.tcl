@@ -43,7 +43,7 @@ namespace eval RAM {
 	set extra [lrange $ram($prefix$suffix) 1 end]
 
 	# check conditional
-	if {[dict exists $extra if-modified-since]
+	if {[dict exists $rsp if-modified-since]
 	    && (![dict exists $extra -dynamic] || ![dict get $extra -dynamic])
 	} {
 	    set since [Http DateInSeconds [dict get $extra last-modified]]
@@ -86,7 +86,9 @@ namespace eval RAM {
 
 	if {$args ne {}} {
 	    # calculate an accurate content length
-	    lappend args last-modified [Http Date [clock seconds]]
+	    set now [clock seconds]
+	    lappend args -modified $now
+	    lappend args last-modified [Http Date $now]
 	    lappend args content-length [string length [lindex $args 0]]
 	    Debug.RAM {$prefix$key set '$args'}
 	    set ram($prefix$key) $args
