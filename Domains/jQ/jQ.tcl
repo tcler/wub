@@ -97,6 +97,10 @@ namespace eval jQ {
 	    }
 	}
 
+	maps {
+	    mapType hybrid
+	}
+
 	galleria1 {
 	    history false
 	    clickNext false
@@ -441,7 +445,20 @@ namespace eval jQ {
 	}]
     }
 
-    proc jmap {r selector args} {
+    proc map {r selector callback, args} {
+	return [weave $r {
+	    jquery.js jquery.jmaps.js
+	} %SEL $selector %OPTS [opts map $args] %CALL $callback {
+	    $('%SEL').jmap('init', %OPTS, %CALL);
+	}]
+    }
+
+    proc sheet {r selector args} {
+	return [weave $r {
+	    jquery.js jquery.dimensions.js jquery.clickmenu.js jquery.sheet.calc.js jquery.sheet.js
+	} css clickable.css %SEL $selector %OPTS [opts sheet $args] {
+	    $('%SEL').sheet(%OPTS);
+	}]
     }
 
     variable root [file dirname [info script]]
