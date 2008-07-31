@@ -97,6 +97,7 @@ namespace eval Query {
 
     proc qparse {qstring count {ct "NONE"}} {
 	Debug.query {qparse $ct - [string range $qstring 0 80]}
+	set encoding [lassign [split $ct \;] ct]
 	switch -glob -- $ct {
 	    text/xml -
 	    application/xml -
