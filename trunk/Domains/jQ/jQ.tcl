@@ -451,11 +451,11 @@ namespace eval jQ {
 	    set args [lindex $args 0]
 	}
 
-	if {![dict exists $args key]} {
-	    error "Can't generate a map without a google map key.  See http://code.google.com/apis/maps/signup.html"
+	if {[dict exists $args key]} {
+	    # load the google maps API if we're given a key
+	    dict set r -postscript "http://maps.google.com/maps?file=api&v=2&key=[dict get $args key]" {}
+	    dict unset args key
 	}
-	dict set r -postscript "http://maps.google.com/maps?file=api&v=2&key=[dict get $args key]" {}
-	dict unset args key
 
 	return [weave $r {
 	    jquery.js jquery.jmaps.js
