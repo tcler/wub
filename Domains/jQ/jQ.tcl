@@ -445,7 +445,7 @@ namespace eval jQ {
 	}]
     }
 
-    proc map {r selector callback, args} {
+    proc map {r selector callback args} {
 	return [weave $r {
 	    jquery.js jquery.jmaps.js
 	} %SEL $selector %OPTS [opts map $args] %CALL $callback {
