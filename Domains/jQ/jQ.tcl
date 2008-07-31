@@ -98,6 +98,7 @@ namespace eval jQ {
 	}
 
 	map {
+	    center [0,0]
 	    mapType 'hybrid'
 	}
 
