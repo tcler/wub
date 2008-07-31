@@ -453,7 +453,7 @@ namespace eval jQ {
 	if {![dict exists $args key]} {
 	    error "Can't generate a map without a google map key.  See http://code.google.com/apis/maps/signup.html"
 	}
-	dict set r -postscript "http://maps.google.com/maps?file=api&amp;v=2&amp;key=[dict get $args key]" {}
+	dict set r -postscript "http://maps.google.com/maps?file=api&v=2&key=[dict get $args key]" {}
 	dict unset args key
 
 	return [weave $r {
