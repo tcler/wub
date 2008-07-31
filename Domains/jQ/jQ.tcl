@@ -97,7 +97,7 @@ namespace eval jQ {
 	    }
 	}
 
-	maps {
+	map {
 	    mapType hybrid
 	}
 
