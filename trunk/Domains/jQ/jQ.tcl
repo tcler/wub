@@ -98,7 +98,7 @@ namespace eval jQ {
 	}
 
 	map {
-	    mapType hybrid
+	    mapType 'hybrid'
 	}
 
 	galleria1 {
