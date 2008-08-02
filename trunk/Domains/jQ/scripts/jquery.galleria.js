@@ -83,7 +83,7 @@ $$ = $.fn.galleria = function($options) {
 	// if no insert selector, create a new division and insert it before the ul
 	var _insert = ( $($opts.insert).is($opts.insert) ) ? 
 		$($opts.insert) : 
-		jQuery(document.createElement('div')).insertBefore(this);
+		jQuery(document.createElement('div')).insertAfter(this);
 		
 	// create a wrapping div for the image
 	var _div = $(document.createElement('div')).addClass('galleria_wrapper');
