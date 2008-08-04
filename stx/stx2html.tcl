@@ -4,18 +4,18 @@ package provide stx2html 1.1
 package require Html
 
 namespace eval stx2html {
-    variable features
-    array set features {}
-
-    variable toc
-    array set toc {}
-
+    variable features; array set features {}
+    variable toc; array set toc {}
     variable toccnt {}
     variable tagstart 0	;# number to start tagging TOC sections
-
     variable title ""	;# title of page
-
     variable img_properties {}
+
+    variable id STX_
+    proc id {range} {
+	variable id
+	return [list id $id[join $range -]]
+    }
 
     proc tagstart {what} {
 	variable tagstart $what
@@ -34,12 +34,12 @@ namespace eval stx2html {
 
     proc +normal {lc para args} {
 	Debug.STX {normal: $lc '$para' '$args'}
-	return "[<p> [subst $para]]\n[join $args]"
+	return "[<p> {*}[id $lc] [subst $para]]\n[join $args]"
     }
 
     proc +pre {lc para args} {
 	Debug.STX {pre: $lc '$para' '$args'}
-	return "[<pre> $para]\n[join $args]\n"
+	return "[<pre> {*}[id $lc] $para]\n[join $args]\n"
     }
 
     # process .special lines
@@ -115,6 +115,7 @@ namespace eval stx2html {
 	set toccnt [lrange $toccnt 0 $level]
 
 	lset toccnt $level [expr [lindex $toccnt $level] + 1]
+	set tag [lindex [id $lc] 1]	;# ignore the tag, use the id
 	set toc([join [lrange $toccnt 1 $level] .]) [list $para $tag]
 
 	set p [subst $para]
@@ -128,17 +129,17 @@ namespace eval stx2html {
 
     proc +hr {lc} {
 	Debug.STX {hr: $lc}
-	return [<hr> style {clear:both;}]
+	return [<hr> {*}[id $lc] style {clear:both;}]
     }
 
     proc +indent {lc para} {
 	Debug.STX {indent: $lc '$para'}
-	return [<p> [subst $para]]
+	return [<p> {*}[id $lc] [subst $para]]
     }
 
     proc +table {lc args} {
 	Debug.STX {table: $lc '$args'}
-	return [<table> [join $args \n]]\n
+	return [<table> {*}[id $lc] [join $args \n]]\n
     }
 
     proc +row {lc args} {
@@ -147,7 +148,7 @@ namespace eval stx2html {
 	foreach el $args {
 	    lappend els [subst $el]
 	}
-	return [<tr> [<td> [join $els </td><td>]]]
+	return [<tr> {*}[id $lc] [<td> [join $els </td><td>]]]
     }
 
     proc +hrow {lc args} {
@@ -156,17 +157,17 @@ namespace eval stx2html {
 	foreach el $args {
 	    lappend els [subst $el]
 	}
-	return [<tr> [<th> [join $els </th><th>]]]
+	return [<tr> {*}[id $lc] [<th> [join $els </th><th>]]]
     }
 
     proc +dlist {lc args} {
 	Debug.STX {dlist: $lc '$args'}
-	return [<dl> [join $args \n]]\n
+	return [<dl> {*}[id $lc] [join $args \n]]\n
     }
 
     proc +dl {lc term def} {
 	Debug.STX {dl: $lc $term / $def}
-	return "[<dt> [subst $term]]\n[<dd> [subst $def]]\n"
+	return "[<dt> {*}[id $lc] [subst $term]]\n[<dd> {*}[id $lc] [subst $def]]\n"
     }
 
     # make list item
@@ -175,8 +176,8 @@ namespace eval stx2html {
 	return "[subst $content]\n[join $args]\n"
     }
 
-    proc llist {form content} {
-	set result "<${form}>"
+    proc llist {form lc content} {
+	set result "<${form} [id $lc]>"
 	set open 0
 	set cnt 0
 	foreach arg $content {
@@ -204,12 +205,12 @@ namespace eval stx2html {
     # translate unordered list
     proc +ul {lc args} {
 	Debug.STX {ul: $lc '$args'}
-	return [llist ul $args]
+	return [llist ul $lc $args]
     }
 
     proc +ol {lc args} {
 	Debug.STX {ol: $lc '$args'}
-	return [llist ol $args]
+	return [llist ol $lc $args]
     }
 
     # This is a NOOP to convert local references to HTML
