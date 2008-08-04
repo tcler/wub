@@ -27,22 +27,24 @@ namespace eval stx2html {
 	return [::subst -nobackslashes -novariables $what]
     }
 
-    proc cdata {args} {
+    proc +cdata {args} {
 	Debug.STX {cdata: $args}
 	return [join $args]
     }
 
-    proc normal {para args} {
+    proc +normal {lc para args} {
+	Debug.STX {normal: $lc '$para' '$args'}
 	return "[<p> [subst $para]]\n[join $args]"
     }
 
-    proc pre {para args} {
+    proc +pre {lc para args} {
+	Debug.STX {pre: $lc '$para' '$args'}
 	return "[<pre> $para]\n[join $args]\n"
     }
 
     # process .special lines
-    proc special {para args} {
-	Debug.STX {special: $para}
+    proc +special {lc para args} {
+	Debug.STX {special: $lc '$para' '$args'}
 	set para [string map {
 	    "\x87" ;
 	    "\x89" \{
@@ -103,7 +105,8 @@ namespace eval stx2html {
 	return "\x81TOC\x82"
     }
 
-    proc header {level para tag args} {
+    proc +header {lc level para tag args} {
+	Debug.STX {+header lc:$lc level:$level para:'$para' tag:$tag args:($args)}
 	variable toc
 	variable toccnt
 	while {[llength $toccnt] <= $level} {
@@ -123,19 +126,23 @@ namespace eval stx2html {
 	return "[<h$level> id $tag $p]\n[join $args]\n"
     }
 
-    proc hr {} {
+    proc +hr {lc} {
+	Debug.STX {hr: $lc}
 	return [<hr> style {clear:both;}]
     }
 
-    proc indent {para} {
+    proc +indent {lc para} {
+	Debug.STX {indent: $lc '$para'}
 	return [<p> [subst $para]]
     }
 
-    proc table {args} {
+    proc +table {lc args} {
+	Debug.STX {table: $lc '$args'}
 	return [<table> [join $args \n]]\n
     }
 
-    proc row {args} {
+    proc +row {lc args} {
+	Debug.STX {row: $lc '$args'}
 	set els {}
 	foreach el $args {
 	    lappend els [subst $el]
@@ -143,7 +150,8 @@ namespace eval stx2html {
 	return [<tr> [<td> [join $els </td><td>]]]
     }
 
-    proc hrow {args} {
+    proc +hrow {lc args} {
+	Debug.STX {hrow: $lc '$args'}
 	set els {}
 	foreach el $args {
 	    lappend els [subst $el]
@@ -151,18 +159,19 @@ namespace eval stx2html {
 	return [<tr> [<th> [join $els </th><th>]]]
     }
 
-    proc dlist {args} {
+    proc +dlist {lc args} {
+	Debug.STX {dlist: $lc '$args'}
 	return [<dl> [join $args \n]]\n
     }
 
-    proc dl {term def} {
-	Debug.STX {2HTML DL: $term / $def}
+    proc +dl {lc term def} {
+	Debug.STX {dl: $lc $term / $def}
 	return "[<dt> [subst $term]]\n[<dd> [subst $def]]\n"
     }
 
     # make list item
-    proc li {content args} {
-	Debug.STX {2HTML li: '$content' '$args'}
+    proc +li {lc content args} {
+	Debug.STX {li: $lc '$content' '$args'}
 	return "[subst $content]\n[join $args]\n"
     }
 
@@ -193,11 +202,13 @@ namespace eval stx2html {
     }
 
     # translate unordered list
-    proc ul {args} {
+    proc +ul {lc args} {
+	Debug.STX {ul: $lc '$args'}
 	return [llist ul $args]
     }
 
-    proc ol {args} {
+    proc +ol {lc args} {
+	Debug.STX {ol: $lc '$args'}
 	return [llist ol $args]
     }
 
@@ -219,11 +230,13 @@ namespace eval stx2html {
     }
 
     # make reference content
-    proc ref {what} {
+    proc +ref {num} {
+	variable refs
+	set what [dict get $refs $num]
 	set body [string trim [join [lassign [split $what :] proto] :]]
 	set proto [string trim $proto]
-	#puts stderr "STX '$what' '$proto' '$body'"
 	Debug.STX {2HTML ref '$proto' '$body'}
+
 	switch -glob -- $proto {
 	    http {
 		set text [string trim [join [lassign [split $body] href]]]
@@ -277,7 +290,7 @@ namespace eval stx2html {
 		    set text $body
 		}
 		variable img_properties
-		set what [<img> src $body class imageleft {*}$img_properties style "float:left" alt $text]"
+		set what [<img> src $body class imageleft {*}$img_properties style "float:left" alt $text]
 	    }
 
 	    right {
@@ -291,7 +304,7 @@ namespace eval stx2html {
 		    set text $body
 		}
 		variable img_properties
-		set what [<img> src $body class imageleft {*}$img_properties style "float:right" alt $text]"
+		set what [<img> src $body class imageleft {*}$img_properties style "float:right" alt $text]
 	    }
 
 	    fieldset {
@@ -403,12 +416,13 @@ namespace eval stx2html {
 	return "${result}</table>\n"
     }
 
-    proc scope {num} {
-	#puts stderr "SCOPE: $num"
-	Debug.STX {scope: $num}
+    proc +scope {num} {
+	variable scope
+	set what [dict get $scope $num]
+	Debug.STX {scope: $num ($what))}
 	variable script
 	if {$script} {
-	    return [interp eval istx subst [list $::stx::scope($num)]]
+	    return [interp eval istx subst [list $what]]
 	} else {
 	    return "evaluation disabled"
 	}
@@ -429,8 +443,10 @@ namespace eval stx2html {
 	variable tagstart	;# number to start tagging TOC sections
 
 	Debug.STX {TRANSLATING}
-	set stx [stx::translate $text $tagstart]
-	#Debug.STX {TRANSLATE: $stx}
+	variable refs
+	variable scope
+	lassign [stx::translate $text $tagstart] stx refs scope
+	Debug.STX {TRANSLATE: $stx}
 	set content [lindex [namespace inscope ::stx2html subst [list $stx]] 0]
 
 	if {0} {
