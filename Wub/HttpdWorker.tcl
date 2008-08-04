@@ -233,7 +233,11 @@ namespace eval HttpdWorker {
 		}
 	    }
 	} r eo]} {
-	    Debug.error {FAILED send '$r' ($eo)}
+	    if {[dict get $eo -errorcode] eq {POSIX EPIPE {broken pipe}}} {
+		Debug.error {premature disconnect send '$r' ($eo)}
+	    } else {
+		Debug.error {FAILED send '$r' ($eo)}
+	    }
 	    Disconnect $sock "Disconnect - $r" $eo
 	} else {
 	    Debug.socket {SENT (close: $close) [string length $content] '$content'} 10
