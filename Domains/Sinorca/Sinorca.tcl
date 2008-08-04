@@ -108,7 +108,7 @@ namespace eval Sinorca {
 	return [<div> id footer {*}$args [subst {
 	    [<hr>]
 	    $copyright
-	    $links
+	    [<br>] $links
 	    [uplevel 1 [list subst $content]]
 	}]]
     }
@@ -138,7 +138,7 @@ namespace eval Sinorca {
 	foreach var {globlinks sitelinks breadcrumbs footlinks} {
 	    set $var {}
 	    set v [string trimright $var s]
-	    foreach key [lsort -dictionary [dict keys $page "$v*"]] {
+	    foreach key [lsort -dictionary [dict keys $page ${v}*]] {
 		lappend $var {*}[dict get $page $key]
 		dict unset page $key
 	    }
