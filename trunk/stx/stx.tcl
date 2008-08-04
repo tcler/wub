@@ -219,7 +219,7 @@ namespace eval stx {
 	    set tag "h$tagnum"
 	}
 	lassign $lc ls le
-	set hnode [newnode header [list $ls [expr {1+$ls}]]]
+	set hnode [newnode header [list $ls $ls]]
 	nodecdata $hnode $count
 	nodecdata $hnode $para
 	nodecdata $hnode $tag
