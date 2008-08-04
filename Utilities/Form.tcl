@@ -244,8 +244,13 @@ namespace eval Form {
     proc <textarea> {name args} {
 	variable textareaA
 	variable Fdefaults
-	set config [dict merge [Dict get? $Fdefaults textarea] [lrange $args 0 end-1] [list name $name]]
-	set content [lindex $args end]
+	if {[llength $args] % 2} {
+	    set content [lindex $args end]
+	    set args [lrange $args 0 end-1]
+	} else {
+	    set content ""
+	}
+	set config [dict merge [Dict get? $Fdefaults textarea] $args [list name $name]]
 
 	if {0 && ![dict exists $config tabindex]} {
 	    variable tabindex
@@ -273,11 +278,13 @@ namespace eval Form {
 	set content [::textutil::undent [::textutil::tabify $content]]
 
 	set title {}
-	if {[dict exists $config title]} {
+	if {[dict exists $config title]
+	    && ([dict exists $config label]
+		|| [dict exists $config legend])
+	} {
 	    set title [list title $title]
 	    dict unset config title
 	}
-
 	set result "<[attr textarea [Dict subset $config $textareaA]]>$content</textarea>"
 
 	if {[dict exists $config label]} {
