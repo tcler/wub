@@ -1,4 +1,4 @@
-﻿/*
+/*
  * jQuery Form'n'Field plug-in
  *
  * Copyright (c) 2007 BeFruit.com

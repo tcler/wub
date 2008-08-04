@@ -1,12 +1,12 @@
 /**
  * Galleria (http://monc.se/kitchen)
  *
- * Galleria is a javascript image gallery written in jQuery. 
- * It loads the images one by one from an unordered list and displays thumbnails when each image is loaded. 
- * It will create thumbnails for you if you choose so, scaled or unscaled, 
+ * Galleria is a javascript image gallery written in jQuery.
+ * It loads the images one by one from an unordered list and displays thumbnails when each image is loaded.
+ * It will create thumbnails for you if you choose so, scaled or unscaled,
  * centered and cropped inside a fixed thumbnail box defined by CSS.
- * 
- * The core of Galleria lies in it's smart preloading behaviour, snappiness and the fresh absence 
+ *
+ * The core of Galleria lies in it's smart preloading behaviour, snappiness and the fresh absence
  * of obtrusive design elements. Use it as a foundation for your custom styled image gallery.
  *
  * MAJOR CHANGES v.FROM 0.9
@@ -15,7 +15,7 @@
  * onImage and onThumb functions lets you customize the behaviours of the images on the site
  *
  * Tested in Safari 3, Firefox 2, MSIE 6, MSIE 7, Opera 9
- * 
+ *
  * Version 1.0
  * Februari 21, 2008
  *
@@ -30,7 +30,7 @@ var $$;
 
 
 /**
- * 
+ *
  * @desc Convert images from a simple html <ul> into a thumbnail gallery
  * @author David Hellsing
  * @version 1.0
@@ -39,7 +39,7 @@ var $$;
  * @type jQuery
  *
  * @cat plugins/Media
- * 
+ *
  * @example $('ul.gallery').galleria({options});
  * @desc Create a a gallery from an unordered list of images with thumbnails
  * @options
@@ -81,8 +81,8 @@ $$ = $.fn.galleria = function($options) {
 	}
 	
 	// if no insert selector, create a new division and insert it before the ul
-	var _insert = ( $($opts.insert).is($opts.insert) ) ? 
-		$($opts.insert) : 
+	var _insert = ( $($opts.insert).is($opts.insert) ) ?
+		$($opts.insert) :
 		jQuery(document.createElement('div')).insertAfter(this);
 		
 	// create a wrapping div for the image
@@ -106,7 +106,7 @@ $$ = $.fn.galleria = function($options) {
 			
 			// bring the scope
 			var _container = $(this);
-			                
+			
 			// build element specific options
 			var _o = $.meta ? $.extend({}, $opts, _container.data()) : $opts;
 			
@@ -125,7 +125,7 @@ $$ = $.fn.galleria = function($options) {
 			// find a title
 			var _title = _a ? _a.attr('title') : _img.attr('title');
 			
-			// create loader image            
+			// create loader image
 			var _loader = new Image();
 			
 			// check url and activate container if match
@@ -143,7 +143,7 @@ $$ = $.fn.galleria = function($options) {
 				//-----------------------------------------------------------------
 				// the image is loaded, let's create the thumbnail
 				
-				var _thumb = _a ? 
+				var _thumb = _a ?
 					_a.find('img').addClass('thumb noscale').css('display','none') :
 					_img.clone(true).addClass('thumb').css('display','none');
 				
@@ -161,7 +161,7 @@ $$ = $.fn.galleria = function($options) {
 					// a tiny timer fixed the width/height
 					window.setTimeout(function() {
 						_thumb.css({
-							marginLeft: -( _thumb.width() - _container.width() )/2, 
+							marginLeft: -( _thumb.width() - _container.width() )/2,
 							marginTop:  -( _thumb.height() - _container.height() )/2
 						});
 					}, 1);
@@ -230,7 +230,7 @@ $$.nextSelector = function(selector) {
 	return $(selector).is(':last-child') ?
 		   $(selector).siblings(':first-child') :
     	   $(selector).next();
-    	   
+    	
 };
 
 /**
@@ -245,7 +245,7 @@ $$.previousSelector = function(selector) {
 	return $(selector).is(':first-child') ?
 		   $(selector).siblings(':last-child') :
     	   $(selector).prev();
-    	   
+    	
 };
 
 /**
@@ -347,7 +347,7 @@ $$.onPageLoad = function(_src) {
 $.extend({galleria : {
 	current : '',
 	onImage : function(){},
-	activate : function(_src) { 
+	activate : function(_src) {
 		if ($.galleria.history) {
 			$.historyLoad(_src);
 		} else {
