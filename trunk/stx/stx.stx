@@ -320,11 +320,11 @@ Scope: [radioset: scope {site 0 +section 1}]
 
 ==== Evaluation Example: ====
 
- This is the current time \{\{\{[clock format [clock seconds]]\}\}\}
+This is the current time \{\{\{[[clock format [[clock seconds]]]]\}\}\} on the server.
 
 '''Produces:'''
 
-This is the current time {{{[clock format [clock seconds]]}}}
+This is the current time {{{[clock format [clock seconds]]}}} on the server.
 
 ----
 =Relaxed Interpretation=

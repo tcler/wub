@@ -12,21 +12,6 @@ namespace eval stx {
     variable tagnum 0	;# tag counter - a real number to provide disjoint sets
     variable refs	;# set of all refs in text
 
-    # mapping from formatting prefix character to implementation
-    variable funct
-    array set funct {
-	" " pre
-	* li
-	# li
-	; dlist
-	= header
-	> indent
-	- hr
-	. special
-	| table
-	\x82 li
-	\x83 li
-    }
     variable state {}
 
     proc undent {text} {
@@ -140,7 +125,7 @@ namespace eval stx {
 	    set index [array size refs]
 	    Debug.STX {ENCODE REF: $index $ref} 10
 	    set refs($index) [string trim $ref {[]}]
-	    regsub -- "\\\[\[^\]\]+\]" $text "(\x86$index)" text
+	    regsub -- "\\\[\[^\]\]+\]" $text "\x91$index\x92" text
 	}
 
 	set text [balance $text ''' italic]
@@ -156,12 +141,13 @@ namespace eval stx {
     }
 
     # create a new node of given type with value at the given path
-    proc newnode {type {p {}}} {
+    proc newnode {type lc {p {}}} {
 	variable tree
 	variable cursor
 	unlist $p
 	set node [$tree insert $cursor end]
 	$tree set $node type $type
+	$tree set $node lc $lc
 	#variable path
 	#$tree set $node path $path
 	return $node
@@ -172,6 +158,7 @@ namespace eval stx {
 	$tree set $node val [list $val]
     }
 
+    # character data node
     proc nodecdata {node val} {
 	variable tree
 	set cdata [$tree insert $node end]
@@ -180,34 +167,39 @@ namespace eval stx {
     }
 
     # identity preprocess for normal
-    proc normal {para} {
-	nodecdata [newnode normal] [char $para]
+    proc +normal {lc para} {
+	Debug.STX {normal $lc '$para'}
+	nodecdata [newnode normal $lc] [char $para]
     }
 
-    proc special {para} {
-	nodecdata [newnode special] [string range $para 1 end]
+    proc +special {lc para} {
+	Debug.STX {special $lc '$para'}
+	nodecdata [newnode special $lc] [string range $para 1 end]
     }
 
     # identity preprocess for hr
-    proc hr {args} {
-	newnode hr
+    proc +hr {lc args} {
+	Debug.STX {hr $lc '$args'}
+	newnode hr $lc
     }
 
     # identity preprocess for pre
-    proc pre {para} {
+    proc +pre {lc para} {
+	Debug.STX {pre $lc '$para'}
 	set para [string map {"\n " "\n" \[ "&#x5B;" \] "&#x5D;" \{ "&#x7B;" \} "&#x7D;" $ "&#x24;"} $para]
-	nodecdata [newnode pre] [string range $para 1 end]
+	nodecdata [newnode pre $lc] [string range $para 1 end]
     }
 
     # preprocess for indent elements
-    proc indent {para} {
+    proc +indent {lc para} {
+	Debug.STX {indent $lc: '$para'}
 	variable path
-	nodecdata [newnode indent $path] [char $para]
+	nodecdata [newnode indent $lc $path] [char $para]
     }
 
     # preprocess for header elements
-    proc header {para} {
-	Debug.STX {HEADER: $para}
+    proc +header {lc para} {
+	Debug.STX {header $lc: '$para'}
 	set count [count $para =]	;# depth of header nesting
 	set para [string trimleft $para =] ;# strip leading ='s
 
@@ -226,31 +218,33 @@ namespace eval stx {
 	    set tagnum [expr $tagnum + 1.0] ;# allow non-int tagnums
 	    set tag "h$tagnum"
 	}
-	set hnode [newnode header]
+	lassign $lc ls le
+	set hnode [newnode header [list $ls [expr {1+$ls}]]]
 	nodecdata $hnode $count
 	nodecdata $hnode $para
 	nodecdata $hnode $tag
-	
+
 	# now process any pendant para
 	if {$rest ne ""} {
-	    do_para $rest
+	    incr ls
+	    dispatch [list $ls $le] $rest
 	}
     }
 
     # preprocess for list elements
-    proc li {para} {
+    proc +li {lc para} {
+	Debug.STX {li $lc: '$para'}
 	set count [count $para "\#*"]	;# how many list levels deep?
 	Debug.STX {li $count '$para'}
 	set li [string range $para 0 [expr {$count - 1}]]	;# list prefix
 	set li [split [string trim [string map {\# "ol " * "ul "} $li]]]
 	set para [string trim [string range $para $count end]]	;# content
-	
-	nodecdata [newnode li $li] [char $para]
-	#nodecdata [newnode li $li] [do_para $para]
+	nodecdata [newnode li $lc $li] [char $para]
     }
 
     # table elements
-    proc table {para {cpath ""}} {
+    proc +table {lc para {cpath ""}} {
+	Debug.STX {table $lc: '$para' ($cpath)}
 	set para [string range $para 1 end]
 	switch [string index $para 0] {
 	    + {
@@ -266,36 +260,67 @@ namespace eval stx {
 	Debug.STX {TABLE: '$para' - $els}
 	#puts stderr "TABLE: '$para' - $els"
 
-	set row [newnode $type table]
+	set row [newnode $type $lc table]
 	foreach el $els {
 	    nodecdata $row [char $el]
 	}
     }
 
     # preprocess for dlist elements
-    proc dlist {para {cpath ""}} {
+    proc +dlist {lc para {cpath ""}} {
+	Debug.STX {dlist $lc: '$para' ($cpath)}
 	set pp [split [char [string trimleft $para ";"]] :]
 	set term [lindex $pp 0]
 	set def [string trim [join [lrange $pp 1 end] ": "]]
-	set dlnode [newnode dl dlist]
+	set dlnode [newnode dl $lc dlist]
 	Debug.STX {DLIST: '$para' - '[char $para]' - [char $term]}
 	nodecdata $dlnode $term
 	nodecdata $dlnode $def
     }
 
-    proc do_para {para} {
-	if {$para eq {}} return
-	
-	set first [string index $para 0]
-	variable funct
+    # mapping from formatting prefix character to implementation
+    variable funct
+    array set funct {
+	" " +pre
+	* +li
+	# +li
+	; +dlist
+	= +header
+	> +indent
+	- +hr
+	. +special
+	| +table
+	\x82 +li
+	\x83 +li
+    }
+    
+    proc dispatch {lc para} {
+	set first [string index $para 0]	;# get semantic para prefix
+	variable funct	;# mapping from prefix to function
 	if {[info exists funct($first)]} {
-	    set f $funct($first)
+	    set f $funct($first);# function to handle this prefix
 	} else {
-	    set f normal
+	    set f +normal	;# this is a normal para
 	}
     
-	Debug.STX {do_para $f '$para'}
-	$f $para
+	#Debug.STX {para $f '$para'}
+	$f $lc $para	;# invoke the parser for this para type
+    }
+
+    # para - process each paragraph
+    proc para {para} {
+	# split on lc tags
+	set p [split $para \x8e]
+	set lc [list [lindex $p 1] [lindex $p end-1]]
+
+	# reconstruct the para without the linec tags
+	set para ""
+	foreach {line -} $p {
+	    append para $line
+	}
+
+	if {$para eq {}} return	;# empty paras have no meaning
+	dispatch $lc $para
     }
 
     variable scope; array set scope {}
@@ -304,13 +329,14 @@ namespace eval stx {
     proc scope {text} {
 	set count 0
 	variable scope
-	set result ""
-	set text [split [string map [list "{{{" \x81 "}}}" \x82] $text] \x81]
+	set text [split [string map [list \{\{\{ \x8c \}\}\} \x8d] $text] \x8c]
 	set result [lindex $text 0]
 	foreach seg [lrange $text 1 end] {
-	    lassign [split $seg \x82] e rest
-	    append result \x8c $count \x8d $rest
+	    lassign [split $seg \x8d] e rest
+	    regsub -all {\x8e[^\x8e]+\x8e} $e {} e	;# remove linecounts
 	    set scope($count) $e
+	    Debug.STX {scope $count: ($e)}
+	    append result \x8c $count \x8d $rest
 	    incr count
 	}
 	return $result
@@ -318,7 +344,7 @@ namespace eval stx {
 
     # translate structured text into
     # tcl function calls over paragraphs
-    proc translate {text {tagstart 0}} {
+    proc translate {original {tagstart 0}} {
 	variable scope; catch {unset scope}
 	variable refs; catch {unset refs}
 
@@ -335,10 +361,20 @@ namespace eval stx {
 	variable cursor root
 	variable tagnum $tagstart
 
+	# append an original line number to each line
+	set lc -1
+	set text ""
+	foreach line [split $original \n] {
+	    incr lc
+	    #set line [string trimright $line]
+	    append text $line \x8e $lc \x8e \n
+	}
+
 	set text [scope $text]	;# remove scopes
 
-	set result ""
-	regsub -all {\n\n+} $text \x81 text
+	regsub -all {\n\x8e[^\x8e]+\x8e\n+} $text \x81 text	;# run blank lines together
+
+	# tag special line start markers
 	set text [string map {
 	    \n# \x81\#
 	    \n* \x81*
@@ -348,7 +384,9 @@ namespace eval stx {
 	    \n> \x81>
 	    \n| \x81|
 	} $text]
-	
+
+	# clean up newlines except those with spaces
+	# encode special characters {}$<>
 	set text [string map {
 	    "\n " "\n "
 	    \n " "
@@ -359,48 +397,72 @@ namespace eval stx {
 	    > "&gt\x87"
 	} $text]
 	
+	# split the text into paragraphs along line-start tags
+	# process each paragraph independantly
 	foreach para [split $text \x81] {
-	    do_para $para
+	    para $para	;# process each paragraph
 	}
-	
+
+	# generate a tcl script from the parse tree
 	set result ""
 	variable tree
+	variable lcs {}	;# keep count of lines
 	$tree walk root -order both {action node} {
 	    if {$node eq "root"} continue
 	    if {$action eq "enter"} {
 		if {[$tree depth $node] > 1} {
-		    append result " "
+		    append result " "	;# space separates commands
 		}
-		append result "\[[$tree get $node type]"
+
+		# on the way in we open the tcl command
+		# each node has a semantic type which is its function
+		# and a start/end line number from the original text
+		if {[$tree keyexists $node lc]} {
+		    # add linecount setter
+		    set lc [list [$tree get $node lc]]
+		} elseif {[$tree get $node type] eq "cdata"} {
+		    set lc {}
+		} else {
+		    set ls 9999999
+		    set le -1
+		    foreach kid [$tree children $node] {
+			if {[$tree keyexists $kid lc]} {
+			    lassign [$tree get $kid lc] ks ke
+			    if {$ks < $ls} {
+				set ls $ks
+			    }
+			    if {$ke > $le} {
+				set le $ke
+			    }
+			}
+		    }
+		    set lc [list [list $ls $le]]
+		}
+
+		append result "\[+[$tree get $node type] $lc "
 		if {[$tree keyexists $node val]} {
 		    append result " [join [$tree get $node val]]"
 		}
 	    } else {
-		append result "] "
+		# on the way out we close the tcl command
+		append result "]"
 		if {[$tree depth $node] == 1} {
-		    append result "\n"
+		    append result "\n"	;# top level commands are newline termd
+		} else {
+		    append result " "
 		}
-	    }
+	     }
 	}
-	
-	# substitute refs back in
-	#puts stderr "STX REFSUBBING"
-	variable refs
-	while {[regexp -- "\[(\]\x86(\[^)\]+)\[)\]" $result index]} {
-	    Debug.STX {REFSUB $index -> $refs([string trim $index \x86()])}
-	    set sub [string map {\\ \\\\ & \\&} $refs([string trim $index \x86()])]
-	    regsub -- "\[(\]\x86\[^)\]+\[)\]" $result "\[ref \{$sub\}\]" result
-	}
+
+	# after generating the tcl command stream,
+	# substitute refs back in.
+	set result [string map [list \x91 "\[+ref " \x92 "\]"] $result]
 	
 	# substitute scopes back in
-	#puts stderr "STX SCOPESUBBING"
-	set result [string map [list \x8c "\[scope " \x8d "\]"] $result]
-	
-	catch {unset refs}
-	set refs() ""
-	unset refs()
-	Debug.STX {RESULT: ${result}}
-	return ${result}
+	set result [string map [list \x8c "\[+scope " \x8d "\]"] $result]
+
+	Debug.STX {RESULT: $result}
+	return [list $result [array get refs] [array get scope]]
     }
 
     proc init {args} {
@@ -414,3 +476,22 @@ namespace eval stx {
 }
 
 stx init
+
+# special non-chars used as placeholders
+# 0x81 new paragraph
+# 0x81 open TOC
+# 0x82 li
+# 0x82 close TOC
+# 0x83 li 
+# 0x84 open sqbr
+# 0x85 close sqbr
+# 0x87 semicolon
+# 0x88 "&\#"
+# 0x89 {
+# 0x8A }
+# 0x8B $
+# 0x8c open scope
+# 0x8d close scope
+# 0x8e linecount
+# 0x91 open ref
+# 0x92 close ref
