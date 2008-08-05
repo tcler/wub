@@ -344,9 +344,23 @@ namespace eval stx {
 
     # translate structured text into
     # tcl function calls over paragraphs
-    proc translate {original {tagstart 0}} {
+    proc translate {original args} {
 	variable scope; catch {unset scope}
 	variable refs; catch {unset refs}
+
+	# unpack optional named args
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+
+	# our original path is empty
+	variable path {}
+	variable cursor root
+	variable tagnum 0
+	set offset -1	;# initial lc offset
+
+	dict with args {}
+	# tagstart 0 offset 0
 
 	# construct an empty tree
 	variable tree
@@ -356,13 +370,8 @@ namespace eval stx {
 	set tree [::struct::tree stx]
 	$tree set root type root
 
-	# our original path is empty
-	variable path {}
-	variable cursor root
-	variable tagnum $tagstart
-
 	# append an original line number to each line
-	set lc -1
+	set lc $offset
 	set text ""
 	foreach line [split $original \n] {
 	    incr lc
