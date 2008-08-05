@@ -48,6 +48,20 @@ namespace eval jQ {
     }
 
     variable defaults {
+	editable {
+	    indicator {'<img src="/icons/indicator.gif">'}
+	    type 'textarea'
+	    select false
+	    autogrow {{lineHeight:16, minHeight:32}}
+	    submit 'OK'
+	    onblur 'ignore'
+	    cancel 'cancel'
+	    cssclass 'autogrow'
+	    event 'dblclick'
+	    tooltip {'Double Click to edit...'}
+	    style 'inherit'
+	}
+
 	autogrow {
 		maxHeight 1000
 		minHeight 100
@@ -359,10 +373,10 @@ namespace eval jQ {
 	}]
     }
 
-    proc editable {r selector fn} {
+    proc editable {r selector fn args} {
 	return [weave $r {
-	    jquery.js jquery.editable.js
-	} %SEL $selector %FN $fn {$('%SEL').editable(%FN);}]
+	    jquery.js jquery.autogrow.js jquery.jeditable.js
+	} %SEL $selector %OPTS [opts editable $args] %FN $fn {$('%SEL').editable('%FN',%OPTS);}]
     }
 
     proc form  {r selector {fn ""}} {
