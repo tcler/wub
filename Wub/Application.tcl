@@ -74,6 +74,10 @@ variable robots {User-agent: *
     Disallow: /bzzzz
 }
 
+#### Icons domain
+package require Icons
+Icons init mount /icons/
+
 #### initialize Tie 
 package require Tie
 Tie init
@@ -335,6 +339,13 @@ proc Responder::do {req} {
 	/code/* {
 	    # Commenter source code comments
 	    ::code do $req
+	}
+
+	/icons/ {
+	    ::Icons dir $req
+	}
+	/icons/* {
+	    ::Icons do $req
 	}
 
 	/*.jpg -
