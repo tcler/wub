@@ -74,6 +74,10 @@ variable robots {User-agent: *
     Disallow: /bzzzz
 }
 
+#### initialize Tie 
+package require Tie
+Tie init
+
 #### ram: RAM domain
 #
 package require RAM
@@ -218,6 +222,14 @@ proc Responder::do {req} {
 	    set rsp [Session do $req]
 	    Debug.session {Session API: [Dict get? $rsp -session]}
 	    set rsp
+	}
+
+	/tie/*/ {
+	    Http Redir $req [string trimright [dict get $req -path] /]
+	}
+
+	/tie/* {
+	    return [Tie do $req]
 	}
 
 	/suspend {
