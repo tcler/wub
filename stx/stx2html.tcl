@@ -11,22 +11,35 @@ namespace eval stx2html {
     variable title ""	;# title of page
     variable img_properties {}
 
-    variable id STX_
+    variable class [list class editable]
+    variable idPrefix STX_
+    variable id2lc {}
+    variable id 0
+
     proc id {range} {
+	variable idPrefix
 	variable id
-	return [list id $id[join $range -]]
+	variable id2lc
+
+	dict set id2lc $id $range
+
+	variable class
+	set result [list id $idPrefix$id {*}$class]
+	incr id
+
+	return $result
     }
 
     proc tagstart {what} {
 	variable tagstart $what
     }
-
+    
     # redefine subst - we only ever want commands in this application
     proc subst {what} {
 	Debug.STX {subst: $what}
 	return [::subst -nobackslashes -novariables $what]
     }
-
+    
     proc +cdata {args} {
 	Debug.STX {cdata: $args}
 	return [join $args]
@@ -124,7 +137,7 @@ namespace eval stx2html {
 	    set title $p
 	}
 
-	return "[<h$level> id $tag $p]\n[join $args]\n"
+	return "[<h$level> {*}[id $lc] $p]\n[join $args]\n"
     }
 
     proc +hr {lc} {
@@ -416,11 +429,11 @@ namespace eval stx2html {
 	append result "</tbody>"
 	return "${result}</table>\n"
     }
-
+    
     proc +scope {num} {
 	variable scope
 	set what [dict get $scope $num]
-	Debug.STX {scope: $num ($what))}
+	Debug.STX {scope: $num ($what)}
 	variable script
 	if {$script} {
 	    return [interp eval istx subst [list $what]]
@@ -428,25 +441,37 @@ namespace eval stx2html {
 	    return "evaluation disabled"
 	}
     }
-
+    
     # convert structured text to html
-    proc translate {text {locallink ::stx2html::local}} {
+    proc translate {text args} {
 	variable features
 	array unset features
 	set features(NOTOC) 1
-	variable local $locallink
 
-	variable toc
-	array unset toc
+	variable local ::stx2html::local
+
+	variable toc; array unset toc
 
 	variable title ""
 	variable toccnt {}
 	variable tagstart	;# number to start tagging TOC sections
 
-	Debug.STX {TRANSLATING}
+	# reset ids
+	variable idPrefix
+	variable id 0
+	variable id2lc {}
+
 	variable refs
 	variable scope
-	lassign [stx::translate $text $tagstart] stx refs scope
+	variable script
+
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	dict with args {}
+	#{locallink ::stx2html::local} {offset 0}
+
+	lassign [stx::translate $text local $local {*}$args] stx refs scope
 	Debug.STX {TRANSLATE: $stx}
 	set content [lindex [namespace inscope ::stx2html subst [list $stx]] 0]
 
@@ -455,7 +480,9 @@ namespace eval stx2html {
 	    if {[catch {stx::translate $text} content eo]} {
 		return "<p>STX Error translate: '$text'<br>-> $eo</p>"
 	    }
-	    if {[catch {namespace inscope ::stx2html subst [list $content]} content1 eo]} {
+	    if {[catch {
+		namespace inscope ::stx2html subst [list $content]
+	    } content1 eo]} {
 		return "<p>STX Error subst: $content<br>-> $eo</p>"
 	    }
 	    if {[catch {lindex $content1 0} content eo]} {
@@ -476,9 +503,13 @@ namespace eval stx2html {
 	return [string map [list "\x88" "&\#" "\x89" "\{" "\x8A" "\}" "\x8B" "$" "\x87" "\;" "\x84" "&#91\;" "\x85" "&#93\;" "\\" ""] $content]
     }
 
-    proc Translate {text locallink} {
+    proc Translate {text args} {
 	variable features
-	return [list [translate $text $locallink] [array get features]]
+	variable id2lc
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	return [list [translate $text {*}$args] [array get features] $id2lc]
     }
 
     variable packages {Form}
