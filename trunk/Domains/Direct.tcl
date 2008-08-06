@@ -31,6 +31,11 @@ namespace eval Direct {
 	dict set rsp -Query $qd
 	Debug.direct {Query: [Query dump $qd]}
 
+	# remember which prefix we're using - this allows several
+	# domains to share the same namespace, differentiating by
+	# reference to -prefix value.
+	dict set rsp -prefix $prefix
+
 	if {[dict exists $rsp -suffix]} {
 	    # caller has munged path already
 	    set suffix [dict get $rsp -suffix]
