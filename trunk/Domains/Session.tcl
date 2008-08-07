@@ -276,7 +276,7 @@ namespace eval Session {
 	variable cookie; variable cpath; variable expires
 	dict set req -cookies [Cookies add [dict get $req -cookies] -path $cpath -expires $expires {*}$args -name $cookie -value "$slot@$key"]
 
-	Debug.session {cookie added '[Dict get? req -cookies]'}
+	Debug.session {cookie added '[Dict get? $req -cookies]'}
 	return $req
     }
 
