@@ -148,20 +148,25 @@ namespace eval jQ {
 	#puts stderr "WEAVE: $r"
 	set script [lindex $args end]
 	set args [lrange $args 0 end-1]
+	if {[dict exists $args %prescript]
+	    && [dict get $args %prescript] ne ""
+	} {
+	    set js [dict get $args %prescript]\n
+	}
 	set script [string map [dict filter $args key %*] $script]
-	set script "\$(document).ready(function()\{\n${script}\n\});"
-
+	append js "\$(document).ready(function()\{\n${script}\n\});"
+	
 	switch -- [Dict get? $args loader] {
 	    "" {
 		set preload -postload
-		set script [<script> $script]
+		set script [<script> $js]
 	    }
 	    google {
 		set preload -google
 	    }
 	    default {
 		set preload [dict get $args loader]
-		set script [<script> $script]
+		set script [<script> $js]
 	    }
 	}
 	dict unset args loader
@@ -374,9 +379,17 @@ namespace eval jQ {
     }
 
     proc editable {r selector fn args} {
+	if {[dict exists $args %prescript]} {
+	    set pre [list %prescript [dict get $args %prescript]]
+	    dict unset args %prescript
+	} else {
+	    set pre ""
+	}
 	return [weave $r {
 	    jquery.js jquery.autogrow.js jquery.jeditable.js
-	} %SEL $selector %OPTS [opts editable $args] %FN $fn {$('%SEL').editable('%FN',%OPTS);}]
+	} %SEL $selector %OPTS [opts editable $args] {*}$pre %FN $fn {
+	    $('%SEL').editable('%FN',%OPTS);
+	}]
     }
 
     proc form  {r selector {fn ""}} {
