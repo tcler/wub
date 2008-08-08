@@ -5,6 +5,12 @@ Debug off tie 10
 package require Report
 package provide Tie 1.0
 
+# TODO:
+# per-variable perms
+# generalise to be able to handle all the vars in a namespace, not just a specific one.
+# check dict mods so they stay as dicts, else it can break
+# make textareas autogrow
+
 namespace eval Tie {
     variable mount /tie/	;# mount point for vars
     variable mime x-text/html-fragment	;# default mime type of responses
