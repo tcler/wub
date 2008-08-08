@@ -144,6 +144,11 @@ namespace eval Icons {
 	    }
 	}
 
+	# this stuff just doesn't change.
+	if {[dict exists $rsp if-modified-since]} {
+		return [Http NotModified $rsp]
+	}
+	
 	variable icons
 	Debug.icons {exists $suffix [info exists icons($suffix)]}
 	if {![info exists icons($suffix)]} {
