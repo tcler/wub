@@ -24,7 +24,7 @@ namespace eval stx2html {
 	dict set id2lc $id $range
 
 	variable class
-	set result [list id $idPrefix$id {*}$class]
+	set result [list id $idPrefix$id {*}$class Xstart [lindex $range 0] Xend [lindex $range 1]]
 	incr id
 
 	return $result
