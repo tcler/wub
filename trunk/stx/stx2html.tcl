@@ -15,6 +15,7 @@ namespace eval stx2html {
     variable idPrefix STX_
     variable id2lc {}
     variable id 0
+    variable exclude {+dlist +dt}
 
     proc id {range} {
 	variable idPrefix
@@ -24,8 +25,15 @@ namespace eval stx2html {
 	dict set id2lc $id $range
 
 	variable class
-	set result [list id $idPrefix$id {*}$class Xstart [lindex $range 0] Xend [lindex $range 1]]
+	variable exclude
+	if {[lindex [info level -1] 0] ni $exclude} {
+	    set result [list id $idPrefix$id {*}$class]
+	} else {
+	    set result [list id $idPrefix$id class dud]
+	}
 	incr id
+
+	lappend result Xstart [lindex $range 0] Xend [lindex $range 1]
 
 	return $result
     }
@@ -178,9 +186,16 @@ namespace eval stx2html {
 	return [<dl> {*}[id $lc] [join $args \n]]\n
     }
 
+    proc +dt {lc term} {
+	return [<dt> {*}[id $lc] [subst $term]]
+    }
+    proc +dd {lc def} {
+	return [<dd> {*}[id $lc] [subst $def]]
+    }
+
     proc +dl {lc term def} {
 	Debug.STX {dl: $lc $term / $def}
-	return "[<dt> {*}[id $lc] [subst $term]]\n[<dd> {*}[id $lc] [subst $def]]\n"
+	return "[+dt $lc $term]\n[+dd $lc $def]\n"
     }
 
     # make list item
