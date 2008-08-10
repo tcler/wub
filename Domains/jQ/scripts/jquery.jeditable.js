@@ -65,7 +65,7 @@
             onblur     : 'cancel',
             loadtype   : 'GET',
             loadtext   : 'Loading...',
-            placeholder: 'Click to edit',
+            placeholder: '<span class="edspace">...</span>',
             loaddata   : {},
             submitdata : {}
         };

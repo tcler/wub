@@ -140,6 +140,9 @@ acronym {
            border-bottom:   1px dotted %TOOLTIP;
            }
 
+//.editable { color: green; }
+.modified { color: green; }
+
 abbr[title],
 acronym[title] {
                  cursor:          help;
@@ -1014,7 +1017,7 @@ input.button {
                               margin-right: 0;
                               }
 
-
+span.edspace { }
 /** *************************************************************************
    * Compact form layout styles
    */

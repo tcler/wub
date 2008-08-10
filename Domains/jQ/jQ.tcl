@@ -58,7 +58,7 @@ namespace eval jQ {
 	    cancel 'cancel'
 	    cssclass 'autogrow'
 	    event 'dblclick'
-	    tooltip {'Double Click to edit...'}
+	    tooltip {'Click to edit'}
 	    style 'inherit'
 	}
 

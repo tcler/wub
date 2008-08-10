@@ -15,7 +15,7 @@ namespace eval stx2html {
     variable idPrefix STX_
     variable id2lc {}
     variable id 0
-    variable exclude {+dlist +dt}
+    variable exclude {+dlist +dt +ol +ul}
 
     proc id {range} {
 	variable idPrefix
@@ -26,7 +26,9 @@ namespace eval stx2html {
 
 	variable class
 	variable exclude
-	if {[lindex [info level -1] 0] ni $exclude} {
+	if {$range ne {} 
+	    && [lindex [info level -1] 0] ni $exclude
+	} {
 	    set result [list id $idPrefix$id {*}$class]
 	} else {
 	    set result [list id $idPrefix$id class dud]
@@ -189,56 +191,31 @@ namespace eval stx2html {
     proc +dt {lc term} {
 	return [<dt> {*}[id $lc] [subst $term]]
     }
+
     proc +dd {lc def} {
 	return [<dd> {*}[id $lc] [subst $def]]
     }
 
     proc +dl {lc term def} {
-	Debug.STX {dl: $lc $term / $def}
+	Debug.STX {+dl: $lc $term / $def}
 	return "[+dt $lc $term]\n[+dd $lc $def]\n"
     }
 
     # make list item
     proc +li {lc content args} {
-	Debug.STX {li: $lc '$content' '$args'}
-	return "[subst $content]\n[join $args]\n"
-    }
-
-    proc llist {form lc content} {
-	set result "<${form} [id $lc]>"
-	set open 0
-	set cnt 0
-	foreach arg $content {
-	    if {$cnt && [string match {<[ou]l>*} $arg]} {
-		if {!$open} {
-		    append result "\n<li>"
-		}
-		append result "${arg}"
-		set open 1
-	    } else {
-		if {$open} {
-		    append result "\n</li>"
-		}
-		append result "\n<li>${arg}"
-		set open 1
-	    }
-	    incr cnt
-	}
-	if {$open} {
-	    append result "\n</li>"
-	}
-	return "${result}\n</${form}>\n"
+	Debug.STX {+li: ($lc) '$content' '$args'}
+	return [<li> {*}[id $lc] "[subst $content] [join $args]"]
     }
 
     # translate unordered list
     proc +ul {lc args} {
-	Debug.STX {ul: $lc '$args'}
-	return [llist ul $lc $args]
+	Debug.STX {+ul: $lc '$args'}
+	return [<ul> {*}[id $lc] [join $args \n]]
     }
 
     proc +ol {lc args} {
 	Debug.STX {ol: $lc '$args'}
-	return [llist ol $lc $args]
+	return [<ol> {*}[id $lc] [join $args \n]]
     }
 
     # This is a NOOP to convert local references to HTML
@@ -523,6 +500,9 @@ namespace eval stx2html {
 	variable id2lc
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
+	}
+	if {$args ne {}} {
+	    variable {*}$args
 	}
 	return [list [translate $text {*}$args] [array get features] $id2lc]
     }
