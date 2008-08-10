@@ -15,8 +15,8 @@ namespace eval stx {
     variable state {}
 
     proc undent {text} {
-    package require textutil
-    return [::textutil::undent $text]
+	package require textutil
+	return [::textutil::undent $text]
     }
 
     # count the number of characters in the set 'leadin'
@@ -148,8 +148,6 @@ namespace eval stx {
 	set node [$tree insert $cursor end]
 	$tree set $node type $type
 	$tree set $node lc $lc
-	#variable path
-	#$tree set $node path $path
 	return $node
     }
 
@@ -412,6 +410,26 @@ namespace eval stx {
 	    para $para	;# process each paragraph
 	}
 
+	# ensure every element in a UL or OL is wrapped in a LI
+	if {0} {
+	    $tree walk root -order both {action node} {
+		if {$node eq "root"} continue
+		if {$action ne "enter"} continue
+		if {[$tree get $node type] in {ul ol}} {
+		    set cnt 0
+		    foreach kid [$tree children $node] {
+			if {[$tree get $kid type] ne "li"} {
+			    set nn [$tree splice $node $cnt $cnt]
+			    $tree set $nn type li
+			    $tree set $nn dud 1
+			    # don't add lc to synthetic li elements
+			}
+			incr cnt
+		    }
+		}
+	    }
+	}
+
 	# generate a tcl script from the parse tree
 	set result ""
 	variable tree
@@ -431,6 +449,10 @@ namespace eval stx {
 		    set lc [list [$tree get $node lc]]
 		} elseif {[$tree get $node type] eq "cdata"} {
 		    set lc {}
+		} elseif {[$tree keyexists $node dud]
+			  && [$tree get $node dud]
+		      } {
+		    set lc {{}}
 		} else {
 		    set ls 9999999
 		    set le -1
