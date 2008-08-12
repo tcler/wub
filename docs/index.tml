@@ -27,9 +27,11 @@
 	<p>Wub is a pure Tcl web server implementing near HTTP 1.1</p>
 	<p>Wub servers are designed as a series of pluggable building blocks called "<a href='docs/Domains/'>domains</a>".</p>
 	
- 	<p>Wub is a pure Tcl implementation of a Web server. It runs as a Tcl script on top of <a href=''>Tcl 8.5</a>.</p>
+ 	<p>Wub is a pure Tcl implementation of a Web server. It runs as a Tcl script on top of <a href=''>Tcl 8.5+</a>.</p>
 
 	<p>While this server works fine as a stand alone web server, the intent is to embed applications within it.</p>
+
+	<p>The <a href='docs/'>Wub Architecture</a> page provides an architectural overview.
 
 	<p>The interpreted nature of Tcl allows dynamic reconfiguration of the server. Once the core interface between the web server and the hosted application is defined, it is possible to manage the web server, upload Safe-Tcl control scripts, download logging information, and otherwise debug the Tcl part of the application without restarting the application.</p>
 	
