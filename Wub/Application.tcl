@@ -10,7 +10,11 @@ namespace eval Site {
 }
 
 package require Site
-package require Session
+if {1 || [catch {package require Session}]} {
+    proc Session {args} {
+	return [lindex $args end]
+    }
+}
 
 ###### Application Starts Here
 set docroot [file normalize [file join $::Site::docroot .. docs]]
