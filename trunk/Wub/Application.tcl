@@ -10,7 +10,7 @@ namespace eval Site {
 }
 
 package require Site
-if {1 || [catch {package require Session}]} {
+if {[catch {package require Session}]} {
     proc Session {args} {
 	return [lindex $args end]
     }
