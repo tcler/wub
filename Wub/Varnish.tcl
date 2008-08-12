@@ -52,11 +52,11 @@ namespace eval Varnish {
     proc send {cmd args} {
 	variable tx; lappend tx [list $cmd {*}$args]
 
+	variable varnish
 	if {[eof $varnish]} {
 	    connect
 	}
 
-	variable varnish
 	puts $varnish "$cmd $args"
 
 	Debug.varnish {T: $cmd $args}
