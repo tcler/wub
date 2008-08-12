@@ -13,6 +13,10 @@ Debug off varnish 10
 #    puts stderr "ERR: $args"
 #}
 
+# TODO:
+# when varnish goes down and comes back up, the connection dies.
+# this needs to be detected, and the varnish reconnected
+
 namespace eval Varnish {
     variable vaddress localhost
     variable vport 6082
@@ -48,6 +52,10 @@ namespace eval Varnish {
     proc send {cmd args} {
 	variable tx; lappend tx [list $cmd {*}$args]
 
+	if {[eof $varnish]} {
+	    connect
+	}
+
 	variable varnish
 	puts $varnish "$cmd $args"
 
@@ -66,6 +74,15 @@ namespace eval Varnish {
 	return [collect]
     }
 
+    proc connect {} {
+	variable vport
+	variable vaddress
+	variable varnish [socket $vaddress $vport]
+	fconfigure $varnish -buffering line -translation {binary auto}
+	fileevent $varnish readable [list Varnish response]
+	return $varnish
+    }
+
     proc init {args} {
 	if {$args ne {}} {
 	    variable {*}$args
@@ -77,11 +94,7 @@ namespace eval Varnish {
 	}
 	Debug.varnish {Varnish starting}
 
-	variable vport
-	variable vaddress
-	variable varnish [socket $vaddress $vport]
-	fconfigure $varnish -buffering line -translation {binary auto}
-	fileevent $varnish readable [list Varnish response]
+	connect
 
 	# pass our VCL config
 	variable vcl
