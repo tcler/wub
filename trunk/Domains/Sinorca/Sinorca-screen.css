@@ -140,7 +140,7 @@ acronym {
            border-bottom:   1px dotted %TOOLTIP;
            }
 
-//.editable { color: green; }
+.editing { background: %HEADER_BG;}
 .modified { color: green; }
 
 abbr[title],
@@ -306,21 +306,21 @@ li {
      }
 
 dl {
-     margin:          1em 0;
+     margin:          0.5em 0;
      padding:         0;
      }
 
 dt {
      color: %H1;
      font: inherit;	/* Don't make the text bold by default */
-     font-size:150%;
-     font-weight:bold;
-     margin:          1em 0 0.25em 0;
+     font-size: 120%;
+     font-weight: bold;
+     margin:          0.5em 0 0.25em 0;
      padding:         0;
      }
 
 dd {
-     margin:          0 0 1em 2.5em;
+     margin:          0 0 0.5em 2.5em;
      padding:         0;
      }
 

@@ -388,7 +388,7 @@ namespace eval jQ {
 	return [weave $r {
 	    jquery.js jquery.autogrow.js jquery.jeditable.js
 	} %SEL $selector %OPTS [opts editable $args] {*}$pre %FN $fn {
-	    $('%SEL').editable('%FN',%OPTS);
+	    $('%SEL').editable(%FN,%OPTS);
 	}]
     }
 
