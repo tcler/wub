@@ -12,30 +12,20 @@ namespace eval stx2html {
     variable img_properties {}
 
     variable class [list class editable]
-    variable idPrefix STX_
-    variable id2lc {}
-    variable id 0
     variable exclude {+dlist +dt +ol +ul}
 
-    proc id {range} {
-	variable idPrefix
-	variable id
-	variable id2lc
-
-	dict set id2lc $id $range
-
-	variable class
+    proc id {lc} {
 	variable exclude
-	if {$range ne {} 
+
+	set data [join [lassign $lc id start end]]
+	if {[info exists start]
 	    && [lindex [info level -1] 0] ni $exclude
 	} {
-	    set result [list id $idPrefix$id {*}$class]
+	    variable class
+	    set result [list id $id {*}$class data $data]
 	} else {
-	    set result [list id $idPrefix$id class dud]
+	    set result [list id $id]
 	}
-	incr id
-
-	lappend result Xstart [lindex $range 0] Xend [lindex $range 1]
 
 	return $result
     }
@@ -46,17 +36,18 @@ namespace eval stx2html {
     
     # redefine subst - we only ever want commands in this application
     proc subst {what} {
-	Debug.STX {subst: $what}
-	return [::subst -nobackslashes -novariables $what]
+	set result [::subst -nobackslashes -novariables $what]
+	Debug.STX {subst: $what -> '$result'}
+	return $result
     }
     
-    proc +cdata {args} {
+    proc +cdata {lc args} {
 	Debug.STX {cdata: $args}
 	return [join $args]
     }
 
     proc +normal {lc para args} {
-	Debug.STX {normal: $lc '$para' '$args'}
+	Debug.STX {+normal: $lc '$para' '$args'}
 	return "[<p> {*}[id $lc] [subst $para]]\n[join $args]"
     }
 
@@ -128,8 +119,8 @@ namespace eval stx2html {
 	return "\x81TOC\x82"
     }
 
-    proc +header {lc level para tag args} {
-	Debug.STX {+header lc:$lc level:$level para:'$para' tag:$tag args:($args)}
+    proc +header {lc level args} {
+	Debug.STX {+header lc:$lc level:$level tag:$tag args:($args)}
 	variable toc
 	variable toccnt
 	while {[llength $toccnt] <= $level} {
@@ -138,16 +129,16 @@ namespace eval stx2html {
 	set toccnt [lrange $toccnt 0 $level]
 
 	lset toccnt $level [expr [lindex $toccnt $level] + 1]
-	set tag [lindex [id $lc] 1]	;# ignore the tag, use the id
-	set toc([join [lrange $toccnt 1 $level] .]) [list $para $tag]
+	set tag [lindex $lc 0]	;# ignore the tag, use the id
+	set toc([join [lrange $toccnt 1 $level] .]) [list $args $tag]
 
-	set p [subst $para]
+	set p [subst $args]
 	variable title
 	if {$title eq ""} {
 	    set title $p
 	}
 
-	return "[<h$level> {*}[id $lc] $p]\n[join $args]\n"
+	return "[<h$level> {*}[id $lc] [join $args]]\n"
     }
 
     proc +hr {lc} {
@@ -435,7 +426,7 @@ namespace eval stx2html {
     }
     
     # convert structured text to html
-    proc translate {text args} {
+    proc trans {text args} {
 	variable features
 	array unset features
 	set features(NOTOC) 1
@@ -448,23 +439,21 @@ namespace eval stx2html {
 	variable toccnt {}
 	variable tagstart	;# number to start tagging TOC sections
 
-	# reset ids
-	variable idPrefix
-	variable id 0
-	variable id2lc {}
-
-	variable refs
-	variable scope
 	variable script
+	variable node2lc {}
 
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
+	set args [dict merge {class editable} $args]
 	dict with args {}
 	#{locallink ::stx2html::local} {offset 0}
 
-	lassign [stx::translate $text local $local {*}$args] stx refs scope
+	lassign [stx::translate $text local $local {*}$args] stx tree l2n
 	Debug.STX {TRANSLATE: $stx}
+
+	variable refs [$tree get root refs]
+	variable scope [$tree get root scope]
 	set content [lindex [namespace inscope ::stx2html subst [list $stx]] 0]
 
 	if {0} {
@@ -492,19 +481,26 @@ namespace eval stx2html {
 	    set content [string map [list "\x81TOC\x82" ""] $content]
 	}
 
-	return [string map [list "\x88" "&\#" "\x89" "\{" "\x8A" "\}" "\x8B" "$" "\x87" "\;" "\x84" "&#91\;" "\x85" "&#93\;" "\\" ""] $content]
+	set content [string map [list "\x88" "&\#" "\x89" "\{" "\x8A" "\}" "\x8B" "$" "\x87" "\;" "\x84" "&#91\;" "\x85" "&#93\;" "\\" ""] $content]
+	return [list $content $tree $l2n]
+    }
+
+    proc translate {text args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	lassign [trans $text {*}$args] content
+	return $content
     }
 
     proc Translate {text args} {
 	variable features
-	variable id2lc
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
-	if {$args ne {}} {
-	    variable {*}$args
-	}
-	return [list [translate $text {*}$args] [array get features] $id2lc]
+	lassign [trans $text {*}$args] content tree l2n
+	Debug.STX {Translate: $content}
+	return [list $content [array get features] $tree $l2n]
     }
 
     variable packages {Form}
