@@ -12,16 +12,16 @@ namespace eval stx2html {
     variable img_properties {}
 
     variable class [list class editable]
-    variable exclude {+dlist +dt +ol +ul}
+    variable exclude {+dlist +dt +li}
 
     proc id {lc} {
 	variable exclude
-
-	set data [join [lassign $lc id start end]]
+	lassign $lc id start end data
 	if {[info exists start]
 	    && [lindex [info level -1] 0] ni $exclude
 	} {
 	    variable class
+	    set data [join $data "&\#x0A"]
 	    set result [list id $id {*}$class data $data]
 	} else {
 	    set result [list id $id]

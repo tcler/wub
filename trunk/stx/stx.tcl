@@ -423,7 +423,8 @@ namespace eval stx {
 		    lassign [$tree get $node lc] s e
 		    dict set line2node [list $s $e] $node
 		    set lines [$tree set $node raw [lrange $original $s $e]]
-		    set lc [list $node {*}[$tree get $node lc] {*}$lines]
+		    set lc [list $node {*}[$tree get $node lc] $lines]
+		    Debug.STX {"lc [$tree get $node type] - [$tree get $node lc]"}
 		} else {
 		    # construct a line range from children
 		    set ls 9999999
@@ -439,7 +440,10 @@ namespace eval stx {
 			    }
 			}
 		    }
-		    set lc [list $node $ls $le]
+		    set lines [$tree set $node raw [lrange $original $ls $le]]
+		    set lc [list $node $ls $le $lines]
+		    Debug.STX {"lc synthetic [$tree get $node type] - $ls $le '$lines'"}
+		    set lines [$tree set $node raw $lines]
 		}
 
 		append result "\[+$type [list $lc] "
