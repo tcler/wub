@@ -26,6 +26,19 @@ CGI init cgi root [file normalize [file dirname [info script]]]
 package require Rest
 Rest init mount /_r/
 
+#### Co domain
+if {[info tclversion] >= 8.6} {
+    package require Co
+    Co init coco /coco/ {r {
+	set r [yield]	;# initially just redirect
+	while {1} {
+	    set content [<h1> "Coco - Coroutining"]
+	    append content [<p> "You have called this coroutine [incr n] times."]
+	    set r [yield [Http Ok [Http NoCache $r] $content]]
+	}
+    }}
+}
+
 #### Wub documentation directory
 # This creates a Mason domain which responds to urls of the form /wub/*
 # It will search through the ../docs/ directory for its files,
@@ -226,10 +239,14 @@ proc Responder::do {req} {
 
 	/_s/* {
 	    # handle the Session subdomain
-	    Debug on session 10
+	    #Debug on session 10
 	    set rsp [Session do $req]
-	    Debug.session {Session API: [Dict get? $rsp -session]}
+	    #Debug.session {Session API: [Dict get? $rsp -session]}
 	    set rsp
+	}
+
+	/coco/* {
+	    coco do $req
 	}
 
 	/tie/*/ {
