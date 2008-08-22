@@ -53,7 +53,7 @@ namespace eval Co {
 	    Debug.co {-suffix not given - calculated '$suffix' from '$prefix' and '$path'}
 	    if {($suffix ne "/") && [string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
-		return [Http NotFound $r "no such thing: $suffix"]
+		return [Http NotFound $r]
 	    }
 	}
 
@@ -76,7 +76,7 @@ namespace eval Co {
 	    Debug.co {coroutine yielded: ($result)}
 	    return $result
 	} else {
-	    return [Http NotFound $r "no such co '$suffix'"]
+	    return [Http NotFound $r]
 	}
     }
 
