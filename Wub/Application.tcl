@@ -37,6 +37,53 @@ if {[info tclversion] >= 8.6} {
 	    set r [yield [Http Ok [Http NoCache $r] $content]]
 	}
     }}
+
+    Coco init copi /copi/ {r {
+	set referer [Http Referer $r]
+	set r [yield]	;# initially just redirect
+
+	set forename ""
+	set surname ""
+	set phone ""
+	set message {{Please enter someone's personal information.}}
+	set valid 0
+	while {!$valid} {
+	    # issue form
+	    set r [jQ hint $r]	;# add form hinting
+	    set r [yield [Http Ok [Http NoCache $r] [subst {
+		[<h1> "Personal Information"]
+		[<p> [join $message </p><p>]]
+		[<form> info {
+		    [<fieldset> personal {
+			[<legend> [<submit> submit "Personal Information"]]
+			[<text> forename title "Forename" $forename]
+			[<text> surname title "Surname" $surname]
+			[<br>][<text> phone title "Phone number" $phone]
+		    }]
+		}]
+	    }] x-text/html-fragment]]
+
+	    # unpack query response
+	    set Q [Query flatten [Query parse $r]]
+
+	    # validate fields
+	    set forename [Dict get? $Q forename]
+	    set surname [Dict get? $Q surname]
+	    set phone [Dict get? $Q phone]
+
+	    set message ""
+	    if {$forename eq ""} {
+		lappend message "Forename can't be empty."
+	    }
+	    if {$surname eq ""} {
+		lappend message "Surname can't be empty."
+	    }
+	    if {![regexp {^[-0-9+ ]+$} $phone]} {
+		lappend message "Phone number has to look like a phone number."
+	    }
+	}
+	return [Http Redirect $r $referer]
+    }}
 }
 
 #### Wub documentation directory
@@ -247,6 +294,10 @@ proc Responder::do {req} {
 
 	/coco/* {
 	    coco do $req
+	}
+
+	/copi/* {
+	    copi do $req
 	}
 
 	/tie/*/ {
