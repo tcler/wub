@@ -26,10 +26,10 @@ CGI init cgi root [file normalize [file dirname [info script]]]
 package require Rest
 Rest init mount /_r/
 
-#### Co domain
+#### Coco domain
 if {[info tclversion] >= 8.6} {
-    package require Co
-    Co init coco /coco/ {r {
+    package require Coco
+    Coco init coco /coco/ {r {
 	set r [yield]	;# initially just redirect
 	while {1} {
 	    set content [<h1> "Coco - Coroutining"]
