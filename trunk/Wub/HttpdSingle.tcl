@@ -28,7 +28,7 @@ namespace eval Httpd {
 	set cid [dict get $request -cid]
 	variable {*}[dict get $connection($cid)]
 	interp eval $thread [list HttpdWorker Send $request $cacheit]
-	Activity activity sent $cid $request
+	#Activity activity sent $cid $request
     }
 
     # workers - command each worker
@@ -115,10 +115,10 @@ namespace eval Httpd {
 	    $thread eval [list HttpdWorker Connect $socket $request]
 	} result eo]} {
 	    Debug.error {Transfer Error: $result ($eo)}
-	    Activity activity transfer $id -error $result -eo $eo {*}$request
+	    #Activity activity transfer $id -error $result -eo $eo {*}$request
 	} else {
 	    Debug.socket {Transferred: $result $eo}
-	    Activity activity transfer $id $request
+	    #Activity activity transfer $id $request
 	}
     }
 

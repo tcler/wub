@@ -161,7 +161,7 @@ namespace eval ::Introspect {
 	return [Http NoCache [Http Ok [sortable $r] $C x-text/html-fragment]]
     }
 
-    proc /state {r} {
+    proc no/state {r} {
 	set state [Activity state]
 	set result [<table> summary {} class sortable [subst {
 	    [<thead> [<tr> [<th> [join {cid socket thread backend ip start end log} </th><th>]]]]
@@ -175,7 +175,7 @@ namespace eval ::Introspect {
 	return [Http NoCache [Http Ok $r $result]]
     }
 
-    proc /activity {r {L "current"} {F "html"} args} {
+    proc no/activity {r {L "current"} {F "html"} args} {
 	# generate an activity page
 	if {$L eq "log"} {
 	    set act [Activity log]

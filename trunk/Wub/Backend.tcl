@@ -76,8 +76,8 @@ namespace eval Backend {
 	    set s {
 		# Activity - fetch an activity log
 		proc Activity {args} {
-		    set args [linsert $args 0 Activity]
-		    return [::thread::send $::thread::parent $args]
+		    #set args [linsert $args 0 Activity]
+		    #return [::thread::send $::thread::parent $args]
 		}
 		
 		# Cache - interact with cache

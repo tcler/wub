@@ -17,7 +17,7 @@ package require struct::queue
 package require fileutil
 package require Debug
 #package require Access
-package require Activity
+#package require Activity
 package require Block
 
 package require Cache 2.0
@@ -60,18 +60,18 @@ namespace eval Httpd {
 	# check the incoming ip for blockage
 	if {[Block blocked? [Dict get? $request -ipaddr]]} {
 	    dict set request connection close
-	    Activity activity blocked $cid $request
+	    #Activity activity blocked $cid $request
 	    send [Http Forbidden $request]
 	    return
 	} elseif {[Honeypot guard request]} {
 	    # check the incoming ip for bot detection
 	    # this is a bot - reply directly to it
-	    Activity activity honeypot $cid $request
+	    #Activity activity honeypot $cid $request
 	    send $request
 	    return
 	}
 
-	Activity activity parsed $cid $request
+	#Activity activity parsed $cid $request
 
 	variable rqCallOut
 	if {[llength $rqCallOut] != 0} {
@@ -88,7 +88,7 @@ namespace eval Httpd {
 	    dict set cached -transaction [dict get $request -transaction]
 	    dict set cached -generation [dict get $request -generation]
 	    dict set cached -cid [dict get $request -cid]
-	    Activity activity cached $cid $request
+	    #Activity activity cached $cid $request
 
 	    # send the reply
 	    send $cached 0
@@ -101,7 +101,7 @@ namespace eval Httpd {
 	    {*}[subst [dict get $request -dispatch]] Incoming $request
 	} else {
 	    # just send the reply as we have it
-	    Activity activity replied $cid $request
+	    #Activity activity replied $cid $request
 	    send $request
 	}
     }
@@ -260,8 +260,8 @@ namespace eval Httpd {
 	associate $args
 
 	# log new connection
-	Activity new $cid
-	Activity activity connected $cid {*}$args
+	#Activity new $cid
+	#Activity activity connected $cid {*}$args
     }
 
     # a worker thread has completely processed input, or has hit a socket error
@@ -271,7 +271,7 @@ namespace eval Httpd {
 	variable connection
 	if {[info exists connection($id)]} {
 	    # log the disconnection
-	    Activity disconnect $id
+	    #Activity disconnect $id
 
 	    disassociate $id	;# remove worker association
 
