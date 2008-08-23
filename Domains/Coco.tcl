@@ -1,4 +1,4 @@
-# Co.tcl - a domain built around coroutines from tcl8.6
+# Coco.tcl - a domain built around coroutines from tcl8.6
 
 # import the relevant commands
 namespace eval ::tcl::unsupported {namespace export coroutine yield}
@@ -6,13 +6,13 @@ namespace import ::tcl::unsupported::coroutine ::tcl::unsupported::yield
 
 package require Http
 package require Debug
-Debug off co 10
+Debug off coco 10
 
 package require md5
 
-package provide Co 1.0
+package provide Coco 1.0
 
-namespace eval Co {
+namespace eval Coco {
     variable uniq [pid]	;# seed for unique coroutine names
 
     # give a uniq looking name
@@ -24,13 +24,15 @@ namespace eval Co {
     # yield wrapper with command dispatcher
     proc yield {{retval ""}} {
 	set yield [::yield $retval]
-	Debug.co {yield ($retval) -> ($yield)}
+	Debug.coco {yield ($retval) -> ($yield)}
 	lassign $yield cmd args
 	switch -- $cmd {
 	    kill {
 		return -code return $args
 	    }
-
+	    break {
+		return -code break $args
+	    }
 	    call -
 	    default {
 		return $args
@@ -44,13 +46,13 @@ namespace eval Co {
 	if {[dict exists $r -suffix]} {
 	    # caller has munged path already
 	    set suffix [dict get $r -suffix]
-	    Debug.co {-suffix given $suffix}
+	    Debug.coco {-suffix given $suffix}
 	} else {
 	    # assume we've been parsed by package Url
 	    # remove the specified prefix from path, giving suffix
 	    set path [dict get $r -path]
 	    set suffix [Url pstrip $prefix $path]
-	    Debug.co {-suffix not given - calculated '$suffix' from '$prefix' and '$path'}
+	    Debug.coco {-suffix not given - calculated '$suffix' from '$prefix' and '$path'}
 	    if {($suffix ne "/") && [string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
 		return [Http NotFound $r]
@@ -60,27 +62,32 @@ namespace eval Co {
 	if {$suffix eq "/"} {
 	    # this is a new call - create the coroutine
 	    set cmd [uniq]
-	    set result [coroutine $cmd ::apply [list {*}$lambda ::Co] $r]
+	    set result [coroutine $cmd ::apply [list {*}$lambda ::Coco] $r]
 	    if {$result ne ""} {
-		Debug.co {coroutine initialised - ($r) reply}
+		Debug.coco {coroutine initialised - ($r) reply}
 		return $result	;# allow coroutine lambda to reply
 	    } else {
 		# otherwise redirect to coroutine lambda
-		Debug.co {coroutine initialised - redirect to $cmd}
+		Debug.coco {coroutine initialised - redirect to $cmd}
 		return [Http Redirect $r $cmd]
 	    }
-	} elseif {[llength [info command ::Co::$suffix]]} {
+	} elseif {[llength [info command ::Coco::$suffix]]} {
 	    # this is an existing coroutine - call it and return result
-	    Debug.co {calling coroutine $suffix}
-	    set result [$suffix [list call $r]]
-	    Debug.co {coroutine yielded: ($result)}
+	    Debug.coco {calling coroutine $suffix}
+	    if {[catch {
+		$suffix [list call $r]
+	    } result eo]} {
+		Debug.error {coroutine error: $result ($eo)}
+		return [Http ServerError $r $result $eo]
+	    }
+	    Debug.coco {coroutine yielded: ($result)}
 	    return $result
 	} else {
 	    return [Http NotFound $r]
 	}
     }
 
-    # initialize view ensemble for Co
+    # initialize view ensemble for Coco
     proc init {cmd prefix lambda args} {
 	if {$args ne {}} {
 	    variable {*}$args
