@@ -87,7 +87,7 @@ namespace eval Coco {
 	}
     }
 
-    # initialize view ensemble for Coco
+    # initialize ensemble for Coco
     proc init {cmd prefix lambda args} {
 	if {$args ne {}} {
 	    variable {*}$args
