@@ -6,13 +6,70 @@ namespace import ::tcl::unsupported::coroutine ::tcl::unsupported::yield
 
 package require Http
 package require Debug
-Debug off coco 10
+Debug on coco 10
 
 package require md5
 
 package provide Coco 1.0
 
 namespace eval Coco {
+    proc <message> {message} {
+	return [<p> class message [join $message "</p><p class='message'>"]]
+    }
+
+    proc form {_r form args} {
+	set _vals {}
+	foreach {var vv} $args {
+	    set _value ""
+	    catch {unset _validate}
+	    if {[llength $vv] == 1} {
+		dict set _vals $var [lindex $vv 0]
+	    } else {
+		lassign $vv _msg _validate _value
+		dict set _vals $var $_value
+		if {[info exists _validate]} {
+		    set _validates($var) $_validate
+		    set _messages($var) $_msg
+		}
+	    }
+	}
+	#puts stderr [array get _validates]
+	set _message [list {Enter Fields.}]
+	while {[llength $_message]} {
+	    set _r [jQ hint $_r]	;# add form hinting
+
+	    # issue form
+	    set _r [yield [Http Ok [Http NoCache $_r] [dict with _vals {
+		subst [string map [list %MESSAGE [<message> $_message]] $form]
+	    }] x-text/html-fragment]]
+
+	    # unpack query response
+	    set _Q [Query parse $_r]
+	    dict set _r -Query $_Q
+	    set _Q [Query flatten $_Q]
+
+	    # fetch and validate fields
+	    set _message {}
+	    foreach _var [dict keys $_vals] {
+		dict set _vals $_var [Dict get? $_Q $_var]
+	    }
+	    dict with _vals {}
+
+	    Debug.coco {form vals: $_vals}
+	    foreach _var [dict keys $_vals] {
+		if {[info exists _validates($_var)]} {
+		    if $_validates($_var) {
+			dict set _r -values $_var [dict get $_vals $_var]
+		    } else {
+			lappend _message $_messages($_var)
+		    }
+		}
+	    }
+	}
+
+	return $_r
+    }
+
     variable uniq [pid]	;# seed for unique coroutine names
 
     # give a uniq looking name
