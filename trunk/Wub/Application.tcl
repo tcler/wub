@@ -29,30 +29,68 @@ Rest init mount /_r/
 #### Coco domain
 if {[info tclversion] >= 8.6} {
     package require Coco
+
     Coco init coco /coco/ {r {
 	set r [yield]	;# initially just redirect
 	while {1} {
 	    set content [<h1> "Coco - Coroutining"]
-	    append content [<p> "You have called this coroutine [incr n] times."]
+	    append content [<p> "You have called the coroutine [incr n] times."]
 	    set r [yield [Http Ok [Http NoCache $r] $content]]
 	}
     }}
 
-    Coco init copi /copi/ {r {
-	set referer [Http Referer $r]
+    Coco init copf /copf/ {r {
+	set referer [Http Referer $r]	;# remember referer
 	set r [yield]	;# initially just redirect
 
-	set forename ""
+	set r [form $r {
+	    [<h1> "Personal Information"]
+	    %MESSAGE
+	    [<form> info {
+		[<fieldset> personal {
+		    [<legend> [<submit> submit "Personal Information"]]
+		    [<text> forename title "Forename" $forename]
+		    [<text> surname title "Surname" $surname]
+		    [<br>][<text> phone title "Phone number" $phone]
+		}]
+	    }]
+	} forename {
+	    "Forename can't be empty."
+	    {$forename ne ""}
+	} surname {
+	    "Surname can't be empty."
+	    {$surname ne ""}
+	} phone {
+	    "Phone number has to look like a phone number."
+	    {[regexp {^[-0-9+ ]+$} $phone]}
+	}]
+
+	# get the result dict and make vars from it
+	set result [dict get $r -values]
+	dict with result {}
+
+	# resume where you were
+	return [Http Redirect $r $referer]
+    }}
+
+    Coco init copi /copi/ {r {
+	set referer [Http Referer $r]	;# remember referer
+	set r [yield]	;# initially just redirect
+
+	# initialise field vars to default
+	set forename "" 
 	set surname ""
 	set phone ""
+
+	# send and receive form until the fields validate
 	set message {{Please enter someone's personal information.}}
-	set valid 0
-	while {!$valid} {
-	    # issue form
+	while {[llength $message]} {
 	    set r [jQ hint $r]	;# add form hinting
+
+	    # issue form
 	    set r [yield [Http Ok [Http NoCache $r] [subst {
 		[<h1> "Personal Information"]
-		[<p> [join $message </p><p>]]
+		[<message> $message]
 		[<form> info {
 		    [<fieldset> personal {
 			[<legend> [<submit> submit "Personal Information"]]
@@ -66,12 +104,13 @@ if {[info tclversion] >= 8.6} {
 	    # unpack query response
 	    set Q [Query flatten [Query parse $r]]
 
-	    # validate fields
+	    # fetch fields
 	    set forename [Dict get? $Q forename]
 	    set surname [Dict get? $Q surname]
 	    set phone [Dict get? $Q phone]
 
-	    set message ""
+	    # validate fields
+	    set message {}
 	    if {$forename eq ""} {
 		lappend message "Forename can't be empty."
 	    }
@@ -82,6 +121,8 @@ if {[info tclversion] >= 8.6} {
 		lappend message "Phone number has to look like a phone number."
 	    }
 	}
+
+	# resume where you were
 	return [Http Redirect $r $referer]
     }}
 }
@@ -298,6 +339,10 @@ proc Responder::do {req} {
 
 	/copi/* {
 	    copi do $req
+	}
+
+	/copf/* {
+	    copf do $req
 	}
 
 	/tie/*/ {
