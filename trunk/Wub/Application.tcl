@@ -64,10 +64,7 @@ if {[info tclversion] >= 8.6} {
 	    "Phone number has to look like a phone number."
 	    {[regexp {^[-0-9+ ]+$} $phone]}
 	}]
-
-	# get the result dict and make vars from it
-	set result [dict get $r -values]
-	dict with result {}
+	# now all the variable/fields mentioned in [form] have valid values
 
 	# resume where you were
 	return [Http Redirect $r $referer]
