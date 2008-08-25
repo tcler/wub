@@ -52,6 +52,7 @@ namespace eval Coco {
 	    set _message {}
 	    foreach _var [dict keys $_vals] {
 		dict set _vals $_var [Dict get? $_Q $_var]
+		uplevel 1 set $_var [list [Dict get? $_Q $_var]]
 	    }
 	    dict with _vals {}
 
