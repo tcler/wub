@@ -40,11 +40,11 @@ namespace eval HttpC {
 	upvar \#1 timer timer timeout timeout cmd cmd
 
 	while {1} {
-	    set timer [after $timeout $cmd TIMEOUT]	;# set new timer
+	    set timer [after $timeout ::HttpC::$cmd TIMEOUT]	;# set new timer
 	    set yield [::yield $retval]	;# wait for some input
 	    catch {after cancel $timer}	;# cancel old timer
 
-	    Debug.HttpC {yield $cmd ($retval) -> ($yield)}
+	    Debug.HttpC {yield '$cmd' ($retval) -> ($yield)}
 	    lassign $yield op args
 	    set op [string toupper $op]
 	    switch -- $op {
@@ -141,8 +141,7 @@ namespace eval HttpC {
 		set $_var $_val
 	    }
 	}
-	set cmd [lindex [info level 0] 0]	;# who are we?
-	set timer [after $timeout $cmd TIMEOUT]
+	set timer [after $timeout ::HttpC::$cmd TIMEOUT]
 
 	# construct a request template
 	dict set template User-Agent "HttpC/[package present HttpC]"
@@ -185,41 +184,81 @@ namespace eval HttpC {
 	return $r
     }
 
+    proc Gets {} {
+	upvar \#1 socket socket
+
+	set result [yield]
+	while {[chan gets $socket line] != -1
+	       && [chan blocked $socket]
+	   } {
+	    set result [yield]
+	}
+
+	if {![chan eof $socket]} {
+	    Debug.HttpC {Gets: '$line' [chan blocked $socket] [chan eof $socket]}
+	    return $line
+	}
+
+	upvar \#1 _consumer _consumer
+	# socket has closed
+	if {[catch {
+	    $_consumer {EOF HEADER}
+	}] && [info command ::HttpC::$_consumer] == {}} {
+	    Debug.HttpC {reader: consumer error or gone on EOF}
+	    return -code return
+	}
+    }
+
+    proc Read {size} {
+	upvar \#1 socket socket
+	set chunk ""
+	while {$size && ![chan eof $socket]} {
+	    set result [yield]
+	    set chunklet [chan read $socket $size]
+	    incr size -[string length $chunklet]
+	    append chunk $chunklet
+	}
+
+	if {![chan eof $socket]} {
+	    Debug.HttpC {Read: '$chunk'}
+	    return $chunk
+	}
+
+	# socket has closed while reading entity
+	upvar \#1 _consumer _consumer
+	if {[catch {
+	    $_consumer {EOF ENTITY}
+	}] && [info command ::HttpC::$_consumer] == {}} {
+	    Debug.HttpC {reader: consumer error or gone on EOF}
+	    return -code return
+	}
+    }
+
     variable reader {
 	Debug.HttpC {reader: $args}
 	# unpack all the passed-in args
 	foreach {_var _val} $args {
 	    set $_var $_val
 	}
+	set timer [after $timeout ::HttpC::$cmd TIMEOUT]
 
 	# construct consumer
 	set _consumer ${uniq}C
 	coroutine ${uniq}C ::apply $consumer
 
-	set cmd [lindex [info level 0] 0]	;# who are we?
-	set timer [after $timeout $cmd TIMEOUT]
-
 	# keep receiving input resulting from our requests
 	while {1} {
+	    set r {}	;# empty header
 	    # get whole header
 	    set headering 1
 	    while {$headering} {
-		set result [yield]
-		while {$headering && [chan gets $socket line] != -1} {
+		while {$headering} {
+		    set line [Gets]
 		    Debug.HttpC {reader got line: ($line)}
 		    if {[string trim $line] eq ""} {
 			set headering 0
 		    } else {
 			lappend lines $line
-		    }
-		}
-		if {[chan eof $socket]} {
-		    # socket has closed
-		    if {[catch {
-			$_consumer {EOF HEADER}
-		    }] && [info command ::HttpC::$_consumer] == {}} {
-			Debug.HttpC {reader: consumer error or gone on EOF}
-			return
 		    }
 		}
 	    }
@@ -232,39 +271,55 @@ namespace eval HttpC {
 	    Debug.HttpC {reader header: $header ($r)}
 
 	    # now we have to fetch the entity (if any)
+
 	    if {[dict exists $r content-length]} {
 		set left [dict get $r content-length]
 		set entity ""
-		chan configure $socket -encoding binary -translation {binary binary}
+		chan configure $socket -translation {binary binary}
 		Debug.HttpC {reader getting entity of length ($left)}
 		while {$left > 0} {
-		    set result [yield]
-		    set chunk [chan read $socket $left]
+		    set chunk [Read $left]
 		    incr left -[string length $chunk]
 		    Debug.HttpC {reader getting remainder of entity of length ($left)}
-		    append entity $chunk
-		    if {[chan eof $socket]} {
-			# socket has closed while reading entity
-			if {[catch {
-			    $_consumer {EOF ENTITY}
-			}] && [info command ::HttpC::$_consumer] == {}} {
-			    Debug.HttpC {reader: consumer error or gone on EOF}
-			    return
-			}
-		    }
+		    dict append r -entity $chunk
 		    Debug.HttpC {reader got whole entity}
 		}
 
-		# we have the entire entity
-		dict set r -entity $entity
+	    } elseif {[dict exists $r transfer-encoding]} {
+		switch -- [dict get $r transfer-encoding] {
+		    chunked {
+			set chunksize 1
+			while {$chunksize} {
+			    chan configure $socket -translation {crlf binary}
+			    set chunksize 0x[Gets]
+			    chan configure $socket -translation {binary binary}
+			    if {$chunksize eq "0x"} {
+				Debug.HttpC {Chunks all done}
+				break
+			    }
+			    set chunk [Read $chunksize]
+			    Gets
+			    Debug.HttpC {Chunk: $chunksize ($chunk)}
+			    dict append r -entity $chunk
+			}
+		    }
+		    default {
+			error "Unknown transfer encoding"
+		    }
+		}
 	    }
+
+	    # reset to header config
+	    chan configure $socket -encoding binary -translation {crlf binary}
 
 	    if {[info command ::HttpC::$_consumer] == {}} {
 		Debug.HttpC {reader: consumer gone}
 		return
 	    }
 
-	    after 1 ::HttpC::$_consumer [list $r]
+	    # calling the coro from [after] aborts - 25Aug08 CMC
+	    #after 1 ::HttpC::$_consumer [list $r]
+	    $_consumer $r
 	    Debug.HttpC {reader: sent response, waiting for next}
 	}
     }
@@ -297,10 +352,10 @@ namespace eval HttpC {
 
 	variable reader; variable rxtimeout
 	chan event $socket readable [list ::HttpC::${uniq}R READ]
-	coroutine ${uniq}R ::apply [list args $reader ::HttpC] socket $socket timeout $rxtimeout writer ${uniq}W uniq $uniq {*}$args
+	coroutine ${uniq}R ::apply [list args $reader ::HttpC] socket $socket timeout $rxtimeout writer ${uniq}W uniq $uniq cmd ${uniq}R {*}$args
 
 	variable writer; variable txtimeout
-	coroutine ${uniq}W ::apply [list args $writer ::HttpC] socket $socket timeout $txtimeout reader ${uniq}R {*}$args get $url
+	coroutine ${uniq}W ::apply [list args $writer ::HttpC] socket $socket timeout $txtimeout cmd ${uniq}W reader ${uniq}R {*}$args get $url
 	return ::HttpC::${uniq}W
     }
 
@@ -319,7 +374,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	    puts stderr "GOT: $args"
 	}
 	puts stderr "consumer fallen through - can't happen"
-    }} http://google.com/
+    }} http://www.google.com/
 
     set done 0
     vwait done
