@@ -1,4 +1,4 @@
-# HttpC - HTTP 1.0 client
+# HttpC - HTTP 1.1 client
 
 # import the relevant commands
 namespace eval ::tcl::unsupported {namespace export coroutine yield}
@@ -13,9 +13,7 @@ foreach lib {extensions Utilities} {
     lappend ::auto_path [file join $topdir $lib]
 }
 
-package require Http
 package require Url
-package require Dict
 
 package require Debug
 Debug on HttpC 10
@@ -52,6 +50,7 @@ namespace eval HttpC {
 	    switch -- $op {
 		TIMEOUT {
 		    # we've timed out - oops
+		    puts stderr "TIMEOUT $cmd"
 		    error "Timeout $cmd"
 		}
 
@@ -70,12 +69,21 @@ namespace eval HttpC {
 
 		default {
 		    # this can only happen in the writer coro
-		    # and should be one of the HTTP operations
+		    # where $op should be one of the HTTP operations
 		    # sent by an external process
 		    send $op {*}$args
 		}
 	    }
 	}
+    }
+
+    # return an HTTP date
+    proc Date {{seconds ""}} {
+	if {$seconds eq ""} {
+	    set seconds [clock seconds]
+	}
+
+	return [clock format $seconds -format {%a, %d %b %Y %T GMT} -gmt true]
     }
 
     # send - send an op HTTP request to the server
@@ -84,7 +92,7 @@ namespace eval HttpC {
 	Debug.HttpC {send $cmd $method ($args)}
 
 	set T [dict merge $template $args [Url parse $url]]
-	set T [dict merge $T [list -method $method date [Http Date] -port $port -host $host host $host]]
+	set T [dict merge $T [list -method $method date [Date] -port $port -host $host host $host]]
 
 	# format entity
 	if {[dict exists $T -entity]} {
