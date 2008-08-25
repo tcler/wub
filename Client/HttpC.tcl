@@ -16,7 +16,7 @@ foreach lib {extensions Utilities} {
 package require Url
 
 package require Debug
-Debug on HttpC 10
+Debug off HttpC 10
 
 package provide HttpC 1.0
 
@@ -37,10 +37,10 @@ namespace eval HttpC {
 
     # yield wrapper with command dispatcher
     proc yield {{retval ""}} {
-	upvar \#1 timer timer timeout timeout cmd cmd
+	upvar \#1 timer timer timeout timeout cmd cmd consumer consumer
 
 	while {1} {
-	    set timer [after $timeout ::HttpC::$cmd TIMEOUT]	;# set new timer
+	    set timer [after $timeout ::HttpC::$cmd TIMEOUT $cmd]	;# set new timer
 	    set yield [::yield $retval]	;# wait for some input
 	    catch {after cancel $timer}	;# cancel old timer
 
@@ -50,8 +50,13 @@ namespace eval HttpC {
 	    switch -- $op {
 		TIMEOUT {
 		    # we've timed out - oops
-		    puts stderr "TIMEOUT $cmd"
-		    error "Timeout $cmd"
+		    Debug.HttpC {TIMEOUT $cmd}
+		    if {[catch {
+			$consumer {TIMEOUT $cmd}
+		    }] && [info commands ::HttpC::$consumer] == {}} {
+			Debug.HttpC {reader: consumer error or gone on EOF}
+			return -code return
+		    }
 		}
 
 		KILL {
@@ -199,11 +204,11 @@ namespace eval HttpC {
 	    return $line
 	}
 
-	upvar \#1 _consumer _consumer
+	upvar \#1 consumer consumer
 	# socket has closed
 	if {[catch {
-	    $_consumer {EOF HEADER}
-	}] && [info command ::HttpC::$_consumer] == {}} {
+	    $consumer {EOF HEADER}
+	}] && [info commands ::HttpC::$consumer] == {}} {
 	    Debug.HttpC {reader: consumer error or gone on EOF}
 	    return -code return
 	}
@@ -225,10 +230,10 @@ namespace eval HttpC {
 	}
 
 	# socket has closed while reading entity
-	upvar \#1 _consumer _consumer
+	upvar \#1 consumer consumer
 	if {[catch {
-	    $_consumer {EOF ENTITY}
-	}] && [info command ::HttpC::$_consumer] == {}} {
+	    $consumer {EOF ENTITY}
+	}] && [info commands ::HttpC::$consumer] == {}} {
 	    Debug.HttpC {reader: consumer error or gone on EOF}
 	    return -code return
 	}
@@ -237,14 +242,10 @@ namespace eval HttpC {
     variable reader {
 	Debug.HttpC {reader: $args}
 	# unpack all the passed-in args
-	foreach {_var _val} $args {
-	    set $_var $_val
+	foreach {var val} $args {
+	    set $var $val
 	}
 	set timer [after $timeout ::HttpC::$cmd TIMEOUT]
-
-	# construct consumer
-	set _consumer ${uniq}C
-	coroutine ${uniq}C ::apply $consumer
 
 	# keep receiving input resulting from our requests
 	while {1} {
@@ -312,14 +313,14 @@ namespace eval HttpC {
 	    # reset to header config
 	    chan configure $socket -encoding binary -translation {crlf binary}
 
-	    if {[info command ::HttpC::$_consumer] == {}} {
-		Debug.HttpC {reader: consumer gone}
+	    if {[info commands ::HttpC::$consumer] == {}} {
+		Debug.HttpC {reader: consumer gone $consumer}
 		return
 	    }
 
 	    # calling the coro from [after] aborts - 25Aug08 CMC
-	    #after 1 ::HttpC::$_consumer [list $r]
-	    $_consumer $r
+	    after 1 ::HttpC::$consumer [list [list INCOMING $r]]
+	    #$consumer $r
 	    Debug.HttpC {reader: sent response, waiting for next}
 	}
     }
@@ -339,7 +340,6 @@ namespace eval HttpC {
 	} else {
 	    dict set args port 80 
 	}
-	dict set args consumer $consumer
 
 	# create the socket
 	set socket [socket -async [dict get $args host] [dict get $args port]]
@@ -350,12 +350,16 @@ namespace eval HttpC {
 	# create the reader and writer coroutines
 	set uniq [uniq]
 
+	# construct consumer
+	coroutine ${uniq}C ::apply $consumer
+
 	variable reader; variable rxtimeout
 	chan event $socket readable [list ::HttpC::${uniq}R READ]
-	coroutine ${uniq}R ::apply [list args $reader ::HttpC] socket $socket timeout $rxtimeout writer ${uniq}W uniq $uniq cmd ${uniq}R {*}$args
+	coroutine ${uniq}R ::apply [list args $reader ::HttpC] socket $socket timeout $rxtimeout writer ${uniq}W uniq $uniq cmd ${uniq}R consumer ${uniq}C {*}$args
 
 	variable writer; variable txtimeout
-	coroutine ${uniq}W ::apply [list args $writer ::HttpC] socket $socket timeout $txtimeout cmd ${uniq}W reader ${uniq}R {*}$args get $url
+	coroutine ${uniq}W ::apply [list args $writer ::HttpC] socket $socket timeout $txtimeout cmd ${uniq}W reader ${uniq}R consumer ${uniq}C {*}$args get $url
+
 	return ::HttpC::${uniq}W
     }
 
@@ -374,7 +378,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	    puts stderr "GOT: $args"
 	}
 	puts stderr "consumer fallen through - can't happen"
-    }} http://www.google.com/
+    }} http://www.google.com.au/
 
     set done 0
     vwait done
