@@ -52,7 +52,7 @@ namespace eval HttpC {
 		    # we've timed out - oops
 		    Debug.HttpC {TIMEOUT $cmd}
 		    if {[catch {
-			$consumer {TIMEOUT $cmd}
+			$consumer [list TIMEOUT $cmd]
 		    }] && [info commands ::HttpC::$consumer] == {}} {
 			Debug.HttpC {reader: consumer error or gone on EOF}
 			return -code return
@@ -325,8 +325,8 @@ namespace eval HttpC {
 	}
     }
 
-    variable rxtimeout 100000
-    variable txtimeout 100000
+    variable rxtimeout 20000
+    variable txtimeout 20000
 
     proc connect {consumer url args} {
 	if {[llength $args] == 1} {
@@ -375,7 +375,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 		puts stderr "Connection closed"
 		return
 	    }
-	    puts stderr "GOT: $args"
+	    puts stderr "$op: $args"
 	}
 	puts stderr "consumer fallen through - can't happen"
     }} http://www.google.com.au/
