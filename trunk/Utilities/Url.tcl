@@ -128,7 +128,7 @@ namespace eval Url {
 	# minimize -port
 	if {[dict exists $args -port]
 	    && ([dict get $args -port] eq "" || [dict get $args -port] eq "80")} {
-	    dict unset x -port
+	    dict unset args -port
 	}
 
 	foreach {part pre post} {
