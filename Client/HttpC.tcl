@@ -4,14 +4,7 @@
 namespace eval ::tcl::unsupported {namespace export coroutine yield}
 namespace import ::tcl::unsupported::coroutine ::tcl::unsupported::yield
 
-lappend auto_path [pwd]	;# path to the Site.tcl file
-
-set home [file normalize [file dirname [info script]]]
-set topdir [file dirname $home]
-
-foreach lib {extensions Utilities} {
-    lappend ::auto_path [file join $topdir $lib]
-}
+lappend ::auto_path [file join [file dirname [file dirname [file normalize [info script]]]] Utilities]
 
 package require Url
 
@@ -348,10 +341,11 @@ namespace eval HttpC {
 	    set args [lindex $args 0]
 	}
 
-	variable txtimeout
-	variable rxtimeout
+	# default timeouts
+	variable txtimeout; variable rxtimeout
 	set args [dict merge [list txtime $txtimeout rxtime $rxtimeout] $args]
 
+	# parse url
 	set urld [Url parse $url]
 	dict set args host [dict get $urld -host]
 	if {[dict exists $urld -port]} {
@@ -370,11 +364,12 @@ namespace eval HttpC {
 	set cr C[uniq]
 	coroutine $cr ::apply $consumer
 
-	# create the reader and writer coroutines
+	# create reader coroutine
 	variable reader
 	chan event $socket readable [list ::HttpC::${socket}R READ]
 	coroutine ${socket}R ::apply [list args $reader ::HttpC] socket $socket timeout [dict get $args rxtime] writer ${socket}W cmd ${socket}R consumer $cr {*}$args
 
+	# create writer coroutine
 	variable writer
 	coroutine ${socket}W ::apply [list args $writer ::HttpC] socket $socket timeout [dict get $args txtime] cmd ${socket}W reader ${socket}R consumer $cr {*}$args get $url
 
