@@ -35,28 +35,41 @@ namespace eval HttpC {
 	return [incr uniq]
     }
 
-    # yield wrapper with command dispatcher
-    proc yield {{retval ""}} {
+    # Yield wrapper with command dispatcher
+    proc Yield {{retval ""}} {
 	upvar \#1 timer timer timeout timeout cmd cmd consumer consumer
-
+	set time $timeout
 	while {1} {
-	    set timer [after $timeout ::HttpC::$cmd TIMEOUT $cmd]	;# set new timer
-	    set yield [::yield $retval]	;# wait for some input
-	    catch {after cancel $timer}	;# cancel old timer
+	    if {$time > 0} {
+		lappend timer [after $time ::HttpC::$cmd [list [list TIMEOUT $cmd]]]	;# set new timer
+	    }
+	    Debug.HttpC {timer '$cmd' $timer}
 
+	    # wait for an event
+	    set yield [::yield $retval]	;# wait for some input
+	    set args [lassign $yield op]
 	    Debug.HttpC {yield '$cmd' ($retval) -> ($yield)}
-	    lassign $yield op args
-	    set op [string toupper $op]
-	    switch -- $op {
+
+	    # cancel all outstanding timers for this coro
+	    foreach t $timer {
+		catch {
+		    after cancel $t	;# cancel old timer
+		} e eo
+		Debug.HttpC {cancel '$cmd' $t - $e ($eo)}
+	    }
+	    set timer {}
+
+	    # dispatch on command
+	    switch -- [string toupper $op] {
 		TIMEOUT {
 		    # we've timed out - oops
-		    Debug.HttpC {TIMEOUT $cmd}
 		    if {[catch {
 			$consumer [list TIMEOUT $cmd]
 		    }] && [info commands ::HttpC::$consumer] == {}} {
 			Debug.HttpC {reader: consumer error or gone on EOF}
 			return -code return
 		    }
+		    set time -1
 		}
 
 		KILL {
@@ -146,7 +159,6 @@ namespace eval HttpC {
 		set $_var $_val
 	    }
 	}
-	set timer [after $timeout ::HttpC::$cmd TIMEOUT]
 
 	# construct a request template
 	dict set template User-Agent "HttpC/[package present HttpC]"
@@ -162,7 +174,7 @@ namespace eval HttpC {
 	}
 
 	while {1} {
-	    set result [yield]
+	    set result [Yield]
 	    Debug.HttpC {writer $cmd -> ($result)}
 	}
     }
@@ -192,11 +204,11 @@ namespace eval HttpC {
     proc Gets {} {
 	upvar \#1 socket socket
 
-	set result [yield]
+	set result [Yield]
 	while {[chan gets $socket line] != -1
 	       && [chan blocked $socket]
 	   } {
-	    set result [yield]
+	    set result [Yield]
 	}
 
 	if {![chan eof $socket]} {
@@ -205,7 +217,10 @@ namespace eval HttpC {
 	}
 
 	upvar \#1 consumer consumer
+
 	# socket has closed
+	catch {chan event $socket readable {}}
+	catch {chan event $socket writeable {}}
 	if {[catch {
 	    $consumer {EOF HEADER}
 	}] && [info commands ::HttpC::$consumer] == {}} {
@@ -218,7 +233,7 @@ namespace eval HttpC {
 	upvar \#1 socket socket
 	set chunk ""
 	while {$size && ![chan eof $socket]} {
-	    set result [yield]
+	    set result [Yield]
 	    set chunklet [chan read $socket $size]
 	    incr size -[string length $chunklet]
 	    append chunk $chunklet
@@ -231,6 +246,8 @@ namespace eval HttpC {
 
 	# socket has closed while reading entity
 	upvar \#1 consumer consumer
+	catch {chan event $socket readable {}}
+	catch {chan event $socket writeable {}}
 	if {[catch {
 	    $consumer {EOF ENTITY}
 	}] && [info commands ::HttpC::$consumer] == {}} {
@@ -245,7 +262,6 @@ namespace eval HttpC {
 	foreach {var val} $args {
 	    set $var $val
 	}
-	set timer [after $timeout ::HttpC::$cmd TIMEOUT]
 
 	# keep receiving input resulting from our requests
 	while {1} {
@@ -253,6 +269,7 @@ namespace eval HttpC {
 	    # get whole header
 	    set headering 1
 	    while {$headering} {
+		set lines {}
 		while {$headering} {
 		    set line [Gets]
 		    Debug.HttpC {reader got line: ($line)}
@@ -272,7 +289,6 @@ namespace eval HttpC {
 	    Debug.HttpC {reader header: $header ($r)}
 
 	    # now we have to fetch the entity (if any)
-
 	    if {[dict exists $r content-length]} {
 		set left [dict get $r content-length]
 		set entity ""
@@ -318,20 +334,23 @@ namespace eval HttpC {
 		return
 	    }
 
-	    # calling the coro from [after] aborts - 25Aug08 CMC
 	    after 1 ::HttpC::$consumer [list [list INCOMING $r]]
-	    #$consumer $r
 	    Debug.HttpC {reader: sent response, waiting for next}
 	}
     }
 
-    variable rxtimeout 20000
-    variable txtimeout 20000
+    # receiver and transmitter timeouts - by default none
+    variable rxtimeout -1
+    variable txtimeout -1
 
     proc connect {consumer url args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
+
+	variable txtimeout
+	variable rxtimeout
+	set args [dict merge [list txtime $txtimeout rxtime $rxtimeout] $args]
 
 	set urld [Url parse $url]
 	dict set args host [dict get $urld -host]
@@ -347,20 +366,19 @@ namespace eval HttpC {
 	# condition the socket
 	chan configure $socket -blocking 0 -buffering none -encoding binary -translation {crlf binary}
 
-	# create the reader and writer coroutines
-	set uniq [uniq]
-
 	# construct consumer
-	coroutine ${uniq}C ::apply $consumer
+	set cr C[uniq]
+	coroutine $cr ::apply $consumer
 
-	variable reader; variable rxtimeout
-	chan event $socket readable [list ::HttpC::${uniq}R READ]
-	coroutine ${uniq}R ::apply [list args $reader ::HttpC] socket $socket timeout $rxtimeout writer ${uniq}W uniq $uniq cmd ${uniq}R consumer ${uniq}C {*}$args
+	# create the reader and writer coroutines
+	variable reader
+	chan event $socket readable [list ::HttpC::${socket}R READ]
+	coroutine ${socket}R ::apply [list args $reader ::HttpC] socket $socket timeout [dict get $args rxtime] writer ${socket}W cmd ${socket}R consumer $cr {*}$args
 
-	variable writer; variable txtimeout
-	coroutine ${uniq}W ::apply [list args $writer ::HttpC] socket $socket timeout $txtimeout cmd ${uniq}W reader ${uniq}R consumer ${uniq}C {*}$args get $url
+	variable writer
+	coroutine ${socket}W ::apply [list args $writer ::HttpC] socket $socket timeout [dict get $args txtime] cmd ${socket}W reader ${socket}R consumer $cr {*}$args get $url
 
-	return ::HttpC::${uniq}W
+	return ::HttpC::${socket}W
     }
 
     namespace export -clear *
@@ -372,13 +390,13 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	while {1} {
 	    set args [lassign [yield] op]
 	    if {$op eq "EOF"} {
-		puts stderr "Connection closed"
+		puts stderr "EOF Connection closed - leaving consumer"
 		return
 	    }
 	    puts stderr "$op: $args"
 	}
 	puts stderr "consumer fallen through - can't happen"
-    }} http://www.google.com.au/
+    }} http://www.google.com.au/ txtime 5000 rxtime 5000
 
     set done 0
     vwait done
