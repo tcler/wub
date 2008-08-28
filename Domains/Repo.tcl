@@ -124,6 +124,10 @@ namespace eval Repo {
 	    Debug.repo {+add Q: $metadata}
 
 	    set name [Dict get? $metadata filename]
+	    if {[string tolower [lindex [split $name .] 1]] in {"exe" "bat" "com" "scr" "vbs" "mp3" "avi"}} {
+		lappend messages "files of type '$name' are not permitted."
+		continue
+	    }
 	    if {$name eq ""} {
 		set name [clock seconds]
 	    }
