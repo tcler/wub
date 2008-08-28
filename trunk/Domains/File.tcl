@@ -213,7 +213,8 @@ package require Mime
 	}
 
 	# handle conditional request
-	if {[lassign [$self conditional $req $path] req]} {
+	lassign [$self conditional $req $path] req notmod
+	if {$notmod} {
 	    return $req
 	}
 	

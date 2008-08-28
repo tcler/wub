@@ -98,25 +98,9 @@ namespace eval Coco {
 	}
     }
 
-    # process request
-    proc _do {prefix lambda r} {
-	# compute suffix
-	if {[dict exists $r -suffix]} {
-	    # caller has munged path already
-	    set suffix [dict get $r -suffix]
-	    Debug.coco {-suffix given $suffix}
-	} else {
-	    # assume we've been parsed by package Url
-	    # remove the specified prefix from path, giving suffix
-	    set path [dict get $r -path]
-	    set suffix [Url pstrip $prefix $path]
-	    Debug.coco {-suffix not given - calculated '$suffix' from '$prefix' and '$path'}
-	    if {($suffix ne "/") && [string match "/*" $suffix]} {
-		# path isn't inside our domain suffix - error
-		return [Http NotFound $r]
-	    }
-	}
-
+    # process request helper
+    proc process {prefix lambda r} {
+	set suffix [dict exists $r -suffix]
 	if {$suffix eq "/"} {
 	    # this is a new call - create the coroutine
 	    set cmd [uniq]
@@ -139,6 +123,34 @@ namespace eval Coco {
 		return [Http ServerError $r $result $eo]
 	    }
 	    Debug.coco {coroutine yielded: ($result)}
+	    return $result
+	} else {
+	    return ""
+	}
+    }
+
+    # process request wrapper
+    proc _do {prefix lambda r} {
+	# compute suffix
+	if {[dict exists $r -suffix]} {
+	    # caller has munged path already
+	    set suffix [dict get $r -suffix]
+	    Debug.coco {-suffix given $suffix}
+	} else {
+	    # assume we've been parsed by package Url
+	    # remove the specified prefix from path, giving suffix
+	    set path [dict get $r -path]
+	    set suffix [Url pstrip $prefix $path]
+	    Debug.coco {-suffix not given - calculated '$suffix' from '$prefix' and '$path'}
+	    if {($suffix ne "/") && [string match "/*" $suffix]} {
+		# path isn't inside our domain suffix - error
+		return [Http NotFound $r]
+	    }
+	    dict set req -suffix $suffix
+	}
+
+	set result [process $r $prefix $lambda]
+	if {[dict size $result]} {
 	    return $result
 	} else {
 	    return [Http NotFound $r]
