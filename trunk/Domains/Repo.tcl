@@ -67,7 +67,11 @@ namespace eval Repo {
 	} {
 	    set doctitle [<a> href [dict get $args docprefix]$doctitle $doctitle]
 	}
-	append content [<h1> "[dict get $args title] - $doctitle"] \n
+	set title [dict get $args title]
+	if {[dict exists $args titleURL] ne ""} {
+	    set title [<a> href [dict get $args titleURL] $title]
+	}
+	append content [<h1> "$title - $doctitle"] \n
 
 	variable dirparams
 	append content [Report html $files {*}$dirparams headers {name type modified size op}] \n
@@ -160,11 +164,11 @@ namespace eval Repo {
 	}
 
 	dict set req -title "$title - [string trimright $suffix /]"
-	set ext [file extension $suffix]
-	set path [file normalize [file join $mount [string trimleft $suffix /]]]
 	if {$titleURL ne ""} {
 	    set title [<a> href $titleURL $title]
 	}
+	set ext [file extension $suffix]
+	set path [file normalize [file join $mount [string trimleft $suffix /]]]
 	#dict set req -path $path
 	
 	# unpack query response
