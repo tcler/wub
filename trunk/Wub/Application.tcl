@@ -95,6 +95,11 @@ foreach {dom expiry} {
 }
 File bindir -root [file join $docroot bin] -expires 0
 
+#### Repo domain - file repository
+#
+package require Repo
+Repo init repo repo $docroot tar 1 upload 1	;# make a repo from the docroot
+
 #### Commenter is a tcl code comment formatter
 # 'code' is a Direct domain over the Commenter package,
 # which serves /code/* and presents tcl code comments in a summary form.
@@ -276,6 +281,10 @@ proc Responder::do {req} {
 	    set rsp [Session do $req]
 	    #Debug.session {Session API: [Dict get? $rsp -session]}
 	    set rsp
+	}
+
+	/repo/* {
+	    repo do $req
 	}
 
 	/coco/* {
@@ -461,7 +470,7 @@ proc Incoming {req} {
 	# do something with existing session
     } else {
 	# this will create a new session on request completion
-	dict set $req -session created [clock seconds]
+	dict set req -session created [clock seconds]
     }
 
     # [Responder Incoming] provides a safe wrapper and switch-like
