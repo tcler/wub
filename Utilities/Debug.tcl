@@ -28,14 +28,14 @@ namespace eval Debug {
 	    set fd $fds($tag)
 
 	    set code [catch {
-		uplevel 1 ::subst -nobackslashes [list $message]
+		uplevel 1 [list ::subst -nobackslashes [list $message]]
 	    } result eo]
 	    if {$code} {
 		set x [info level -1]
 		puts -nonewline $fd @@[string map {\n \\n \r \\r} "(DebugError from $tag [if {[string length $x] < 1000} {set x} else {set x "[string range $x 0 200]...[string range $x end-200 end]"}] ($eo)):"]
 	    } else {
 		if {[string length $result] > 4096} {
-		    set result "[string range $result 0 4096]...(truncated) ... [string range $result end-4096 end]"
+		    set result "[string range $result 0 2048]...(truncated) ... [string range $result end-2048 end]"
 		}
 		puts $fd "$tag @@[string map {\n \\n} $result]"
 	    }
