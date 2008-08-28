@@ -61,7 +61,13 @@ namespace eval Repo {
 	}
 
 	set suffix [dict get $req -suffix]
-	append content [<h1> "[dict get $args title] - [string trimright $suffix /]"] \n
+	set doctitle [string trimright $suffix /]
+	if {[dict exists $args docprefix]
+	    && $suffix ne "/"
+	} {
+	    set doctitle [<a> href [dict get $args docprefix]$doctitle $doctitle]
+	}
+	append content [<h1> "[dict get $args title] - $doctitle"] \n
 
 	variable dirparams
 	append content [Report html $files {*}$dirparams headers {name type modified size op}] \n
@@ -69,7 +75,9 @@ namespace eval Repo {
 	    append content [<p> "[<a> href [string trimright [dict get $req -path] /] Download] directory as a POSIX tar archive."] \n
 	}
 
-	if {[dict exists $args docprefix]} {
+	if {[dict exists $args docprefix]
+	    && $suffix ne "/"
+	} {
 	    append content [<p> [<a> href [dict get $args docprefix]$suffix "Read Documentation"]] \n
 	}
 
