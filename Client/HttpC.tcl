@@ -99,10 +99,10 @@ namespace eval HttpC {
 
     # send - send an op HTTP request to the server
     proc send {method url args} {
-	upvar \#1 socket socket sent sent cmd cmd host host port port template template
+	upvar \#1 socket socket sent sent cmd cmd host host port port http http
 	Debug.HttpC {send $cmd $method ($args)}
 
-	set T [dict merge $template $args [Url parse $url]]
+	set T [dict merge $http $args [Url parse $url]]
 	set T [dict merge $T [list -method $method date [Date] -port $port -host $host host $host]]
 
 	# format entity
@@ -135,6 +135,10 @@ namespace eval HttpC {
 	chan puts -nonewline $socket $header
     }
 
+    variable template {
+	accept */*
+    }
+
     # writer - coro to send HTTP requests to a server
     variable writer {
 	Debug.HttpC {writer: $args}
@@ -144,6 +148,7 @@ namespace eval HttpC {
 	}
 
 	# unpack all the passed-in args
+	set http {}
 	foreach {_var _val} $args {
 	    if {[string tolower $_var] in {get put post delete}} {
 		# collect protocol operations
@@ -154,8 +159,10 @@ namespace eval HttpC {
 	}
 
 	# construct a request template
-	dict set template User-Agent "HttpC/[package present HttpC]"
-	#lappend template accept-encoding gzip
+	variable template
+	set http [dict merge $template $http]
+	dict set http User-Agent "HttpC/[package present HttpC]"
+	#lappend http accept-encoding gzip
 
 	# send any pending ops
 	if {[info exists ops]} {
