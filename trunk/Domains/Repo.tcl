@@ -162,6 +162,9 @@ namespace eval Repo {
 	dict set req -title "$title - [string trimright $suffix /]"
 	set ext [file extension $suffix]
 	set path [file normalize [file join $mount [string trimleft $suffix /]]]
+	if {$titleURL ne ""} {
+	    set title [<a> href $titleURL $title]
+	}
 	#dict set req -path $path
 	
 	# unpack query response
@@ -272,7 +275,7 @@ namespace eval Repo {
 
     proc init {cmd prefix mount args} {
 	set prefix /[string trim $prefix /]/
-	set args [dict merge [list prefix $prefix mount $mount expires 0 tar 0 index index.html max [expr {1024 * 1024}] title Repo] $args]
+	set args [dict merge [list prefix $prefix mount $mount expires 0 tar 0 index index.html max [expr {1024 * 1024}] titleURL "" title Repo] $args]
 	set cmd [uplevel 1 namespace current]::$cmd
 	namespace ensemble create \
 	    -command $cmd -subcommands {} \
