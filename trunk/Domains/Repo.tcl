@@ -70,7 +70,7 @@ namespace eval Repo {
 	}
 
 	if {[dict exists $args docprefix]} {
-	    append content [<p> [<a> href ${docprefix}$suffix "Read Documentation"]] \n
+	    append content [<p> [<a> href [dict get $args docprefix]$suffix "Read Documentation"]] \n
 	}
 
 	if {[dict exists $args upload]} {
