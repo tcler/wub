@@ -287,7 +287,7 @@ namespace eval Http {
     proc Cache {rsp {age 0} {realm "public"}} {
 	if {[string is integer -strict $age]} {
 	    # it's an age
-	    if {($age != 0)} {
+	    if {$age != 0} {
 		dict set rsp expires [Date [expr {[clock seconds] + $age}]]
 	    } else {
 		catch {dict unset rsp expires}
