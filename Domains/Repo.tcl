@@ -56,7 +56,7 @@ namespace eval Repo {
 		}
 		set title [<a> href $name $name]
 		set del [<a> href $name?op=del title "click to delete" [<img> height $icon_size src ${icons}remove.gif]]
-		dict set files $name [list name $title modified [clock format [file mtime $file] -format $dirtime] size [file size $file] type $type op $del]
+		dict set files $name [list name $title modified [clock format [file mtime $file] -format $dirtime] size [file size $file] type $type op $del view [<a> href $name?format=plain view]]
 	    }
 	}
 
@@ -74,7 +74,7 @@ namespace eval Repo {
 	append content [<h1> "$title - $doctitle"] \n
 
 	variable dirparams
-	append content [Report html $files {*}$dirparams headers {name type modified size op}] \n
+	append content [Report html $files {*}$dirparams headers {name type modified size op view}] \n
 	if {[dict exists $args tar] && [dict get $args tar]} {
 	    append content [<p> "[<a> href [string trimright [dict get $req -path] /] Download] directory as a POSIX tar archive."] \n
 	}
@@ -234,7 +234,13 @@ namespace eval Repo {
 	    link -
 	    file {
 		dict set req -raw 1	;# no transformations
-		return [Http Ok [Http NoCache $req] [::fileutil::cat -encoding binary -translation binary -- $path] [Mime type $path]]
+		set mime [Mime type $path]
+		if {[dict exists $Q format]
+		    && ![string match image/* $mime]
+		} {
+		    set mime text/plain
+		}
+		return [Http Ok [Http NoCache $req] [::fileutil::cat -encoding binary -translation binary -- $path] $mime]
 	    }
 	    
 	    directory {
