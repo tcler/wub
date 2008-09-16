@@ -6,10 +6,13 @@ Debug off jq 10
 package provide jQ 1.0
 
 namespace eval jQ {
-    
+    proc postscript {script args} {
+	return [list -postscript ${prefix}/scripts/$script $args]
+    }
+
     proc script {r script args} {
 	variable prefix
-	dict set r -postscripts ${prefix}/scripts/$script $args
+	dict set r -postscript ${prefix}/scripts/$script $args
 	return $r
     }
 
@@ -133,7 +136,11 @@ namespace eval jQ {
 
     proc history {r args} {
 	set r [scripts $r jquery.js jquery.history-remote.js]
-	dict lappend r -postload [<script> "\$(document).ready(function()\{\n$.ajaxHistory.initialize();\n\});"]
+	dict lappend r -postload [<script> {
+	    $(document).ready(function() {
+		$.ajaxHistory.initialize();
+	    });
+	}]
 	return $r
     }
 
@@ -209,6 +216,15 @@ namespace eval jQ {
 	    jquery.js jquery.hint.js
 	}  %SEL $selector %OPTS [opts hint $args] {
 	    $('%SEL').hint(%OPTS);
+	}]
+    }
+
+    # http://www.stainlessvision.com/collapsible-box-jquery
+    proc boxtoggle {r selector args} {
+	return [weave $r {
+	    jquery.js jquery.boxtoggle.js
+	}  %SEL $selector %OPTS [opts boxtoggle $args] {
+	    boxToggle('%SEL');
 	}]
     }
 
