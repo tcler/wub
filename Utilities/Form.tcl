@@ -50,7 +50,7 @@ package require Dict
 package require Html
 
 #package require Debug
-#Debug off form 1
+Debug off form 10
 
 package provide Form 2.0
 
@@ -165,6 +165,7 @@ namespace eval Form {
 	variable Fdefaults
 	set content [lindex $args end]
 	set args [lrange $args 0 end-1]
+	Debug.form {<select> $name ($args) content:'$content'}
 	set config [dict merge [Dict get? $Fdefaults select] $args [list name $name]]
 
 	if {![dict exists $config id]} {
@@ -415,9 +416,9 @@ namespace eval Form {
 	}]
     }
 
-    proc <selectset> {args} {
+    proc <selectlist> {name args} {
 	set result ""
-	foreach {line} [split [lindex $args end] \n] {
+	foreach line [lindex $args end] {
 	    set line [string trim $line]
 	    if {$line eq ""} continue
 	    if {[string match +* $line]} {
@@ -427,7 +428,11 @@ namespace eval Form {
 	    }
 	    append result \[ $term \] \n
 	}
-	return [uplevel 1 [list <select> {*}[lrange $args 0 end-1] $result]]
+	return [uplevel 1 [list <select> $name {*}[lrange $args 0 end-1] $result]]
+    }
+    
+    proc <selectset> {args} {
+	return [uplevel 1 [list <selectlist> {*}$args]
     }
     
     foreach type {radio check} sub {"" box} {
