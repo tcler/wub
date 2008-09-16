@@ -6,7 +6,7 @@ namespace import ::tcl::unsupported::coroutine ::tcl::unsupported::yield
 
 package require Http
 package require Debug
-Debug on coco 10
+Debug off coco 10
 
 package require md5
 
@@ -100,18 +100,22 @@ namespace eval Coco {
 
     # process request helper
     proc process {prefix lambda r} {
-	set suffix [dict exists $r -suffix]
-	if {$suffix eq "/"} {
+	dict set r -rest [lassign [split [Dict get? $r -suffix] /] suffix]
+	Debug.coco {process '$suffix' over $prefix with ($lambda)}
+	
+	if {$suffix eq "/" || $suffix eq ""} {
 	    # this is a new call - create the coroutine
 	    set cmd [uniq]
+	    dict set r -cmd $cmd
+	    dict set r -csuffix $prefix$cmd
 	    set result [coroutine $cmd ::apply [list {*}$lambda ::Coco] $r]
 	    if {$result ne ""} {
 		Debug.coco {coroutine initialised - ($r) reply}
 		return $result	;# allow coroutine lambda to reply
 	    } else {
 		# otherwise redirect to coroutine lambda
-		Debug.coco {coroutine initialised - redirect to $cmd}
-		return [Http Redirect $r $cmd]
+		Debug.coco {coroutine initialised - redirect to $prefix$cmd}
+		return [Http Redirect $r $prefix$cmd/]
 	    }
 	} elseif {[llength [info command ::Coco::$suffix]]} {
 	    # this is an existing coroutine - call it and return result
@@ -146,10 +150,10 @@ namespace eval Coco {
 		# path isn't inside our domain suffix - error
 		return [Http NotFound $r]
 	    }
-	    dict set req -suffix $suffix
+	    dict set r -suffix $suffix
 	}
 
-	set result [process $r $prefix $lambda]
+	set result [process $prefix $lambda $r]
 	if {[dict size $result]} {
 	    return $result
 	} else {
@@ -158,9 +162,12 @@ namespace eval Coco {
     }
 
     # initialize ensemble for Coco
-    proc init {cmd prefix lambda args} {
-	if {$args ne {}} {
-	    variable {*}$args
+    proc init {cmd args} {
+	set lambda [lindex $args end]
+	if {[llength $args] > 1} {
+	    set prefix [lindex $args 0]
+	} else {
+	    set prefix /$cmd/
 	}
 	set cmd [uplevel 1 namespace current]::$cmd
 	namespace ensemble create \
