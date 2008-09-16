@@ -30,7 +30,13 @@ Rest init mount /_r/
 if {[info tclversion] >= 8.6} {
     package require Coco
 
-    Coco init coco /coco/ {r {
+    Coco init said {r {
+	set r [yield [Http Ok+ [yield] [<form> said "[<text> stuff][<submit> ok]"]]]
+	Query qvars [Query parse $r] stuff
+	return [Http Ok+ [yield [Http Ok+ $r [<a> href . "click here"]]] [<p> "You said: $stuff"]]
+    }}
+
+    Coco init coco {r {
 	set r [yield]	;# initially just redirect
 	while {1} {
 	    set content [<h1> "Coco - Coroutining"]
@@ -39,7 +45,7 @@ if {[info tclversion] >= 8.6} {
 	}
     }}
 
-    Coco init copf /copf/ {r {
+    Coco init copf {r {
 	set referer [Http Referer $r]	;# remember referer
 	set r [yield]	;# initially just redirect
 
@@ -285,6 +291,11 @@ proc Responder::do {req} {
 
 	/repo/* {
 	    repo do $req
+	}
+
+	/said -
+	/said/* {
+	    said do $req
 	}
 
 	/coco/* {
