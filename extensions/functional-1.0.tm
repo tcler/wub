@@ -3,8 +3,9 @@ package provide functional 1.0
 # eval+ always tries to compile its argument
 interp alias {} eval+ {} if 1
 
-proc lambda {arglist body {ns {}}} {
-    list ::apply [list $arglist $body $ns]
+proc lambda {params body args} {
+    set ns [uplevel 1 { namespace current }]
+    list ::apply [list $params $body $ns] {*}$args
 }
 
 proc iota {args} {
@@ -29,12 +30,12 @@ proc curry {lam args} {
 
 # Maps a function to each element of a list,
 # and returns a list of the results.
-proc map {func list} {
-    set ret [list]
+proc map {prefix list} {
+    set result {}
     foreach item $list {
-	lappend ret [uplevel 1 $func [list $item]]
+	lappend result [uplevel 1 {*}$prefix [list $item]]
     }
-    return $ret
+    return $result
 }
 
 proc mapargs {func args} {
@@ -42,10 +43,10 @@ proc mapargs {func args} {
 }
 
 # Filters a list, returning only those items which pass the filter.
-proc filter {func list} {
-    set ret [list]
+proc filter {prefix list} {
+    set ret {}
     foreach item $list {
-	if {[uplevel 1 $func [list $item]]} {
+	if {[uplevel 1 {*}$prefix [list $item]]} {
 	    lappend ret $item
 	}
     }
@@ -62,7 +63,7 @@ proc filterargs {func args} {
 proc foldl {func default list} {
     set res $default
     foreach item $list {
-	set res [{*}$func [list $res $item]]
+	set res [uplevel 1 {*}$func [list $res $item]]
     }
     return $res
 }
@@ -73,7 +74,7 @@ proc foldr {func default list} {
     set tot $default
     # Go in reverse
     for {set i [llength $list]} {$i > 0} {incr i -1} {
-	set tot [{*}$func [list [lindex $list [expr {$i-1}]] $tot]]
+	set tot [uplevel 1 {*}$func [list [lindex $list [expr {$i-1}]] $tot]]
     }
     return $tot
 }
