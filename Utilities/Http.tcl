@@ -380,6 +380,16 @@ namespace eval Http {
 	return [OkResponse $rsp $code Ok $content $ctype]
     }
 
+    # construct an HTTP Ok response
+    proc Ok+ {rsp {content ""} {ctype "x-text/html-fragment"}} {
+	if {[dict exists $rsp -code]} {
+	    set code [dict get $rsp -code]
+	} else {
+	    set code 200
+	}
+	return [OkResponse [Http NoCache $rsp] $code Ok $content $ctype]
+    }
+
     # construct an HTTP passthrough response
     proc Pass {rsp {content ""} {ctype ""}} {
 	if {![dict exists $rsp -code]} {
