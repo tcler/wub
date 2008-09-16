@@ -530,6 +530,10 @@ table.formtable fieldset th {
            margin:          0 0 0em 0;
            }
 
+#main form {
+             text-align:      left;
+             }
+
 #main .highlight {		/* Highlight box (for warnings, etc) */
                    color:           inherit;
                    background:      %HIGHLIGHT_BG;
