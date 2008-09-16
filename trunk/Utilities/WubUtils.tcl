@@ -2,11 +2,50 @@ package require extend 1.0
 package require file
 package require Dict
 package require memoize
+package require Debug
+Debug off wubutils 10
 
 package provide WubUtils 1.0
 
 set ::debug 0
 #set ::debug 100
+
+# dict_probe - search a dict for matches
+proc dict_probe {probe args} {
+    if {[llength $args] == 1} {
+	set args [lindex $args 0]
+    }
+    Debug.wubutils {probe:$probe args: $args}
+    while {[llength $args] > 1 && [llength $probe] > 0} {
+	# we still have a dict to search and a probe to find
+	foreach {key val} $args {
+	    set found 0
+	    set p [lindex $probe 0]	;# next probe element
+	    # probe each element of key 
+	    foreach m $key {
+		if {[string match $m $p]} {
+		    # found a matching element
+		    if {[llength $probe] == 1} {
+			# finished the probe
+			Debug.wubutils {probe done: $probe probe:$val}
+			return [list $probe $val]
+		    } else {
+			# repeat search at next level
+			set probe [lrange $probe 1 end]
+			set args $val	;# probe this dict element
+			Debug.wubutils {probe repeat: $probe in $val}
+			set found 1
+			break
+		    }
+		}
+		if {$found} break
+	    }
+	    if {$found} break
+	}
+    }
+    Debug.wubutils {probe none: $args probe:$probe}
+    return [list $probe $args]
+}
 
 proc caller {} {
     return [string map {"Snit_method" ""} [namespace tail [lindex [info level -2] 0]]]
