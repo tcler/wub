@@ -74,7 +74,7 @@ namespace eval Dict {
     }
 
     # return dict keys, sorted by some subkey value
-    proc subkeysort {dict subkey args} {
+    proc subkeyorder {dict subkey args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
