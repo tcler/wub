@@ -35,26 +35,6 @@ package require Http
 package require Cookies
 package require UA
 
-if {0} {
-    # some utility/debugging code to track shimmering
-    package require tweezer
-    proc monitor {var} {
-	upvar 1 $var v
-	trace add variable v {write read} ::shimmer
-    }
-    proc unmonitor {var} {
-	upvar 1 $var v
-	catch {trace remove variable v {write read} ::shimmer}
-    }
-
-    proc shimmer {var name2 op} {
-	upvar $var v
-	if {[info exists v]} {
-	    puts stderr "$var shimmers to: [tweezer type $v]"
-	}
-    }
-}
-
 namespace eval HttpdWorker {
 
     variable requests	;# array of dicts containing requests read
@@ -65,7 +45,7 @@ namespace eval HttpdWorker {
     variable maxfield 4096	;# max request field length
     variable maxhead 1024	;# maximum number of header lines
     variable maxurilen 1024	;# maximum URI length
-    variable maxentity -1		;# maximum entity size
+    variable maxentity -1	;# maximum entity size
 
     variable txtime 20000	;# inter-write timeout
     variable rxtime 10000	;# inter-read timeout
