@@ -119,6 +119,14 @@ namespace eval Url {
 	return [array get x]
     }
 
+    proc Parse {url} {
+	set result {}
+	dict for {k v} [parse $url] {
+	    lappend result [string trim $k -] $v
+	}
+	return $result
+    }
+
     proc url {args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
