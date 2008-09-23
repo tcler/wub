@@ -27,7 +27,7 @@ namespace eval Site {
 	    if {$line eq ""} continue
 	    lassign [split $line {\#;}] line
 	    append accum " " [string trim $line]
-	    if {$accum ne "" && [info complete $accum]} {
+	    if {[info complete $accum]} {
 		set pass [uplevel 1 list $accum]
 		lappend result {*}$pass
 		set accum ""
