@@ -1,8 +1,8 @@
 # HttpC - HTTP 1.1 client
 
 # import the relevant commands
-namespace eval ::tcl::unsupported {namespace export coroutine yield}
-namespace import ::tcl::unsupported::coroutine ::tcl::unsupported::yield
+namespace eval ::tcl::unsupported {namespace export coroutine yield infoCoroutine}
+namespace import ::tcl::unsupported::coroutine ::tcl::unsupported::yield ::tcl::unsupported::infoCoroutine
 
 lappend ::auto_path [file join [file dirname [file dirname [file normalize [info script]]]] Utilities]
 
