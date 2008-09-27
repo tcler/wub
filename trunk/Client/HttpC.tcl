@@ -259,9 +259,7 @@ namespace eval HttpC {
     variable reader {
 	Debug.HttpC {reader: $args}
 	# unpack all the passed-in args
-	foreach {var val} $args {
-	    set $var $val
-	}
+	dict with $args {}
 
 	# keep receiving input resulting from our requests
 	while {1} {
