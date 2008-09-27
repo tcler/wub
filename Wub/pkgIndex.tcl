@@ -3,6 +3,7 @@ package ifneeded Listener 2.0 [list source [file join $dir Listener.tcl]]
 package ifneeded Httpd 3.0 [list source [file join $dir Httpd.tcl]]
 package ifneeded HttpdThread 1.0 [list source [file join $dir HttpdThread.tcl]]
 package ifneeded HttpdSingle 1.0 [list source [file join $dir HttpdSingle.tcl]]
+package ifneeded HttpdCoro 1.0 [list source [file join $dir HttpdCoro.tcl]]
 
 package ifneeded Cache 2.0 [list source [file join $dir Cache.tcl]]
 package ifneeded Varnish 1.0 [list source [file join $dir Varnish.tcl]]
