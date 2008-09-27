@@ -99,8 +99,10 @@ namespace eval Httpd {
 	    Debug.HttpdCoro {reader: consumer error or gone on EOF}
 	}
 
+	kill $consumer
+	kill [infoCoroutine]
 	# destroy reader - that's all she wrote
-	rename $socket {}	;# that's all she wrote
+	#rename $socket {}	;# that's all she wrote
     }
 
     # readable - make socket readable
@@ -778,8 +780,7 @@ namespace eval Httpd {
 	}
     }
 
-    proc disconnect {args} {
-    }
+    proc disconnect {args} {}
 
     # the consumer has gone - inform the reader
     proc dead_consumer {reader} {
@@ -801,7 +802,7 @@ namespace eval Httpd {
 	foreach {ops prefix} [trace info command $coro] {
 	    trace remove command $coro $ops $prefix 
 	}
-	rename $coro {}
+	catch {rename $coro {}}
     }
 
     # the request consumer
