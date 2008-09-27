@@ -100,7 +100,7 @@ namespace eval Responder {
 		if {[catch {
 		    post $rsp
 		} r eo]} { ;# postprocess response
-		    Debug.responder {POST ERROR: $rsp ($eo)} 1
+		    Debug.responder {POST ERROR: $r ($eo)} 1
 		    set rsp [Http ServerError $rsp $r $eo]
 		} else {
 		    set rsp $r
