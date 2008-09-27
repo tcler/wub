@@ -40,6 +40,7 @@ namespace eval Site {
 	home [file normalize [file dirname [info script]]] ;# home of application script
 	host [info hostname]	;# default home for relative paths
 	multi 0			;# we're single-threaded
+	coro 1			;# we want coroutines
 
 	globaldocroot 1		;# do we use Wub's docroot, or caller's
 	backends 5		;# number of backends to add on demand
@@ -257,7 +258,7 @@ namespace eval Site {
 	    Stdin start $cmdport ;# start a command shell on localhost,$cmdport
 	}
 
-	variable multi
+	variable multi; variable coro
 	if {$multi} {
 	    error "This isn't set up for Multithreading"
 	    Debug.log {STARTING BACKENDS [clock format [clock seconds]]}
@@ -270,6 +271,14 @@ namespace eval Site {
 	    Backend configure [vars] {*}$backend mkmutex [thread::mutex create]
 
 	    package require HttpdThread	;# choose multithreaded
+	} elseif {$coro} {
+	    package require HttpdCoro	;# choose coroutines
+	    array set ::config [vars]
+
+	    variable application
+	    if {[info exists application] && $application ne ""} {
+		package require {*}$application
+	    }
 	} else {
 	    package require HttpdSingle	;# choose singlethreaded
 	    array set ::config [vars]
