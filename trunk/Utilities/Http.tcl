@@ -998,7 +998,12 @@ namespace eval Http {
 	set cache [expr {[Dict get? $args -cache] eq "1"}]
 	if {[catch {
 	    # unpack and consume the reply from replies queue
-	    set code [dict get $reply -code]
+	    if {![dict exists $reply -code]} {
+		set code 200	;# presume it's ok
+	    } else {
+		set code [dict get $reply -code]
+	    }
+
 	    if {$code < 4} {
 		# this was a tcl error code, not an HTTP code
 		set code 500
@@ -1059,15 +1064,8 @@ namespace eval Http {
 			# also gzip content so cache can store that.
 			lassign [CE $reply {*}$args] reply content
 
-			if {[dict exists $reply -chunked]} {
-			    # set up for chunking
-			    dict set reply transfer-encoding chunked
-			    catch {dict unset reply content-length}
-			} else {
-			    # ensure content-length is correct
-			    #Debug.http {post-CE content length [string length $content]}
-			    dict set reply content-length [string length $content]
-			}
+			# ensure content-length is correct
+			dict set reply content-length [string length $content]
 		    } else {
 			set content ""	;# there is no content
 			set empty 1	;# it's empty
@@ -1153,7 +1151,7 @@ namespace eval Http {
 		}
 	    }
 	} r eo]} {
-	    if {$code >= 500} {
+	    if {![info exists code] || $code >= 500} {
 		# Errors are completely dynamic - no caching!
 		set cache 0
 	    }
