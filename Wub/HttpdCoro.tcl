@@ -760,7 +760,7 @@ namespace eval Httpd {
 		dict set cached -transaction [dict get $r -transaction]
 		dict set cached -generation [dict get $r -generation]
 
-		Debug.HttpdCoro {sending cached ($cached)}
+		Debug.HttpdCoro {sending cached ([rdump $cached])}
 		send $cached 0
 		continue
 	    }
@@ -776,6 +776,9 @@ namespace eval Httpd {
 		EOF CONSUMER	;# terminate this coro
 	    }
 	}
+    }
+
+    proc disconnect {args} {
     }
 
     # the consumer has gone - inform the reader
