@@ -40,7 +40,7 @@ namespace eval Site {
 	home [file normalize [file dirname [info script]]] ;# home of application script
 	host [info hostname]	;# default home for relative paths
 	multi 0			;# we're single-threaded
-	coro 1			;# we want coroutines
+	coro 0			;# we want coroutines
 
 	globaldocroot 1		;# do we use Wub's docroot, or caller's
 	backends 5		;# number of backends to add on demand
