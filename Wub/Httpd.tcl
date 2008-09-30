@@ -264,10 +264,7 @@ namespace eval Httpd {
 	#Activity activity connected $cid {*}$args
     }
 
-    # a worker thread has completely processed input, or has hit a socket error
-    proc Disconnect {id error {eo ""}} {
-	Debug.socket {Disconnect: $id '$error' - ($eo)}
-
+    proc forget {id} {
 	variable connection
 	if {[info exists connection($id)]} {
 	    # log the disconnection
@@ -282,7 +279,16 @@ namespace eval Httpd {
 	    }
 
 	    unset connection($id)
+	}
+    }
 
+    # a worker thread has completely processed input, or has hit a socket error
+    proc Disconnect {id error {eo ""}} {
+	Debug.socket {Disconnect: $id '$error' - ($eo)}
+
+	variable connection
+	if {[info exists connection($id)]} {
+	    forget $id
 	    # inform backend of disconnection
 	    variable dispatch
 	    catch {{*}$dispatch Disconnect $sock}
