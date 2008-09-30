@@ -7,6 +7,7 @@ namespace eval Site {
     variable varnish {}
     #variable cache {}
     variable home [file dirname [info script]]
+    variable coro 0	;# deselect the coroutine frontend
 }
 
 package require Site
