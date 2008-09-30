@@ -68,6 +68,7 @@ namespace eval Httpd {
 
     # closing - we are closing the connection, or recognising that it's closed.
     proc closing {sock} {
+	Debug.HttpdCoro "closing: '$sock'"
 	if {[catch {chan eof $sock} r] || $r} {
 	    # remote end closed - indicate closure
 	    $sock EOF "Remote closed connection"
@@ -86,6 +87,11 @@ namespace eval Httpd {
     # indicate EOF and shut down socket and reader
     proc EOF {{reason ""}} {
 	set socket [sockname]
+	Debug.HttpdCoro "[infoCoroutine] EOF: '$socket' ($reason)"
+
+	# forget whatever higher level connection info
+	upvar \#1 cid cid
+	catch {forget $cid}
 
 	# socket has closed while reading
 	# clean up socket
@@ -93,14 +99,19 @@ namespace eval Httpd {
 
 	# report EOF to consumer
 	upvar \#1 consumer consumer
+	if {[info commands $consumer] eq ""} {
+	    Debug.HttpdCoro {reader [infoCoroutine]: consumer gone on EOF}
+	}
 	if {[catch {
-	    $consumer EOF $reason
-	}] && [info commands $consumer] eq ""} {
-	    Debug.HttpdCoro {reader: consumer error or gone on EOF}
+	    $consumer [list EOF $reason]
+	} e eo]} {
+	    Debug.HttpdCoro {reader [infoCoroutine]: consumer error on EOF $e ($eo)}
 	}
 
+	Debug.HttpdCoro {reader [infoCoroutine]: informed $consumer of EOF}
 	kill $consumer
 	kill [infoCoroutine]
+	Debug.HttpdCoro {reader [infoCoroutine]: suicide on EOF}
 	# destroy reader - that's all she wrote
 	#rename $socket {}	;# that's all she wrote
     }
@@ -108,6 +119,7 @@ namespace eval Httpd {
     # readable - make socket readable
     proc readable {args} {
 	set socket [sockname]
+	Debug.HttpdCoro "readable: '$socket' ($args)"
 	if {[catch {
 	    chan event $socket readable [list $socket {*}$args]
 	} r eo]} {
@@ -120,7 +132,7 @@ namespace eval Httpd {
     proc close? {r} {
 	# don't honour 1.0 keep-alives
 	set close [expr {[dict get $r -version] < 1.1}]
-	Debug.close {version [dict get $r -version] implies close=$close}
+	Debug.HttpdCoro {version [dict get $r -version] implies close=$close}
 
 	# handle 'connection: close' indication
 	foreach ct [split [Dict get? $r connection] ,] {
@@ -357,9 +369,9 @@ namespace eval Httpd {
 		TIMEOUT {
 		    # we've timed out - oops
 		    if {[catch {
-			$consumer "TIMEOUT [infoCoroutine]"
+			$consumer [list TIMEOUT [infoCoroutine]]
 		    }] && [info commands $consumer] eq ""} {
-			Debug.HttpdCoro {reader: consumer error or gone on EOF}
+			Debug.HttpdCoro {reader [infoCoroutine]: consumer error or gone on EOF}
 			return -code return
 		    }
 		    set time -1
@@ -464,7 +476,7 @@ namespace eval Httpd {
     }
 
     variable reader {
-	Debug.HttpdCoro {reader: $args}
+	Debug.HttpdCoro {create reader [infoCoroutine] - $args}
 
 	# unpack all the passed-in args
 	set replies {}	;# dict of replies pending
@@ -483,7 +495,7 @@ namespace eval Httpd {
 	    set lines {}
 	    while {$headering} {
 		set line [get $socket HEADER]
-		Debug.HttpdCoro {reader got line: ($line)}
+		Debug.HttpdCoro {reader [infoCoroutine] got line: ($line)}
 		if {[string trim $line] eq ""} {
 		    # rfc2616 4.1: In the interest of robustness,
 		    # servers SHOULD ignore any empty line(s)
@@ -771,10 +783,10 @@ namespace eval Httpd {
 	    if {[info commands $consumer] ne {}} {
 		# deliver the assembled request to the consumer
 		after 1 $consumer [list [list INCOMING $r]]
-		Debug.HttpdCoro {reader: sent to consumer, waiting for next}
+		Debug.HttpdCoro {reader [infoCoroutine]: sent to consumer, waiting for next}
 	    } else {
 		# the consumer has gone away
-		Debug.HttpdCoro {reader: consumer gone $consumer}
+		Debug.HttpdCoro {reader [infoCoroutine]: consumer gone $consumer}
 		EOF CONSUMER	;# terminate this coro
 	    }
 	}
@@ -792,14 +804,18 @@ namespace eval Httpd {
     # the socket has gone - inform the consumer
     proc dead_socket {consumer} {
 	Debug.HttpdCoro {dead_socket $consumer}
-	catch {$consumer EOF socket}	;# inform the consumer
+	catch {$consumer [list EOF socket]}	;# inform the consumer
 	catch {rename $consumer {}}	;# kill the consumer
     }
 
     # the coro must go
     proc kill {coro} {
 	Debug.HttpdCoro {kill $coro}
-	foreach {ops prefix} [trace info command $coro] {
+	if {[info commands $coro] eq {}} {
+	    return
+	}
+	foreach tr [trace info command $coro] {
+	    lassign $tr ops prefix
 	    trace remove command $coro $ops $prefix 
 	}
 	catch {rename $coro {}}
@@ -811,12 +827,12 @@ namespace eval Httpd {
 	dict with args {}
 	while {1} {
 	    set args [lassign [::yield] op]
-	    Debug.HttpdCoro {consumer got: $op $args}
+	    Debug.HttpdCoro {consumer [infoCoroutine] got: $op $args}
 	    switch -- $op {
 		TIMEOUT -
 		EOF {
-		    kill $reader
-		    kill [infoCoroutine]
+		    kill $reader	;# kill reader
+		    kill [infoCoroutine];# kill self
 		}
 
 		INCOMING {
@@ -841,7 +857,7 @@ namespace eval Httpd {
 			Debug.error {POST ERROR: $e ($eo)} 1
 			set rsp [Http ServerError $r $e $eo]
 		    } else {
-			Debug.HttpdCoro {POST: $e} 10
+			Debug.HttpdCoro {POST: [rdump $e]} 10
 			set rsp $e
 		    }
 
@@ -859,6 +875,7 @@ namespace eval Httpd {
     # set up a consumer and a reader for it
     proc associate {request} {
 	set socket [dict get $request -sock]
+	set cid [dict get $request -cid]	;# remember the connection id
 	Debug.socket {associate $request $socket}
 
 	# condition the socket
