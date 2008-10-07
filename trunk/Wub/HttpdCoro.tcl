@@ -103,15 +103,14 @@ namespace eval Httpd {
 	upvar \#1 consumer consumer
 	if {[info commands $consumer] eq ""} {
 	    Debug.HttpdCoro {reader [infoCoroutine]: consumer gone on EOF}
-	}
-	if {[catch {
+	} elseif {[catch {
 	    after 1 [list $consumer [list EOF $reason]]
+	    Debug.HttpdCoro {reader [infoCoroutine]: informed $consumer of EOF}
 	} e eo]} {
 	    Debug.error {reader [infoCoroutine]: consumer error on EOF $e ($eo)}
 	}
 
-	Debug.HttpdCoro {reader [infoCoroutine]: informed $consumer of EOF}
-	kill $consumer
+	#kill $consumer
 	kill [infoCoroutine]
 	Debug.HttpdCoro {reader [infoCoroutine]: suicide on EOF}
 	# destroy reader - that's all she wrote
@@ -833,7 +832,7 @@ namespace eval Httpd {
 	    switch -- $op {
 		TIMEOUT -
 		EOF {
-		    kill $reader	;# kill reader
+		    #kill $reader	;# kill reader
 		    kill [infoCoroutine];# kill self
 		}
 
