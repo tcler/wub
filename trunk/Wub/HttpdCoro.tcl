@@ -112,9 +112,10 @@ namespace eval Httpd {
 
 	#kill $consumer
 	kill [infoCoroutine]
-	Debug.HttpdCoro {reader [infoCoroutine]: suicide on EOF}
+
 	# destroy reader - that's all she wrote
-	#rename $socket {}	;# that's all she wrote
+	Debug.HttpdCoro {reader [infoCoroutine]: suicide on EOF}
+	rename $socket {}	;# that's all she wrote
     }
 
     # readable - make socket readable
@@ -799,14 +800,21 @@ namespace eval Httpd {
     proc dead_consumer {reader} {
 	Debug.HttpdCoro {dead_consumer $reader}
 	catch {$reader EOF consumer}	;# inform the reader
-	catch {rename $reader {}}	;# kill the reader
+
+	# kill the reader
+	if {[catch {rename $reader {}} e eo]} {
+	    Debug.error {renaming $reader error: '$e' ($eo)}
+	}
     }
 
     # the socket has gone - inform the consumer
     proc dead_socket {consumer} {
 	Debug.HttpdCoro {dead_socket $consumer}
 	catch {after 1 [list $consumer [list EOF socket]]}	;# inform the consumer
-	catch {rename $consumer {}}	;# kill the consumer
+	# kill the consumer
+	if {[catch {rename $consumer {}} e eo]} {
+	    Debug.error {renaming $consumer error: '$e' ($eo)}
+	}
     }
 
     # the coro must go
@@ -819,7 +827,9 @@ namespace eval Httpd {
 	    lassign $tr ops prefix
 	    trace remove command $coro $ops $prefix 
 	}
-	catch {rename $coro {}}
+	if {[catch {rename $coro {}} e eo]} {
+	    Debug.error {renaming $coro error: '$e' ($eo)}
+	}
     }
 
     # the request consumer
@@ -901,7 +911,7 @@ namespace eval Httpd {
 
 	# construct the reader
 	variable rxtimeout
-	set result [coroutine $R ::apply [list args $reader ::Httpd] socket $socket timeout $rxtimeout consumer $cr prototype $request generation $gen]
+	set result [coroutine $R ::apply [list args $reader ::Httpd] socket $socket timeout $rxtimeout consumer $cr prototype $request generation $gen cid $cid]
 
 	# ensure there's a cleaner for this connection's coros
 	trace add command $cr delete [namespace code [list dead_consumer $R]]
