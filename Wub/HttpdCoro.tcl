@@ -91,7 +91,9 @@ namespace eval Httpd {
 
 	# forget whatever higher level connection info
 	upvar \#1 cid cid
-	catch {forget $cid}
+	if {[catch {forget $cid} e eo]} {
+	    Debug.error {EOF forget error '$e' ($eo)}
+	}
 
 	# socket has closed while reading
 	# clean up socket
@@ -105,7 +107,7 @@ namespace eval Httpd {
 	if {[catch {
 	    after 1 [list $consumer [list EOF $reason]]
 	} e eo]} {
-	    Debug.HttpdCoro {reader [infoCoroutine]: consumer error on EOF $e ($eo)}
+	    Debug.error {reader [infoCoroutine]: consumer error on EOF $e ($eo)}
 	}
 
 	Debug.HttpdCoro {reader [infoCoroutine]: informed $consumer of EOF}
