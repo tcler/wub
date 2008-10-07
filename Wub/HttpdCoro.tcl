@@ -115,7 +115,7 @@ namespace eval Httpd {
 
 	# destroy reader - that's all she wrote
 	Debug.HttpdCoro {reader [infoCoroutine]: suicide on EOF}
-	rename $socket {}	;# that's all she wrote
+	rename ::Httpd::$socket {}	;# that's all she wrote
     }
 
     # readable - make socket readable
