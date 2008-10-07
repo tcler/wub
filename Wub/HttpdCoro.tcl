@@ -795,6 +795,7 @@ namespace eval Httpd {
     }
 
     proc disconnect {args} {}
+    proc disassociate {args} {}
 
     # the consumer has gone - inform the reader
     proc dead_consumer {reader} {
