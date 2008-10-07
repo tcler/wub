@@ -103,7 +103,7 @@ namespace eval Httpd {
 	    Debug.HttpdCoro {reader [infoCoroutine]: consumer gone on EOF}
 	}
 	if {[catch {
-	    $consumer [list EOF $reason]
+	    after 1 [list $consumer [list EOF $reason]]
 	} e eo]} {
 	    Debug.HttpdCoro {reader [infoCoroutine]: consumer error on EOF $e ($eo)}
 	}
@@ -804,7 +804,7 @@ namespace eval Httpd {
     # the socket has gone - inform the consumer
     proc dead_socket {consumer} {
 	Debug.HttpdCoro {dead_socket $consumer}
-	catch {$consumer [list EOF socket]}	;# inform the consumer
+	catch {after 1 [list $consumer [list EOF socket]]}	;# inform the consumer
 	catch {rename $consumer {}}	;# kill the consumer
     }
 

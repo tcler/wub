@@ -132,12 +132,16 @@ namespace eval Site {
     foreach {name val} [rc $configuration] {
 	Variable $name $val
     }
+    unset configuration
 
     # load site configuration script (not under SVN control)
     variable vars
     if {$vars ne ""} {
-	catch {
-	    eval [::fileutil::cat [file join $home $vars]]
+	if {[catch {
+	    set x [::fileutil::cat [file join $home $vars]] 
+	    eval $x
+	} e eo]} {
+	    puts stderr "ERROR reading '$vars' config file: '$e' ($eo) - config is incomplete."
 	}
     }
 
