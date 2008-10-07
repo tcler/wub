@@ -69,14 +69,15 @@ namespace eval Httpd {
     # closing - we are closing the connection, or recognising that it's closed.
     proc closing {sock} {
 	Debug.HttpdCoro "closing: '$sock'"
-	if {[catch {chan eof $sock} r] || $r} {
+	if {[catch {chan eof $sock} r eo] || $r} {
 	    # remote end closed - indicate closure
-	    $sock EOF "Remote closed connection"
+	    Debug.error "closing closed: '$r' ($eo)"
+	    ::Httpd::$sock EOF "Remote closed connection"
 	} elseif {[catch {
 	    chan read $sock	;# read and discard input
 	} r eo]} {
 	    Debug.error "trying to close: '$r' ($eo)"
-	    $sock EOF "error closed connection - $r ($eo)"
+	    ::Httpd::$sock EOF "error closed connection - $r ($eo)"
 	}
     }
 
@@ -362,6 +363,7 @@ namespace eval Httpd {
 		    
 		    if {[catch {chan eof $socket} res] || $res} {
 			# remote end closed - just forget it
+			EOF "error closed connection - $r ($eo)"
 		    } elseif {[catch {chan read $socket} r eo]} {
 			Debug.error "trying to close: '$r' ($eo)"
 			EOF "error closed connection - $r ($eo)"
