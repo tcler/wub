@@ -856,14 +856,23 @@ namespace eval Httpd {
     variable consumer {
 	Debug.HttpdCoro {consumer: $args}
 	dict with args {}
+	set retval ""
 	while {1} {
-	    set args [lassign [::yield] op]
+	    set args [lassign [::yield $retval] op]
 	    Debug.HttpdCoro {consumer [infoCoroutine] got: $op $args}
 	    switch -- $op {
 		TIMEOUT -
 		EOF {
 		    #kill $reader	;# kill reader
 		    kill [infoCoroutine];# kill self
+		}
+
+		STATS {
+		    set retval {}
+		    foreach x [uplevel \#1 {info locals}] {
+			catch [list uplevel \#1 [list set $x]] r
+			lappend retval $x $r
+		    }
 		}
 
 		INCOMING {
@@ -926,7 +935,7 @@ namespace eval Httpd {
 	}
 
 	# construct consumer
-	set cr ::Httpd::C[uniq]
+	set cr ::Httpd::CO_[uniq]
 	variable consumer; coroutine $cr ::apply [list args $consumer ::Httpd] reader $R
 
 	# construct the reader
@@ -946,6 +955,9 @@ namespace eval Httpd {
     proc stats {} {
 	set result {}
 	foreach coro [info commands ::Httpd::sock*] {
+	    lappend result $coro [$coro STATS]
+	}
+	foreach coro [info commands ::Httpd::CO_*] {
 	    lappend result $coro [$coro STATS]
 	}
 	return $result
