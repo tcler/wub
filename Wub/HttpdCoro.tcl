@@ -326,7 +326,7 @@ namespace eval Httpd {
 	    }
 
 	    # wait for an event
-	    set args [lassign [::yield $retval] op]
+	    set args [lassign [::yield $retval] op]; set retval ""
 	    Debug.HttpdCoro {yield '[infoCoroutine]' ($retval) -> $op ($args)}
 
 	    # cancel all outstanding timers for this coro
@@ -342,7 +342,6 @@ namespace eval Httpd {
 	    switch -- [string toupper $op] {
 		STATS {
 		    set retval {}
-		    puts stderr [uplevel \#1 {info locals}]
 		    foreach x [uplevel \#1 {info locals}] {
 			catch [list uplevel \#1 [list set $x]] r
 			lappend retval $x $r
