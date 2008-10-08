@@ -81,13 +81,13 @@ namespace eval Httpd {
 	}
     }
 
-    proc sockname {} {
+    proc sname {} {
 	return [namespace tail [infoCoroutine]]
     }
 
     # indicate EOF and shut down socket and reader
     proc EOF {{reason ""}} {
-	set socket [sockname]
+	set socket [sname]
 	Debug.HttpdCoro "[infoCoroutine] EOF: '$socket' ($reason)"
 
 	# forget whatever higher level connection info
@@ -121,7 +121,7 @@ namespace eval Httpd {
 
     # readable - make socket readable
     proc readable {args} {
-	set socket [sockname]
+	set socket [sname]
 	Debug.HttpdCoro "readable: '$socket' ($args)"
 	if {[catch {
 	    chan event $socket readable [list $socket {*}$args]
@@ -169,7 +169,7 @@ namespace eval Httpd {
 	    return 0	;# this reply has been suspended anyway
 	}
 
-	set socket [sockname]
+	set socket [sname]
 	upvar \#1 replies replies response response sequence sequence consumer consumer generation generation satisfied satisfied transaction transaction
 
 	Debug.HttpdCoro {write ([rdump $r]) satisfied: ($satisfied)}
@@ -312,7 +312,7 @@ namespace eval Httpd {
 
     # yield wrapper with command dispatcher
     proc yield {{retval ""}} {
-	set socket [sockname]
+	set socket [sname]
 	upvar \#1 timer timer timeout timeout cmd cmd consumer consumer
 
 	set time $timeout
@@ -338,6 +338,15 @@ namespace eval Httpd {
 
 	    # dispatch on command
 	    switch -- [string toupper $op] {
+		STATS {
+		    set result {}
+		    foreach x [uplevel \#1 {info locals}] {
+			catch [list uplevel \#1 [list set $x]] r
+			lappend result $x $r
+		    }
+		    return $result
+		}
+
 		READ {
 		    # this can only happen in the reader coro
 		    return $args
@@ -387,7 +396,7 @@ namespace eval Httpd {
     # handle - handle a protocol error
     proc handle {req} {
 	Debug.error {handle: ([rdump $req])}
-	set socket [sockname]
+	set socket [sname]
 	
 	# we have an error, so we're going to try to reply then die.
 	readable closing	;# suspend reading - junk whatever's read
@@ -923,6 +932,14 @@ namespace eval Httpd {
 	# start the ball rolling
 	chan event $socket readable [list $R READ]
 
+	return $result
+    }
+
+    proc stats {} {
+	set result {}
+	foreach coro [info commands ::Httpd::sock*] {
+	    lappend result $coro [$coro STATS]
+	}
 	return $result
     }
 
