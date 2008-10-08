@@ -148,6 +148,8 @@ namespace eval Httpd {
 	if {$close} {
 	    # we're not accepting more input
 	    # but we defer closing the socket until all pending transmission's complete
+	    upvar \#1 status status
+	    lappend status CLOSING
 	    readable CLOSING
 	}
 
@@ -313,7 +315,7 @@ namespace eval Httpd {
     # yield wrapper with command dispatcher
     proc yield {{retval ""}} {
 	set socket [sname]
-	upvar \#1 timer timer timeout timeout cmd cmd consumer consumer
+	upvar \#1 timer timer timeout timeout cmd cmd consumer consumer status status
 
 	set time $timeout
 	while {1} {
@@ -339,21 +341,23 @@ namespace eval Httpd {
 	    # dispatch on command
 	    switch -- [string toupper $op] {
 		STATS {
-		    set result {}
+		    set retval {}
+		    puts stderr [uplevel \#1 {info locals}]
 		    foreach x [uplevel \#1 {info locals}] {
 			catch [list uplevel \#1 [list set $x]] r
-			lappend result $x $r
+			lappend retval $x $r
 		    }
-		    return $result
 		}
 
 		READ {
 		    # this can only happen in the reader coro
+		    lappend status READ
 		    return $args
 		}
 
 		SEND {
 		    # send a response to client
+		    lappend status SEND
 		    set close [send {*}$args]
 		    if {$close ne ""} {
 			EOF $close
@@ -362,6 +366,7 @@ namespace eval Httpd {
 
 		EOF {
 		    # we've been informed that we're closed
+		    lappend status EOF
 		    EOF {*}$args
 		}
 
@@ -370,6 +375,7 @@ namespace eval Httpd {
 		    # we won't accept any more input but we want to send
 		    # all pending responses
 		    
+		    lappend status EOF
 		    if {[catch {chan eof $socket} res] || $res} {
 			# remote end closed - just forget it
 			EOF "error closed connection - $r ($eo)"
@@ -381,6 +387,7 @@ namespace eval Httpd {
 		
 		TIMEOUT {
 		    # we've timed out - oops
+		    lappend status EOF
 		    if {[catch {
 			$consumer [list TIMEOUT [infoCoroutine]]
 		    }] && [info commands $consumer] eq ""} {
@@ -402,7 +409,8 @@ namespace eval Httpd {
 	readable closing	;# suspend reading - junk whatever's read
 	# must keep socket readable to detect close, but will chuck anything read.
 
-	upvar \#1 transaction transaction generation generation
+	upvar \#1 transaction transaction generation generation status
+	lappend status ERROR
 	if {[catch {
 	    dict set req connection close	;# we want to close this connection
 	    if {![dict exists $req -transaction]} {
@@ -500,6 +508,7 @@ namespace eval Httpd {
 	dict with args {}
 	set timer {}	;# collection of active timers
 	set transaction 0	;# count of incoming requests
+	set status INIT	;# record transitions
 
 	# keep receiving input requests
 	while {1} {
