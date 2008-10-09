@@ -817,13 +817,13 @@ namespace eval Httpd {
     # the consumer has gone - inform the reader
     proc dead_consumer {reader} {
 	Debug.HttpdCoro {dead_consumer $reader}
-	catch {after 1 [list $reader EOF consumer]}	;# inform the reader
+	$reader {EOF consumer}		;# inform the reader
     }
 
     # the socket has gone - inform the consumer
     proc dead_socket {consumer} {
 	Debug.HttpdCoro {dead_socket $consumer}
-	catch {after 1 [list $consumer [list EOF socket]]}	;# inform the consumer
+	$consumer {EOF socket}	;# inform the consumer
     }
 
     # the request consumer
