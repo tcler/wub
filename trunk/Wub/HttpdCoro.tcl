@@ -893,7 +893,7 @@ namespace eval Httpd {
 		    if {[catch {
 			$reader [list SEND $rsp]
 		    } e eo]} {
-			Debug.error {sending error: $e ($eo)} 1
+			Debug.error {sending error [infoCoroutine] via $reader: $e ($eo)} 1
 		    }
 		}
 	    }
