@@ -892,7 +892,7 @@ namespace eval Httpd {
 		    # ask socket coro to send the response for us
 		    if {[catch {
 			$reader [list SEND $rsp]
-		    } e ro]} {
+		    } e eo]} {
 			Debug.error {sending error: $e ($eo)} 1
 		    }
 		}
