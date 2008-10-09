@@ -409,7 +409,7 @@ namespace eval Httpd {
 	set socket [sname]
 	
 	# we have an error, so we're going to try to reply then die.
-	upvar \#1 transaction transaction generation generation status
+	upvar \#1 transaction transaction generation generation status status
 	lappend status ERROR
 	if {[catch {
 	    dict set req connection close	;# we want to close this connection
@@ -538,7 +538,7 @@ namespace eval Httpd {
 	    dict set r -received [clock microseconds]
 	    dict set r -transaction [incr transaction]
 	    dict set r -sock $socket
-
+	    
 	    # unpack the header line
 	    set header [lindex $lines 0]
 	    dict set r -method [string toupper [lindex $header 0]]
