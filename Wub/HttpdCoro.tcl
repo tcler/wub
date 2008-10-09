@@ -82,13 +82,13 @@ namespace eval Httpd {
     }
 
     proc sname {} {
-	return [namespace tail [infoCoroutine]]
+	return [namespace tail [info coroutine]]
     }
 
     # indicate EOF and shut down socket and reader
     proc EOF {{reason ""}} {
 	set socket [sname]
-	Debug.HttpdCoro "[infoCoroutine] EOF: '$socket' ($reason)"
+	Debug.HttpdCoro "[info coroutine] EOF: '$socket' ($reason)"
 
 	# forget whatever higher level connection info
 	upvar \#1 cid cid
@@ -103,16 +103,16 @@ namespace eval Httpd {
 	# report EOF to consumer
 	upvar \#1 consumer consumer
 	if {[info commands $consumer] eq ""} {
-	    Debug.HttpdCoro {reader [infoCoroutine]: consumer gone on EOF}
+	    Debug.HttpdCoro {reader [info coroutine]: consumer gone on EOF}
 	} elseif {[catch {
 	    after 1 [list $consumer [list EOF $reason]]
-	    Debug.HttpdCoro {reader [infoCoroutine]: informed $consumer of EOF}
+	    Debug.HttpdCoro {reader [info coroutine]: informed $consumer of EOF}
 	} e eo]} {
-	    Debug.error {reader [infoCoroutine]: consumer error on EOF $e ($eo)}
+	    Debug.error {reader [info coroutine]: consumer error on EOF $e ($eo)}
 	}
 
 	# destroy reader - that's all she wrote
-	Debug.HttpdCoro {reader [infoCoroutine]: suicide on EOF}
+	Debug.HttpdCoro {reader [info coroutine]: suicide on EOF}
 	#after 1 [list rename ::Httpd::$socket {}]	;# that's all she wrote
 	error EOF	;# the error should percolate to top level and terminate coro
     }
@@ -323,22 +323,22 @@ namespace eval Httpd {
 
 	set time $timeout
 	while {1} {
-	    Debug.HttpdCoro {coro [infoCoroutine] yielding}
+	    Debug.HttpdCoro {coro [info coroutine] yielding}
 	    if {$time > 0} {
 		lappend timer [after $time $socket [list $socket TIMEOUT]]	;# set new timer
-		Debug.HttpdCoro {timer '[infoCoroutine]' $timer}
+		Debug.HttpdCoro {timer '[info coroutine]' $timer}
 	    }
 
 	    # wait for an event
 	    set args [lassign [::yield $retval] op]; set retval ""
-	    Debug.HttpdCoro {yield '[infoCoroutine]' ($retval) -> $op ($args)}
+	    Debug.HttpdCoro {yield '[info coroutine]' ($retval) -> $op ($args)}
 
 	    # cancel all outstanding timers for this coro
 	    foreach t $timer {
 		catch {
 		    after cancel $t	;# cancel old timer
 		} e eo
-		Debug.HttpdCoro {cancel '[infoCoroutine]' $t - $e ($eo)}
+		Debug.HttpdCoro {cancel '[info coroutine]' $t - $e ($eo)}
 	    }
 	    set timer {}
 
@@ -392,9 +392,9 @@ namespace eval Httpd {
 		    # we've timed out - oops
 		    lappend status EOF
 		    if {[catch {
-			$consumer [list TIMEOUT [infoCoroutine]]
+			$consumer [list TIMEOUT [info coroutine]]
 		    }] && [info commands $consumer] eq ""} {
-			Debug.HttpdCoro {reader [infoCoroutine]: consumer error or gone on EOF}
+			Debug.HttpdCoro {reader [info coroutine]: consumer error or gone on EOF}
 			return -code return
 		    }
 		    set time -1
@@ -500,7 +500,7 @@ namespace eval Httpd {
     }
 
     variable reader {
-	Debug.HttpdCoro {create reader [infoCoroutine] - $args}
+	Debug.HttpdCoro {create reader [info coroutine] - $args}
 
 	# unpack all the passed-in args
 	set replies {}	;# dict of replies pending
@@ -520,7 +520,7 @@ namespace eval Httpd {
 	    set lines {}
 	    while {$headering} {
 		set line [get $socket HEADER]
-		Debug.HttpdCoro {reader [infoCoroutine] got line: ($line)}
+		Debug.HttpdCoro {reader [info coroutine] got line: ($line)}
 		if {[string trim $line] eq ""} {
 		    # rfc2616 4.1: In the interest of robustness,
 		    # servers SHOULD ignore any empty line(s)
@@ -814,10 +814,10 @@ namespace eval Httpd {
 	    if {[info commands $consumer] ne {}} {
 		# deliver the assembled request to the consumer
 		after 1 $consumer [list [list INCOMING $r]]
-		Debug.HttpdCoro {reader [infoCoroutine]: sent to consumer, waiting for next}
+		Debug.HttpdCoro {reader [info coroutine]: sent to consumer, waiting for next}
 	    } else {
 		# the consumer has gone away
-		Debug.HttpdCoro {reader [infoCoroutine]: consumer gone $consumer}
+		Debug.HttpdCoro {reader [info coroutine]: consumer gone $consumer}
 		EOF CONSUMER	;# terminate this coro
 	    }
 	}
@@ -845,7 +845,7 @@ namespace eval Httpd {
 	set retval ""
 	while {1} {
 	    set args [lassign [::yield $retval] op]
-	    Debug.HttpdCoro {consumer [infoCoroutine] got: $op $args}
+	    Debug.HttpdCoro {consumer [info coroutine] got: $op $args}
 	    switch -- $op {
 		TIMEOUT -
 		EOF {
@@ -893,7 +893,7 @@ namespace eval Httpd {
 		    if {[catch {
 			$reader [list SEND $rsp]
 		    } e eo]} {
-			Debug.error {sending error [infoCoroutine] via $reader: $e ($eo)} 1
+			Debug.error {sending error [info coroutine] via $reader: $e ($eo)} 1
 		    }
 		}
 	    }
