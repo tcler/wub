@@ -113,8 +113,8 @@ namespace eval Httpd {
 
 	# destroy reader - that's all she wrote
 	Debug.HttpdCoro {reader [infoCoroutine]: suicide on EOF}
-	after 1 [list rename ::Httpd::$socket {}]	;# that's all she wrote
-	error EOF
+	#after 1 [list rename ::Httpd::$socket {}]	;# that's all she wrote
+	error EOF	;# the error should percolate to top level and terminate coro
     }
 
     # readable - make socket readable
@@ -148,7 +148,7 @@ namespace eval Httpd {
 	    # but we defer closing the socket until all pending transmission's complete
 	    upvar \#1 status status
 	    lappend status CLOSING
-	    readable CLOSING
+	    readable CLOSING	;# ignore future input
 	}
 
 	return $close
@@ -164,6 +164,8 @@ namespace eval Httpd {
 
     # we have been told we can write a reply
     proc write {r cache} {
+	set close 0	;# by default, don't close
+
 	upvar \#1 generation generation
 	if {[dict exists $r -suspend]} {
 	    return 0	;# this reply has been suspended anyway
@@ -227,7 +229,7 @@ namespace eval Httpd {
 	foreach next [lsort -integer [dict keys $replies]] {
 	    if {[eof $socket]} {
 		Debug.HttpdCoro {Lost connection on transmit}
-		return TX
+		return 1
 	    }
 
 	    # ensure we don't send responses out of sequence
@@ -274,13 +276,12 @@ namespace eval Httpd {
 
 		if {$close} {
 		    chan flush $socket	;# no, really, send it all
-		    close $socket	;# now close it and let the fileevent announce
-		    return CLOSED
+		    return 1
 		}
 	    }
 	}
 	chan flush $socket	;# no, really, send it all
-	return ""
+	return $close
     }
 
     # send --
@@ -303,11 +304,16 @@ namespace eval Httpd {
 	    } else {
 		Debug.error {FAILED send '$close' ($eo)}
 	    }
-	    return ERROR
+	    set close 1
 	} else {
 	    Debug.socket {SENT (close: $close)'} 10
-	    return $close
 	}
+
+	if {$close} {
+	    catch {close [sname]}	;# now close it and let the fileevent announce
+	}
+
+	return $close
     }
 
     # yield wrapper with command dispatcher
@@ -398,14 +404,11 @@ namespace eval Httpd {
     }
 
     # handle - handle a protocol error
-    proc handle {req} {
-	Debug.error {handle: ([rdump $req])}
+    proc handle {req reason "Error"} {
+	Debug.error {handle $reason: ([rdump $req])}
 	set socket [sname]
 	
 	# we have an error, so we're going to try to reply then die.
-	readable closing	;# suspend reading - junk whatever's read
-	# must keep socket readable to detect close, but will chuck anything read.
-
 	upvar \#1 transaction transaction generation generation status
 	lappend status ERROR
 	if {[catch {
@@ -416,12 +419,16 @@ namespace eval Httpd {
 	    dict set req -generation $generation
 
 	    # send a response to client
-	    send $req	;# queue up error response
+	    set closed [send $req]	;# queue up error response
 	} r eo]} {
 	    dict append req -error "(handler '$r' ($eo))"
 	    Debug.error {'handle' error: '$r' ($eo)}
 	}
-	while {1} yield	;# just process events until we're killed
+
+	if {!$closed} {
+	    catch {close $socket}
+	}
+	error $reason	;# this should percolate to the top, terminating the socket
     }
 
     proc get {socket {reason ""}} {
@@ -430,8 +437,7 @@ namespace eval Httpd {
 	while {[chan gets $socket line] == -1 && ![chan eof $socket]} {
 	    set result [yield]
 	    if {$maxline && [chan pending input $socket] > $maxline} {
-		handle [Http Bad $request "Line too long"]
-		return -code return
+		handle [Http Bad $request "Line too long"] "Line too long"
 	    }
 	}
 	
@@ -486,7 +492,7 @@ namespace eval Httpd {
 		if {$maxfield
 		    && [string length [dict get $r $key]] > $maxfield
 		} {
-		    handle [Http Bad $request "Illegal header: '$line'"]
+		    handle [Http Bad $request "Illegal header: '$line'"] "Illegal Header"
 		}
 	    }
 	}
@@ -540,7 +546,7 @@ namespace eval Httpd {
 		CONNECT {
 		    # stop the bastard SMTP spammers
 		    Block block [dict get $r -ipaddr] "CONNECT method"
-		    handle [Http NotImplemented $r "Spider Service"]
+		    handle [Http NotImplemented $r "Connect Method"] "CONNECT method"
 		}
 
 		GET - PUT - POST - HEAD {}
@@ -548,7 +554,7 @@ namespace eval Httpd {
 		default {
 		    # Could check for and service FTP requestuests, etc, here...
 		    dict set r -error_line $line
-		    handle [Http Bad $r "Method unsupported '[lindex $header 0]'" 405]
+		    handle [Http Bad $r "Method unsupported '[lindex $header 0]'" 405] "Method Unsupported"
 		}
 	    }
 
@@ -561,7 +567,7 @@ namespace eval Httpd {
 	    variable maxurilen
 	    if {$maxurilen && [string length [dict get $r -uri]] > $maxurilen} {
 		# send a 414 back
-		handle [Http Bad $r "URI too long '[dict get $r -uri]'" 414]
+		handle [Http Bad $r "URI too long '[dict get $r -uri]'" 414] "URI too long"
 	    }
 
 	    if {[string match HTTP/* [dict get $r -version]]} {
@@ -571,7 +577,7 @@ namespace eval Httpd {
 	    # Send 505 for protocol != HTTP/1.0 or HTTP/1.1
 	    if {([dict get $r -version] != 1.1)
 		&& ([dict get $r -version] != 1.0)} {
-		handle [Http Bad $r "HTTP Version '[dict get $r -version]' not supported" 505]
+		handle [Http Bad $r "HTTP Version '[dict get $r -version]' not supported" 505] "Unsupported HTTP Version"
 	    }
 
 	    Debug.HttpdCoro {reader got request: ($r)}
@@ -582,7 +588,7 @@ namespace eval Httpd {
 	    # block spiders by UA
 	    if {[info exists ::spiders([Dict get? $r user-agent])]} {
 		Block block [dict get $r -ipaddr] "spider UA ([Dict get? $r user-agent])"
-		handle [Http NotImplemented $r "Spider Service"]
+		handle [Http NotImplemented $r "Spider Service"] "Spider"
 	    }
 
 	    # analyse the user agent strings.
@@ -590,12 +596,15 @@ namespace eval Httpd {
 
 	    # check the incoming ip for blockage
 	    if {[Block blocked? [Dict get? $r -ipaddr]]} {
-		handle [Http Forbidden $r]
+		handle [Http Forbidden $r] Forbidden
 	    } elseif {[Honeypot guard r]} {
 		# check the incoming ip for bot detection
 		# this is a bot - reply directly to it
-		send $req	;# queue up error response
-		continue
+		if {[send $req]} {	;# queue up error response
+		    return
+		} else {
+		    continue
+		}
 	    }
 
 	    # ensure that the client sent a Host: if protocol requires it
@@ -616,7 +625,7 @@ namespace eval Httpd {
 		    set r [dict merge $r [Url parse http://[dict get $r host][dict get $r -uri]]]
 		}
 	    } elseif {[dict get $r -version] > 1.0} {
-		handle [Http Bad $r "HTTP 1.1 required to send Host"]
+		handle [Http Bad $r "HTTP 1.1 required to send Host"] "No Host"
 	    } else {
 		# HTTP 1.0 isn't required to send a Host request but we still need it
 		if {![dict exists $r -host]} {
@@ -669,7 +678,7 @@ namespace eval Httpd {
 		    set tel [string trim $tel]
 		    if {$tel ni $te_encodings} {
 			# can't handle a transfer encoded entity
-			handle [Http NotImplemented $r "$tel transfer encoding"]
+			handle [Http NotImplemented $r "$tel transfer encoding"] "Unimplemented TE"
 			# see 3.6 - 14.41 for transfer-encoding
 			# 4.4.2 If a message is received with both
 			# a Transfer-EncodIing header field
@@ -689,7 +698,7 @@ namespace eval Httpd {
 		
 		# this is a content-length driven entity transfer
 		# 411 Length Required
-		handle [Http Bad $r "Length Required" 411]
+		handle [Http Bad $r "Length Required" 411] "Length Required"
 	    }
 
 	    if {[dict get $r -version] >= 1.1
@@ -723,7 +732,7 @@ namespace eval Httpd {
 		    if {$maxentity > 0
 			&& [string length [dict get $r -entity]] > $maxentity} {
 			# 413 "Request Entity Too Large"
-			handle [Http Bad $r "Request Entity Too Large" 413]
+			handle [Http Bad $r "Request Entity Too Large" 413] "Entity Too Large"
 		    }
 		}
 	    } elseif {[dict exists $r content-length]} {
@@ -733,7 +742,7 @@ namespace eval Httpd {
 		variable maxentity
 		if {$maxentity > 0 && $left > $maxentity} {
 		    # 413 "Request Entity Too Large"
-		    handle [Http Bad $r "Request Entity Too Large" 413]
+		    handle [Http Bad $r "Request Entity Too Large" 413] "Entity Too Large"
 		}
 
 		if {$left == 0} {
@@ -794,8 +803,11 @@ namespace eval Httpd {
 		dict set cached -generation [dict get $r -generation]
 
 		Debug.HttpdCoro {sending cached ([rdump $cached])}
-		send $cached 0
-		continue
+		if {[send $cached 0]} {
+		    return
+		} else {
+		    continue
+		}
 	    }
 
 	    # deliver request to consumer
@@ -849,8 +861,10 @@ namespace eval Httpd {
 		}
 
 		INCOMING {
-		    set r [lindex $args 0]
-		    catch {Responder do $r} rsp eo
+		    set r [lindex $args 0]		;# get the request
+		    catch {Responder do $r} rsp eo	;# process the request
+
+		    # handle response code
 		    switch [dict get $eo -code] {
 			0 -
 			2 { # ok - return
@@ -864,6 +878,7 @@ namespace eval Httpd {
 			}
 		    }
 
+		    # post-process the response
 		    if {[catch {
 			Responder post $rsp
 		    } e eo]} {
@@ -874,6 +889,7 @@ namespace eval Httpd {
 			set rsp $e
 		    }
 
+		    # ask socket coro to send the response for us
 		    if {[catch {
 			$reader [list SEND $rsp]
 		    } e ro]} {
