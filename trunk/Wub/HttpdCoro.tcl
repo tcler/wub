@@ -111,12 +111,10 @@ namespace eval Httpd {
 	    Debug.error {reader [infoCoroutine]: consumer error on EOF $e ($eo)}
 	}
 
-	#kill $consumer
-	kill [infoCoroutine]
-
 	# destroy reader - that's all she wrote
 	Debug.HttpdCoro {reader [infoCoroutine]: suicide on EOF}
-	rename ::Httpd::$socket {}	;# that's all she wrote
+	after 1 [list rename ::Httpd::$socket {}]	;# that's all she wrote
+	error EOF
     }
 
     # readable - make socket readable
@@ -819,37 +817,13 @@ namespace eval Httpd {
     # the consumer has gone - inform the reader
     proc dead_consumer {reader} {
 	Debug.HttpdCoro {dead_consumer $reader}
-	catch {$reader EOF consumer}	;# inform the reader
-
-	# kill the reader
-	if {[catch {rename $reader {}} e eo]} {
-	    Debug.error {renaming $reader error: '$e' ($eo)}
-	}
+	catch {after 1 [list $reader EOF consumer]}	;# inform the reader
     }
 
     # the socket has gone - inform the consumer
     proc dead_socket {consumer} {
 	Debug.HttpdCoro {dead_socket $consumer}
 	catch {after 1 [list $consumer [list EOF socket]]}	;# inform the consumer
-	# kill the consumer
-	if {[catch {rename $consumer {}} e eo]} {
-	    Debug.error {renaming $consumer error: '$e' ($eo)}
-	}
-    }
-
-    # the coro must go
-    proc kill {coro} {
-	Debug.HttpdCoro {kill $coro}
-	if {[info commands $coro] eq {}} {
-	    return
-	}
-	foreach tr [trace info command $coro] {
-	    lassign $tr ops prefix
-	    trace remove command $coro $ops $prefix 
-	}
-	if {[catch {rename $coro {}} e eo]} {
-	    Debug.error {renaming $coro error: '$e' ($eo)}
-	}
     }
 
     # the request consumer
@@ -863,8 +837,7 @@ namespace eval Httpd {
 	    switch -- $op {
 		TIMEOUT -
 		EOF {
-		    #kill $reader	;# kill reader
-		    kill [infoCoroutine];# kill self
+		    return	;# kill self
 		}
 
 		STATS {
