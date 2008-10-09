@@ -361,8 +361,7 @@ namespace eval Httpd {
 		SEND {
 		    # send a response to client
 		    lappend status SEND
-		    set close [send {*}$args]
-		    if {$close ne ""} {
+		    if {[send {*}$args]} {
 			EOF $close
 		    }
 		}
