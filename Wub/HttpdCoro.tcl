@@ -97,7 +97,8 @@ namespace eval Httpd {
 
 	# destroy reader - that's all she wrote
 	Debug.HttpdCoro {reader [info coroutine]: suicide on EOF}
-	return -level [expr {[info level]+1}] EOF	;# terminate coro
+	#return -level [expr {[info level]+1}] EOF	;# terminate coro
+	error EOF
     }
 
     # close? - should we close this connection?
