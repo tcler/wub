@@ -66,28 +66,12 @@ namespace eval Httpd {
 	return [incr uniq]
     }
 
-    # closing - we are closing the connection, or recognising that it's closed.
-    proc closing {sock} {
-	Debug.HttpdCoro "closing: '$sock'"
-	if {[catch {chan eof $sock} r eo] || $r} {
-	    # remote end closed - indicate closure
-	    Debug.error "closing closed: '$r' ($eo)"
-	    ::Httpd::$sock EOF "Remote closed connection"
-	} elseif {[catch {
-	    chan read $sock	;# read and discard input
-	} r eo]} {
-	    Debug.error "trying to close: '$r' ($eo)"
-	    ::Httpd::$sock EOF "error closed connection - $r ($eo)"
-	}
-    }
-
     proc sname {} {
 	return [namespace tail [info coroutine]]
     }
 
     # indicate EOF and shut down socket and reader
     proc EOF {{reason ""}} {
-	set socket [sname]
 	Debug.HttpdCoro "[info coroutine] EOF: '$socket' ($reason)"
 
 	# forget whatever higher level connection info
@@ -96,11 +80,11 @@ namespace eval Httpd {
 	    Debug.error {EOF forget error '$e' ($eo)}
 	}
 
-	# socket has closed while reading
 	# clean up socket
+	set socket [sname]	;# get socket name from coro name
 	catch {close $socket}
 
-	# report EOF to consumer
+	# report EOF to consumer if it's still alive
 	upvar \#1 consumer consumer
 	if {[info commands $consumer] eq ""} {
 	    Debug.HttpdCoro {reader [info coroutine]: consumer gone on EOF}
@@ -113,20 +97,7 @@ namespace eval Httpd {
 
 	# destroy reader - that's all she wrote
 	Debug.HttpdCoro {reader [info coroutine]: suicide on EOF}
-	#after 1 [list rename ::Httpd::$socket {}]	;# that's all she wrote
 	error EOF	;# the error should percolate to top level and terminate coro
-    }
-
-    # readable - make socket readable
-    proc readable {args} {
-	set socket [sname]
-	Debug.HttpdCoro "readable: '$socket' ($args)"
-	if {[catch {
-	    chan event $socket readable [list $socket {*}$args]
-	} r eo]} {
-	    Debug.error "readable: '$r' ($eo)"
-	    EOF "ERROR $r $eo"
-	}
     }
 
     # close? - should we close this connection?
@@ -146,9 +117,10 @@ namespace eval Httpd {
 	if {$close} {
 	    # we're not accepting more input
 	    # but we defer closing the socket until all pending transmission's complete
-	    upvar \#1 status status
+	    upvar \#1 status status closing closing
+	    set closing 1
 	    lappend status CLOSING
-	    readable CLOSING	;# ignore future input
+	    chan event $socket readable [list [info coroutine] CLOSING]
 	}
 
 	return $close
@@ -166,26 +138,21 @@ namespace eval Httpd {
     proc write {r cache} {
 	set close 0	;# by default, don't close
 
-	upvar \#1 generation generation
 	if {[dict exists $r -suspend]} {
 	    return 0	;# this reply has been suspended anyway
 	}
 
-	set socket [sname]
-	upvar \#1 replies replies response response sequence sequence consumer consumer generation generation satisfied satisfied transaction transaction
+	upvar \#1 replies replies response response sequence sequence consumer consumer generation generation satisfied satisfied transaction transaction closing closing unsatisfied unsatisfied
 
-	Debug.HttpdCoro {write ([rdump $r]) satisfied: ($satisfied)}
+	Debug.HttpdCoro {write [info coroutine] ([rdump $r]) satisfied: ($satisfied) unsatisfied: ($unsatisfied)}
 
 	# fetch transaction from the caller's identity
-	if {![dict exists $r -transaction]} {
+	if {![dict exists $r -transaction]
+	    || [dict get $r -generation] != $generation
+	} {
 	    # can't Send reply: no -transaction associated with request
-	    Debug.error {Send discarded: no transaction ($r)}
-	    return 1
-	} elseif {[dict get $r -generation] != $generation} {
-	    # this reply belongs to an older, disconnected Httpd generation.
-	    # we must discard it, because it was directed to a different client!
-	    Debug.error {Send discarded: out of generation '[dict get $r -generation] != $generation' ([rdump $r])}
-	    return 1
+	    Debug.error {Send discarded: no transaction or out of generation ($r)}
+	    return 1	;# close session
 	}
 	set trx [dict get $r -transaction]
 
@@ -195,19 +162,17 @@ namespace eval Httpd {
 	    # this could happen if a dispatcher sends a response,
 	    # then gets an error.
 	    Debug.error {Send discarded: duplicate ([rdump $r])}
-	    return 0
+	    return 0	;# duplicate response - just ignore
 	}
 
-	variable ce_encodings	;# what encodings do we support?
-
 	# wire-format the reply transaction - messy
+	variable ce_encodings	;# what encodings do we support?
 	lassign [Http Send $r -cache $cache -encoding $ce_encodings] r header content empty cache
 	set header "HTTP/1.1 $header" ;# add the HTTP signifier
 
 	# record transaction reply and kick off the responder
 	# response has been collected and is pending output
 	# queue up response for transmission
-	
 	Debug.HttpdCoro {ADD TRANS: $header ([dict keys $replies])}
 
 	# global consequences - botting and caching
@@ -226,62 +191,70 @@ namespace eval Httpd {
 	dict set replies $trx [list $header $content [close? $r] $empty]
 
 	Debug.HttpdCoro {pending to send: [dict keys $replies]}
+	set socket [sname]
 	foreach next [lsort -integer [dict keys $replies]] {
 	    if {[eof $socket]} {
 		Debug.HttpdCoro {Lost connection on transmit}
-		return 1
+		return 1	;# socket's gone - terminate session
 	    }
 
 	    # ensure we don't send responses out of sequence
 	    if {$next != $response} {
 		# something's blocking the response pipeline
 		# we don't have a response for the next transaction.
-
+		
 		# we have to wait until all the preceding transactions
 		# have something to send
 		Debug.HttpdCoro {no pending or $next doesn't follow $response}
 		break
+	    }
+
+	    # only send for unsatisfied requests
+	    if {[dict exists $unsatisfied $trx]} {
+		dict unset unsatisfied $trx
 	    } else {
-		# we're going to respond to the next transaction in trx order
-		# unpack and consume the reply from replies queue
-		lassign [dict get $replies $next] head content close empty
+		Debug.error {Send discarded: uduplicate ([rdump $r])}
+		continue	;# duplicate response - just ignore
+	    }
 
-		# remove this response from the pending response structure
-		set response [expr {1 + $next}]		;# move to next response
-		dict unset replies $next	;# consume next reply
+	    # we're going to respond to the next transaction in trx order
+	    # unpack and consume the reply from replies queue
+	    lassign [dict get $replies $next] head content close empty
 
-		# connection close required?
-		# we only consider closing if all pending requests
-		# have been satisfied.
-		if {$close} {
-		    Debug.close {close requested on $socket - sending header}
-		    append head "Connection: close" \r\n	;# send a close just in case
-		    # Once this header's been sent, we're committed to closing
-		}
+	    # remove this response from the pending response structure
+	    set response [expr {1 + $next}]		;# move to next response
+	    dict unset replies $next	;# consume next reply
 
-		# send the header
-		puts -nonewline $socket "$head\r\n"	;# send headers with terminating nl
-		Debug.socket {SENT: $socket $head'} 4
+	    # connection close required?
+	    # we only consider closing if all pending requests
+	    # have been satisfied.
+	    if {$close} {
+		Debug.close {close requested on $socket - sending header}
+		append head "Connection: close" \r\n	;# send a close just in case
+		# Once this header's been sent, we're committed to closing
+	    }
+
+	    # send the header
+	    puts -nonewline $socket "$head\r\n"	;# send headers with terminating nl
+	    Debug.socket {SENT: $socket $head'} 4
 		
-		# send the content/file (if any)
-		# note: we must *not* send a trailing newline, as this
-		# screws up the content-length and confuses the client
-		# which doesn't then pick up the next response
-		# in the pipeline
-		if {!$empty} {
-		    puts -nonewline $socket $content	;# send the content
-		    Debug.socket {SENT BYTES: [string length $content] bytes} 8
-		}
-		dict set satisfied $trx {}
-
-		if {$close} {
-		    chan flush $socket	;# no, really, send it all
-		    return 1
-		}
+	    # send the content/file (if any)
+	    # note: we must *not* send a trailing newline, as this
+	    # screws up the content-length and confuses the client
+	    # which doesn't then pick up the next response
+	    # in the pipeline
+	    if {!$empty} {
+		puts -nonewline $socket $content	;# send the content
+		Debug.socket {SENT BYTES: [string length $content] bytes} 8
+	    }
+	    dict set satisfied $trx {}
+	    
+	    if {$close} {
+		return 1	;# terminate session on request
 	    }
 	}
-	chan flush $socket	;# no, really, send it all
-	return $close
+
+	return 0
     }
 
     # send --
@@ -299,21 +272,18 @@ namespace eval Httpd {
 	    # send all pending responses, ensuring we don't send out of sequence
 	    write $r $cache
 	} close eo]} {
-	    if {[dict get $eo -errorcode] eq {POSIX EPIPE {broken pipe}}} {
-		Debug.error {premature disconnect send '$close' ($eo)}
-	    } else {
-		Debug.error {FAILED send '$close' ($eo)}
-	    }
+	    Debug.error {FAILED send '$close' ($eo)}
 	    set close 1
 	} else {
 	    Debug.socket {SENT (close: $close)'} 10
 	}
 
+	# deal with socket
+	set socket [sname]
+	chan flush $socket	;# no, really, send it all
 	if {$close} {
-	    catch {close [sname]}	;# now close it and let the fileevent announce
+	    EOF closed
 	}
-
-	return $close
     }
 
     # yield wrapper with command dispatcher
@@ -324,14 +294,6 @@ namespace eval Httpd {
 	set time $timeout
 	while {1} {
 	    Debug.HttpdCoro {coro [info coroutine] yielding}
-	    if {$time > 0} {
-		lappend timer [after $time $socket [list $socket TIMEOUT]]	;# set new timer
-		Debug.HttpdCoro {timer '[info coroutine]' $timer}
-	    }
-
-	    # wait for an event
-	    set args [lassign [::yield $retval] op]; set retval ""
-	    Debug.HttpdCoro {yield '[info coroutine]' ($retval) -> $op ($args)}
 
 	    # cancel all outstanding timers for this coro
 	    foreach t $timer {
@@ -340,7 +302,18 @@ namespace eval Httpd {
 		} e eo
 		Debug.HttpdCoro {cancel '[info coroutine]' $t - $e ($eo)}
 	    }
-	    set timer {}
+
+	    # start new timer
+	    if {$time > 0} {
+		# set new timer
+		set timer [after $time $socket [list [info coroutine] TIMEOUT]]	;# set new timer
+		Debug.HttpdCoro {timer '[info coroutine]' $timer}
+	    }
+
+	    # unpack event
+	    set args [lassign [::yield $retval] op]; set retval ""
+	    lappend status $op
+	    Debug.HttpdCoro {yield '[info coroutine]' ($retval) -> $op}
 
 	    # dispatch on command
 	    switch -- [string toupper $op] {
@@ -354,49 +327,51 @@ namespace eval Httpd {
 
 		READ {
 		    # this can only happen in the reader coro
-		    lappend status READ
 		    return $args
 		}
 
-		SEND {
-		    # send a response to client
-		    lappend status SEND
-		    if {[send {*}$args]} {
-			EOF closed
-		    }
-		}
-
-		EOF {
-		    # we've been informed that we're closed
-		    lappend status EOF
-		    EOF {*}$args
-		}
-
 		CLOSING {
-		    # we're kind of half-closed
+		    # we're half-closed
 		    # we won't accept any more input but we want to send
 		    # all pending responses
-		    
-		    lappend status EOF
 		    if {[catch {chan eof $socket} res] || $res} {
 			# remote end closed - just forget it
 			EOF "error closed connection - $r ($eo)"
 		    } elseif {[catch {chan read $socket} r eo]} {
 			Debug.error "trying to close: '$r' ($eo)"
 			EOF "error closed connection - $r ($eo)"
+		    } elseif {[dict size unsatisfied] == 0} {
+			# consumer has completed all the SENDing we need to do
+			Debug.HttpdCoro {finally closing [info coroutine]}
+			return -level [info level]
 		    }
 		}
-		
+
+		SEND {
+		    # send a response to client on behalf of consumer
+		    set retval [send {*}$args]
+		}
+
+		EOF {
+		    # we've been informed that the socket closed
+		    EOF {*}$args
+		}
+
+		DEAD {
+		    # we've been informed that the consumer has died
+		    EOF {*}$args
+		}
+
 		TIMEOUT {
 		    # we've timed out - oops
-		    lappend status EOF
+		    after cancel $timer	;# cancel old timer
 		    if {[catch {
 			$consumer [list TIMEOUT [info coroutine]]
 		    }] && [info commands $consumer] eq ""} {
 			Debug.HttpdCoro {reader [info coroutine]: consumer error or gone on EOF}
-			return -code return
+			EOF TIMEOUT
 		    }
-		    set time -1
+		    set time -1	;# no more timeouts
 		}
 	    }
 	}
@@ -405,10 +380,9 @@ namespace eval Httpd {
     # handle - handle a protocol error
     proc handle {req reason "Error"} {
 	Debug.error {handle $reason: ([rdump $req])}
-	set socket [sname]
 	
 	# we have an error, so we're going to try to reply then die.
-	upvar \#1 transaction transaction generation generation status status
+	upvar \#1 transaction transaction generation generation status status closing closing
 	lappend status ERROR
 	if {[catch {
 	    dict set req connection close	;# we want to close this connection
@@ -418,16 +392,17 @@ namespace eval Httpd {
 	    dict set req -generation $generation
 
 	    # send a response to client
-	    set closed [send $req]	;# queue up error response
+	    send $req	;# queue up error response
 	} r eo]} {
 	    dict append req -error "(handler '$r' ($eo))"
 	    Debug.error {'handle' error: '$r' ($eo)}
 	}
 
-	if {!$closed} {
-	    catch {close $socket}
-	}
-	error $reason	;# this should percolate to the top, terminating the socket
+	# return directly to event handler to process SEND and STATUS
+	set socket [sname]
+	set closing 1
+	chan event $socket readable [list [info coroutine] CLOSING]
+	return -level [expr {[info level] - 1}]	;# return to the top coro level
     }
 
     proc get {socket {reason ""}} {
@@ -440,12 +415,13 @@ namespace eval Httpd {
 	    }
 	}
 	
-	if {![chan eof $socket]} {
-	    Debug.HttpdCoro {get: '$line' [chan blocked $socket] [chan eof $socket]}
-	    return $line
+	if {[chan eof $socket]} {
+	    EOF $reason
 	}
 
-	EOF $reason
+	# return the line
+	Debug.HttpdCoro {get: '$line' [chan blocked $socket] [chan eof $socket]}
+	return $line
     }
 
     proc read {socket size} {
@@ -458,13 +434,13 @@ namespace eval Httpd {
 	    append chunk $chunklet
 	}
 
-	# return the chunk
-	if {![chan eof $socket]} {
-	    Debug.HttpdCoro {read: '$chunk'}
-	    return $chunk
+	if {[chan eof $socket]} {
+	    EOF ENTITY
 	}
 
-	EOF ENTITY
+	# return the chunk
+	Debug.HttpdCoro {read: '$chunk'}
+	return $chunk
     }
 
     proc parse {lines} {
@@ -495,6 +471,7 @@ namespace eval Httpd {
 		}
 	    }
 	}
+
 	return $r
     }
 
@@ -503,6 +480,7 @@ namespace eval Httpd {
 
 	# unpack all the passed-in args
 	set replies {}	;# dict of replies pending
+	set requests {}	;# dict of requests unsatisfied
 	set satisfied {};# dict of requests satisfied
 	set response 1	;# which is the next response to send?
 	set sequence -1	;# which is the next response to queue?
@@ -511,6 +489,7 @@ namespace eval Httpd {
 	set timer {}	;# collection of active timers
 	set transaction 0	;# count of incoming requests
 	set status INIT	;# record transitions
+	set closing 0	;# flag that we want to close
 
 	# keep receiving input requests
 	while {1} {
@@ -546,6 +525,7 @@ namespace eval Httpd {
 		    # stop the bastard SMTP spammers
 		    Block block [dict get $r -ipaddr] "CONNECT method"
 		    handle [Http NotImplemented $r "Connect Method"] "CONNECT method"
+		    continue
 		}
 
 		GET - PUT - POST - HEAD {}
@@ -554,6 +534,7 @@ namespace eval Httpd {
 		    # Could check for and service FTP requestuests, etc, here...
 		    dict set r -error_line $line
 		    handle [Http Bad $r "Method unsupported '[lindex $header 0]'" 405] "Method Unsupported"
+		    continue
 		}
 	    }
 
@@ -567,6 +548,7 @@ namespace eval Httpd {
 	    if {$maxurilen && [string length [dict get $r -uri]] > $maxurilen} {
 		# send a 414 back
 		handle [Http Bad $r "URI too long '[dict get $r -uri]'" 414] "URI too long"
+		continue
 	    }
 
 	    if {[string match HTTP/* [dict get $r -version]]} {
@@ -577,6 +559,7 @@ namespace eval Httpd {
 	    if {([dict get $r -version] != 1.1)
 		&& ([dict get $r -version] != 1.0)} {
 		handle [Http Bad $r "HTTP Version '[dict get $r -version]' not supported" 505] "Unsupported HTTP Version"
+		continue
 	    }
 
 	    Debug.HttpdCoro {reader got request: ($r)}
@@ -588,6 +571,7 @@ namespace eval Httpd {
 	    if {[info exists ::spiders([Dict get? $r user-agent])]} {
 		Block block [dict get $r -ipaddr] "spider UA ([Dict get? $r user-agent])"
 		handle [Http NotImplemented $r "Spider Service"] "Spider"
+		continue
 	    }
 
 	    # analyse the user agent strings.
@@ -596,14 +580,12 @@ namespace eval Httpd {
 	    # check the incoming ip for blockage
 	    if {[Block blocked? [Dict get? $r -ipaddr]]} {
 		handle [Http Forbidden $r] Forbidden
+		continue
 	    } elseif {[Honeypot guard r]} {
 		# check the incoming ip for bot detection
 		# this is a bot - reply directly to it
-		if {[send $req]} {	;# queue up error response
-		    return
-		} else {
-		    continue
-		}
+		send $r		;# queue up error response
+		continue
 	    }
 
 	    # ensure that the client sent a Host: if protocol requires it
@@ -625,6 +607,7 @@ namespace eval Httpd {
 		}
 	    } elseif {[dict get $r -version] > 1.0} {
 		handle [Http Bad $r "HTTP 1.1 required to send Host"] "No Host"
+		continue
 	    } else {
 		# HTTP 1.0 isn't required to send a Host request but we still need it
 		if {![dict exists $r -host]} {
@@ -678,6 +661,7 @@ namespace eval Httpd {
 		    if {$tel ni $te_encodings} {
 			# can't handle a transfer encoded entity
 			handle [Http NotImplemented $r "$tel transfer encoding"] "Unimplemented TE"
+			continue
 			# see 3.6 - 14.41 for transfer-encoding
 			# 4.4.2 If a message is received with both
 			# a Transfer-EncodIing header field
@@ -698,6 +682,7 @@ namespace eval Httpd {
 		# this is a content-length driven entity transfer
 		# 411 Length Required
 		handle [Http Bad $r "Length Required" 411] "Length Required"
+		continue
 	    }
 
 	    if {[dict get $r -version] >= 1.1
@@ -732,6 +717,7 @@ namespace eval Httpd {
 			&& [string length [dict get $r -entity]] > $maxentity} {
 			# 413 "Request Entity Too Large"
 			handle [Http Bad $r "Request Entity Too Large" 413] "Entity Too Large"
+			continue
 		    }
 		}
 	    } elseif {[dict exists $r content-length]} {
@@ -742,6 +728,7 @@ namespace eval Httpd {
 		if {$maxentity > 0 && $left > $maxentity} {
 		    # 413 "Request Entity Too Large"
 		    handle [Http Bad $r "Request Entity Too Large" 413] "Entity Too Large"
+		    continue
 		}
 
 		if {$left == 0} {
@@ -802,40 +789,28 @@ namespace eval Httpd {
 		dict set cached -generation [dict get $r -generation]
 
 		Debug.HttpdCoro {sending cached ([rdump $cached])}
-		if {[send $cached 0]} {
-		    return
-		} else {
-		    continue
-		}
+		send $cached 0	;# send cached response directly
+		continue
 	    }
 
 	    # deliver request to consumer
 	    if {[info commands $consumer] ne {}} {
 		# deliver the assembled request to the consumer
-		after 1 $consumer [list [list INCOMING $r]]
+		dict set unsatisfied [dict get $r -transaction] {}
+		after 1 [list $consumer [list INCOMING $r]]
 		Debug.HttpdCoro {reader [info coroutine]: sent to consumer, waiting for next}
 	    } else {
 		# the consumer has gone away
 		Debug.HttpdCoro {reader [info coroutine]: consumer gone $consumer}
-		EOF CONSUMER	;# terminate this coro
+		lappend status DOA
+		set closing 1
+		chan event $socket readable [list [info coroutine] CLOSING]
 	    }
 	}
     }
 
     proc disconnect {args} {}
     proc disassociate {args} {}
-
-    # the consumer has gone - inform the reader
-    proc dead_consumer {reader} {
-	Debug.HttpdCoro {dead_consumer $reader}
-	$reader {EOF consumer}		;# inform the reader
-    }
-
-    # the socket has gone - inform the consumer
-    proc dead_socket {consumer} {
-	Debug.HttpdCoro {dead_socket $consumer}
-	$consumer {EOF socket}	;# inform the consumer
-    }
 
     # the request consumer
     variable consumer {
@@ -847,8 +822,9 @@ namespace eval Httpd {
 	    Debug.HttpdCoro {consumer [info coroutine] got: $op $args}
 	    switch -- $op {
 		TIMEOUT -
+		DEAD -
 		EOF {
-		    return	;# kill self
+		    return	;# kill self by returning
 		}
 
 		STATS {
@@ -931,8 +907,8 @@ namespace eval Httpd {
 	set result [coroutine $R ::apply [list args $reader ::Httpd] socket $socket timeout $rxtimeout consumer $cr prototype $request generation $gen cid $cid]
 
 	# ensure there's a cleaner for this connection's coros
-	trace add command $cr delete [namespace code [list dead_consumer $R]]
-	trace add command $R delete [namespace code [list dead_socket $cr]]
+	trace add command $cr delete [list $R DEAD $cr]
+	trace add command $R delete [list $cr DEAD $R]
 
 	# start the ball rolling
 	chan event $socket readable [list $R READ]
