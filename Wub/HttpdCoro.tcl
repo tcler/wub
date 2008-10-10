@@ -117,7 +117,7 @@ namespace eval Httpd {
 	if {$close} {
 	    # we're not accepting more input
 	    # but we defer closing the socket until all pending transmission's complete
-	    upvar \#1 status status closing closing
+	    upvar \#1 status status closing closing socket socket
 	    set closing 1
 	    lappend status CLOSING
 	    chan event $socket readable [list [info coroutine] CLOSING]
