@@ -340,7 +340,7 @@ namespace eval Httpd {
 		    } elseif {[catch {chan read $socket} r eo]} {
 			Debug.error "trying to close: '$r' ($eo)"
 			EOF "error closed connection - $r ($eo)"
-		    } elseif {[dict size unsatisfied] == 0} {
+		    } elseif {[dict size $unsatisfied] == 0} {
 			# consumer has completed all the SENDing we need to do
 			Debug.HttpdCoro {finally closing [info coroutine]}
 			return -level [info level]
