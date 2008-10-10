@@ -788,6 +788,7 @@ namespace eval Httpd {
 		# reply from cache
 		dict set cached -transaction [dict get $r -transaction]
 		dict set cached -generation [dict get $r -generation]
+		dict set unsatisfied [dict get $cached -transaction] {}
 
 		Debug.HttpdCoro {sending cached ([rdump $cached])}
 		send $cached 0	;# send cached response directly
