@@ -872,6 +872,7 @@ namespace eval Httpd {
 			$reader [list SEND $rsp]
 		    } e eo]} {
 			Debug.error {sending error [info coroutine] via $reader: $e ($eo)} 1
+			return
 		    }
 		}
 	    }
