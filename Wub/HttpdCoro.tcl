@@ -482,6 +482,7 @@ namespace eval Httpd {
 	set replies {}	;# dict of replies pending
 	set requests {}	;# dict of requests unsatisfied
 	set satisfied {};# dict of requests satisfied
+	set unsatisfied {} ;# dict of requests unsatisfied
 	set response 1	;# which is the next response to send?
 	set sequence -1	;# which is the next response to queue?
 	set writing 0	;# we're not writing yet
