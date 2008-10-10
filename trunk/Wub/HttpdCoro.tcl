@@ -289,7 +289,7 @@ namespace eval Httpd {
     # yield wrapper with command dispatcher
     proc yield {{retval ""}} {
 	set socket [sname]
-	upvar \#1 timer timer timeout timeout cmd cmd consumer consumer status status
+	upvar \#1 timer timer timeout timeout cmd cmd consumer consumer status status unsatisfied unsatisfied
 
 	set time $timeout
 	while {1} {
