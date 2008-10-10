@@ -72,7 +72,7 @@ namespace eval Httpd {
 
     # indicate EOF and shut down socket and reader
     proc EOF {{reason ""}} {
-	Debug.HttpdCoro "[info coroutine] EOF: '$socket' ($reason)"
+	Debug.HttpdCoro {[info coroutine] EOF: ($reason)}
 
 	# forget whatever higher level connection info
 	upvar \#1 cid cid
