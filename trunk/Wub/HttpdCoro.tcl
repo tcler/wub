@@ -335,10 +335,14 @@ namespace eval Httpd {
 	    # unpack event
 	    set args [lassign [::yield $retval] op]; set retval ""
 	    lappend status $op
-	    Debug.HttpdCoro {yield '[info coroutine]' ($retval) -> $op}
+	    Debug.HttpdCoro {yield '[info coroutine]' -> $op}
 
 	    # dispatch on command
 	    switch -- [string toupper $op] {
+		TEST {
+		    set retval OK
+		}
+
 		STATS {
 		    set retval {}
 		    foreach x [uplevel \#1 {info locals}] {
@@ -848,6 +852,10 @@ namespace eval Httpd {
 		    return	;# kill self by returning
 		}
 
+		TEST {
+		    set retval OK
+		}
+
 		STATS {
 		    set retval {}
 		    foreach x [uplevel \#1 {info locals}] {
@@ -939,6 +947,17 @@ namespace eval Httpd {
 	# start the ball rolling
 	chan event $socket readable [list $R READ]
 
+	return $result
+    }
+
+    proc corotest {} {
+	set result {}
+	foreach coro [info commands ::Httpd::sock*] {
+	    lappend result $coro [$coro TEST]
+	}
+	foreach coro [info commands ::Httpd::CO_*] {
+	    lappend result $coro [$coro TEST]
+	}
 	return $result
     }
 
