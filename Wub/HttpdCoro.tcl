@@ -396,7 +396,7 @@ namespace eval Httpd {
     }
 
     # handle - handle a protocol error
-    proc handle {req reason "Error"} {
+    proc handle {req {reason "Error"}} {
 	Debug.error {handle $reason: ([rdump $req])}
 	
 	# we have an error, so we're going to try to reply then die.
