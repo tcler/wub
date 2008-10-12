@@ -858,6 +858,7 @@ namespace eval Httpd {
 
 		INCOMING {
 		    set r [lindex $args 0]		;# get the request
+		    set r [Cookies 4Server $r]		;# process cookies
 		    catch {Responder do $r} rsp eo	;# process the request
 
 		    # handle response code
