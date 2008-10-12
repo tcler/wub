@@ -889,8 +889,11 @@ namespace eval Httpd {
 		    # ask socket coro to send the response for us
 		    if {[catch {
 			$reader [list SEND $rsp]
-		    } e eo] || $e eq "EOF"} {
+		    } e eo]} {
 			Debug.error {[info coroutine] sending terminated via $reader: $e ($eo)} 1
+			return
+		    } elseif {$e eq "EOF"} {
+			Debug.HttpdCoro {[info coroutine] sending terminated via $reader: $e} 1
 			return
 		    }
 		}
