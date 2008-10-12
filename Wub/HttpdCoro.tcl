@@ -104,7 +104,7 @@ namespace eval Httpd {
 	if {[info commands $consumer] eq ""} {
 	    Debug.HttpdCoro {reader [info coroutine]: consumer gone on EOF}
 	} elseif {[catch {
-	    after 1 [list $consumer [list EOF $reason]]
+	    after 1 [list catch [list $consumer [list EOF $reason]]]
 	    Debug.HttpdCoro {reader [info coroutine]: informed $consumer of EOF}
 	} e eo]} {
 	    Debug.error {reader [info coroutine]: consumer error on EOF $e ($eo)}
