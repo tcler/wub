@@ -70,22 +70,37 @@ namespace eval Httpd {
 	return [namespace tail [info coroutine]]
     }
 
+    # wrapper for chan ops - alert on errors
+    proc chan {args} {
+	set code [catch {uplevel 1 ::chan $args} e eo]
+	if {$code} {
+	    if {[info coroutine] ne ""} {
+		Debug.HttpdCoro {[info coroutine]: chan error $code - $e ($eo)}
+		EOF $e	;# clean up and close
+	    } else {
+		Debug.error {chan error $code - $e ($eo)}
+	    }
+	} else {
+	    return $e
+	}
+    }
+    
     # indicate EOF and shut down socket and reader
     proc EOF {{reason ""}} {
 	Debug.HttpdCoro {[info coroutine] EOF: ($reason)}
 
 	# forget whatever higher level connection info
-	upvar \#1 cid cid
+	upvar \#1 cid cid socket socket consumer consumer
 	if {[catch {forget $cid} e eo]} {
 	    Debug.error {EOF forget error '$e' ($eo)}
 	}
 
-	# clean up socket
-	set socket [sname]	;# get socket name from coro name
-	catch {close $socket}
+	# clean up socket - the only point where we close
+	if {![catch {::chan eof $socket} r] && !$r} {
+	    ::chan close $socket
+	}
 
 	# report EOF to consumer if it's still alive
-	upvar \#1 consumer consumer
 	if {[info commands $consumer] eq ""} {
 	    Debug.HttpdCoro {reader [info coroutine]: consumer gone on EOF}
 	} elseif {[catch {
@@ -97,8 +112,8 @@ namespace eval Httpd {
 
 	# destroy reader - that's all she wrote
 	Debug.HttpdCoro {reader [info coroutine]: suicide on EOF}
-	#return -level [expr {[info level]+1}] EOF	;# terminate coro
-	error EOF
+	return -level [info level] EOF	;# terminate coro
+	#error EOF
     }
 
     # close? - should we close this connection?
@@ -107,19 +122,20 @@ namespace eval Httpd {
 	set close [expr {[dict get $r -version] < 1.1}]
 	Debug.HttpdCoro {version [dict get $r -version] implies close=$close}
 
-	# handle 'connection: close' indication
+	# handle 'connection: close' request from client
 	foreach ct [split [Dict get? $r connection] ,] {
 	    if {[string tolower [string trim $ct]] eq "close"} {
 		Debug.close {Tagging close at connection:close request}
 		set close 1
+		break	;# don't need to keep going
 	    }
 	}
 
 	if {$close} {
 	    # we're not accepting more input
-	    # but we defer closing the socket until all pending transmission's complete
+	    # but defer closing the socket until all pending transmission's complete
 	    upvar \#1 status status closing closing socket socket
-	    set closing 1
+	    set closing 1	;# flag the closure
 	    lappend status CLOSING
 	    chan event $socket readable [list [info coroutine] CLOSING]
 	}
@@ -143,7 +159,7 @@ namespace eval Httpd {
 	    return 0	;# this reply has been suspended anyway
 	}
 
-	upvar \#1 replies replies response response sequence sequence consumer consumer generation generation satisfied satisfied transaction transaction closing closing unsatisfied unsatisfied
+	upvar \#1 replies replies response response sequence sequence consumer consumer generation generation satisfied satisfied transaction transaction closing closing unsatisfied unsatisfied socket socket
 
 	Debug.HttpdCoro {write [info coroutine] ([rdump $r]) satisfied: ($satisfied) unsatisfied: ($unsatisfied)}
 
@@ -192,9 +208,9 @@ namespace eval Httpd {
 	dict set replies $trx [list $header $content [close? $r] $empty]
 
 	Debug.HttpdCoro {pending to send: [dict keys $replies]}
-	set socket [sname]
 	foreach next [lsort -integer [dict keys $replies]] {
-	    if {[eof $socket]} {
+	    if {[chan eof $socket]} {
+		# detect socket closure ASAP in sending
 		Debug.HttpdCoro {Lost connection on transmit}
 		return 1	;# socket's gone - terminate session
 	    }
@@ -202,9 +218,8 @@ namespace eval Httpd {
 	    # ensure we don't send responses out of sequence
 	    if {$next != $response} {
 		# something's blocking the response pipeline
-		# we don't have a response for the next transaction.
-		
-		# we have to wait until all the preceding transactions
+		# so we don't have a response for the next transaction.
+		# we must therefore wait until all the preceding transactions
 		# have something to send
 		Debug.HttpdCoro {no pending or $next doesn't follow $response}
 		break
@@ -212,7 +227,7 @@ namespace eval Httpd {
 
 	    # only send for unsatisfied requests
 	    if {[dict exists $unsatisfied $trx]} {
-		dict unset unsatisfied $trx
+		dict unset unsatisfied $trx	;# completely forget this
 	    } else {
 		Debug.error {Send discarded: uduplicate ([rdump $r])}
 		continue	;# duplicate response - just ignore
@@ -223,8 +238,8 @@ namespace eval Httpd {
 	    lassign [dict get $replies $next] head content close empty
 
 	    # remove this response from the pending response structure
-	    set response [expr {1 + $next}]		;# move to next response
-	    dict unset replies $next	;# consume next reply
+	    set response [expr {1 + $next}]	;# move to next response
+	    dict unset replies $next		;# consume next response
 
 	    # connection close required?
 	    # we only consider closing if all pending requests
@@ -235,21 +250,23 @@ namespace eval Httpd {
 		# Once this header's been sent, we're committed to closing
 	    }
 
-	    # send the header
-	    puts -nonewline $socket "$head\r\n"	;# send headers with terminating nl
-	    Debug.socket {SENT: $socket $head'} 4
-		
+	    # send headers with terminating nl
+	    chan puts -nonewline $socket "$head\r\n"
+	    chan flush $socket
+	    Debug.socket {SENT HEADER: $socket $head'} 4
+
 	    # send the content/file (if any)
 	    # note: we must *not* send a trailing newline, as this
 	    # screws up the content-length and confuses the client
 	    # which doesn't then pick up the next response
 	    # in the pipeline
 	    if {!$empty} {
-		puts -nonewline $socket $content	;# send the content
-		Debug.socket {SENT BYTES: [string length $content] bytes} 8
+		chan puts -nonewline $socket $content	;# send the content
+		chan flush $socket
+		Debug.socket {SENT ENTITY: [string length $content] bytes} 8
 	    }
 	    dict set satisfied $trx {}
-	    
+
 	    if {$close} {
 		return 1	;# terminate session on request
 	    }
@@ -280,8 +297,7 @@ namespace eval Httpd {
 	}
 
 	# deal with socket
-	set socket [sname]
-	chan flush $socket	;# no, really, send it all
+	chan flush [sname]	;# no, really, send it all
 	if {$close} {
 	    EOF closed
 	}
@@ -289,8 +305,7 @@ namespace eval Httpd {
 
     # yield wrapper with command dispatcher
     proc yield {{retval ""}} {
-	set socket [sname]
-	upvar \#1 timer timer timeout timeout cmd cmd consumer consumer status status unsatisfied unsatisfied
+	upvar \#1 timer timer timeout timeout cmd cmd consumer consumer status status unsatisfied unsatisfied socket socket
 
 	set time $timeout
 	while {1} {
@@ -309,6 +324,12 @@ namespace eval Httpd {
 		# set new timer
 		set timer [after $time $socket [list [info coroutine] TIMEOUT]]	;# set new timer
 		Debug.HttpdCoro {timer '[info coroutine]' $timer}
+	    }
+
+	    # check the channel
+	    if {[chan eof $socket]} {
+		Debug.HttpdCoro {[info coroutine] eof detected from yield}
+		EOF
 	    }
 
 	    # unpack event
@@ -335,15 +356,11 @@ namespace eval Httpd {
 		    # we're half-closed
 		    # we won't accept any more input but we want to send
 		    # all pending responses
-		    if {[catch {chan eof $socket} res] || $res} {
+		    if {[chan eof $socket]} {
 			# remote end closed - just forget it
 			EOF "error closed connection - $r ($eo)"
-		    } elseif {[catch {chan read $socket} r eo]} {
-			Debug.error "trying to close: '$r' ($eo)"
-			EOF "error closed connection - $r ($eo)"
-		    } elseif {[dict size $unsatisfied] == 0} {
-			# consumer has completed all the SENDing we need to do
-			Debug.HttpdCoro {finally closing [info coroutine]}
+		    } else {
+			chan read $socket
 			return -level [info level]
 		    }
 		}
@@ -383,7 +400,7 @@ namespace eval Httpd {
 	Debug.error {handle $reason: ([rdump $req])}
 	
 	# we have an error, so we're going to try to reply then die.
-	upvar \#1 transaction transaction generation generation status status closing closing
+	upvar \#1 transaction transaction generation generation status status closing closing socket socket
 	lappend status ERROR
 	if {[catch {
 	    dict set req connection close	;# we want to close this connection
@@ -400,24 +417,25 @@ namespace eval Httpd {
 	}
 
 	# return directly to event handler to process SEND and STATUS
-	set socket [sname]
 	set closing 1
 	chan event $socket readable [list [info coroutine] CLOSING]
+	Debug.error {'handle' closing}
 	return -level [expr {[info level] - 1}]	;# return to the top coro level
     }
 
     proc get {socket {reason ""}} {
-	set result [yield]
 	variable maxline
+	set result [yield]
+	set line ""
 	while {[chan gets $socket line] == -1 && ![chan eof $socket]} {
 	    set result [yield]
 	    if {$maxline && [chan pending input $socket] > $maxline} {
 		handle [Http Bad $request "Line too long"] "Line too long"
 	    }
 	}
-	
+
 	if {[chan eof $socket]} {
-	    EOF $reason
+	    EOF $reason	;# check the socket for closure
 	}
 
 	# return the line
@@ -434,11 +452,11 @@ namespace eval Httpd {
 	    incr size -[string length $chunklet]
 	    append chunk $chunklet
 	}
-
+	
 	if {[chan eof $socket]} {
-	    EOF ENTITY
+	    EOF ENTITY	;# check the socket for closure
 	}
-
+	
 	# return the chunk
 	Debug.HttpdCoro {read: '$chunk'}
 	return $chunk
@@ -783,14 +801,14 @@ namespace eval Httpd {
 	    lappend forwards [dict get $r -ipaddr]
 	    dict set r -forwards $forwards
 	    dict set r -ipaddr [lindex $forwards 0]
-
+	    
 	    # check Cache for match
 	    if {[dict size [set cached [Cache check $r]]] > 0} {
 		# reply from cache
 		dict set cached -transaction [dict get $r -transaction]
 		dict set cached -generation [dict get $r -generation]
 		dict set unsatisfied [dict get $cached -transaction] {}
-
+		
 		Debug.HttpdCoro {sending cached ([rdump $cached])}
 		send $cached 0	;# send cached response directly
 		continue
@@ -850,7 +868,7 @@ namespace eval Httpd {
 				set rsp [Http Ok $rsp]
 			    }
 			}
-			
+
 			1 { # error
 			    set rsp [Http ServerError $r $rsp $eo]
 			}
@@ -870,8 +888,8 @@ namespace eval Httpd {
 		    # ask socket coro to send the response for us
 		    if {[catch {
 			$reader [list SEND $rsp]
-		    } e eo]} {
-			Debug.error {sending error [info coroutine] via $reader: $e ($eo)} 1
+		    } e eo] || $e eq "EOF"} {
+			Debug.error {[info coroutine] sending terminated via $reader: $e ($eo)} 1
 			return
 		    }
 		}
