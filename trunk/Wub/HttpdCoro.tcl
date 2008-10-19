@@ -92,9 +92,7 @@ namespace eval Httpd {
 	}
 
 	# clean up socket - the only point where we close
-	if {![catch {::chan eof $socket} r] && !$r} {
-	    ::chan close $socket
-	}
+	chan close $socket
 
 	# report EOF to consumer if it's still alive
 	if {[info commands $consumer] eq ""} {
