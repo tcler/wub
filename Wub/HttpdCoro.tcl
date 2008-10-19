@@ -118,7 +118,7 @@ namespace eval Httpd {
 
     # close? - should we close this connection?
     proc close? {r} {
-	# don't honour 1.0 keep-alives
+	# don't honour 1.0 keep-alives - why?
 	set close [expr {[dict get $r -version] < 1.1}]
 	Debug.HttpdCoro {version [dict get $r -version] implies close=$close}
 
@@ -153,13 +153,16 @@ namespace eval Httpd {
 
     # we have been told we can write a reply
     proc write {r cache} {
-	set close 0	;# by default, don't close
+	upvar \#1 replies replies response response sequence sequence consumer consumer generation generation satisfied satisfied transaction transaction closing closing unsatisfied unsatisfied socket socket
 
-	if {[dict exists $r -suspend]} {
-	    return 0	;# this reply has been suspended anyway
+	if {$closing && ![dict size $unsatisfied]} {
+	    # we have no more requests to satisfy and we want to close
+	    EOF "finally close"
 	}
 
-	upvar \#1 replies replies response response sequence sequence consumer consumer generation generation satisfied satisfied transaction transaction closing closing unsatisfied unsatisfied socket socket
+	if {[dict exists $r -suspend]} {
+	    return 0	;# this reply has been suspended - we haven't got it yet
+	}
 
 	Debug.HttpdCoro {write [info coroutine] ([rdump $r]) satisfied: ($satisfied) unsatisfied: ($unsatisfied)}
 
@@ -187,26 +190,27 @@ namespace eval Httpd {
 	lassign [Http Send $r -cache $cache -encoding $ce_encodings] r header content empty cache
 	set header "HTTP/1.1 $header" ;# add the HTTP signifier
 
-	# record transaction reply and kick off the responder
-	# response has been collected and is pending output
-	# queue up response for transmission
-	Debug.HttpdCoro {ADD TRANS: $header ([dict keys $replies])}
-
 	# global consequences - botting and caching
 	if {![Honeypot newbot? $r] && $cache} {
 	    # handle caching (under no circumstances cache bot replies)
+	    Debug.HttpdCoro {Cache put: $header}
 	    Cache put $r	;# cache it before it's sent
 	}
 
-	# queue new response for sending
-	# response is broken down into
+	# record transaction reply and kick off the responder
+	# response has been collected and is pending output
+	# queue up response for transmission
+	#
+	# response is broken down into:
 	# header - formatted to go down the line in crlf mode
 	# content - content to go down the line in binary mode
 	# close? - is the connection to be closed after this response?
 	# chunked? - is the content to be sent in chunked mode?
 	# empty? - is there actually no content, as distinct from 0-length content?
+	Debug.HttpdCoro {ADD TRANS: $header ([dict keys $replies])}
 	dict set replies $trx [list $header $content [close? $r] $empty]
 
+	# send all responses in sequence from the next expected to the last available
 	Debug.HttpdCoro {pending to send: [dict keys $replies]}
 	foreach next [lsort -integer [dict keys $replies]] {
 	    if {[chan eof $socket]} {
@@ -222,29 +226,29 @@ namespace eval Httpd {
 		# we must therefore wait until all the preceding transactions
 		# have something to send
 		Debug.HttpdCoro {no pending or $next doesn't follow $response}
-		break
+		return 0
 	    }
 
 	    # only send for unsatisfied requests
 	    if {[dict exists $unsatisfied $trx]} {
-		dict unset unsatisfied $trx	;# completely forget this
+		dict unset unsatisfied $trx	;# forget the unsatisfied status
 	    } else {
 		Debug.error {Send discarded: uduplicate ([rdump $r])}
 		continue	;# duplicate response - just ignore
 	    }
 
-	    # we're going to respond to the next transaction in trx order
+	    # respond to the next transaction in trx order
 	    # unpack and consume the reply from replies queue
-	    lassign [dict get $replies $next] head content close empty
-
 	    # remove this response from the pending response structure
-	    set response [expr {1 + $next}]	;# move to next response
+	    lassign [dict get $replies $next] head content close empty
 	    dict unset replies $next		;# consume next response
+	    set response [expr {1 + $next}]	;# move to next response
 
 	    # connection close required?
-	    # we only consider closing if all pending requests
+	    # NB: we only consider closing if all pending requests
 	    # have been satisfied.
 	    if {$close} {
+		# inform client of intention to close
 		Debug.close {close requested on $socket - sending header}
 		append head "Connection: close" \r\n	;# send a close just in case
 		# Once this header's been sent, we're committed to closing
@@ -252,20 +256,19 @@ namespace eval Httpd {
 
 	    # send headers with terminating nl
 	    chan puts -nonewline $socket "$head\r\n"
-	    chan flush $socket
-	    Debug.socket {SENT HEADER: $socket $head'} 4
+	    Debug.HttpdCoro {SENT HEADER: $socket $head'} 4
 
-	    # send the content/file (if any)
+	    # send the content/entity (if any)
 	    # note: we must *not* send a trailing newline, as this
 	    # screws up the content-length and confuses the client
 	    # which doesn't then pick up the next response
 	    # in the pipeline
 	    if {!$empty} {
 		chan puts -nonewline $socket $content	;# send the content
-		chan flush $socket
-		Debug.socket {SENT ENTITY: [string length $content] bytes} 8
+		Debug.HttpdCoro {SENT ENTITY: [string length $content] bytes} 8
 	    }
-	    dict set satisfied $trx {}
+	    chan flush $socket
+	    dict set satisfied $trx {}	`;# record satisfaction of transaction
 
 	    if {$close} {
 		return 1	;# terminate session on request
@@ -293,11 +296,10 @@ namespace eval Httpd {
 	    Debug.error {FAILED send '$close' ($eo)}
 	    set close 1
 	} else {
-	    Debug.socket {SENT (close: $close)'} 10
+	    Debug.HttpdCoro {SENT (close: $close)'} 10
 	}
 
 	# deal with socket
-	chan flush [sname]	;# no, really, send it all
 	if {$close} {
 	    EOF closed
 	}
@@ -326,12 +328,6 @@ namespace eval Httpd {
 		Debug.HttpdCoro {timer '[info coroutine]' $timer}
 	    }
 
-	    # check the channel
-	    if {[chan eof $socket]} {
-		Debug.HttpdCoro {[info coroutine] eof detected from yield}
-		EOF
-	    }
-
 	    # unpack event
 	    set args [lassign [::yield $retval] op]; set retval ""
 	    lappend status $op
@@ -353,7 +349,13 @@ namespace eval Httpd {
 
 		READ {
 		    # this can only happen in the reader coro
-		    return $args
+		    # check the channel
+		    if {[chan eof $socket]} {
+			Debug.HttpdCoro {[info coroutine] eof detected from yield}
+			EOF "closed on reading"
+		    } else {
+			return $args
+		    }
 		}
 
 		CLOSING {
@@ -364,8 +366,8 @@ namespace eval Httpd {
 			# remote end closed - just forget it
 			EOF "error closed connection - $r ($eo)"
 		    } else {
+			# just read incoming data
 			chan read $socket
-			return -level [info level]
 		    }
 		}
 
@@ -387,13 +389,19 @@ namespace eval Httpd {
 		TIMEOUT {
 		    # we've timed out - oops
 		    after cancel $timer	;# cancel old timer
-		    if {[catch {
-			$consumer [list TIMEOUT [info coroutine]]
-		    }] && [info commands $consumer] eq ""} {
+		    if {[info commands $consumer] eq ""} {
 			Debug.HttpdCoro {reader [info coroutine]: consumer error or gone on EOF}
+			EOF TIMEOUT
+		    } elseif {[catch {
+			$consumer [list TIMEOUT [info coroutine]]
+		    } e eo]} {
+			Debug.HttpdCoro {[info coroutine]: consumer error $e ($eo)}
 			EOF TIMEOUT
 		    }
 		    set time -1	;# no more timeouts
+		}
+		default {
+		    error "[info coroutine]: Unknown op $op $args"
 		}
 	    }
 	}
