@@ -84,7 +84,7 @@ namespace eval Httpd {
 	    return $e
 	}
     }
-    
+
     # indicate EOF and shut down socket and reader
     proc EOF {{reason ""}} {
 	Debug.HttpdCoro {[info coroutine] EOF: ($reason)}
@@ -410,7 +410,7 @@ namespace eval Httpd {
     # handle - handle a protocol error
     proc handle {req {reason "Error"}} {
 	Debug.error {handle $reason: ([rdump $req])}
-	
+
 	# we have an error, so we're going to try to reply then die.
 	upvar \#1 transaction transaction generation generation status status closing closing socket socket
 	lappend status ERROR
@@ -548,7 +548,7 @@ namespace eval Httpd {
 	    dict set r -received [clock microseconds]
 	    dict set r -transaction [incr transaction]
 	    dict set r -sock $socket
-	    
+
 	    # unpack the header line
 	    set header [lindex $lines 0]
 	    dict set r -method [string toupper [lindex $header 0]]
@@ -742,7 +742,7 @@ namespace eval Httpd {
 		    Debug.HttpdCoro {Chunk: $chunksize ($chunk)}
 		    get $socket CHUNK
 		    dict append r -entity $chunk
-		    
+
 		    # enforce server limits on Entity length
 		    variable maxentity
 		    if {$maxentity > 0
@@ -820,7 +820,7 @@ namespace eval Httpd {
 		dict set cached -transaction [dict get $r -transaction]
 		dict set cached -generation [dict get $r -generation]
 		dict set unsatisfied [dict get $cached -transaction] {}
-		
+
 		Debug.HttpdCoro {sending cached ([rdump $cached])}
 		send $cached 0	;# send cached response directly
 		continue
