@@ -66,10 +66,6 @@ namespace eval Httpd {
 	return [incr uniq]
     }
 
-    proc sname {} {
-	return [namespace tail [info coroutine]]
-    }
-
     # wrapper for chan ops - alert on errors
     proc chan {args} {
 	set code [catch {uplevel 1 ::chan $args} e eo]
@@ -167,9 +163,7 @@ namespace eval Httpd {
 	Debug.HttpdCoro {write [info coroutine] ([rdump $r]) satisfied: ($satisfied) unsatisfied: ($unsatisfied)}
 
 	# fetch transaction from the caller's identity
-	if {![dict exists $r -transaction]
-	    || [dict get $r -generation] != $generation
-	} {
+	if {![dict exists $r -transaction] || [dict get $r -generation] != $generation} {
 	    # can't Send reply: no -transaction associated with request
 	    Debug.error {Send discarded: no transaction or out of generation ($r)}
 	    return 1	;# close session
@@ -400,6 +394,7 @@ namespace eval Httpd {
 		    }
 		    set time -1	;# no more timeouts
 		}
+
 		default {
 		    error "[info coroutine]: Unknown op $op $args"
 		}
@@ -431,10 +426,12 @@ namespace eval Httpd {
 	# return directly to event handler to process SEND and STATUS
 	set closing 1
 	chan event $socket readable [list [info coroutine] CLOSING]
+
 	Debug.error {'handle' closing}
 	return -level [expr {[info level] - 1}]	;# return to the top coro level
     }
 
+    # coroutine-enabled gets
     proc get {socket {reason ""}} {
 	variable maxline
 	set result [yield]
@@ -455,6 +452,7 @@ namespace eval Httpd {
 	return $line
     }
 
+    # coroutine-enabled read
     proc read {socket size} {
 	# read a chunk of $size bytes
 	set chunk ""
@@ -557,7 +555,6 @@ namespace eval Httpd {
 		    # stop the bastard SMTP spammers
 		    Block block [dict get $r -ipaddr] "CONNECT method"
 		    handle [Http NotImplemented $r "Connect Method"] "CONNECT method"
-		    continue
 		}
 
 		GET - PUT - POST - HEAD {}
@@ -566,7 +563,6 @@ namespace eval Httpd {
 		    # Could check for and service FTP requestuests, etc, here...
 		    dict set r -error_line $line
 		    handle [Http Bad $r "Method unsupported '[lindex $header 0]'" 405] "Method Unsupported"
-		    continue
 		}
 	    }
 
@@ -580,7 +576,6 @@ namespace eval Httpd {
 	    if {$maxurilen && [string length [dict get $r -uri]] > $maxurilen} {
 		# send a 414 back
 		handle [Http Bad $r "URI too long '[dict get $r -uri]'" 414] "URI too long"
-		continue
 	    }
 
 	    if {[string match HTTP/* [dict get $r -version]]} {
@@ -591,7 +586,6 @@ namespace eval Httpd {
 	    if {([dict get $r -version] != 1.1)
 		&& ([dict get $r -version] != 1.0)} {
 		handle [Http Bad $r "HTTP Version '[dict get $r -version]' not supported" 505] "Unsupported HTTP Version"
-		continue
 	    }
 
 	    Debug.HttpdCoro {reader got request: ($r)}
@@ -603,7 +597,6 @@ namespace eval Httpd {
 	    if {[info exists ::spiders([Dict get? $r user-agent])]} {
 		Block block [dict get $r -ipaddr] "spider UA ([Dict get? $r user-agent])"
 		handle [Http NotImplemented $r "Spider Service"] "Spider"
-		continue
 	    }
 
 	    # analyse the user agent strings.
@@ -612,7 +605,6 @@ namespace eval Httpd {
 	    # check the incoming ip for blockage
 	    if {[Block blocked? [Dict get? $r -ipaddr]]} {
 		handle [Http Forbidden $r] Forbidden
-		continue
 	    } elseif {[Honeypot guard r]} {
 		# check the incoming ip for bot detection
 		# this is a bot - reply directly to it
@@ -639,7 +631,6 @@ namespace eval Httpd {
 		}
 	    } elseif {[dict get $r -version] > 1.0} {
 		handle [Http Bad $r "HTTP 1.1 required to send Host"] "No Host"
-		continue
 	    } else {
 		# HTTP 1.0 isn't required to send a Host request but we still need it
 		if {![dict exists $r -host]} {
@@ -714,7 +705,6 @@ namespace eval Httpd {
 		# this is a content-length driven entity transfer
 		# 411 Length Required
 		handle [Http Bad $r "Length Required" 411] "Length Required"
-		continue
 	    }
 
 	    if {[dict get $r -version] >= 1.1
@@ -749,7 +739,6 @@ namespace eval Httpd {
 			&& [string length [dict get $r -entity]] > $maxentity} {
 			# 413 "Request Entity Too Large"
 			handle [Http Bad $r "Request Entity Too Large" 413] "Entity Too Large"
-			continue
 		    }
 		}
 	    } elseif {[dict exists $r content-length]} {
@@ -760,7 +749,6 @@ namespace eval Httpd {
 		if {$maxentity > 0 && $left > $maxentity} {
 		    # 413 "Request Entity Too Large"
 		    handle [Http Bad $r "Request Entity Too Large" 413] "Entity Too Large"
-		    continue
 		}
 
 		if {$left == 0} {
