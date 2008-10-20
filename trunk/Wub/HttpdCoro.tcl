@@ -325,6 +325,14 @@ namespace eval Httpd {
 	    lappend status $op
 	    Debug.HttpdCoro {yield '[info coroutine]' -> $op}
 
+	    # cancel all outstanding timers for this coro
+	    foreach t $timer {
+		catch {
+		    after cancel $t	;# cancel old timer
+		} e eo
+		Debug.HttpdCoro {cancel '[info coroutine]' $t - $e ($eo)}
+	    }
+
 	    # dispatch on command
 	    switch -- [string toupper $op] {
 		TEST {
