@@ -47,7 +47,7 @@ namespace eval Httpd {
     variable enttime 10000	;# entity inter-read timeout
 
     # timeout - by default none
-    variable rxtimeout -1
+    variable rxtimeout 60000
 
     # arrange gzip Transfer Encoding
     if {![catch {package require zlib}]} {
