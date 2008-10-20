@@ -88,6 +88,57 @@ proc namecheck {name} {
     }
 }
 
+proc corovars {args} {
+    foreach n $args {lappend v $n $n}
+    uplevel 1 [list upvar #1 {*}$v]
+}
+
+proc cmdSplit {body} {
+    set commands {}
+    set chunk ""
+    foreach line [split $body "\n"] {
+        append chunk $line
+        if {[info complete "$chunk\n"]} {
+            # $chunk ends in a complete Tcl command, and none of the
+            # newlines within it end a complete Tcl command.  If there
+            # are multiple Tcl commands in $chunk, they must be
+            # separated by semi-colons.
+            set cmd ""
+            foreach part [split $chunk ";"] {
+                append cmd $part
+                if {[info complete "$cmd\n"]} {
+                    set cmd [string trimleft $cmd]
+                    # Drop empty commands and comments
+                    if {![string match {} $cmd] \
+                            && ![string match \#* $cmd]} {
+                        lappend commands $cmd
+                    }
+                    if {[string match \#* $cmd]} {
+                        set cmd "\#;"
+                    } else {
+                        set cmd ""
+                    }
+                } else {
+                    # No complete command yet.
+                    # Replace semicolon and continue
+                    append cmd ";"
+                }
+            }    
+            set chunk ""
+        } else {
+            # No end of command yet.  Put the newline back and continue
+            append chunk "\n"
+        }
+    }
+    if {![string match {} [string trimright $chunk]]} {
+        return -code error "Can't parse body into a\
+                sequence of commands.\n\tIncomplete\
+                command:\n-----\n$chunk\n-----"
+    }
+    return $commands
+}
+
+
 # Calls an instance method for an object given its
 # instance namespace and remaining arguments (the first of which
 # will be the method name.
