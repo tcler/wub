@@ -86,7 +86,7 @@ namespace eval Httpd {
 	Debug.HttpdCoro {[info coroutine] EOF: ($reason)}
 
 	# forget whatever higher level connection info
-	upvar \#1 cid cid socket socket consumer consumer timer
+	upvar \#1 cid cid socket socket consumer consumer timer timer
 
 	# cancel all outstanding timers for this coro
 	foreach t $timer {
@@ -257,7 +257,7 @@ namespace eval Httpd {
 
 	    # send headers with terminating nl
 	    chan puts -nonewline $socket "$head\r\n"
-	    Debug.HttpdCoro {SENT HEADER: $socket $head'} 4
+	    Debug.HttpdCoro {SENT HEADER: $socket $head} 4
 
 	    # send the content/entity (if any)
 	    # note: we must *not* send a trailing newline, as this
@@ -294,10 +294,10 @@ namespace eval Httpd {
 	    # send all pending responses, ensuring we don't send out of sequence
 	    write $r $cache
 	} close eo]} {
-	    Debug.error {FAILED send '$close' ($eo)}
+	    Debug.error {FAILED send $close ($eo)}
 	    set close 1
 	} else {
-	    Debug.HttpdCoro {SENT (close: $close)'} 10
+	    Debug.HttpdCoro {SENT (close: $close)} 10
 	}
 
 	# deal with socket
