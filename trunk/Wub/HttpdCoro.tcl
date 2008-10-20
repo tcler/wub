@@ -86,7 +86,7 @@ namespace eval Httpd {
 	Debug.HttpdCoro {[info coroutine] EOF: ($reason)}
 
 	# forget whatever higher level connection info
-	upvar \#1 cid cid socket socket consumer consumer timer timer
+	corovars cid socket consumer timer
 
 	# cancel all outstanding timers for this coro
 	foreach t $timer {
@@ -137,7 +137,7 @@ namespace eval Httpd {
 	if {$close} {
 	    # we're not accepting more input
 	    # but defer closing the socket until all pending transmission's complete
-	    upvar \#1 status status closing closing socket socket
+	    corovars status closing socket
 	    set closing 1	;# flag the closure
 	    lappend status CLOSING
 	    chan event $socket readable [list [info coroutine] CLOSING]
@@ -156,7 +156,7 @@ namespace eval Httpd {
 
     # we have been told we can write a reply
     proc write {r cache} {
-	upvar \#1 replies replies response response sequence sequence consumer consumer generation generation satisfied satisfied transaction transaction closing closing unsatisfied unsatisfied socket socket
+	corovars replies response sequence consumer generation satisfied transaction closing unsatisfied socket
 
 	if {$closing && ![dict size $unsatisfied]} {
 	    # we have no more requests to satisfy and we want to close
@@ -308,7 +308,7 @@ namespace eval Httpd {
 
     # yield wrapper with command dispatcher
     proc yield {{retval ""}} {
-	upvar \#1 timer timer timeout timeout cmd cmd consumer consumer status status unsatisfied unsatisfied socket socket
+	corovars timer timeout cmd consumer status unsatisfied socket
 
 	set time $timeout
 	while {1} {
@@ -325,7 +325,7 @@ namespace eval Httpd {
 	    # start new timer
 	    if {$time > 0} {
 		# set new timer
-		set timer [after $time $socket [list [info coroutine] TIMEOUT]]	;# set new timer
+		set timer [after $time $socket [list catch [list [info coroutine] TIMEOUT]]]	;# set new timer
 		Debug.HttpdCoro {timer [info coroutine] $timer}
 	    }
 
@@ -422,7 +422,7 @@ namespace eval Httpd {
 	Debug.error {handle $reason: ([rdump $req])}
 
 	# we have an error, so we're going to try to reply then die.
-	upvar \#1 transaction transaction generation generation status status closing closing socket socket
+	corovars transaction generation status closing socket
 	lappend status ERROR
 	if {[catch {
 	    dict set req connection close	;# we want to close this connection
