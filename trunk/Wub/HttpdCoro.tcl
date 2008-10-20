@@ -86,7 +86,16 @@ namespace eval Httpd {
 	Debug.HttpdCoro {[info coroutine] EOF: ($reason)}
 
 	# forget whatever higher level connection info
-	upvar \#1 cid cid socket socket consumer consumer
+	upvar \#1 cid cid socket socket consumer consumer timer
+
+	# cancel all outstanding timers for this coro
+	foreach t $timer {
+	    catch {
+		after cancel $t	;# cancel old timer
+	    } e eo
+	    Debug.HttpdCoro {cancel [info coroutine] $t - $e ($eo)}
+	}
+
 	if {[catch {forget $cid} e eo]} {
 	    Debug.error {EOF forget error '$e' ($eo)}
 	}
@@ -260,7 +269,7 @@ namespace eval Httpd {
 		Debug.HttpdCoro {SENT ENTITY: [string length $content] bytes} 8
 	    }
 	    chan flush $socket
-	    dict set satisfied $trx {}	`;# record satisfaction of transaction
+	    dict set satisfied $trx {}	;# record satisfaction of transaction
 
 	    if {$close} {
 		return 1	;# terminate session on request
@@ -310,27 +319,27 @@ namespace eval Httpd {
 		catch {
 		    after cancel $t	;# cancel old timer
 		} e eo
-		Debug.HttpdCoro {cancel '[info coroutine]' $t - $e ($eo)}
+		Debug.HttpdCoro {cancel [info coroutine] $t - $e ($eo)}
 	    }
 
 	    # start new timer
 	    if {$time > 0} {
 		# set new timer
 		set timer [after $time $socket [list [info coroutine] TIMEOUT]]	;# set new timer
-		Debug.HttpdCoro {timer '[info coroutine]' $timer}
+		Debug.HttpdCoro {timer [info coroutine] $timer}
 	    }
 
 	    # unpack event
 	    set args [lassign [::yield $retval] op]; set retval ""
 	    lappend status $op
-	    Debug.HttpdCoro {yield '[info coroutine]' -> $op}
+	    Debug.HttpdCoro {yield [info coroutine] -> $op}
 
 	    # cancel all outstanding timers for this coro
 	    foreach t $timer {
 		catch {
 		    after cancel $t	;# cancel old timer
 		} e eo
-		Debug.HttpdCoro {cancel '[info coroutine]' $t - $e ($eo)}
+		Debug.HttpdCoro {cancel [info coroutine] $t - $e ($eo)}
 	    }
 
 	    # dispatch on command
