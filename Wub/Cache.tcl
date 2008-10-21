@@ -43,7 +43,7 @@ namespace eval Cache {
     # 2: entry and key removed
     # -1: key removed, entry not removed
     proc invalidate {key} {
-	if {$key eq ""} return 0	;# special case - no key
+	if {$key eq ""} {return 0}	;# special case - no key
 
 	Debug.cache {invalidate: $key}
 	variable keys
