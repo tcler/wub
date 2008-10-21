@@ -651,16 +651,18 @@ namespace eval Http {
 	# than Date, Expires, Cache-Control, Vary, Etag, Content-Location
 	set result [dict filter $rsp key -*]
 
-	# tell the other end that this isn't the last word.
-	if {![dict exists $rsp expires]} {
-	    dict set rsp cache-control "must-revalidate"
-	}
-
 	variable rq_headers
 	set result [dict merge $result [Dict subset $rsp $rq_headers]]
 
 	variable notmod_headers
 	set result [dict merge $result [Dict subset $rsp $notmod_headers]]
+
+	# tell the other end that this isn't the last word.
+	if {0 && ![dict exists $result expires]
+	    && ![dict exists $result cache-control]
+	} {
+	    dict set result cache-control "must-revalidate"
+	}
 
 	dict set result -code 304
 	dict set result -rtype NotModified
