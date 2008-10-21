@@ -37,8 +37,13 @@ namespace eval Cache {
 	return [info exists keys($key)]
     }
 
+    # invalidate a cache entry.
+    # 0: no such key
+    # 1: key removed
+    # 2: entry and key removed
+    # -1: key removed, entry not removed
     proc invalidate {key} {
-	if {$key eq ""} return	;# special case - no key
+	if {$key eq ""} return 0	;# special case - no key
 
 	Debug.cache {invalidate: $key}
 	variable keys
@@ -47,18 +52,23 @@ namespace eval Cache {
 	set key [string trim $key \"]	;# remove ridiculous quotes
 	if {[exists? $key]} {
 	    Debug.cache {invalidating $key in '[array names keys]'} 4
-	    set ckey $keys($key)
+	    set ckey $keys($key)	;# get cache key
+	    set result 1	;# indicate key removed
 	    if {[info exists cache($ckey)]} {
+		set result -1
 		dict incr cache($ckey) -refcount -1
 		if {[dict get $cache($ckey) -refcount] <= 0} {
-		    unset cache($ckey)
+		    unset cache($ckey)	;# remove entry
+		    set result 2
 		}
 	    }
-	    unset keys($key)
+	    unset keys($key)	;# remove key
 	    Debug.cache {invalidated '$key'.}
 	    Debug.cache {post-invalidate: [array names keys]} 8
+	    return $result
 	} else {
 	    Debug.cache {invalidate - no such element '$key'.}
+	    return 0
 	}
     }
 
