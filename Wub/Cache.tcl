@@ -43,13 +43,12 @@ namespace eval Cache {
     # 2: entry and key removed
     # -1: key removed, entry not removed
     proc invalidate {key} {
+	set key [string trim $key \"]	;# remove ridiculous quotes
 	if {$key eq ""} {return 0}	;# special case - no key
 
 	Debug.cache {invalidate: $key}
 	variable keys
 	variable cache
-
-	set key [string trim $key \"]	;# remove ridiculous quotes
 	if {[exists? $key]} {
 	    Debug.cache {invalidating $key in '[array names keys]'} 4
 	    set ckey $keys($key)	;# get cache key
@@ -396,7 +395,7 @@ namespace eval Cache {
 
 	    if {$obey_CC && [info exists cc(max-age)]} {
 		# we ignore max_age
-		#set max_age [Http DateInSeconds $cc(max-age)]
+		set max_age [Http DateInSeconds $cc(max-age)]
 	    }
 	}
 
@@ -417,9 +416,11 @@ namespace eval Cache {
 	    return {}
 	}
 
-	# re-state the expiry of this cache entry
-	if {[dict exists $cached expires]} {
-	    dict set req expires [dict get $cached expires]
+	# re-state some fields of cache entry for possible NotModified
+	foreach f {cache-control expires vary content-location} {
+	    if {[dict exists $cached $f]} {
+		dict set req $f [dict get $cached $f]
+	    }
 	}
 
 	# see if we can respond 304
