@@ -326,7 +326,7 @@ namespace eval Convert {
 }
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
-    # this is out of date
+    error "this is out of date"
     lappend auto_path [pwd] [pwd]/stx/
 
     package require Stdin
