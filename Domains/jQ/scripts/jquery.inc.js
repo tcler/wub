@@ -19,10 +19,14 @@ jQuery.fn.inc = function(url, transform, post) {
   var t = $(this);
 
   var transfer = function(txt) {
-   t.html($.isFunction(transform) ? transform(txt) : txt);
-   if (post) {
-    post();
-   }
+      if (transform) {
+	  txt= $.isFunction(transform) ? transform(txt) : txt
+      }
+	  
+      t.html(txt);
+      if ($.isFunction(post)) {
+	  post(tg);
+      }
   };
 
   if ($.browser.msie) {
@@ -52,6 +56,15 @@ jQuery.fn.inc = function(url, transform, post) {
 
 $(function() {
  $('[@class~=inc]').each(function() {
-  $(this).inc(unescape(this.className.replace(/.*inc:([^ ]+)( .*|$)/, '$1')));
+  var arg = unescape(this.className.replace(/.*inc:([^ ]+)( .*|$)/, '$1')).split('#');
+
+  if (arg[1]) {
+      arg[1]=eval(arg[1].replace(/@/g,' '));
+  }
+  if (arg[2]) {
+      arg[2]=eval(arg[2].replace(/@/g,' '));
+  }
+
+  $(this).inc(arg[0], arg[1], arg[2]);
  });
 });
