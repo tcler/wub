@@ -399,13 +399,13 @@ know {[string match <*> [lindex $args 0]]} {
 	set result "@T"
 	foreach {n v} $args {
 	    if {$n eq "class"} {
-		lappend class $v
+		lappend class $v	;# aggregate class args
 	    } else {
 		lappend result "[string trim $n]='[armour [string trim $v]]'"
 	    }
 	}
 	if {$class ne {}} {
-	    lappend result "class='$class'"
+	    lappend result "class='[join $class]'"
 	}
 	return "<[join ${result}]>$content</@T>"
     }]
