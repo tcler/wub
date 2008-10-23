@@ -113,7 +113,7 @@ namespace eval jQ {
 	set script [lindex $args end]
 	set args [lrange $args 0 end-1]
 	return [<script> [string map [list %F [string map $args $script] ] {
-	    $(document).ready(function() {
+	    $(function() {
 		%F
 	    });
 	}]]
@@ -134,13 +134,26 @@ namespace eval jQ {
 	return [scripts $r jquery.js jquery.inc.js]
     }
 
+    proc tc {url {transform ""} {post ""}} {
+	lappend url [string map {" " @ \n @ \t @} $transform]
+	lappend url [string map {" " @ \n @ \t @} $post]
+	
+	return [list class inc:[string trim [join $url "#"] "#"]]
+    }
+
     proc history {r args} {
 	set r [scripts $r jquery.js jquery.history-remote.js]
 	dict lappend r -postload [<script> {
-	    $(document).ready(function() {
+	    $(function() {
 		$.ajaxHistory.initialize();
 	    });
 	}]
+	return $r
+    }
+
+    # arrange for the function in args to be run post-load
+    proc ready {r args} {
+	dict lappend r -postload [::<ready> {*}$args]
 	return $r
     }
 
@@ -151,38 +164,49 @@ namespace eval jQ {
     # order, as a postload.
     # relies upon the script and css capabilities to ensure packages
     # are loaded correctly
+    # scripts - a list of scripts upon which this depends
+    # args - a series of argument/value pairs followed by the script
     proc weave {r scripts args} {
 	#puts stderr "WEAVE: $r"
 	set script [lindex $args end]
 	set args [lrange $args 0 end-1]
+
+	# %prescript is a function to run before the script
 	if {[dict exists $args %prescript]
 	    && [dict get $args %prescript] ne ""
 	} {
 	    set js [dict get $args %prescript]\n
 	}
+
+	# generate the document ready script with %var substitution
 	set script [string map [dict filter $args key %*] $script]
-	append js "\$(document).ready(function()\{\n${script}\n\});"
-	
+	append js "\$(function()\{\n${script}\n\});"
+
+	# allow different loaders to process script
 	switch -- [Dict get? $args loader] {
 	    "" {
+		# run this script in -postload phase
 		set preload -postload
 		set script [<script> $js]
 	    }
 	    google {
+		# the script needs google loader
 		set preload -google
 	    }
 	    default {
+		# select loader in 'loader' arg
 		set preload [dict get $args loader]
 		set script [<script> $js]
 	    }
 	}
-	dict unset args loader
 
+	# append the script to the relevant loader request element
 	if {$script ne ""} {
 	    Debug.jq {WEAVE: $script}
 	    dict lappend r $preload $script
 	}
 
+	# record the style
 	if {[dict exists $args css]} {
 	    set r [style $r {*}[dict get $args css]]
 	}
@@ -275,7 +299,7 @@ namespace eval jQ {
 	    append tabs [<div> id $id \n$content] \n
 	}
 
-	dict append r -content [<div> id $tabid class flora "\n[<ul> \n$index]\n$tabs\n"]
+	dict append r -content [<div> id $tabid class fflora "\n[<ul> \n$index]\n$tabs\n"]
 
 	return $r
     }
@@ -290,11 +314,11 @@ namespace eval jQ {
     }
 
     # http://docs.jquery.com/UI/Resizeables
-    proc resizeable {r selector args} {
+    proc resizable {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.dimensions.js jquery.ui.js
-	} %SEL $selector %OPTS [opts resizeable $args] {
-	    $('%SEL').resizeable(%OPTS);
+	} %SEL $selector %OPTS [opts resizable $args] {
+	    $('%SEL').resizable(%OPTS);
 	}]
     }
 
