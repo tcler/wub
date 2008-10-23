@@ -25,7 +25,7 @@ jQuery.fn.inc = function(url, transform, post) {
 	  
       t.html(txt);
       if ($.isFunction(post)) {
-	  post(tg);
+	  post(t);
       }
   };
 
