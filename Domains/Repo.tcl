@@ -58,7 +58,7 @@ namespace eval Repo {
 		set del [<a> href $name?op=del title "click to delete" [<img> height $icon_size src ${icons}remove.gif]]
 		set del [<form> del$name action $name {
 		    [<hidden> op del]
-		    [<submit> [<img> height $icon_size src ${icons}remove.gif]]
+		    [<submit> submit [<img> height $icon_size src ${icons}remove.gif]]
 		}]
 		dict set files $name [list name $title modified [clock format [file mtime $file] -format $dirtime] size [file size $file] type $type op $del view [<a> href $name?format=plain view]]
 	    }
@@ -78,7 +78,7 @@ namespace eval Repo {
 	append content [<h1> "$title - $doctitle"] \n
 
 	variable dirparams
-	append content [Report html $files {*}$dirparams headers {name type modified size op view}] \n
+	append content [Report html $files {*}$dirparams headers {name type modified size delete view}] \n
 	if {[dict exists $args tar] && [dict get $args tar]} {
 	    append content [<p> "[<a> href [string trimright [dict get $req -path] /] Download] directory as a POSIX tar archive."] \n
 	}
