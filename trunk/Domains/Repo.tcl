@@ -60,7 +60,7 @@ namespace eval Repo {
 		    [<hidden> op del]
 		    [<submit> submit [<img> height $icon_size src ${icons}remove.gif]]
 		}]
-		dict set files $name [list name $title modified [clock format [file mtime $file] -format $dirtime] size [file size $file] type $type op $del view [<a> href $name?format=plain view]]
+		dict set files $name [list name $title modified [clock format [file mtime $file] -format $dirtime] size [file size $file] type $type delete $del view [<a> href $name?format=plain view]]
 	    }
 	}
 
