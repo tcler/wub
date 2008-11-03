@@ -56,6 +56,7 @@ namespace eval Repo {
 		}
 		set title [<a> href $name $name]
 		set del [<a> href $name?op=del title "click to delete" [<img> height $icon_size src ${icons}remove.gif]]
+		set del [<form> del$name {<submit> op [<img> height $icon_size src ${icons}remove.gif]}]
 		dict set files $name [list name $title modified [clock format [file mtime $file] -format $dirtime] size [file size $file] type $type op $del view [<a> href $name?format=plain view]]
 	    }
 	}
