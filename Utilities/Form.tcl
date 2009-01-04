@@ -56,7 +56,7 @@ package provide Form 2.0
 
 namespace eval Form {
     variable Fdefaults [dict create {*}{
-	textarea {compact 0}
+	textarea {-compact 0}
 	form {method post}
 	fieldset {vertical 0}
 	submit {alt Submit}
@@ -78,6 +78,7 @@ namespace eval Form {
 	}
 	set result $T
 	foreach {n v} $args {
+	    if {[string match -* $n]} continue
 	    if {$n in {checked disabled selected}} {
 		if {$v} {
 		    lappend result $n
@@ -271,12 +272,12 @@ namespace eval Form {
 	    set id [dict get $config id]
 	}
 
-	if {[dict exists $config compact]
-	    && [dict get $config compact]
+	if {[dict exists $config -compact]
+	    && [dict get $config -compact]
 	} {
-	    regsub -all {\n[ \t]+} $content \n content
+	    # remove initial spaces from Form
+	    set content [::textutil::untabify2 [::textutil::undent [::textutil::tabify2 $content]]]
 	}
-	set content [::textutil::undent [::textutil::tabify $content]]
 
 	set title {}
 	if {[dict exists $config title]
