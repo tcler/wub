@@ -81,6 +81,27 @@ namespace eval Query {
 	return $string
     }
 
+    # build
+    #
+    #	This encodes a dict in www-url-encoded format.
+    #
+    # Arguments:
+    #	a list of name, value pairs
+    #
+    # Results:
+    #	The encoded value
+
+    proc build {args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	set pairs {}
+	foreach n v $args {
+	    lappend pairs "[encode $n]=[encode $v]"
+	}
+	return [join $pairs &]
+    }
+
     # qparse -- internal parser support
     #
     #	decodes a query string
