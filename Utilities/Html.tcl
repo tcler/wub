@@ -290,6 +290,39 @@ namespace eval Html {
 	return [dict2table [dir2dict [Dict dir $dir $header] $header $footer]]
     }
 
+    variable paMatch {
+	quote "^(\[a-zA-Z0-9:_-]+)\[\ \t]*=\[\ \t]*\[\"](\[^\"]*)\[\"]\[\ \t]*(.*)\$"
+	squote "^(\[a-zA-Z0-9:_-]+)\[\ \t]*=\[\ \t]*\['](\[^']*)\[']\[\ \t]*(.*)\$"
+	uquote "^(\[a-zA-Z0-9:_-]+)\[\ \t]*=\[\ \t]*(\[^\ \t'\"]+)\[\ \t]*(.*)\$ "
+    }
+
+    proc parseAttr {astring} {
+	variable paMatch
+	set attr {}
+	set astring [string trim $astring]
+	if {$astring eq ""} {
+	    return {}
+	}
+
+	#puts stderr "parseAttr: '$astring'"
+
+	while {$astring != ""} {
+	    set org $astring
+	    foreach m {quote squote uquote} {
+		if {[regexp [dict get $paMatch $m] $astring all var val suffix]} {
+		    #puts stderr "parseAttr $m: $var = '$val'"
+		    dict set attr $var $val
+		    set astring [string trimleft $suffix]
+		}
+	    }
+	    if {$astring == $org} {
+		error "parseAttr: can't parse $astring - not a properly formed attribute string"
+	    }
+	}
+	#puts stderr "parseAttr: [array get attr]"
+	return $attr
+    }
+    
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
