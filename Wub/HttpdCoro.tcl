@@ -325,7 +325,7 @@ namespace eval Httpd {
 	    # start new timer
 	    if {$time > 0} {
 		# set new timer
-		set timer [after $time $socket [list catch [list [info coroutine] TIMEOUT]]]	;# set new timer
+		set timer [after $time ::Httpd::$socket [list catch [list [info coroutine] TIMEOUT]]]	;# set new timer
 		Debug.HttpdCoro {timer [info coroutine] $timer}
 	    }
 
