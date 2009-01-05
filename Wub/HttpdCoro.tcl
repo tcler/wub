@@ -983,6 +983,17 @@ namespace eval Httpd {
 	return $result
     }
 
+    proc chans {} {
+	foreach cchan [info commands ::Httpd::sock*] {
+	    set chan [namespace tail $cchan]
+	    catch {
+		list [chan pending input $chan] [chan pending output $chan] [chan blocked $chan] [chan event $chan readable]
+	    } el
+	    lappend result "$chan $el"
+	}
+	return $result
+    }
+
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
