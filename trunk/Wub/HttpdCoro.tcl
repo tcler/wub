@@ -987,7 +987,7 @@ namespace eval Httpd {
 	foreach cchan [info commands ::Httpd::sock*] {
 	    set chan [namespace tail $cchan]
 	    catch {
-		list [chan pending input $chan] [chan pending output $chan] [chan blocked $chan] [chan event $chan readable]
+		list eof [chan eof $chan] input [chan pending input $chan] output [chan pending output $chan] blocked [chan blocked $chan] readable [chan event $chan readable] writable [chan event $chan writable] [chan configure $chan]
 	    } el
 	    lappend result "$chan $el"
 	}
