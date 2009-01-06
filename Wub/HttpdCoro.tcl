@@ -170,9 +170,9 @@ namespace eval Httpd {
 	Debug.HttpdCoro {write [info coroutine] ([rdump $r]) satisfied: ($satisfied) unsatisfied: ($unsatisfied)}
 
 	# fetch transaction from the caller's identity
-	if {![dict exists $r -transaction] || [dict get $r -generation] != $generation} {
+	if {![dict exists $r -transaction]} {
 	    # can't Send reply: no -transaction associated with request
-	    Debug.error {Send discarded: no transaction or out of generation ($r)}
+	    Debug.error {Send discarded: no transaction ($r)}
 	    return 1	;# close session
 	}
 	set trx [dict get $r -transaction]
@@ -289,6 +289,13 @@ namespace eval Httpd {
     #	Possibly close socket
     proc send {r {cache 1}} {
 	Debug.HttpdCoro {send: ([rdump $r]) $cache}
+
+	# check generation
+	corovars generation
+	if {[dict get $r -generation] != $generation} {
+	    Debug.error {Send discarded: out of generation ($r)}
+	    return ERROR	;# report error to caller
+	}
 
 	if {[catch {
 	    # send all pending responses, ensuring we don't send out of sequence
@@ -911,7 +918,7 @@ namespace eval Httpd {
 		    } e eo]} {
 			Debug.error {[info coroutine] sending terminated via $reader: $e ($eo)} 1
 			return
-		    } elseif {$e eq "EOF"} {
+		    } elseif {$e in {EOF ERROR}} {
 			Debug.HttpdCoro {[info coroutine] sending terminated via $reader: $e} 1
 			return
 		    }
