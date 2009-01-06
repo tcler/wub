@@ -405,8 +405,8 @@ namespace eval Httpd {
 			$consumer [list TIMEOUT [info coroutine]]
 		    } e eo]} {
 			Debug.HttpdCoro {[info coroutine]: consumer error $e ($eo)}
-			EOF TIMEOUT
 		    }
+		    EOF TIMEOUT
 		    set time -1	;# no more timeouts
 		}
 
