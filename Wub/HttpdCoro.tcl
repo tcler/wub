@@ -380,7 +380,7 @@ namespace eval Httpd {
 		    # all pending responses
 		    if {[chan eof $socket]} {
 			# remote end closed - just forget it
-			EOF "error closed connection - $r ($eo)"
+			EOF "error closed connection"
 		    } else {
 			# just read incoming data
 			chan read $socket
