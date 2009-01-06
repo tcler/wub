@@ -100,9 +100,6 @@ namespace eval Httpd {
 	    Debug.error {EOF forget error '$e' ($eo)}
 	}
 
-	# clean up socket - the only point where we close
-	chan close $socket
-
 	# report EOF to consumer if it's still alive
 	if {[info commands $consumer] eq ""} {
 	    Debug.HttpdCoro {reader [info coroutine]: consumer gone on EOF}
@@ -112,6 +109,9 @@ namespace eval Httpd {
 	} e eo]} {
 	    Debug.error {reader [info coroutine]: consumer error on EOF $e ($eo)}
 	}
+
+	# clean up socket - the only point where we close
+	chan close $socket
 
 	# destroy reader - that's all she wrote
 	Debug.HttpdCoro {reader [info coroutine]: suicide on EOF}
