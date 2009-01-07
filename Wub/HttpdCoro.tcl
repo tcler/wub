@@ -957,7 +957,8 @@ namespace eval Httpd {
 	    # the consumer seems to be lingering - we have to tell it to die
 	    set cn ::Httpd::CO_DEAD_[uniq]
 	    rename $cr $cn	;# move it out of the way first
-	    after 1 [list catch [list $cn [list EOF "socket's gone"]]]	;# ensure the old consumer's dead
+	    Debug.log {consumer $cr not dead yet, rename to $cn to kill it.}
+	    after 1 [list $cn [list EOF "socket's gone"]]	;# ensure the old consumer's dead
 	}
 	variable consumer; coroutine $cr ::apply [list args $consumer ::Httpd] reader $R
 
