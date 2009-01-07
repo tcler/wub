@@ -72,7 +72,9 @@ namespace eval Httpd {
 	if {$code} {
 	    if {[info coroutine] ne ""} {
 		Debug.HttpdCoro {[info coroutine]: chan error $code - $e ($eo)}
-		EOF $e	;# clean up and close
+		if {[lindex $args 0] ne "close"} {
+		    EOF $e	;# clean up and close unless we're already closing
+		}
 	    } else {
 		Debug.error {chan error $code - $e ($eo)}
 	    }
