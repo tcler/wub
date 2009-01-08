@@ -1079,7 +1079,7 @@ namespace eval Httpd {
 	foreach {n v} [array get activity] {
 	    if {[info commands $n] eq {}} {
 		unset activity($n)	;# this is bogus
-	    } elseif {$v < $now} {
+	    } elseif {$v < $then} {
 		Debug.HttpdCoro {Reaping $n}
 		unset activity($n)	;# prevent double-triggering
 		$n TIMEOUT		;# alert coro to its fate
