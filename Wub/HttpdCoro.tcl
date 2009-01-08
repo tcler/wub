@@ -1062,7 +1062,7 @@ namespace eval Httpd {
 		Debug.HttpdCoro {Reaping $n}
 		unset activity($n)	;# prevent double-triggering
 		$n TIMEOUT		;# alert coro to its fate
-		set reaper($n) [after $timeout [list Httpd terminate $n]]	;# if it doesn't respond, kill it.
+		set reaper($n) [after [expr {5 * $timeout}] [list Httpd terminate $n]]	;# if it doesn't respond, kill it.
 	    }
 	}
     }
