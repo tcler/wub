@@ -20,6 +20,7 @@ package require WubUtils
 package require spiders
 package require Debug
 Debug off HttpdCoro 10
+Debug off HttpdCoroLow 10
 
 package require Url
 package require Http
@@ -294,7 +295,12 @@ namespace eval Httpd {
 
 	# check generation
 	corovars generation
-	if {[dict get $r -generation] != $generation} {
+	if {![dict exists $r -generation]} {
+	    # there's no generation here - hope it's a low-level auto response
+	    # like Block etc.
+	    Debug.coro {Send without -generation ($r)}
+	    dict set r -generation $generation
+	} elseif {[dict get $r -generation] != $generation} {
 	    Debug.error {Send discarded: out of generation ($r)}
 	    return ERROR	;# report error to caller
 	}
@@ -472,7 +478,7 @@ namespace eval Httpd {
 	}
 
 	# return the line
-	Debug.HttpdCoro {get: '$line' [chan blocked $socket] [chan eof $socket]}
+	Debug.HttpdCoroLow {get: '$line' [chan blocked $socket] [chan eof $socket]}
 	return $line
     }
 
@@ -492,7 +498,7 @@ namespace eval Httpd {
 	}
 	
 	# return the chunk
-	Debug.HttpdCoro {read: '$chunk'}
+	Debug.HttpdCoroLow {read: '$chunk'}
 	return $chunk
     }
 
@@ -972,13 +978,19 @@ namespace eval Httpd {
 	set result [coroutine $R ::apply [list args $reader ::Httpd] socket $socket timeout $rxtimeout consumer $cr prototype $request generation $gen cid $cid]
 
 	# ensure there's a cleaner for this connection's coros
-	trace add command $cr delete [list $R DEAD $cr]
-	trace add command $R delete [list $cr DEAD $R]
+	trace add command $cr delete [list Httpd::reap $R $cr]
+	trace add command $R delete [list Httpd::reap $cr $R]
 
 	# start the ball rolling
 	chan event $socket readable [list $R READ]
 
 	return $result
+    }
+
+    # reap coro when its partner has died
+    proc reap {who from} {
+	Debug.HttpdCoro {reap $who because $from died}
+	$who DEAD $from
     }
 
     proc corotest {} {
