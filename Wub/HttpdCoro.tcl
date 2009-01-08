@@ -1071,10 +1071,11 @@ namespace eval Httpd {
 
     variable reaper	;# array of hardline events 
     proc reaper {} {
-	set now [clock milliseconds]
+	variable timeout
+	set then [expr {[clock milliseconds] - $timeout}]
+
 	variable activity
 	variable reaper
-	variable timeout
 	foreach {n v} [array get activity] {
 	    if {[info commands $n] eq {}} {
 		unset activity($n)	;# this is bogus
