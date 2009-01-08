@@ -210,7 +210,7 @@ namespace eval Httpd {
 	# close? - is the connection to be closed after this response?
 	# chunked? - is the content to be sent in chunked mode?
 	# empty? - is there actually no content, as distinct from 0-length content?
-	Debug.HttpdCoro {ADD TRANS: $header ([dict keys $replies])}
+	Debug.HttpdCoro {ADD TRANS: ([dict keys $replies])}
 	dict set replies $trx [list $header $content [close? $r] $empty]
 
 	# send all responses in sequence from the next expected to the last available
