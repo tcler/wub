@@ -43,12 +43,11 @@ namespace eval Httpd {
     variable maxurilen 1024	;# maximum URI length
     variable maxentity -1	;# maximum entity size
 
-    variable txtime 20000	;# inter-write timeout
-    variable rxtime 10000	;# inter-read timeout
-    variable enttime 10000	;# entity inter-read timeout
-
     # timeout - by default none
-    variable rxtimeout 60000
+    variable timeout 60000
+
+    # activity log - array used for centralised timeout
+    variable activity
 
     # arrange gzip Transfer Encoding
     if {![catch {package require zlib}]} {
@@ -88,16 +87,19 @@ namespace eval Httpd {
     proc EOF {{reason ""}} {
 	Debug.HttpdCoro {[info coroutine] EOF: ($reason)}
 
-	# forget whatever higher level connection info
-	corovars cid socket consumer timer
+	# disable inactivity reaper for this coro
+	variable activity
+	catch {unset activity([info coroutine])}
 
-	# cancel all outstanding timers for this coro
-	foreach t $timer {
-	    catch {
-		after cancel $t	;# cancel old timer
-	    } e eo
-	    Debug.HttpdCoro {cancel [info coroutine] $t - $e ($eo)}
+	# don't fear the reaper
+	variable reaper
+	catch {
+	    after cancel $reaper([info coroutine])
+	    unset reaper([info coroutine])
 	}
+
+	# forget whatever higher level connection info
+	corovars cid socket consumer
 
 	if {[catch {forget $cid} e eo]} {
 	    Debug.error {EOF forget error '$e' ($eo)}
@@ -323,39 +325,19 @@ namespace eval Httpd {
 
     # yield wrapper with command dispatcher
     proc yield {{retval ""}} {
-	corovars timer timeout cmd consumer status unsatisfied socket
+	corovars cmd consumer status unsatisfied socket
 
-	set time $timeout
 	while {1} {
 	    Debug.HttpdCoro {coro [info coroutine] yielding}
-
-	    # cancel all outstanding timers for this coro
-	    foreach t $timer {
-		catch {
-		    after cancel $t	;# cancel old timer
-		} e eo
-		Debug.HttpdCoro {cancel [info coroutine] $t - $e ($eo)}
-	    }
-
-	    # start new timer
-	    if {$time > 0} {
-		# set new timer
-		set timer [after $time [list ::Httpd::$socket TIMEOUT]]	;# set new timer
-		Debug.HttpdCoro {timer [info coroutine] $timer}
-	    }
 
 	    # unpack event
 	    set args [lassign [::yield $retval] op]; set retval ""
 	    lappend status $op
 	    Debug.HttpdCoro {yield [info coroutine] -> $op}
 
-	    # cancel all outstanding timers for this coro
-	    foreach t $timer {
-		catch {
-		    after cancel $t	;# cancel old timer
-		} e eo
-		Debug.HttpdCoro {cancel [info coroutine] $t - $e ($eo)}
-	    }
+	    # record a log of our activity to fend off the reaper
+	    variable activity
+	    set activity([info coroutine]) [clock milliseconds]
 
 	    # dispatch on command
 	    switch -- [string toupper $op] {
@@ -382,6 +364,15 @@ namespace eval Httpd {
 		    }
 		}
 
+		DEAD {
+		    # we've been informed that the consumer has died
+		    EOF {*}$args
+		    # this is not right - we may have pending responses still to send,
+		    # the consumer should be able to die secure in the knowledge
+		    # that the socket coro will continue to deliver them!
+		    # OTOH, if there's a gap in the transmissions, what do we do?
+		}
+
 		CLOSING {
 		    # we're half-closed
 		    # we won't accept any more input but we want to send
@@ -406,24 +397,21 @@ namespace eval Httpd {
 		    EOF {*}$args
 		}
 
-		DEAD {
-		    # we've been informed that the consumer has died
-		    EOF {*}$args
-		}
-
 		TIMEOUT {
 		    # we've timed out - oops
-		    after cancel $timer	;# cancel old timer
 		    if {[info commands $consumer] eq ""} {
 			Debug.HttpdCoro {reader [info coroutine]: consumer error or gone on EOF}
 			EOF TIMEOUT
 		    } elseif {[catch {
 			$consumer [list TIMEOUT [info coroutine]]
 		    } e eo]} {
-			Debug.HttpdCoro {[info coroutine]: consumer error $e ($eo)}
+			Debug.HttpdCoro {[info coroutine]: consumer error $e ($eo) on timeout}
 		    }
+
 		    EOF TIMEOUT
+
 		    set time -1	;# no more timeouts
+		    return	;# don't forget to die
 		}
 
 		default {
@@ -547,7 +535,6 @@ namespace eval Httpd {
 	set sequence -1	;# which is the next response to queue?
 	set writing 0	;# we're not writing yet
 	dict with args {}
-	set timer {}	;# collection of active timers
 	set transaction 0	;# count of incoming requests
 	set status INIT	;# record transitions
 	set closing 0	;# flag that we want to close
@@ -872,10 +859,28 @@ namespace eval Httpd {
 	while {1} {
 	    set args [lassign [::yield $retval] op]
 	    Debug.HttpdCoro {consumer [info coroutine] got: $op $args}
+
+	    # record a log of our activity
+	    variable activity
+	    set activity([info coroutine]) [clock milliseconds]
+
 	    switch -- $op {
-		TIMEOUT -
+		TIMEOUT {
+		    # don't fear the reaper
+		    variable reaper
+		    catch {
+			after cancel $reaper([info coroutine])
+			unset reaper([info coroutine])
+		    }
+		    return
+		}
+
 		DEAD -
 		EOF {
+		    # disable inactivity reaper for this coro
+		    variable activity
+		    catch {unset activity([info coroutine])}
+
 		    return	;# kill self by returning
 		}
 
@@ -920,6 +925,10 @@ namespace eval Httpd {
 			Debug.HttpdCoro {POST: [rdump $e]} 10
 			set rsp $e
 		    }
+
+		    # record a log of our activity
+		    variable activity
+		    set activity([info coroutine]) [clock milliseconds]
 
 		    # ask socket coro to send the response for us
 		    if {[catch {
@@ -975,8 +984,8 @@ namespace eval Httpd {
 	variable consumer; coroutine $cr ::apply [list args $consumer ::Httpd] reader $R
 
 	# construct the reader
-	variable rxtimeout
-	set result [coroutine $R ::apply [list args $reader ::Httpd] socket $socket timeout $rxtimeout consumer $cr prototype $request generation $gen cid $cid]
+	variable timeout
+	set result [coroutine $R ::apply [list args $reader ::Httpd] socket $socket consumer $cr prototype $request generation $gen cid $cid]
 
 	# ensure there's a cleaner for this connection's coros
 	trace add command $cr delete [list ::Httpd::reap $R $cr]
@@ -1027,8 +1036,61 @@ namespace eval Httpd {
 	return $result
     }
 
+    # grant the caller some timeout grace
+    proc grace {{grace 20000}} {
+	variable activity
+	set activity([info coroutine]) [expr {$grace + [clock milliseconds]}]
+    }
+
+    # every script
+    proc every {interval script} {
+	variable everyIds
+	if {$interval eq "cancel"} {
+	    after cancel $everyIds($script)
+	    return
+	}
+	set everyIds($script) [after $interval [info level 0]]
+	set rc [catch {uplevel #0 $script} result]
+	if {$rc == [catch break]} {
+	    after cancel $everyIds($script)
+	    set rc 0
+	} elseif {$rc == [catch continue]} {
+	    # Ignore - just consume the return code
+	    set rc 0
+	}
+
+	# TODO: Need better handling of errorInfo etc...
+	return -code $rc $result
+    }
+
+    proc terminate {what} {
+	Debug.HttpdCoro {terminating $what}
+	catch {rename $what {}} r eo	;# kill this coro right now
+	Debug.HttpdCoro {terminated $what: '$r' ($eo)}
+    }
+
+    variable reaper	;# array of hardline events 
+    proc reaper {} {
+	set now [clock milliseconds]
+	variable activity
+	variable reaper
+	variable timeout
+	foreach {n v} [array get activity] {
+	    if {[info commands $n] eq {}} {
+		unset activity($n)	;# this is bogus
+	    } elseif {$v < $now} {
+		Debug.HttpdCoro {Reaping $n}
+		unset activity($n)	;# prevent double-triggering
+		$n TIMEOUT		;# alert coro to its fate
+		set reaper($n) [after $timeout [list Httpd terminate $n]]	;# if it doesn't respond, kill it.
+	    }
+	}
+    }
+
     namespace export -clear *
     namespace ensemble create -subcommands {}
+
+    every $timeout {Httpd reaper}	;# start the inactivity reaper
 }
 
 # load up per-worker locals.
