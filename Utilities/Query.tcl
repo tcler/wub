@@ -119,6 +119,7 @@ namespace eval Query {
     proc qparse {qstring count {ct "NONE"}} {
 	Debug.query {qparse $ct - [string range $qstring 0 80]...}
 	switch -glob -- [lindex [split $ct \;] 0] {
+	    text/html -
 	    text/xml -
 	    application/xml -
 	    application/x-www-form-urlencoded -
