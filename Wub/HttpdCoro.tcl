@@ -260,7 +260,7 @@ namespace eval Httpd {
 
 	    # send headers with terminating nl
 	    chan puts -nonewline $socket "$head\r\n"
-	    Debug.HttpdCoro {SENT HEADER: $socket [string length $head] bytes} 4
+	    Debug.HttpdCoro {SENT HEADER: $socket '[lindex [split $head \r] 0]' [string length $head] bytes} 4
 
 	    # send the content/entity (if any)
 	    # note: we must *not* send a trailing newline, as this
