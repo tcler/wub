@@ -388,10 +388,11 @@ namespace eval Httpd {
 		    # all pending responses
 		    if {[chan eof $socket]} {
 			# remote end closed - just forget it
-			EOF "error closed connection"
+			EOF "socket is closed"
 		    } else {
 			# just read incoming data
-			chan read $socket
+			set x [chan read $socket]
+			Debug.HttpdCoro {[info coroutine] is closing, read [string length $x] bytes}
 		    }
 		}
 
