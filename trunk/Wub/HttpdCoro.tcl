@@ -860,27 +860,10 @@ namespace eval Httpd {
 	    set args [lassign [::yield $retval] op]
 	    Debug.HttpdCoro {consumer [info coroutine] got: $op $args}
 
-	    # record a log of our activity
-	    variable activity
-	    set activity([info coroutine]) [clock milliseconds]
-
 	    switch -- $op {
-		TIMEOUT {
-		    # don't fear the reaper
-		    variable reaper
-		    catch {
-			after cancel $reaper([info coroutine])
-			unset reaper([info coroutine])
-		    }
-		    return
-		}
-
+		TIMEOUT -
 		DEAD -
 		EOF {
-		    # disable inactivity reaper for this coro
-		    variable activity
-		    catch {unset activity([info coroutine])}
-
 		    return	;# kill self by returning
 		}
 
@@ -925,10 +908,6 @@ namespace eval Httpd {
 			Debug.HttpdCoro {POST: [rdump $e]} 10
 			set rsp $e
 		    }
-
-		    # record a log of our activity
-		    variable activity
-		    set activity([info coroutine]) [clock milliseconds]
 
 		    # ask socket coro to send the response for us
 		    if {[catch {
@@ -1091,8 +1070,9 @@ namespace eval Httpd {
     namespace export -clear *
     namespace ensemble create -subcommands {}
 
-    every $timeout {Httpd reaper}	;# start the inactivity reaper
 }
+
+Httpd every $Httpd::timeout {Httpd reaper}	;# start the inactivity reaper
 
 # load up per-worker locals.
 catch {source [file join [file dirname [info script]] wlocal.tcl]}
