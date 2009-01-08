@@ -260,7 +260,7 @@ namespace eval Httpd {
 
 	    # send headers with terminating nl
 	    chan puts -nonewline $socket "$head\r\n"
-	    Debug.HttpdCoro {SENT HEADER: $socket [string length $head]} 4
+	    Debug.HttpdCoro {SENT HEADER: $socket [string length $head] bytes} 4
 
 	    # send the content/entity (if any)
 	    # note: we must *not* send a trailing newline, as this
@@ -978,8 +978,8 @@ namespace eval Httpd {
 	set result [coroutine $R ::apply [list args $reader ::Httpd] socket $socket timeout $rxtimeout consumer $cr prototype $request generation $gen cid $cid]
 
 	# ensure there's a cleaner for this connection's coros
-	trace add command $cr delete [list Httpd::reap $R $cr]
-	trace add command $R delete [list Httpd::reap $cr $R]
+	trace add command $cr delete [list ::Httpd::reap $R $cr]
+	trace add command $R delete [list ::Httpd::reap $cr $R]
 
 	# start the ball rolling
 	chan event $socket readable [list $R READ]
