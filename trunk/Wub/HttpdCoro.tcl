@@ -73,7 +73,7 @@ namespace eval Httpd {
 	    if {[info coroutine] ne ""} {
 		Debug.HttpdCoro {[info coroutine]: chan error $code - $e ($eo)}
 		if {[lindex $args 0] ne "close"} {
-		    EOF $e	;# clean up and close unless we're already closing
+		    terminate $e	;# clean up and close unless we're already closing
 		}
 	    } else {
 		Debug.error {chan error $code - $e ($eo)}
@@ -83,9 +83,9 @@ namespace eval Httpd {
 	}
     }
 
-    # indicate EOF and shut down socket and reader
-    proc EOF {{reason ""}} {
-	Debug.HttpdCoro {[info coroutine] EOF: ($reason)}
+    # shut down socket and reader
+    proc terminate {{reason ""}} {
+	Debug.HttpdCoro {[info coroutine] terminate: ($reason)}
 
 	# disable inactivity reaper for this coro
 	variable activity
@@ -102,19 +102,18 @@ namespace eval Httpd {
 	corovars cid socket consumer
 
 	if {[catch {forget $cid} e eo]} {
-	    Debug.error {EOF forget error '$e' ($eo)}
+	    Debug.error {terminate forget error '$e' ($eo)}
 	}
 
-	# report EOF to consumer if it's still alive
+	# terminate consumer if it's still alive
 	after 1 [list $consumer ""]
 
 	# clean up socket - the only point where we close
 	chan close $socket
 
 	# destroy reader - that's all she wrote
-	Debug.HttpdCoro {reader [info coroutine]: suicide on EOF}
-	return -level [info level] EOF	;# terminate coro
-	#error EOF
+	Debug.HttpdCoro {reader [info coroutine]: terminated}
+	return -level [info level] terminated	;# terminate coro
     }
 
     # close? - should we close this connection?
@@ -133,8 +132,8 @@ namespace eval Httpd {
 	}
 
 	if {$close} {
-	    # we're not accepting more input
-	    # but defer closing the socket until all pending transmission's complete
+	    # we're not accepting more input but defer actually closing the socket
+	    # until all pending transmission's complete
 	    corovars status closing socket
 	    set closing 1	;# flag the closure
 	    lappend status CLOSING
@@ -158,7 +157,7 @@ namespace eval Httpd {
 
 	if {$closing && ![dict size $unsatisfied]} {
 	    # we have no more requests to satisfy and we want to close
-	    EOF "finally close"
+	    terminate "finally close"
 	}
 
 	if {[dict exists $r -suspend]} {
@@ -232,7 +231,7 @@ namespace eval Httpd {
 	    if {[dict exists $unsatisfied $trx]} {
 		dict unset unsatisfied $trx	;# forget the unsatisfied status
 	    } else {
-		Debug.error {Send discarded: uduplicate ([rdump $r])}
+		Debug.error {Send discarded: duplicate ([rdump $r])}
 		continue	;# duplicate response - just ignore
 	    }
 
@@ -289,7 +288,7 @@ namespace eval Httpd {
 	Debug.HttpdCoro {send: ([rdump $r]) $cache}
 
 	# check generation
-	corovars generation
+	corovars generation consumer
 	if {![dict exists $r -generation]} {
 	    # there's no generation here - hope it's a low-level auto response
 	    # like Block etc.
@@ -297,17 +296,15 @@ namespace eval Httpd {
 	    dict set r -generation $generation
 	} elseif {[dict get $r -generation] != $generation} {
 	    Debug.error {Send discarded: out of generation ($r)}
-	    return ERROR	;# report error to caller
+	    terminate generation
 	}
 
 	if {[catch {
 	    # send all pending responses, ensuring we don't send out of sequence
 	    write $r $cache
 	} close eo]} {
-	    Debug.error {FAILED send $close ($eo)}
-	    set close 1
-	} else {
-	    Debug.HttpdCoro {SENT (close: $close)} 10
+	    Debug.error {FAILED write $close ($eo)}
+	    terminate closed
 	}
 
 	# generate a log line
@@ -320,7 +317,7 @@ namespace eval Httpd {
 
 	# deal with socket
 	if {$close} {
-	    EOF closed
+	    terminate closed
 	}
     }
 
@@ -334,7 +331,7 @@ namespace eval Httpd {
 	    # unpack event
 	    set args [lassign [::yield $retval] op]; set retval ""
 	    lappend status $op
-	    Debug.HttpdCoro {yield [info coroutine] -> $op}
+	    Debug.HttpdCoroLow {yield [info coroutine] -> $op}
 
 	    # record a log of our activity to fend off the reaper
 	    variable activity
@@ -342,10 +339,6 @@ namespace eval Httpd {
 
 	    # dispatch on command
 	    switch -- [string toupper $op] {
-		TEST {
-		    set retval OK
-		}
-
 		STATS {
 		    set retval {}
 		    foreach x [uplevel \#1 {info locals}] {
@@ -355,32 +348,23 @@ namespace eval Httpd {
 		}
 
 		READ {
-		    # this can only happen in the reader coro
+		    # fileevent tells us there's input to be read
 		    # check the channel
 		    if {[chan eof $socket]} {
 			Debug.HttpdCoro {[info coroutine] eof detected from yield}
-			EOF "closed on reading"
+			terminate "EOF on reading"
 		    } else {
 			return $args
 		    }
 		}
 
-		DEAD {
-		    # we've been informed that the consumer has died
-		    EOF {*}$args
-		    # this is not right - we may have pending responses still to send,
-		    # the consumer should be able to die secure in the knowledge
-		    # that the socket coro will continue to deliver them!
-		    # OTOH, if there's a gap in the transmissions, what do we do?
-		}
-
 		CLOSING {
-		    # we're half-closed
-		    # we won't accept any more input but we want to send
+		    # fileevent tells us there's input, but we're half-closed
+		    # and won't process any more input, but we want to send
 		    # all pending responses
 		    if {[chan eof $socket]} {
 			# remote end closed - just forget it
-			EOF "socket is closed"
+			terminate "socket is closed"
 		    } else {
 			# just read incoming data
 			set x [chan read $socket]
@@ -393,15 +377,14 @@ namespace eval Httpd {
 		    set retval [send {*}$args]
 		}
 
-		EOF {
+		TERMINATE {
 		    # we've been informed that the socket closed
-		    EOF {*}$args
+		    terminate {*}$args
 		}
 
 		TIMEOUT {
 		    # we've timed out - oops
-		    EOF TIMEOUT
-		    return	;# don't forget to die
+		    terminate TIMEOUT
 		}
 
 		default {
@@ -453,7 +436,7 @@ namespace eval Httpd {
 	}
 
 	if {[chan eof $socket]} {
-	    EOF $reason	;# check the socket for closure
+	    terminate $reason	;# check the socket for closure
 	}
 
 	# return the line
@@ -473,7 +456,7 @@ namespace eval Httpd {
 	}
 	
 	if {[chan eof $socket]} {
-	    EOF ENTITY	;# check the socket for closure
+	    terminate entity	;# check the socket for closure
 	}
 	
 	# return the chunk
@@ -919,7 +902,7 @@ namespace eval Httpd {
 	    # this is potentially very bad.
 	    Debug.log {reader $R not dead yet, rename to ${R}_DEAD to kill it.}
 	    rename $R ${R}_DEAD
-	    after 1 [list ${R}_DEAD [list EOF "socket's gone"]]	;# ensure the old reader's dead
+	    after 1 [list ${R}_DEAD [list TERMINATE "socket's gone"]]	;# ensure the old reader's dead
 	}
 
 	# construct consumer
@@ -930,7 +913,7 @@ namespace eval Httpd {
 	    set cn ::Httpd::CO_DEAD_[uniq]
 	    Debug.log {consumer $cr not dead yet, rename to $cn to kill it.}
 	    rename $cr $cn	;# move it out of the way first
-	    after 1 [list $cn [list EOF "socket's gone"]]	;# ensure the old consumer's dead
+	    after 1 [list $cn ""]	;# ensure the old consumer's dead
 	}
 	variable consumer; coroutine $cr ::apply [list args $consumer ::Httpd] reader $R
 
@@ -939,30 +922,9 @@ namespace eval Httpd {
 	variable log
 	set result [coroutine $R ::apply [list args $reader ::Httpd] socket $socket consumer $cr prototype $request generation $gen cid $cid log $log]
 
-	# ensure there's a cleaner for this connection's coros
-	trace add command $cr delete [list ::Httpd::reap $R $cr]
-	trace add command $R delete [list ::Httpd::reap $cr $R]
-
 	# start the ball rolling
 	chan event $socket readable [list $R READ]
 
-	return $result
-    }
-
-    # reap coro when its partner has died
-    proc reap {who from} {
-	Debug.HttpdCoro {reap $who because $from died}
-	$who DEAD $from
-    }
-
-    proc corotest {} {
-	set result {}
-	foreach coro [info commands ::Httpd::sock*] {
-	    lappend result $coro [$coro TEST]
-	}
-	foreach coro [info commands ::Httpd::CO_*] {
-	    lappend result $coro [$coro TEST]
-	}
 	return $result
     }
 
