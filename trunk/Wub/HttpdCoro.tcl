@@ -109,7 +109,7 @@ namespace eval Httpd {
 	if {[info commands $consumer] eq ""} {
 	    Debug.HttpdCoro {reader [info coroutine]: consumer gone on EOF}
 	} elseif {[catch {
-	    after 1 [list catch [list $consumer [list EOF $reason]]]
+	    after 1 [list $consumer ""]
 	    Debug.HttpdCoro {reader [info coroutine]: informed $consumer of EOF}
 	} e eo]} {
 	    Debug.error {reader [info coroutine]: consumer error on EOF $e ($eo)}
@@ -411,7 +411,7 @@ namespace eval Httpd {
 			Debug.HttpdCoro {reader [info coroutine]: consumer error or gone on EOF}
 			EOF TIMEOUT
 		    } elseif {[catch {
-			$consumer [list TIMEOUT [info coroutine]]
+			$consumer ""
 		    } e eo]} {
 			Debug.HttpdCoro {[info coroutine]: consumer error $e ($eo) on timeout}
 		    }
@@ -845,7 +845,7 @@ namespace eval Httpd {
 	    if {[info commands $consumer] ne {}} {
 		# deliver the assembled request to the consumer
 		dict set unsatisfied [dict get $r -transaction] {}
-		after 1 [list $consumer [list INCOMING $r]]
+		after 1 [list $consumer $r]
 		Debug.HttpdCoro {reader [info coroutine]: sent to consumer, waiting for next}
 	    } else {
 		# the consumer has gone away
@@ -866,69 +866,49 @@ namespace eval Httpd {
 	dict with args {}
 	set retval ""
 	while {1} {
-	    set args [lassign [::yield $retval] op]
-	    Debug.HttpdCoro {consumer [info coroutine] got: $op $args}
+	    set r [::yield $retval]
+	    Debug.HttpdCoro {consumer [info coroutine] got: $r}
+	    if {[dict size $r] == 0} {
+		return	;# kill self by returning
+	    }
+	    
+	    set r [Cookies 4Server $r]		;# process cookies
+	    catch {Responder do $r} rsp eo	;# process the request
 
-	    switch -- $op {
-		TIMEOUT -
-		DEAD -
-		EOF {
-		    return	;# kill self by returning
-		}
-
-		TEST {
-		    set retval OK
-		}
-
-		STATS {
-		    set retval {}
-		    foreach x [uplevel \#1 {info locals}] {
-			catch [list uplevel \#1 [list set $x]] r
-			lappend retval $x $r
+	    # handle response code
+	    switch [dict get $eo -code] {
+		0 -
+		2 { # ok - return
+		    if {![dict exists $rsp -code]} {
+			set rsp [Http Ok $rsp]
 		    }
 		}
-
-		INCOMING {
-		    set r [lindex $args 0]		;# get the request
-		    set r [Cookies 4Server $r]		;# process cookies
-		    catch {Responder do $r} rsp eo	;# process the request
-
-		    # handle response code
-		    switch [dict get $eo -code] {
-			0 -
-			2 { # ok - return
-			    if {![dict exists $rsp -code]} {
-				set rsp [Http Ok $rsp]
-			    }
-			}
-
-			1 { # error
-			    set rsp [Http ServerError $r $rsp $eo]
-			}
-		    }
-
-		    # post-process the response
-		    if {[catch {
-			Responder post $rsp
-		    } e eo]} {
-			Debug.error {POST ERROR: $e ($eo)} 1
-			set rsp [Http ServerError $r $e $eo]
-		    } else {
-			Debug.HttpdCoro {POST: [rdump $e]} 10
-			set rsp $e
-		    }
-
-		    # ask socket coro to send the response for us
-		    if {[catch {
-			$reader [list SEND $rsp]
-		    } e eo]} {
-			Debug.error {[info coroutine] sending terminated via $reader: $e ($eo)} 1
-			return
-		    } elseif {$e in {EOF ERROR}} {
-			Debug.HttpdCoro {[info coroutine] sending terminated via $reader: $e} 1
-			return
-		    }
+		
+		1 { # error
+		    set rsp [Http ServerError $r $rsp $eo]
 		}
+	    }
+
+	    # post-process the response
+	    if {[catch {
+		Responder post $rsp
+	    } e eo]} {
+		Debug.error {POST ERROR: $e ($eo)} 1
+		set rsp [Http ServerError $r $e $eo]
+	    } else {
+		Debug.HttpdCoro {POST: [rdump $e]} 10
+		set rsp $e
+	    }
+
+	    # ask socket coro to send the response for us
+	    if {[catch {
+		$reader [list SEND $rsp]
+	    } e eo]} {
+		Debug.error {[info coroutine] sending terminated via $reader: $e ($eo)} 1
+		return
+	    } elseif {$e in {EOF ERROR}} {
+		Debug.HttpdCoro {[info coroutine] sending terminated via $reader: $e} 1
+		return
 	    }
 	}
     }
@@ -1006,9 +986,6 @@ namespace eval Httpd {
     proc stats {} {
 	set result {}
 	foreach coro [info commands ::Httpd::sock*] {
-	    lappend result $coro [$coro STATS]
-	}
-	foreach coro [info commands ::Httpd::CO_*] {
 	    lappend result $coro [$coro STATS]
 	}
 	return $result
