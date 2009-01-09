@@ -849,11 +849,12 @@ namespace eval Httpd {
 	set retval ""
 	while {1} {
 	    set r [::yield $retval]
-	    Debug.HttpdCoro {consumer [info coroutine] got: $r}
 	    if {[dict size $r] == 0} {
+		Debug.HttpdCoro {consumer [info coroutine] terminating}
 		return	;# kill self by returning
 	    }
 	    
+	    Debug.HttpdCoro {consumer [info coroutine] got: $r}
 	    set r [Cookies 4Server $r]		;# process cookies
 	    catch {Responder do $r} rsp eo	;# process the request
 
