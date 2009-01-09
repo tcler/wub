@@ -344,7 +344,7 @@ namespace eval Httpd {
     }
 
     # common log format log - per request, for log analysis
-    variable log 0	;# fd of open log file - default none
+    variable log ""	;# fd of open log file - default none
     variable logfile ""	;# name of log file - "" means none
 
     # configure - set Httpd protocol defaults
@@ -354,7 +354,7 @@ namespace eval Httpd {
 	# open the web analysis log
 	variable logfile
 	variable log
-	if {$logfile ne "" && $log == 0} {
+	if {$logfile ne "" && $log eq ""} {
 	    set log [open $logfile a]		;# always add to the end
 	    fconfigure $log -buffering line	;# we want to try to make writes atomic
 	}
