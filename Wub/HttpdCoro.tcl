@@ -974,8 +974,8 @@ namespace eval Httpd {
 	return -code $rc $result
     }
 
-    proc terminate {what} {
-	Debug.HttpdCoro {terminating $what}
+    proc kill {what} {
+	Debug.HttpdCoro {terminating: "$what"}
 	catch {rename $what {}} r eo	;# kill this coro right now
 	Debug.HttpdCoro {terminated $what: '$r' ($eo)}
     }
@@ -994,7 +994,7 @@ namespace eval Httpd {
 		Debug.HttpdCoro {Reaping $n}
 		unset activity($n)	;# prevent double-triggering
 		$n TIMEOUT		;# alert coro to its fate
-		set reaper($n) [after [expr {5 * $timeout}] [list Httpd terminate $n]]	;# if it doesn't respond, kill it.
+		set reaper($n) [after [expr {5 * $timeout}] [list Httpd kill $n]]	;# if it doesn't respond, kill it.
 	    }
 	}
     }
