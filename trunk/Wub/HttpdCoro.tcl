@@ -106,7 +106,9 @@ namespace eval Httpd {
 	}
 
 	# terminate consumer if it's still alive
-	after 1 [list catch [list $consumer ""]]
+	set cn ${cn}_DEAD_[uniq]
+	rename $consumer $cn
+	after 1 [list catch [list $cn ""]]
 
 	# clean up socket - the only point where we close
 	chan close $socket
