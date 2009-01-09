@@ -319,7 +319,7 @@ namespace eval Httpd {
 
 	# generate a log line
 	variable log
-	if {$log && [catch {
+	if {$log ne "" && [catch {
 	    puts $log [Httpd clf $r]	;# generate a log line
 	} le leo]} {
 	    Debug.error {log error: $le ($leo)}
