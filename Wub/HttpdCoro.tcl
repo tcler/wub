@@ -106,7 +106,7 @@ namespace eval Httpd {
 	}
 
 	# terminate consumer if it's still alive
-	after 1 [list $consumer ""]
+	after 1 [list catch [list $consumer ""]]
 
 	# clean up socket - the only point where we close
 	chan close $socket
@@ -810,7 +810,7 @@ namespace eval Httpd {
 	    if {[info commands $consumer] ne {}} {
 		# deliver the assembled request to the consumer
 		dict set unsatisfied [dict get $r -transaction] {}
-		after 1 [list $consumer $r]
+		after 1 [list catch [list $consumer $r]]
 		Debug.HttpdCoro {reader [info coroutine]: sent to consumer, waiting for next}
 	    } else {
 		# the consumer has gone away
