@@ -326,7 +326,7 @@ namespace eval Httpd {
 	corovars cmd consumer status unsatisfied socket
 
 	while {1} {
-	    Debug.HttpdCoro {coro [info coroutine] yielding}
+	    Debug.HttpdCoroLow {coro [info coroutine] yielding}
 
 	    # unpack event
 	    set args [lassign [::yield $retval] op]; set retval ""
