@@ -294,7 +294,7 @@ namespace eval Httpd {
 	if {![dict exists $r -generation]} {
 	    # there's no generation here - hope it's a low-level auto response
 	    # like Block etc.
-	    Debug.coro {Send without -generation ($r)}
+	    Debug.HttpdCoro {Send without -generation ($r)}
 	    dict set r -generation $generation
 	} elseif {[dict get $r -generation] != $generation} {
 	    Debug.error {Send discarded: out of generation ($r)}
