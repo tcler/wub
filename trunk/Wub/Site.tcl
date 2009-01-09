@@ -111,6 +111,7 @@ namespace eval Site {
 	    over 40		;# degree of thread overcommittment
 	    dispatch ""		;# dispatcher for incoming requests
 
+	    # logfile ""	;# log filename for common log format loggin
 	    # max_conn 10	;# max connections per IP
 	    # no_really 3	;# how many times to complain about max_conn
 	    # dispatch "Backend" ;# backend dispatcher
