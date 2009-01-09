@@ -122,7 +122,7 @@ namespace eval Httpd {
     proc close? {r} {
 	# don't honour 1.0 keep-alives - why?
 	set close [expr {[dict get $r -version] < 1.1}]
-	Debug.HttpdCoro {version [dict get $r -version] implies close=$close}
+	Debug.HttpdCoroLow {version [dict get $r -version] implies close=$close}
 
 	# handle 'connection: close' request from client
 	foreach ct [split [Dict get? $r connection] ,] {
@@ -207,15 +207,15 @@ namespace eval Httpd {
 	# close? - is the connection to be closed after this response?
 	# chunked? - is the content to be sent in chunked mode?
 	# empty? - is there actually no content, as distinct from 0-length content?
-	Debug.HttpdCoro {ADD TRANS: ([dict keys $replies])}
+	Debug.HttpdCoro {[info coroutine] ADD TRANS: ([dict keys $replies])}
 	dict set replies $trx [list $header $content [close? $r] $empty]
 
 	# send all responses in sequence from the next expected to the last available
-	Debug.HttpdCoro {pending to send: [dict keys $replies]}
+	Debug.HttpdCoro {[info coroutine] pending to send: [dict keys $replies]}
 	foreach next [lsort -integer [dict keys $replies]] {
 	    if {[chan eof $socket]} {
 		# detect socket closure ASAP in sending
-		Debug.HttpdCoro {Lost connection on transmit}
+		Debug.HttpdCoro {[info coroutine] Lost connection on transmit}
 		return 1	;# socket's gone - terminate session
 	    }
 
@@ -225,7 +225,7 @@ namespace eval Httpd {
 		# so we don't have a response for the next transaction.
 		# we must therefore wait until all the preceding transactions
 		# have something to send
-		Debug.HttpdCoro {no pending or $next doesn't follow $response}
+		Debug.HttpdCoro {[info coroutine] no pending or $next doesn't follow $response}
 		return 0
 	    }
 
@@ -256,7 +256,7 @@ namespace eval Httpd {
 
 	    # send headers with terminating nl
 	    chan puts -nonewline $socket "$head\r\n"
-	    Debug.HttpdCoro {SENT HEADER: $socket '[lindex [split $head \r] 0]' [string length $head] bytes} 4
+	    Debug.HttpdCoro {[info coroutine] SENT HEADER: $socket '[lindex [split $head \r] 0]' [string length $head] bytes} 4
 
 	    # send the content/entity (if any)
 	    # note: we must *not* send a trailing newline, as this
@@ -265,7 +265,7 @@ namespace eval Httpd {
 	    # in the pipeline
 	    if {!$empty} {
 		chan puts -nonewline $socket $content	;# send the content
-		Debug.HttpdCoro {SENT ENTITY: [string length $content] bytes} 8
+		Debug.HttpdCoro {[info coroutine] SENT ENTITY: [string length $content] bytes} 8
 	    }
 	    chan flush $socket
 	    dict set satisfied $trx {}	;# record satisfaction of transaction
@@ -287,14 +287,14 @@ namespace eval Httpd {
     #	Send transaction responses to client
     #	Possibly close socket
     proc send {r {cache 1}} {
-	Debug.HttpdCoro {send: ([rdump $r]) $cache}
+	Debug.HttpdCoro {[info coroutine] send: ([rdump $r]) $cache}
 
 	# check generation
 	corovars generation consumer
 	if {![dict exists $r -generation]} {
 	    # there's no generation here - hope it's a low-level auto response
 	    # like Block etc.
-	    Debug.HttpdCoro {Send without -generation ($r)}
+	    Debug.HttpdCoro {[info coroutine] Send without -generation ($r)}
 	    dict set r -generation $generation
 	} elseif {[dict get $r -generation] != $generation} {
 	    Debug.error {Send discarded: out of generation ($r)}
@@ -442,7 +442,7 @@ namespace eval Httpd {
 	}
 
 	# return the line
-	Debug.HttpdCoroLow {get: '$line' [chan blocked $socket] [chan eof $socket]}
+	Debug.HttpdCoroLow {[info coroutine] get: '$line' [chan blocked $socket] [chan eof $socket]}
 	return $line
     }
 
@@ -462,7 +462,7 @@ namespace eval Httpd {
 	}
 	
 	# return the chunk
-	Debug.HttpdCoroLow {read: '$chunk'}
+	Debug.HttpdCoroLow {[info coroutine] read: '$chunk'}
 	return $chunk
     }
 
@@ -582,7 +582,7 @@ namespace eval Httpd {
 		handle [Http Bad $r "HTTP Version '[dict get $r -version]' not supported" 505] "Unsupported HTTP Version"
 	    }
 
-	    Debug.HttpdCoro {reader got request: ($r)}
+	    Debug.HttpdCoro {[info coroutine] reader got request: ($r)}
 
 	    # parse the URL
 	    set r [dict merge $r [Url parse [dict get $r -uri]]]
@@ -650,7 +650,7 @@ namespace eval Httpd {
 	    }
 
 	    # completed request header decode - now dispatch on the URL
-	    Debug.HttpdCoro {reader complete: $header ([rdump $r])}
+	    Debug.HttpdCoro {[info coroutine] reader complete: $header ([rdump $r])}
 
 	    # rename fields whose names are the same in request/response
 	    foreach n {cache-control} {
@@ -719,11 +719,11 @@ namespace eval Httpd {
 		    set chunksize 0x[get $socket CHUNK]
 		    chan configure $socket -translation {binary binary}
 		    if {$chunksize eq "0x"} {
-			Debug.HttpdCoro {Chunks all done}
+			Debug.HttpdCoroLow {[info coroutine] Chunks all done}
 			break	;# collected all the chunks
 		    }
 		    set chunk [read $socket $chunksize]
-		    Debug.HttpdCoro {Chunk: $chunksize ($chunk)}
+		    Debug.HttpdCoroLow {[info coroutine] Chunk: $chunksize ($chunk)}
 		    get $socket CHUNK
 		    dict append r -entity $chunk
 
@@ -753,13 +753,13 @@ namespace eval Httpd {
 		} else {
 		    set entity ""
 		    chan configure $socket -translation {binary binary}
-		    Debug.HttpdCoro {reader getting entity of length ($left)}
+		    Debug.HttpdCoroLow {[info coroutine] reader getting entity of length ($left)}
 		    while {$left > 0} {
 			set chunk [read $socket $left]
 			incr left -[string length $chunk]
-			Debug.HttpdCoro {reader getting remainder of entity of length ($left)}
+			Debug.HttpdCoroLow {[info coroutine] reader getting remainder of entity of length ($left)}
 			dict append r -entity $chunk
-			Debug.HttpdCoro {reader got whole entity}
+			Debug.HttpdCoroLow {[info coroutine] reader got whole entity}
 		    }
 		}
 	    }
@@ -803,7 +803,7 @@ namespace eval Httpd {
 		dict set cached -generation [dict get $r -generation]
 		dict set unsatisfied [dict get $cached -transaction] {}
 
-		Debug.HttpdCoro {sending cached ([rdump $cached])}
+		Debug.HttpdCoro {[info coroutine] sending cached ([rdump $cached])}
 		send $cached 0	;# send cached response directly
 		continue
 	    }
@@ -862,10 +862,10 @@ namespace eval Httpd {
 	    if {[catch {
 		Responder post $rsp
 	    } e eo]} {
-		Debug.error {POST ERROR: $e ($eo)} 1
+		Debug.error {[info coroutine] POST ERROR: $e ($eo)} 1
 		set rsp [Http ServerError $r $e $eo]
 	    } else {
-		Debug.HttpdCoro {POST: [rdump $e]} 10
+		Debug.HttpdCoro {[info coroutine] POST: [rdump $e]} 10
 		set rsp $e
 	    }
 
@@ -978,9 +978,9 @@ namespace eval Httpd {
     }
 
     proc kill {what} {
-	Debug.HttpdCoro {terminating: "$what"}
+	Debug.HttpdCoro {killing: "$what"}
 	catch {rename $what {}} r eo	;# kill this coro right now
-	Debug.HttpdCoro {terminated $what: '$r' ($eo)}
+	Debug.HttpdCoro {killed $what: '$r' ($eo)}
     }
 
     variable reaper	;# array of hardline events 
