@@ -219,6 +219,7 @@ namespace eval Httpd {
 	dict set args -sock $sock
 	dict set args -ipaddr $ipaddr
 	dict set args -rport $rport
+	dict set args -received_seconds [clock seconds]
 	variable cid; set id [incr cid]
 	dict set args -cid $id
 
@@ -342,9 +343,21 @@ namespace eval Httpd {
 	cleanup	;# clean up worker associations
     }
 
+    # common log format log - per request, for log analysis
+    variable log 0	;# fd of open log file - default none
+    variable logfile ""	;# name of log file - "" means none
+
     # configure - set Httpd protocol defaults
     proc configure {args} {
 	variable {*}$args
+
+	# open the web analysis log
+	variable logfile
+	variable log
+	if {$logfile ne "" && $log == 0} {
+	    set log [open $logfile a]		;# always add to the end
+	    fconfigure $log -buffering line	;# we want to try to make writes atomic
+	}
     }
 
     namespace export -clear *
