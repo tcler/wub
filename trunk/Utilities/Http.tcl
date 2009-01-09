@@ -175,7 +175,7 @@ namespace eval Http {
 
 	# referer, useragent, cookie, if any
 	lappend line \"[Dict get? $r referer]\"
-	lappend line \"[Dict get? $r useragent]\"
+	lappend line \"[Dict get? $r user-agent]\"
 	lappend line \"[Dict get? $r cookie]\"
 
 	return [join $line]
