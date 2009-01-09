@@ -106,7 +106,7 @@ namespace eval Httpd {
 	}
 
 	# terminate consumer if it's still alive
-	set cn ${cn}_DEAD_[uniq]
+	set cn ${consumer}_DEAD_[uniq]
 	rename $consumer $cn
 	after 1 [list catch [list $cn ""]]
 
