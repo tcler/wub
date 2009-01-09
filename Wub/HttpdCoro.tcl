@@ -106,14 +106,7 @@ namespace eval Httpd {
 	}
 
 	# report EOF to consumer if it's still alive
-	if {[info commands $consumer] eq ""} {
-	    Debug.HttpdCoro {reader [info coroutine]: consumer gone on EOF}
-	} elseif {[catch {
-	    after 1 [list $consumer ""]
-	    Debug.HttpdCoro {reader [info coroutine]: informed $consumer of EOF}
-	} e eo]} {
-	    Debug.error {reader [info coroutine]: consumer error on EOF $e ($eo)}
-	}
+	after 1 [list $consumer ""]
 
 	# clean up socket - the only point where we close
 	chan close $socket
@@ -407,18 +400,7 @@ namespace eval Httpd {
 
 		TIMEOUT {
 		    # we've timed out - oops
-		    if {[info commands $consumer] eq ""} {
-			Debug.HttpdCoro {reader [info coroutine]: consumer error or gone on EOF}
-			EOF TIMEOUT
-		    } elseif {[catch {
-			$consumer ""
-		    } e eo]} {
-			Debug.HttpdCoro {[info coroutine]: consumer error $e ($eo) on timeout}
-		    }
-
 		    EOF TIMEOUT
-
-		    set time -1	;# no more timeouts
 		    return	;# don't forget to die
 		}
 
