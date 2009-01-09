@@ -829,12 +829,13 @@ namespace eval Httpd {
     variable consumer {
 	Debug.HttpdCoro {consumer: $args}
 	dict with args {}
+
 	set retval ""
 	while {1} {
 	    set r [::yield $retval]
 	    if {[dict size $r] == 0} {
 		Debug.HttpdCoro {consumer [info coroutine] terminating}
-		return	;# kill self by returning
+		break
 	    }
 	    
 	    Debug.HttpdCoro {consumer [info coroutine] got: $r}
@@ -871,10 +872,10 @@ namespace eval Httpd {
 		$reader [list SEND $rsp]
 	    } e eo]} {
 		Debug.error {[info coroutine] sending terminated via $reader: $e ($eo)} 1
-		return
+		break
 	    } elseif {$e in {EOF ERROR}} {
 		Debug.HttpdCoro {[info coroutine] sending terminated via $reader: $e} 1
-		return
+		break
 	    }
 	}
     }
