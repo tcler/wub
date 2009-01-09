@@ -156,6 +156,31 @@ namespace eval Http {
 	set headers($n) e
     }
 
+    # clf - common log format
+    proc clf {r} {
+	lappend line [dict get $r -ipaddr]	;# remote IP
+	lappend line - -	;# we don't do user names
+
+	# receipt time of connection
+	lappend line \[[clock format [dict get $r -received_seconds] -format "%d/%b/%Y:%T %Z"]\]
+
+	# first line of request
+	lappend line \"[Dict get? $r -header]\"
+
+	# status we returned to it
+	lappend line [dict get $r -code]
+
+	# content byte length
+	lappend line [string length [Dict get? $r -content]]
+
+	# referer, useragent, cookie, if any
+	lappend line \"[Dict get? $r referer]\"
+	lappend line \"[Dict get? $r useragent]\"
+	lappend line \"[Dict get? $r cookie]\"
+
+	return [join $line]
+    }
+
     # map http error code to human readable message
     proc ErrorMsg {code} {
 	variable Errors
