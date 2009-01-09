@@ -317,6 +317,14 @@ namespace eval Httpd {
 	    Debug.HttpdCoro {SENT (close: $close)} 10
 	}
 
+	# generate a log line
+	variable log
+	if {$log && [catch {
+	    puts $log [Httpd clf $r]	;# generate a log line
+	} le leo]} {
+	    Debug.error {log error: $le ($leo)}
+	}
+
 	# deal with socket
 	if {$close} {
 	    EOF closed
@@ -546,7 +554,7 @@ namespace eval Httpd {
 	    set lines {}
 	    while {$headering} {
 		set line [get $socket HEADER]
-		Debug.HttpdCoro {reader [info coroutine] got line: ($line)}
+		Debug.HttpdCoroLow {reader [info coroutine] got line: ($line)}
 		if {[string trim $line] eq ""} {
 		    # rfc2616 4.1: In the interest of robustness,
 		    # servers SHOULD ignore any empty line(s)
@@ -567,6 +575,7 @@ namespace eval Httpd {
 
 	    # unpack the header line
 	    set header [lindex $lines 0]
+	    dict set r -header $header
 	    dict set r -method [string toupper [lindex $header 0]]
 	    switch -- [dict get $r -method] {
 		CONNECT {
@@ -964,7 +973,8 @@ namespace eval Httpd {
 
 	# construct the reader
 	variable timeout
-	set result [coroutine $R ::apply [list args $reader ::Httpd] socket $socket consumer $cr prototype $request generation $gen cid $cid]
+	variable log
+	set result [coroutine $R ::apply [list args $reader ::Httpd] socket $socket consumer $cr prototype $request generation $gen cid $cid log $log]
 
 	# ensure there's a cleaner for this connection's coros
 	trace add command $cr delete [list ::Httpd::reap $R $cr]
@@ -1069,7 +1079,6 @@ namespace eval Httpd {
 
     namespace export -clear *
     namespace ensemble create -subcommands {}
-
 }
 
 Httpd every $Httpd::timeout {Httpd reaper}	;# start the inactivity reaper
