@@ -986,18 +986,28 @@ namespace eval Httpd {
     variable reaper	;# array of hardline events 
     proc reaper {} {
 	variable timeout
-	set then [expr {[clock milliseconds] - $timeout}]
+	set now [clock milliseconds]
+	set then [expr {$now - $timeout}]
+
+	variable reaper
+	foreach {n v} [array get reaper] {
+	    unset reaper($n)
+	    if {$v < $now} {
+		kill $n
+	    }
+	}
 
 	variable activity
-	variable reaper
 	foreach {n v} [array get activity] {
-	    if {[info commands $n] eq {}} {
-		unset activity($n)	;# this is bogus
-	    } elseif {$v < $then} {
-		Debug.HttpdCoro {Reaping $n}
-		unset activity($n)	;# prevent double-triggering
-		$n TIMEOUT		;# alert coro to its fate
-		set reaper($n) [after [expr {5 * $timeout}] [list Httpd kill $n]]	;# if it doesn't respond, kill it.
+	    catch {
+		if {[info commands $n] eq {}} {
+		    unset activity($n)	;# this is bogus
+		} elseif {$v < $then} {
+		    Debug.Watchdog {Reaping $n}
+		    unset activity($n)	;# prevent double-triggering
+		    catch {$n TIMEOUT}	;# alert coro to its fate
+		    set reaper($n) [expr {$now + 2 * $timeout}]	;# if it doesn't respond, kill it.
+		}
 	    }
 	}
     }
