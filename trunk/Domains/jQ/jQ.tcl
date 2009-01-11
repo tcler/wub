@@ -515,7 +515,7 @@ namespace eval jQ {
 	variable prefix
 	variable root
 	variable expires
-	File ::jQ::fs -prefix $prefix -root $root -expires $expires
+	File create ::jQ::fs -prefix $prefix -root $root -expires $expires
 	
 	return $prefix
     }
