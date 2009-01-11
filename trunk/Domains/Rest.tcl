@@ -43,8 +43,8 @@ namespace eval Rest {
     variable rest; array set rest {}
 
     proc do {rsp} {
-	variable mount
 	# compute suffix
+	variable mount
 	if {[dict exists $rsp -suffix]} {
 	    # caller has munged path already
 	    set suffix [dict get $rsp -suffix]
