@@ -1,11 +1,6 @@
 # HttpC - HTTP 1.1 client
 
 # import the relevant commands
-namespace eval ::tcl::unsupported {namespace export coroutine yield infoCoroutine}
-namespace import ::tcl::unsupported::coroutine ::tcl::unsupported::yield ::tcl::unsupported::infoCoroutine
-
-lappend ::auto_path [file join [file dirname [file dirname [file normalize [info script]]]] Utilities]
-
 package require Url
 
 package require Debug
@@ -57,8 +52,8 @@ namespace eval HttpC {
 		TIMEOUT {
 		    # we've timed out - oops
 		    if {[catch {
-			$consumer [list TIMEOUT $cmd]
-		    }] && [info commands ::HttpC::$consumer] == {}} {
+			$consumer [list TIMEOUT [info coroutine] $cmd]
+		    }] && [info commands $consumer] == {}} {
 			Debug.HttpC {reader: consumer error or gone on EOF}
 			return -code return
 		    }
@@ -66,11 +61,7 @@ namespace eval HttpC {
 		}
 
 		KILL {
-		    return -code return $args
-		}
-
-		BREAK {
-		    return -code break $args
+		    return -level [expr {[info level] - 1}] $args	;# return to the top coro level
 		}
 
 		READ {
@@ -222,8 +213,8 @@ namespace eval HttpC {
 	catch {chan event $socket readable {}}
 	catch {chan event $socket writeable {}}
 	if {[catch {
-	    $consumer {EOF HEADER}
-	}] && [info commands ::HttpC::$consumer] == {}} {
+	    $consumer [list EOF [info coroutine] HEADER]
+	}] && [info commands $consumer] == {}} {
 	    Debug.HttpC {reader: consumer error or gone on EOF}
 	    return -code return
 	}
@@ -249,8 +240,8 @@ namespace eval HttpC {
 	catch {chan event $socket readable {}}
 	catch {chan event $socket writeable {}}
 	if {[catch {
-	    $consumer {EOF ENTITY}
-	}] && [info commands ::HttpC::$consumer] == {}} {
+	    $consumer [list EOF [info coroutine] ENTITY]
+	}] && [info commands $consumer] == {}} {
 	    Debug.HttpC {reader: consumer error or gone on EOF}
 	    return -code return
 	}
@@ -327,12 +318,12 @@ namespace eval HttpC {
 	    # reset to header config
 	    chan configure $socket -encoding binary -translation {crlf binary}
 
-	    if {[info commands ::HttpC::$consumer] == {}} {
+	    if {[info commands $consumer] == {}} {
 		Debug.HttpC {reader: consumer gone $consumer}
 		return
 	    }
 
-	    after 1 ::HttpC::$consumer [list [list INCOMING $r]]
+	    after 1 $consumer [list [list INCOMING $r]]
 	    Debug.HttpC {reader: sent response, waiting for next}
 	}
     }
@@ -358,6 +349,7 @@ namespace eval HttpC {
 	} else {
 	    dict set args port 80 
 	}
+	dict set args scheme [dict get $urld -scheme]
 
 	# create the socket
 	set socket [socket -async [dict get $args host] [dict get $args port]]
@@ -366,8 +358,13 @@ namespace eval HttpC {
 	chan configure $socket -blocking 0 -buffering none -encoding binary -translation {crlf binary}
 
 	# construct consumer
-	set cr C[uniq]
-	coroutine $cr ::apply $consumer
+	if {[dict exists $args -consumer]} {
+	    set cr $consumer
+	    dict unset $args -consumer
+	} else {
+	    set cr ::HttpC::C[uniq]
+	    coroutine $cr ::apply $consumer
+	}
 
 	# create reader coroutine
 	variable reader
@@ -386,6 +383,8 @@ namespace eval HttpC {
 }
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
+    lappend ::auto_path [file join [file dirname [file dirname [file normalize [info script]]]] Utilities]
+
     HttpC connect {{args} {
 	while {1} {
 	    set args [lassign [yield] op]

@@ -19,7 +19,6 @@ package ifneeded Icons 1.0 [list source [file join $dir Icons Icons.tcl]]
 #package ifneeded CA 1.0 [list source [file join $dir CA.tcl]]
 
 #package ifneeded Host 2.0 [list source [file join $dir Host.tcl]]
-#package ifneeded Snit 1.0 [list source [file join $dir Snit.tcl]]
 #package ifneeded Cache 1.0 [list source [file join $dir Cache.tcl]]
 #package ifneeded Prefix 1.0 [list source [file join $dir Prefix.tcl]]
 #package ifneeded Home 1.0 [list source [file join $dir Home.tcl]]
@@ -34,4 +33,3 @@ package ifneeded Widget 1.0 [list source [file join $dir Widget.tcl]]
 
 package ifneeded Sinorca 1.0 [list source [file join $dir Sinorca Sinorca.tcl]]
 package ifneeded Simplicio 1.0 [list source [file join $dir Simplicio.tcl]]
-

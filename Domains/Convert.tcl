@@ -334,7 +334,6 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     package require Httpd
     package require Host
     package require File
-    package require Snit
     package require Dump
     package require Compose
 
@@ -358,9 +357,6 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 
     set fdom [File %AUTO% -root [file dirname [info script]]]
     localhost Register /file/ $fdom Dispatch	;# filedomain dispatcher
-
-    set sdom [TestSnit %AUTO%]
-    localhost Register /snit/ $sdom Dispatch	;# filedomain dispatcher
 
     set collect [Compose %AUTO% -subdomains [list $sdom $fdom]]
     set convert [Convert %AUTO% -subdomain $collect]
