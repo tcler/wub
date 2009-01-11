@@ -337,7 +337,6 @@ namespace eval Httpd {
 
 	    # record a log of our activity to fend off the reaper
 	    variable activity
-	    set activity([info coroutine]) [clock milliseconds]
 
 	    # dispatch on command
 	    switch -- [string toupper $op] {
@@ -356,6 +355,7 @@ namespace eval Httpd {
 			Debug.HttpdCoro {[info coroutine] eof detected from yield}
 			terminate "EOF on reading"
 		    } else {
+			set activity([info coroutine]) [clock milliseconds]
 			return $args
 		    }
 		}
@@ -369,6 +369,7 @@ namespace eval Httpd {
 			terminate "socket is closed"
 		    } else {
 			# just read incoming data
+			set activity([info coroutine]) [clock milliseconds]
 			set x [chan read $socket]
 			Debug.HttpdCoro {[info coroutine] is closing, read [string length $x] bytes}
 		    }
@@ -376,6 +377,7 @@ namespace eval Httpd {
 
 		SEND {
 		    # send a response to client on behalf of consumer
+		    set activity([info coroutine]) [clock milliseconds]
 		    set retval [send {*}$args]
 		}
 
