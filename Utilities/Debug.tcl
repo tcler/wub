@@ -113,7 +113,6 @@ Debug off mason
 Debug off mime
 Debug off session
 Debug off smtp
-Debug off snitdomain
 Debug off socket
 Debug off sql
 Debug off timer

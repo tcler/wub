@@ -139,23 +139,6 @@ proc cmdSplit {body} {
 }
 
 
-# Calls an instance method for an object given its
-# instance namespace and remaining arguments (the first of which
-# will be the method name.
-#
-# selfns		The instance namespace
-# args			The arguments
-#
-# Uses the selfns to determine $self, and calls the method
-# in the normal way.
-#
-# This is used to implement the "mymethod" command.
-package require snit
-proc ::snit::RT.CallInstance {selfns args} {
-    upvar ${selfns}::Snit_instance self
-    return [uplevel 1 $self $args]
-}
-
 # convert a bastardised emacs httms timestamp to something useful
 proc hhmts {time} {
     set ::httmts [string trim $time "<!->\n"]
