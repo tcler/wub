@@ -98,9 +98,9 @@ foreach {dom expiry} {
     # from the eponymous directory.  Each file served has an expiry
     # date as indicated, which allows caching.
     #puts stderr "File: [file join $docroot $dom]"
-    File $dom -root [file join $docroot $dom] -expires $expiry
+    File create $dom -root [file join $docroot $dom] -expires $expiry
 }
-File bindir -root [file join $docroot bin] -expires 0
+File create bindir -root [file join $docroot bin] -expires 0
 
 #### Repo domain - file repository
 #
@@ -167,6 +167,11 @@ package require Widget
 package require Sinorca
 Sinorca init
 Convert Namespace ::Sinorca
+
+#### Simplicio package
+# provides a page-level conversion
+package require Simplicio
+Simplicio init
 
 #### introspection: example of a direct domain
 # Implemented as a Direct domain, used to introspect the server.
@@ -351,6 +356,12 @@ proc Responder::do {req} {
 	/sinorca/ {
 	    # demonstrates the Sinorca livery
 	    Sinorca ram do $req
+	}
+
+	/simplicio/* -
+	/simplicio/ {
+	    # demonstrates the Simplicio icons
+	    Simplicio do $req
 	}
 
 	/ram/* -
