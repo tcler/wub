@@ -1,27 +1,18 @@
 # timer - a timer object
+package require TclOO
+namespace import oo::*
+
 package provide Timer 1.0
 
-package require snit
-
-::snit::type Timer {
-    variable timer ""	;# after timer
-
-    # cancel any timers
-    method cancel {} {
-	#upvar 1 self owner
-	#Debug.http {Timer $self for '$owner' timer $timer}
-	if {$timer != ""} {
-	    catch {after cancel $timer}
-	    set timer ""
-	}
-    }
-
+class create Timer {
     method dump {} {
+	my variable timer
 	return [list $timer]
     }
 
     method running? {} {
-	if {[catch {after info $timer} info]} {
+	my variable timer
+	if {[catch {::after info $timer} info]} {
 	    return 0
 	} else {
 	    return 1
@@ -31,26 +22,45 @@ package require snit
     variable cmd
     variable at
 
-    # restart timer
-    method restart {} {
-	$self after $at {*}$cmd
+    # cancel any timers
+    method cancel {} {
+	my variable timer
+	if {$timer != ""} {
+	    catch {::after cancel $timer}
+	    set timer ""
+	}
     }
 
     # start a new timer
     method after {when args} {
-	uplevel 1 $self cancel
+	my cancel
+	my variable timer at cmd
 	if {$timer ne ""} {
 	    # still have a timer running - cancel it
-	    $self cancel
+	    my cancel
 	}
 	set at $when
 	set cmd $args
-	set timer [after $when {*}$args]
+	set timer [::after $when {*}$args]
     }
+
+    constructor {{when ""} args} {
+	my variable timer ""
+	if {$when ne ""} {
+	    self after $when {*}$args
+	}
+    }
+
+    # restart timer
+    method restart {} {
+	my variable at cmd
+	my after $at {*}$cmd
+    }
+
 }
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
-    Timer T
+    Timer create T
     T after 3000 {puts moop}
     T cancel
     T after 3000 {puts moop}
