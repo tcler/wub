@@ -2,7 +2,7 @@
 package ifneeded conversions 1.0 [list source [file join $dir conversions.tcl]]
 
 # domains
-package ifneeded File 1.0 [list source [file join $dir File.tcl]]
+package ifneeded File 2.0 [list source [file join $dir File.tcl]]
 package ifneeded Repo 1.0 [list source [file join $dir Repo.tcl]]
 package ifneeded Dump 1.0 [list source [file join $dir Dump.tcl]]
 package ifneeded Compose 1.0 [list source [file join $dir Compose.tcl]]
@@ -33,4 +33,5 @@ package ifneeded Coco  1.0 [list source [file join $dir Coco.tcl]]
 package ifneeded Widget 1.0 [list source [file join $dir Widget.tcl]]
 
 package ifneeded Sinorca 1.0 [list source [file join $dir Sinorca Sinorca.tcl]]
+package ifneeded Simplicio 1.0 [list source [file join $dir Simplicio.tcl]]
 
