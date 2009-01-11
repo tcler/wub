@@ -106,9 +106,11 @@ namespace eval Httpd {
 	}
 
 	# terminate consumer if it's still alive
-	set cn ${consumer}_DEAD_[uniq]
-	rename $consumer $cn
-	after 1 [list catch [list $cn ""]]
+	if {[info commands $consumer] ne {}} {
+	    set cn ${consumer}_DEAD_[uniq]
+	    rename $consumer $cn
+	    after 1 [list catch [list $cn ""]]
+	}
 
 	# clean up socket - the only point where we close
 	chan close $socket
@@ -811,10 +813,10 @@ namespace eval Httpd {
 	    }
 
 	    # deliver request to consumer
-	    if {[info commands $consumer] ne {}} {
+	    if {[info commands [lindex $consumer 0]] ne {}} {
 		# deliver the assembled request to the consumer
 		dict set unsatisfied [dict get $r -transaction] {}
-		after 1 [list catch [list $consumer $r]]
+		after 1 [list catch [list {*}$consumer $r]]
 		Debug.HttpdCoro {reader [info coroutine]: sent to consumer, waiting for next}
 	    } else {
 		# the consumer has gone away
@@ -837,7 +839,7 @@ namespace eval Httpd {
 	set retval ""
 	while {1} {
 	    set r [::yield $retval]
-	    if {[dict size $r] == 0} {
+	    if {[catch {dict size $r} size] || $size == 0} {
 		Debug.HttpdCoro {consumer [info coroutine] terminating}
 		break
 	    }
