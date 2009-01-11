@@ -71,7 +71,7 @@ namespace eval Coco {
 	return $_r
     }
 
-    variable uniq [pid]	;# seed for unique coroutine names
+    variable uniq "[pid][clock seconds]"	;# seed for unique coroutine names
 
     # give a uniq looking name
     proc uniq {} {
@@ -86,10 +86,7 @@ namespace eval Coco {
 	lassign $yield cmd args
 	switch -- $cmd {
 	    kill {
-		return -code return $args
-	    }
-	    break {
-		return -code break $args
+		return -level [expr {[info level] - 1}] $args	;# return to the top coro level
 	    }
 	    call -
 	    default {
