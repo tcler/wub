@@ -506,7 +506,7 @@ namespace eval stx2html {
     variable packages {Form}
     variable script 0
     variable home [file dirname [file normalize [info script]]]
-    variable path [list [info library] /usr/share/tcltk/tcl[info tclversion]/ [file dirname $home]/Utilities/ [file dirname $home]/extensions/ /usr/lib/tcllib1.10/textutil/ /usr/lib/tcllib1.10/snit/]
+    variable path [list [info library] /usr/share/tcltk/tcl[info tclversion]/ [file dirname $home]/Utilities/ [file dirname $home]/extensions/ /usr/lib/tcllib1.10/textutil/]
     #puts stderr "PATH:$path"
     proc init {args} {
 	if {$args ne {}} {
