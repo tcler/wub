@@ -32,7 +32,7 @@ namespace eval Commenter {
 
     # parse a tcl source into a dict containing:
     #
-    # contexts - the contexts provided by this source (namespace, global, snit)
+    # contexts - the contexts provided by this source (namespace, global)
     # entities - the procs, vars, options and methods provided by this source
 
     proc parse {text {src ""}} {
@@ -107,18 +107,6 @@ namespace eval Commenter {
 			lappend context($src) entities $name
 		    }
 		    #puts stderr "namespace $name"
-		}
-
-		::snit::type* -
-		snit::type* {
-		    regsub {[ \t]+} $line " " line
-		    set line [split $line]
-		    set name [lindex $line 1]
-		    set context($name) [list name $name comment $comment type snit context $src]
-		    set comment {}
-		    lappend context($src) entities $name
-		    set current $name
-		    #puts stderr "snit $name"
 		}
 
 		variable* -

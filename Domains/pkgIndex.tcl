@@ -22,7 +22,6 @@ package ifneeded Icons 1.0 [list source [file join $dir Icons Icons.tcl]]
 #package ifneeded Cache 1.0 [list source [file join $dir Cache.tcl]]
 #package ifneeded Prefix 1.0 [list source [file join $dir Prefix.tcl]]
 #package ifneeded Home 1.0 [list source [file join $dir Home.tcl]]
-#package ifneeded WubTest 1.0 [list source [file join $dir WubTest.tcl]]
 
 package ifneeded RAM  1.1 [list source [file join $dir RAM.tcl]]
 package ifneeded Tie  1.0 [list source [file join $dir Tie.tcl]]
