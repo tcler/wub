@@ -84,7 +84,7 @@ if {[info tclversion] >= 8.6} {
 # It will search through the ../docs/ directory for its files,
 # calling tcl scripts named .before before processing any file,
 # and scripts named .after after processing.
-Mason wub -url /wub -root $docroot -auth .before -wrapper .after
+Mason create wub -prefix /wub -root $docroot -auth .before -wrapper .after
 
 #### install directories of static files
 foreach {dom expiry} {
@@ -519,7 +519,7 @@ Debug off direct 10
 Debug off convert 10
 Debug off cookies 10
 Debug off session 10
-Debug off mason 10
+Debug on mason 10
 
 # Start Site Server(s)
 Site start

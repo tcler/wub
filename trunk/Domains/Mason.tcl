@@ -2,34 +2,14 @@
 #
 # A domain to emulate Mason (http://www.masonhq.com/)
 
-package require snit
 package require Html
-
+package require TclOO
+namespace import oo::*
+package require Debug
+Debug on mason 10
 package provide Mason 1.0
 
-::snit::type Mason {
-    option -url ""	;# url for top of this domain
-    option -root ""	;# file system domain root
-    option -hide {^([.].*)|(.*~)$}	;# these files are never matched
-    option -functional ".tml"	;# functional extension
-    option -notfound ".notfound"	;# notfound handler name
-    option -wrapper ".wrapper"	;# wrapper handler name
-    option -auth ".auth"	;# authentication functional
-    option -index index.html	;# directory index name
-    option -dirhead {name size mtime *}
-    option -dirfoot {}
-    # additional aliases to be installed in session interpreter
-    option -aliases -configuremethod addalias \
-	-default {}
-    method addalias {option value} {
-	lappend options(-aliases) {*}$value
-    }
-
-    # when a file is not located, it will be searched for.
-    # to minimise the cost of this search, -cache will
-    # instruct Mason to memoize found files
-    option -cache 1		;# cache file searches
-
+class create Mason {
     method conditional {req path} {
 	# check conditional
 	if {[dict exists $req if-modified-since]
@@ -48,7 +28,8 @@ package provide Mason 1.0
     method findUp {req name} {
 	Debug.mason {findUp [dict get $req -root] [dict get $req -suffix] $name} 3
 	set suffix [string trim [dict get $req -suffix] /]
-	if {$options(-cache)} {
+	my variable cache
+	if {$cache} {
 	    set result [file upm [dict get $req -root] $suffix $name]
 	} else {
 	    set result [file up [dict get $req -root] $suffix $name]
@@ -110,7 +91,7 @@ package provide Mason 1.0
     }
 
     method functional {req fpath} {
-	set rsp [$self template $req $fpath]
+	set rsp [my template $req $fpath]
 	Debug.mason {Mason Functional ($fpath): [dumpMsg $rsp]}
 
 	# determine whether content is dynamic or not
@@ -133,7 +114,9 @@ package provide Mason 1.0
 	}
 	
 	# no such file - may be a functional?
-	set fpath [file rootname $file]$options(-functional)
+	my variable functional
+	set fpath [file rootname $file]$functional
+	Debug.mason {candidate $fpath - [file exists $fpath]}
 	if {[file exists $fpath]} {
 	    return $fpath
 	} else {
@@ -144,8 +127,9 @@ package provide Mason 1.0
     method mason {req} {
 	Debug.mason {Mason: [dumpMsg $req]}
 	
-	dict set req -mason $self
-	dict set req -urlroot $options(-url)
+	dict set req -mason [self]
+	my variable prefix
+	dict set req -urlroot $prefix
 
 	set http [Dict get? $req -http]
 	set suffix [string trimleft [dict get $req -suffix] /]
@@ -156,47 +140,49 @@ package provide Mason 1.0
 	set url [dict get $req -url]	;# full URL
 	
 	Debug.mason {Mason: -url:$url - suffix:$suffix - path:$path - tail:$tail - ext:$ext}
-	
+	my variable hide
 	if {(($tail eq $ext) && ($ext ne "")
 	     && ![dict exists $req -extonly])
-	    || [regexp $options(-hide) $tail]
+	    || [regexp $hide $tail]
 	} {
 	    # this is a file name like '.../.tml', or is hidden
+	    Debug.mason {notfound failed - illegal name}
 	    return [Http NotFound $req [subst {
 		[<p> "'$path' has illegal name.</p>"]
 	    }]]
 	}
 	
 	# .notfound processing
-	set fpath [$self candidate $path]
+	my variable notfound functional
+	set fpath [my candidate $path]
 	if {$fpath eq ""} {
-	    Debug.mason {not found $fpath - looking for $options(-notfound)}
-	    set fpath [$self findUp $req $options(-notfound)]	;# get the .notfound
+	    Debug.mason {not found $fpath - looking for $notfound}
+	    set fpath [my findUp $req $notfound]	;# get the .notfound
 	    if {$fpath eq ""} {
 		Debug.mason {notfound failed - really not here}
 		# respond notfound template
 		return [Http NotFound $req]
 	    } else {
 		# handle conditional request on .notfound
-		if {[$self conditional $req $fpath]} {
+		if {[my conditional $req $fpath]} {
 		    return [Http NotModified $req]
 		}
 		dict set req -dynamic 1	;# functionals are dynamic by default
-		return [$self functional $req $fpath]	;# invoke the .notfound
+		return [my functional $req $fpath]	;# invoke the .notfound
 	    }
-	} elseif {[file extension $fpath] eq $options(-functional)} {
+	} elseif {[file extension $fpath] eq $functional} {
 	    # handle conditional request on functional path
-	    if {[$self conditional $req $fpath]} {
+	    if {[my conditional $req $fpath]} {
 		return [Http NotModified $req]
 	    }
 
 	    dict set req -dynamic 1	;# functionals are dynamic by default
-	    return [$self functional $req $fpath]	;# invoke the functional
+	    return [my functional $req $fpath]	;# invoke the functional
 	} else {
 	    set path $fpath
 
 	    # handle conditional request on path
-	    if {[$self conditional $req $path]} {
+	    if {[my conditional $req $path]} {
 		return [Http NotModified $req]
 	    }
 	}
@@ -215,6 +201,7 @@ package provide Mason 1.0
 	    
 	    directory {
 		# URL maps to a directory.
+		my variable indexfile functional
 		if {![string match */ $url]} {
 		    # redirect - insist on trailing /
 		    return [Http Redirect $req "${url}/"]
@@ -230,46 +217,49 @@ package provide Mason 1.0
 		    # a file, this works fine, but if the URL for the current
 		    # document names a directory, and the URL is missing the
 		    # trailing slash, then the method fails.
-		} elseif {$options(-index) ne ""} {
+		} elseif {$indexfile ne ""} {
 		    # we are instructed to use index.html (or similar)
 		    # as the contents of a directory.
 		    
 		    # if there is an existing index file re-try this request
 		    # after modifying the URL/path etc.
-		    set fpath [$self candidate [file join $path $options(-index)]]
+		    set fpath [my candidate [file join $path $indexfile]]
 		    if {$fpath ne ""} {
-			if {[file extension $fpath] eq $options(-functional)} {
+			if {[file extension $fpath] eq $functional} {
 			    # handle conditional request on functional path
-			    if {[$self conditional $req $fpath]} {
+			    if {[my conditional $req $fpath]} {
 				return [Http NotModified $req]
 			    }
 			    
 			    dict set req -dynamic 1	;# functionals are dynamic by default
-			    return [$self functional $req $fpath]	;# invoke the functional
+			    return [my functional $req $fpath]	;# invoke the functional
 			}
 			return [Http CacheableFile $req $fpath]
 		    }
 		}
 
 		Debug.mason {not found index $path - looking for .directory}
-		set fpath [$self findUp $req .directory]
+		set fpath [my findUp $req .directory]
 		if {$fpath eq ""} {
 		    Debug.mason {notfound processing failed - really not here}
 		    # respond notfound template
 		    return [Http NotFound $req]
 		}
-		if {$options(-dirhead) ne {}} {
-		    dict set req -thead $options(-dirhead)
+		my variable dirhead
+		if {$dirhead ne {}} {
+		    dict set req -thead $dirhead
 		}
-		if {$options(-dirfoot) eq {}} {
+		my variable dirfoot
+		if {$dirfoot eq {}} {
 		    dict set req -tfoot [list [<a> href .. Up]]
 		}
 		dict set req -dynamic 1	;# functionals are dynamic by default
-		return [$self functional $req $fpath]	;# invoke the functional
+		return [my functional $req $fpath]	;# invoke the functional
 	    }
 	    
 	    default {
 		dict lappend req -depends [file normalize $path]	;# cache notfound
+		Debug.mason {Mason illegal type [file type $path]}
 		return [Http NotFound $req [subst {
 		    [<p> "'$suffix' is of illegal type [file type $path]"]
 		}]]
@@ -279,11 +269,12 @@ package provide Mason 1.0
     
     method auth {req} {
 	# run authentication and return any codes
-	set fpath [$self findUp $req $options(-auth)]
+	my variable auth
+	set fpath [my findUp $req $auth]
 	if {$fpath ne ""} {
 	    Debug.mason {Mason got auth: $fpath}
 	    
-	    set req [$self template $req $fpath]
+	    set req [my template $req $fpath]
 
 	    if {[dict get $req -code] != 200} {
 		# auth preprocessing has an exception - we're done
@@ -305,14 +296,15 @@ package provide Mason 1.0
 	# run a wrapper over the content
 	if {([dict exists $rsp -content])  && [string match 2* $code]} {
 	    # filter/reprocess this response
-	    set wrapper [$self findUp $rsp $options(-wrapper)]
+	    my variable wrapper
+	    set wrap [my findUp $rsp $wrapper]
 
-	    if {$wrapper ne ""} {
+	    if {$wrap ne ""} {
 		# found a wrapper
 		# evaluate autopath template
-		Debug.mason {MASON Respond autopath $options(-wrapper) - $wrapper}
-		dict set req -wrapper $wrapper
-		return [$self functional $rsp $wrapper]
+		Debug.mason {MASON Respond autopath $wrapper - $wrap}
+		dict set req -wrapper $wrap
+		return [my functional $rsp $wrap]
 		# never returns - straight to Respond
 	    }
 	}
@@ -321,7 +313,8 @@ package provide Mason 1.0
     }
 
     method do {req} {
-	dict set req -root $options(-root)
+	my variable root prefix
+	dict set req -root $root
 
 	if {[dict exists $req -suffix]} {
 	    # caller has munged path already
@@ -329,10 +322,11 @@ package provide Mason 1.0
 	} else {
 	    # assume we've been parsed by package Url
 	    # remove the specified prefix from path, giving suffix
-	    set suffix [Url pstrip $options(-url) [dict get $req -path]]
+	    set suffix [Url pstrip $prefix [string trimleft [dict get $req -path] /]]
+	    Debug.mason {suffix:$suffix url:$prefix}
 	    if {($suffix ne "/") && [string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
-		Debug.mason {not found $suffix}
+		Debug.mason {[dict get $req -path] is outside domain suffix $suffix}
 		return [Http NotFound $req]
 	    }
 	    dict set req -suffix $suffix
@@ -340,22 +334,23 @@ package provide Mason 1.0
 
 	Debug.mason {do $suffix}
 
-	set req [$self auth $req]	;# authenticate - must not be caught!
+	set req [my auth $req]	;# authenticate - must not be caught!
 	dict set req -dynamic 0		;# default: static content
-	set rsp [$self mason $req]	;# process request
+	set rsp [my mason $req]	;# process request
 
 	Debug.mason {processed $rsp}
 
 	# filter/reprocess this response
+	my variable wrapper
 	if {[string match 2* [Dict get? $rsp -code]] &&
-	    ($options(-wrapper) ne "") &&
+	    ($wrapper ne "") &&
 	    [dict exists $rsp -content] &&
-	    ([set wrapper [$self findUp $rsp $options(-wrapper)]] ne "")
+	    ([set wrap [my findUp $rsp $wrapper]] ne "")
 	} {
-	    Debug.mason {wrapper $options(-wrapper) - $wrapper}
+	    Debug.mason {wrapper $wrapper - $wrap}
 
 	    # run template over request
-	    set rsp [$self template $rsp $wrapper]
+	    set rsp [my template $rsp $wrap]
 	    catch {dict unset rsp -root}
 
 	    # determine whether content is dynamic or not
@@ -373,16 +368,39 @@ package provide Mason 1.0
     }
 
     constructor {args} {
-	$self configurelist $args
-	set options(-root) [file normalize $options(-root)]
+	my variable prefix; set prefix ""	;# url for top of this domain
+	my variable root; set root ""		;# file system domain root
+	my variable hide; set hide {^([.].*)|(.*~)$}	;# these files are never matched
+	my variable functional; set functional ".tml"	;# functional extension
+	my variable notfound; set notfound ".notfound"	;# notfound handler name
+	my variable wrapper; set wrapper ".wrapper"	;# wrapper handler name
+	my variable auth; set auth ".auth"	;# authentication functional
+	my variable indexfile; set indexfile index.html	;# directory index name
+	my variable dirhead; set dirhead {name size mtime *}
+	my variable dirfoot; set dirfoot {}
+	# additional aliases to be installed in session interpreter
+	my variable aliases; set aliases {}
+	
+	# when a file is not located, it will be searched for.
+	# to minimise the cost of this search, -cache will
+	# instruct Mason to memoize found files
+	my variable cache; set cache 1		;# cache file searches
 
-	if {$options(-dirhead) ne ""} {
+	foreach {n v} $args {
+	    set n [string trim $n -]
+	    my variable $n
+	    set $n $v
+	}
+
+	set $root [file normalize $root]
+
+	if {$dirhead ne ""} {
 	    # search for an element "*" in -dirhead
 	    catch {unset attr}
-	    file lstat $options(-root) attr
+	    file lstat $root attr
 	    set oth [array get attr]
 	    dict set oth name X
-	    foreach {x y} [file attributes $options(-root)] {
+	    foreach {x y} [file attributes $root] {
 		dict set oth $x $y
 	    }
  
@@ -390,7 +408,7 @@ package provide Mason 1.0
 	    set index -1
 	    set hd {}
 	    set rhead {}
-	    foreach el $options(-dirhead) {
+	    foreach el $dirhead {
 		if {$el eq "*"} {
 		    set index $i
 		    lappend rhead *
@@ -403,10 +421,8 @@ package provide Mason 1.0
 
 	    if {$index ne -1} {
 		set thead [lreplace $rhead $index $index {*}[lsort -dictionary [dict keys $oth]]]
-		set options(-dirhead) $thead
+		set dirhead $thead
 	    }
-
-	    #puts stderr "THEAD: $thead"
 	}
     }
 }
