@@ -21,6 +21,7 @@ package require spiders
 package require Debug
 Debug off HttpdCoro 10
 Debug off HttpdCoroLow 10
+Debug on Watchdog 10
 
 package require Url
 package require Http
@@ -1009,7 +1010,7 @@ namespace eval Httpd {
 		} elseif {$v < $then} {
 		    Debug.Watchdog {Reaping $n}
 		    unset activity($n)	;# prevent double-triggering
-		    catch {$n TIMEOUT}	;# alert coro to its fate
+		    catch {$n {TERMINATE Reaped}}	;# alert coro to its fate
 		    set reaper($n) [expr {$now + 2 * $timeout}]	;# if it doesn't respond, kill it.
 		}
 	    }
