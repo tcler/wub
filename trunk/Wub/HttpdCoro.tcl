@@ -1006,10 +1006,10 @@ namespace eval Httpd {
 	foreach {n v} [array get activity] {
 	    catch {
 		if {[info commands $n] eq {}} {
-		    unset activity($n)	;# this is bogus
+		    catch {unset activity($n)}	;# this is bogus
 		} elseif {$v < $then} {
 		    Debug.Watchdog {Reaping $n}
-		    unset activity($n)	;# prevent double-triggering
+		    catch {unset activity($n)}	;# prevent double-triggering
 		    catch {$n {TERMINATE Reaped}}	;# alert coro to its fate
 		    set reaper($n) [expr {$now + 2 * $timeout}]	;# if it doesn't respond, kill it.
 		}
