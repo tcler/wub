@@ -614,7 +614,7 @@ namespace eval Httpd {
 	    # ensure that the client sent a Host: if protocol requires it
 	    if {[dict exists $r host]} {
 		# client sent Host: field
-		if {[string match http:* [dict get $r -uri]]} {
+		if {[string match http*:* [dict get $r -uri]]} {
 		    # rfc 5.2 1 - a host header field must be ignored
 		    # if request-line specified an absolute URL host/port
 		    set r [dict merge $r [Url parse [dict get $r -uri]]]
