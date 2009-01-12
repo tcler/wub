@@ -108,9 +108,11 @@ namespace eval Httpd {
 
 	# terminate consumer if it's still alive
 	if {[info commands $consumer] ne {}} {
-	    set cn ${consumer}_DEAD_[uniq]
-	    rename $consumer $cn
-	    after 1 [list catch [list $cn ""]]
+	    catch {
+		set cn ${consumer}_DEAD_[uniq]
+		rename $consumer $cn
+		after 1 [list catch [list $cn ""]]
+	    }
 	}
 
 	# clean up socket - the only point where we close
@@ -300,8 +302,9 @@ namespace eval Httpd {
 	    Debug.HttpdCoro {[info coroutine] Send without -generation ($r)}
 	    dict set r -generation $generation
 	} elseif {[dict get $r -generation] != $generation} {
+	    # report error to sender, but don't die ourselves
 	    Debug.error {Send discarded: out of generation ($r)}
-	    terminate generation
+	    return ERROR
 	}
 
 	if {[catch {
@@ -416,7 +419,7 @@ namespace eval Httpd {
 	    dict set req -generation $generation
 
 	    # send a response to client
-	    send $req	;# queue up error response
+	    send $req 0	;# queue up error response (no caching)
 	} r eo]} {
 	    dict append req -error "(handler '$r' ($eo))"
 	    Debug.error {'handle' error: '$r' ($eo)}
@@ -817,7 +820,7 @@ namespace eval Httpd {
 	    if {[info commands [lindex $consumer 0]] ne {}} {
 		# deliver the assembled request to the consumer
 		dict set unsatisfied [dict get $r -transaction] {}
-		dict set r -send [info coroutine]	;# let consumer know how to reply
+		dict set r -send [info coroutine]bi	;# let consumer know how to reply
 		after 1 [list catch [list {*}$consumer $r]]
 		Debug.HttpdCoro {reader [info coroutine]: sent to consumer, waiting for next}
 	    } else {
