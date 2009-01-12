@@ -136,7 +136,7 @@ class create File {
 	}
     }
 
-    variable index prefix hide redirdir expires dirtime dirparams
+    variable root index prefix hide redirdir expires dirtime dirparams
 
     constructor {args} {
 	set index "index.*"
