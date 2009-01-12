@@ -28,7 +28,7 @@ class create Mason {
     method findUp {req name} {
 	Debug.mason {findUp [dict get $req -root] [dict get $req -suffix] $name} 3
 	set suffix [string trim [dict get $req -suffix] /]
-	my variable cache
+	#my variable cache
 	if {$cache} {
 	    set result [file upm [dict get $req -root] $suffix $name]
 	} else {
@@ -114,7 +114,7 @@ class create Mason {
 	}
 	
 	# no such file - may be a functional?
-	my variable functional
+	#my variable functional
 	set fpath [file rootname $file]$functional
 	Debug.mason {candidate $fpath - [file exists $fpath]}
 	if {[file exists $fpath]} {
@@ -128,7 +128,7 @@ class create Mason {
 	Debug.mason {Mason: [dumpMsg $req]}
 	
 	dict set req -mason [self]
-	my variable prefix
+	#my variable prefix
 	dict set req -urlroot $prefix
 
 	set http [Dict get? $req -http]
@@ -140,7 +140,7 @@ class create Mason {
 	set url [dict get $req -url]	;# full URL
 	
 	Debug.mason {Mason: -url:$url - suffix:$suffix - path:$path - tail:$tail - ext:$ext}
-	my variable hide
+	#my variable hide
 	if {(($tail eq $ext) && ($ext ne "")
 	     && ![dict exists $req -extonly])
 	    || [regexp $hide $tail]
@@ -153,7 +153,7 @@ class create Mason {
 	}
 	
 	# .notfound processing
-	my variable notfound functional
+	#my variable notfound functional
 	set fpath [my candidate $path]
 	if {$fpath eq ""} {
 	    Debug.mason {not found $fpath - looking for $notfound}
@@ -201,7 +201,7 @@ class create Mason {
 	    
 	    directory {
 		# URL maps to a directory.
-		my variable indexfile functional
+		#my variable indexfile functional
 		if {![string match */ $url]} {
 		    # redirect - insist on trailing /
 		    return [Http Redirect $req "${url}/"]
@@ -245,11 +245,11 @@ class create Mason {
 		    # respond notfound template
 		    return [Http NotFound $req]
 		}
-		my variable dirhead
+		#my variable dirhead
 		if {$dirhead ne {}} {
 		    dict set req -thead $dirhead
 		}
-		my variable dirfoot
+		#my variable dirfoot
 		if {$dirfoot eq {}} {
 		    dict set req -tfoot [list [<a> href .. Up]]
 		}
@@ -269,7 +269,7 @@ class create Mason {
     
     method auth {req} {
 	# run authentication and return any codes
-	my variable auth
+	#my variable auth
 	set fpath [my findUp $req $auth]
 	if {$fpath ne ""} {
 	    Debug.mason {Mason got auth: $fpath}
@@ -296,7 +296,7 @@ class create Mason {
 	# run a wrapper over the content
 	if {([dict exists $rsp -content])  && [string match 2* $code]} {
 	    # filter/reprocess this response
-	    my variable wrapper
+	    #my variable wrapper
 	    set wrap [my findUp $rsp $wrapper]
 
 	    if {$wrap ne ""} {
@@ -313,7 +313,7 @@ class create Mason {
     }
 
     method do {req} {
-	my variable root prefix
+	#my variable root prefix
 	dict set req -root $root
 
 	if {[dict exists $req -suffix]} {
@@ -341,7 +341,7 @@ class create Mason {
 	Debug.mason {processed $rsp}
 
 	# filter/reprocess this response
-	my variable wrapper
+	#my variable wrapper
 	if {[string match 2* [Dict get? $rsp -code]] &&
 	    ($wrapper ne "") &&
 	    [dict exists $rsp -content] &&
@@ -367,32 +367,34 @@ class create Mason {
 	return $rsp
     }
 
+    variable prefix root hide functional notfound wrapper auth indexfile dirhead dirfoot aliases cache
+
     constructor {args} {
-	my variable prefix; set prefix ""	;# url for top of this domain
-	my variable root; set root ""		;# file system domain root
-	my variable hide; set hide {^([.].*)|(.*~)$}	;# these files are never matched
-	my variable functional; set functional ".tml"	;# functional extension
-	my variable notfound; set notfound ".notfound"	;# notfound handler name
-	my variable wrapper; set wrapper ".wrapper"	;# wrapper handler name
-	my variable auth; set auth ".auth"	;# authentication functional
-	my variable indexfile; set indexfile index.html	;# directory index name
-	my variable dirhead; set dirhead {name size mtime *}
-	my variable dirfoot; set dirfoot {}
+	set prefix ""	;# url for top of this domain
+	set root ""		;# file system domain root
+	set hide {^([.].*)|(.*~)$}	;# these files are never matched
+	set functional ".tml"	;# functional extension
+	set notfound ".notfound"	;# notfound handler name
+	set wrapper ".wrapper"	;# wrapper handler name
+	set auth ".auth"	;# authentication functional
+	set indexfile index.html	;# directory index name
+	set dirhead {name size mtime *}
+	set dirfoot {}
 	# additional aliases to be installed in session interpreter
-	my variable aliases; set aliases {}
+	set aliases {}
 	
 	# when a file is not located, it will be searched for.
 	# to minimise the cost of this search, -cache will
 	# instruct Mason to memoize found files
-	my variable cache; set cache 1		;# cache file searches
+	set cache 1		;# cache file searches
 
 	foreach {n v} $args {
 	    set n [string trim $n -]
-	    my variable $n
+	    #my variable $n
 	    set $n $v
 	}
 
-	set $root [file normalize $root]
+	set root [file normalize $root]
 
 	if {$dirhead ne ""} {
 	    # search for an element "*" in -dirhead
