@@ -817,7 +817,7 @@ namespace eval Httpd {
 	    if {[info commands [lindex $consumer 0]] ne {}} {
 		# deliver the assembled request to the consumer
 		dict set unsatisfied [dict get $r -transaction] {}
-		dict set r -send [list [info coroutine] SEND]	;# let consumer know how to reply
+		dict set r -send [info coroutine]	;# let consumer know how to reply
 		after 1 [list catch [list {*}$consumer $r]]
 		Debug.HttpdCoro {reader [info coroutine]: sent to consumer, waiting for next}
 	    } else {

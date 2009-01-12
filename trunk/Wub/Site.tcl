@@ -381,7 +381,11 @@ proc Responder::post {rsp} {
 # since we're in a single thread, it's got to be fairly simple
 proc ::Send {r} {
     if {[dict exists $r -send]} {
-	{*}[dict get $r -send] $r
+	if {[catch {info coroutine}]} {
+	    {*}[dict get $r -send] $r
+	} else {
+	    [dict get $r -send] [list SEND $r]
+	}
     } else {
 	HttpdWorker Send $r
     }
