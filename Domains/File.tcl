@@ -14,7 +14,7 @@ class create File {
     method dir {req path args} {
 	Debug.file {dir over $path}
 	dict set files .. [list name [<a> href .. ..] type parent]
-	my variable root hide dirtime
+	#my variable root hide dirtime
 
 	foreach file [glob -nocomplain -directory $path *] {
 	    Debug.file {dir element $file}
@@ -35,7 +35,7 @@ class create File {
 	set doctitle [string trimright $suffix /]
 	append content [<h1> $doctitle] \n
 
-	my variable dirparams
+	#my variable dirparams
 	append content [Report html $files {*}$dirparams headers {name type modified size}] \n
 
 	dict set req -content $content
@@ -46,7 +46,7 @@ class create File {
     }
 
     method do {req} {
-	my variable prefix root
+	#my variable prefix root
 
 	if {[dict exists $req -suffix]} {
 	    # caller has munged path already
@@ -93,7 +93,7 @@ class create File {
 	}
 	
 	Debug.file {FILE DISPATCH '$path' $req}
-	my variable expires redirdir
+	#my variable expires redirdir
 	Debug.file {Found file '$path' of type [file type $path]}
 	switch -- [file type $path] {
 	    link -
@@ -115,7 +115,7 @@ class create File {
 		}
 
 		# try to return an index file's contents in lieue of the directory
-		my variable index
+		#my variable index
 		if {$index ne ""} {
 		    set indices [glob -nocomplain -tails -directory $path]
 		    if {[llength $indices]} {
@@ -136,14 +136,16 @@ class create File {
 	}
     }
 
+    variable index prefix hide redirdir expires dirtime dirparams
+
     constructor {args} {
-	my variable index; set index "index.*"
-	my variable prefix; set prefix /
-	my variable hide; set hide {^([.].*)|(.*~)|(\#.*)$}
-	my variable redirdir; set redirdir 1	;# redirect dir to dir/
-	my variable expires; set expires 0	;# add an expiry to each response
-	my variable dirtime; set dirtime "%Y %b %d %T"
-	my variable dirparams; set dirparams {
+	set index "index.*"
+	set prefix /
+	set hide {^([.].*)|(.*~)|(\#.*)$}
+	set redirdir 1	;# redirect dir to dir/
+	set expires 0	;# add an expiry to each response
+	set dirtime "%Y %b %d %T"
+	set dirparams {
 	    sortable 1
 	    evenodd 0
 	    class table
@@ -162,7 +164,7 @@ class create File {
 
 	foreach {n v} $args {
 	    set n [string trim $n -]
-	    my variable $n
+	    #my variable $n
 	    set $n $v
 	}
     }
