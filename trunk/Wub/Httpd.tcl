@@ -165,7 +165,7 @@ namespace eval Httpd {
 	}
 
 	# forget whatever higher level connection info
-	corovars cid socket consumer
+	corovars cid socket consumer ipaddr
 
 	# terminate consumer if it's still alive
 	if {[info commands $consumer] ne {}} {
@@ -180,7 +180,7 @@ namespace eval Httpd {
 	chan close $socket
 
 	# clean up on disconnect
-	variable connbyIP; incr connbyIP([dict get $r -ipaddr]) -1
+	variable connbyIP; incr connbyIP($ipaddr) -1
 
 	# destroy reader - that's all she wrote
 	Debug.Httpd {reader [info coroutine]: terminated}
@@ -577,6 +577,7 @@ namespace eval Httpd {
 	set transaction 0	;# count of incoming requests
 	set status INIT	;# record transitions
 	set closing 0	;# flag that we want to close
+	set ipaddr 0	;# ip address
 
 	# keep receiving input requests
 	while {1} {
@@ -1030,6 +1031,7 @@ namespace eval Httpd {
     proc associate {request} {
 	set socket [dict get $request -sock]
 	set cid [dict get $request -cid]	;# remember the connection id
+	set ipaddr [dict get $request -ipaddr]	;# remember the ip address
 	Debug.socket {associate $request $socket}
 
 	# condition the socket
@@ -1067,7 +1069,7 @@ namespace eval Httpd {
 	# construct the reader
 	variable timeout
 	variable log
-	#set result [coroutine $R ::apply [list args $reader ::Httpd] socket $socket consumer $cr prototype $request generation $gen cid $cid log $log]
+	#set result [coroutine $R ::apply [list args $reader ::Httpd] socket $socket consumer $cr prototype $request generation $gen cid $cid log $log ipaddr $ipaddr]
 	set result [coroutine $R ::Httpd::reader socket $socket consumer $cr prototype $request generation $gen cid $cid log $log]
 
 	# start the ball rolling
