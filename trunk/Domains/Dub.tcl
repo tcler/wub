@@ -5,7 +5,6 @@ package provide Dub 1.0
 package require Form
 package require View
 package require Cookies
-package require Responder
 package require jQ
 
 package require Debug
