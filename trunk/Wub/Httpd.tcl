@@ -67,7 +67,7 @@ namespace eval Httpd {
 	    variable no_really
 	    if {[incr too_many($ipaddr)] > $no_really} {
 		# this client has been told repeatedly - block it.
-		Block block $ipaddr "Repeatedly too many connections"
+		#Block block $ipaddr "Repeatedly too many connections"
 	    } else {
 		Debug.log {Too many connections for $ipaddr}
 	    }
