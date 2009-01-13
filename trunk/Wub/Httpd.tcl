@@ -44,7 +44,7 @@ namespace eval Httpd {
     variable cid 0		;# unique connection ID
 
     # exhaustion control
-    variable max_conn 12	;# max connections per IP
+    variable max_conn 20	;# max connections per IP
     variable connbyIP		;# count of connections
     array set connbyIP {}
     variable too_many		;# how many times has this IP address been told?
@@ -1027,7 +1027,7 @@ namespace eval Httpd {
 		} elseif {$v < $then} {
 		    Debug.Watchdog {Reaping $n}
 		    catch {unset activity($n)}	;# prevent double-triggering
-		    catch {$n {TERMINATE Reaped}}	;# alert coro to its fate
+		    catch {$n REAPED}	;# alert coro to its fate
 		    set reaper($n) [expr {$now + 2 * $timeout}]	;# if it doesn't respond, kill it.
 		}
 	    }
