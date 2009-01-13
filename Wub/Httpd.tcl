@@ -446,6 +446,7 @@ namespace eval Httpd {
 
 		REAPED {
 		    # we've been reaped
+		    corovars satisfied ipaddr closing headering
 		    Debug.Watchdog {[info coroutine] Reaped - status:($status) satisfied:($satisfied) unsatisfied:($unsatisfied) ipaddr:$ipaddr closing:$closing headering:$headering}
 		    
 		    terminate {*}$args
@@ -999,10 +1000,15 @@ namespace eval Httpd {
 	return -code $rc $result
     }
 
-    proc kill {what} {
-	Debug.Watchdog {killing: "$what"}
-	catch {rename $what {}} r eo	;# kill this coro right now
-	Debug.Watchdog {killed $what: '$r' ($eo)}
+    proc kill {args} {
+	Debug.Watchdog {killing: "$args"}
+	foreach what $args {
+	    if {[catch {
+		rename $what {}	;# kill this coro right now
+	    } r eo]} {
+		Debug.Watchdog {killed $what: '$r' ($eo)}
+	    }
+	}
     }
 
     variable reaper	;# array of hardline events 
