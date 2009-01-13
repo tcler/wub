@@ -1226,3 +1226,5 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     set forever 0
     vwait forever
 }
+
+Httpd every $Httpd::timeout {Httpd reaper}	;# start the inactivity reaper
