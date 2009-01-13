@@ -318,7 +318,7 @@ proc ::Httpd::do {req} {
 	    set req [Http NoCache [Http Ok $req [<h1> "Resumed"] text/html]]
 	    lappend suspend $req
 	    puts stderr "Suspending: [dict get $req -transaction] ($req)"
-	    return [Http Suspend $req]
+	    return [list -suspend 0]
 	}
 
 	/resume {
@@ -326,7 +326,7 @@ proc ::Httpd::do {req} {
 	    variable suspend
 	    foreach r $suspend {
 		puts stderr "Resuming: [dict get $r -transaction] ($r)"
-		Http Resume $r
+		Http send $r
 	    }
 	    set count [llength $suspend]
 	    set suspend {}
