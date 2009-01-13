@@ -109,12 +109,10 @@ namespace eval Site {
 	    max 1		;# max # of worker threads
 	    incr 1		;# number of threads to add on exhaustion
 	    over 40		;# degree of thread overcommittment
-	    dispatch ""		;# dispatcher for incoming requests
 
 	    # logfile ""	;# log filename for common log format loggin
 	    # max_conn 10	;# max connections per IP
 	    # no_really 3	;# how many times to complain about max_conn
-	    # dispatch "Backend" ;# backend dispatcher
 	    # server_port	;# server's port, if different from Listener's
 	    # server_id		;# server ID to client (default "Wub")
 	    # retry_wait	;# 
@@ -183,7 +181,7 @@ namespace eval Site {
 	Debug Http Html Listener Block
 	File Mason Convert Direct Mime
 	Url Query Form Cookies CGI
-	Sitemap stx Responder
+	Sitemap stx
     } {
 	package require $package
     }
@@ -203,7 +201,6 @@ namespace eval Site {
     Debug off cache 10
     Debug off cookies 10
     Debug off direct 10
-    Debug off dispatch 10
     Debug off query 10
     Debug off direct 10
     Debug off convert 10
@@ -263,35 +260,11 @@ namespace eval Site {
 	    Stdin start $cmdport ;# start a command shell on localhost,$cmdport
 	}
 
-	variable multi; variable coro
-	if {$multi} {
-	    error "This isn't set up for Multithreading"
-	    Debug.log {STARTING BACKENDS [clock format [clock seconds]]}
+	array set ::config [vars]
 
-	    package require Backend
-	    variable backends
-	    set Backend::incr $backends	;# reduce the backend thread quantum for faster testing
-
-	    variable backend
-	    Backend configure [vars] {*}$backend mkmutex [thread::mutex create]
-
-	    package require HttpdThread	;# choose multithreaded
-	} elseif {$coro} {
-	    package require HttpdCoro	;# choose coroutines
-	    array set ::config [vars]
-
-	    variable application
-	    if {[info exists application] && $application ne ""} {
-		package require {*}$application
-	    }
-	} else {
-	    package require HttpdSingle	;# choose singlethreaded
-	    array set ::config [vars]
-
-	    variable application
-	    if {[info exists application] && $application ne ""} {
-		package require {*}$application
-	    }
+	variable application
+	if {[info exists application] && $application ne ""} {
+	    package require {*}$application
 	}
 
 	#### start Httpd protocol
@@ -365,16 +338,6 @@ namespace eval Site {
 
     namespace export -clear *
     namespace ensemble create -subcommands {}
-}
-
-# Disconnected - courtesy indication that we've been disconnected
-proc Disconnected {args} {
-    # we're pretty well stateless
-}
-
-# Responder::post - postprocess response by converting
-proc Responder::post {rsp} {
-    return [::Convert do $rsp]
 }
 
 # this will be used to send responses to processed requests

@@ -3,7 +3,6 @@
 # Single Threaded Minimal File Server Site
 lappend auto_path [pwd]	;# path to the Site.tcl file
 namespace eval Site {
-    variable varnish {}
     variable home [file dirname [info script]]
 }
 
@@ -15,7 +14,7 @@ package require Site
 
 # File domain is the most minimal, but Mason is better
 # File docroot -root $::Site::docroot
-Mason wub -url / -root $docroot -auth .before -wrapper .after
+Mason create wub -url / -root $docroot -auth .before -wrapper .after
 
 # [Responder Incoming] provides a safe wrapper and switch-like
 # dispatcher for incoming requests.
