@@ -71,6 +71,7 @@ namespace eval Httpd {
 	    } else {
 		Debug.log {Too many connections for $ipaddr on $socket ($connbyIP($ipaddr))}
 	    }
+	    return 0
 	    # use the default retry wait advisory period
 	    variable retry_wait
 	    set retry $retry_wait
