@@ -326,7 +326,7 @@ proc ::Httpd::do {req} {
 	    variable suspend
 	    foreach r $suspend {
 		puts stderr "Resuming: [dict get $r -transaction] ($r)"
-		Http send $r
+		Httpd send $r
 	    }
 	    set count [llength $suspend]
 	    set suspend {}

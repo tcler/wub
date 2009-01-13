@@ -352,6 +352,7 @@ namespace eval Httpd {
 	if {[string match ::Httpd::CO* [info coroutine]]} {
 	    # a consumer is trying to send directly
 	    # ask socket coro to send the response for it
+	    corovars reader
 	    if {[catch {
 		$reader [list SEND $r $cache]
 	    } e eo]} {
@@ -376,7 +377,7 @@ namespace eval Httpd {
 	    dict set r -generation $generation
 	} elseif {[dict get $r -generation] != $generation} {
 	    # report error to sender, but don't die ourselves
-	    Debug.error {Send discarded: out of generation ($r)}
+	    Debug.error {Send discarded: out of generation [dict get $r -generation] != $generation ($r)}
 	    return ERROR
 	}
 
