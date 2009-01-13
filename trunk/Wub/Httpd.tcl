@@ -44,7 +44,7 @@ namespace eval Httpd {
     variable cid 0		;# unique connection ID
 
     # exhaustion control
-    variable max_conn 10	;# max connections per IP
+    variable max_conn 12	;# max connections per IP
     variable connbyIP		;# count of connections
     array set connbyIP {}
     variable too_many		;# how many times has this IP address been told?
@@ -55,7 +55,7 @@ namespace eval Httpd {
     # ensure that client is not spamming us with too many connections
     # (sadly we can't do this if we're reverse-proxied)
     proc countConnections {sock ipAddr} {
-	corovars ipaddr
+	corovars socket ipaddr
 	set ipaddr $ipAddr
 
 	variable connbyIP
@@ -69,7 +69,7 @@ namespace eval Httpd {
 		# this client has been told repeatedly - block it.
 		#Block block $ipaddr "Repeatedly too many connections"
 	    } else {
-		Debug.log {Too many connections for $ipaddr ($connbyIP($ipaddr))}
+		Debug.log {Too many connections for $ipaddr on $socket ($connbyIP($ipaddr))}
 	    }
 	    # use the default retry wait advisory period
 	    variable retry_wait
