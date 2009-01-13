@@ -6,7 +6,7 @@ package require Html
 package require TclOO
 namespace import oo::*
 package require Debug
-Debug on mason 10
+Debug off mason 10
 package provide Mason 1.0
 
 class create Mason {
