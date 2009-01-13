@@ -167,10 +167,6 @@ namespace eval Httpd {
 	# forget whatever higher level connection info
 	corovars cid socket consumer
 
-	if {[catch {forget $cid} e eo]} {
-	    Debug.error {terminate forget error '$e' ($eo)}
-	}
-
 	# terminate consumer if it's still alive
 	if {[info commands $consumer] ne {}} {
 	    catch {
@@ -184,7 +180,7 @@ namespace eval Httpd {
 	chan close $socket
 
 	# clean up on disconnect
-	variable connbyIP; incr connbyIP($ipaddr) -1
+	variable connbyIP; incr connbyIP([dict get $r -ipaddr]) -1
 
 	# destroy reader - that's all she wrote
 	Debug.Httpd {reader [info coroutine]: terminated}
