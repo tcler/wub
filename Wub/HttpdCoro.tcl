@@ -31,9 +31,6 @@ package require UA
 package provide HttpdCoro 1.0
 
 # import the relevant commands
-namespace eval ::tcl::unsupported {namespace export coroutine yield infoCoroutine}
-namespace import ::tcl::unsupported::coroutine ::tcl::unsupported::yield ::tcl::unsupported::infoCoroutine
-
 namespace eval Httpd {
     variable generation		;# worker/connection association generation
 
@@ -832,9 +829,6 @@ namespace eval Httpd {
 	    }
 	}
     }
-
-    proc disconnect {args} {}
-    proc disassociate {args} {}
 
     # the request consumer
     variable consumer {
