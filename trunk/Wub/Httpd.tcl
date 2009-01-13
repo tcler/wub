@@ -444,6 +444,13 @@ namespace eval Httpd {
 		    set retval [send {*}$args]
 		}
 
+		REAPED {
+		    # we've been reaped
+		    Debug.Watchdog {[info coroutine] Reaped - status:($status) satisfied:($satisfied) unsatisfied:($unsatisfied) ipaddr:$ipaddr closing:$closing headering:$headering}
+		    
+		    terminate {*}$args
+		}
+
 		TERMINATE {
 		    # we've been informed that the socket closed
 		    terminate {*}$args
@@ -993,9 +1000,9 @@ namespace eval Httpd {
     }
 
     proc kill {what} {
-	Debug.Httpd {killing: "$what"}
+	Debug.Watchdog {killing: "$what"}
 	catch {rename $what {}} r eo	;# kill this coro right now
-	Debug.Httpd {killed $what: '$r' ($eo)}
+	Debug.Watchdog {killed $what: '$r' ($eo)}
     }
 
     variable reaper	;# array of hardline events 
@@ -1003,7 +1010,7 @@ namespace eval Httpd {
 	variable timeout
 	set now [clock milliseconds]
 	set then [expr {$now - $timeout}]
-
+	Debug.Watchdog {Reaper Running [Http Now]}
 	variable reaper
 	foreach {n v} [array get reaper] {
 	    unset reaper($n)
