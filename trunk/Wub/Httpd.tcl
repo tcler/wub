@@ -349,6 +349,22 @@ namespace eval Httpd {
     #	Send transaction responses to client
     #	Possibly close socket
     proc send {r {cache 1}} {
+	if {[string match ::Httpd::CO* [info coroutine]]} {
+	    # a consumer is trying to send directly
+	    # ask socket coro to send the response for it
+	    if {[catch {
+		$reader [list SEND $r $cache]
+	    } e eo]} {
+		Debug.error {[info coroutine] direct send terminated via $reader: $e ($eo)} 1
+		return -level [info level] terminated	;# terminate consumer
+	    } elseif {$e in {EOF ERROR}} {
+		Debug.Httpd {[info coroutine] direct send terminated via $reader: $e} 1
+		return -level [info level] terminated	;# terminate consumer
+	    } else {
+		return $e
+	    }
+	}
+
 	Debug.Httpd {[info coroutine] send: ([rdump $r]) $cache}
 
 	# check generation
@@ -442,6 +458,10 @@ namespace eval Httpd {
 		    # send a response to client on behalf of consumer
 		    set activity([info coroutine]) [clock milliseconds]
 		    set retval [send {*}$args]
+		}
+
+		SUSPEND {
+		    grace [lindex $args 0]	;# a response has been suspended
 		}
 
 		REAPED {
@@ -920,9 +940,17 @@ namespace eval Httpd {
 		do [pre $r]
 	    } rsp eo	;# process the request
 	    # handle response code
+
 	    switch [dict get $eo -code] {
 		0 -
-		2 { # ok - return
+		2 {
+		    # does application want to suspend?
+		    if {[dict exists $rsp -suspend]} {
+			$reader [list SUSPEND [dict get $rsp -suspend]]
+			continue
+		    }
+
+		    # ok - return
 		    if {![dict exists $rsp -code]} {
 			set rsp [Http Ok $rsp]
 		    }
