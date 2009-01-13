@@ -69,7 +69,7 @@ namespace eval Httpd {
 		# this client has been told repeatedly - block it.
 		#Block block $ipaddr "Repeatedly too many connections"
 	    } else {
-		Debug.log {Too many connections for $ipaddr}
+		Debug.log {Too many connections for $ipaddr ($connbyIP($ipaddr))}
 	    }
 	    # use the default retry wait advisory period
 	    variable retry_wait
@@ -179,11 +179,11 @@ namespace eval Httpd {
 	    }
 	}
 
-	# clean up socket - the only point where we close
-	chan close $socket
-
 	# clean up on disconnect
 	variable connbyIP; incr connbyIP($ipaddr) -1
+
+	# clean up socket - the only point where we close
+	chan close $socket
 
 	# destroy reader - that's all she wrote
 	Debug.Httpd {reader [info coroutine]: terminated}
