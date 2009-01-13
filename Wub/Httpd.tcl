@@ -879,6 +879,7 @@ namespace eval Httpd {
 		dict set unsatisfied [dict get $cached -transaction] {}
 
 		Debug.Httpd {[info coroutine] sending cached ([rdump $cached])}
+		lappend status CACHED
 		send $cached 0	;# send cached response directly
 		continue
 	    }
