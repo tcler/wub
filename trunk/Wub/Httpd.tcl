@@ -677,7 +677,7 @@ namespace eval Httpd {
 	    } elseif {[Honeypot guard r]} {
 		# check the incoming ip for bot detection
 		# this is a bot - reply directly to it
-		send $r		;# queue up error response
+		send $r	0	;# queue up error response
 		continue
 	    }
 
@@ -887,7 +887,8 @@ namespace eval Httpd {
 	    if {[info commands [lindex $consumer 0]] ne {}} {
 		# deliver the assembled request to the consumer
 		dict set unsatisfied [dict get $r -transaction] {}
-		dict set r -send [info coroutine]bi	;# let consumer know how to reply
+		dict set r -send [info coroutine]	;# let consumer know how to reply
+		lappend status PROCESS
 		after 1 [list catch [list {*}$consumer $r]]
 		Debug.Httpd {reader [info coroutine]: sent to consumer, waiting for next}
 	    } else {
