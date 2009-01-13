@@ -54,7 +54,10 @@ namespace eval Httpd {
 
     # ensure that client is not spamming us with too many connections
     # (sadly we can't do this if we're reverse-proxied)
-    proc countConnections {sock ipaddr} {
+    proc countConnections {sock ipAddr} {
+	corovars ipaddr
+	set ipaddr $ipAddr
+
 	variable connbyIP
 	variable max_conn
 	# normal external connection
