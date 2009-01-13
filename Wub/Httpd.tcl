@@ -196,7 +196,7 @@ namespace eval Httpd {
 	# handle 'connection: close' request from client
 	foreach ct [split [Dict get? $r connection] ,] {
 	    if {[string tolower [string trim $ct]] eq "close"} {
-		Debug.close {Tagging close at connection:close request}
+		Debug.HttpdLow {Tagging close at connection:close request}
 		set close 1
 		break	;# don't need to keep going
 	    }
@@ -310,7 +310,7 @@ namespace eval Httpd {
 	    # have been satisfied.
 	    if {$close} {
 		# inform client of intention to close
-		Debug.close {close requested on $socket - sending header}
+		Debug.HttpdLow {close requested on $socket - sending header}
 		append head "Connection: close" \r\n	;# send a close just in case
 		# Once this header's been sent, we're committed to closing
 	    }
