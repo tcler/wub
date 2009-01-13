@@ -88,6 +88,7 @@ foreach s {
     "Wells Search II"
     "WEP Search 00"
     "msnbot-media/1.1 (+http://search.msn.com/msnbot.htm)"
+    "Mozilla/5.0 (Twiceler-0.9 http://www.cuil.com/twiceler/robot.html)"
 } {
     set spiders($s) 1
 }
