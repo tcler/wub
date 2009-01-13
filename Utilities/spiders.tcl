@@ -87,6 +87,7 @@ foreach s {
     "WebVulnCrawl.blogspot.com/1.0 libwww-perl/5.803"
     "Wells Search II"
     "WEP Search 00"
+    "msnbot-media/1.1 (+http://search.msn.com/msnbot.htm)"
 } {
     set spiders($s) 1
 }
