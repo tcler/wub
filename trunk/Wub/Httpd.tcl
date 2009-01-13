@@ -946,8 +946,13 @@ namespace eval Httpd {
 		0 -
 		2 {
 		    # does application want to suspend?
-		    if {[dict exists $rsp -suspend]} {
-			$reader [list SUSPEND [dict get $rsp -suspend]]
+		    if {[dict size $rsp] == 0 || [dict exists $rsp -suspend]} {
+			if {[dict size $rsp] == 0} {
+			    set duration 0
+			} else {
+			    set duration [dict get $rsp -suspend]
+			}
+			$reader [list SUSPEND $duration]
 			continue
 		    }
 
