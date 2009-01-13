@@ -582,11 +582,12 @@ namespace eval Httpd {
 	set response 1	;# which is the next response to send?
 	set sequence -1	;# which is the next response to queue?
 	set writing 0	;# we're not writing yet
+	set ipaddr 0	;# ip address
+
 	dict with args {}
 	set transaction 0	;# count of incoming requests
 	set status INIT	;# record transitions
 	set closing 0	;# flag that we want to close
-	set ipaddr 0	;# ip address
 
 	# keep receiving input requests
 	while {1} {
