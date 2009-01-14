@@ -1,18 +1,59 @@
 # RAM.tcl - return contents of array as a domain
 
 package require Http
+package require TclOO
+namespace import oo::*
+
 package require Debug
 Debug off RAM 10
 
-package provide RAM 1.1
+package provide RAM 2.0
 
-namespace eval RAM {
-    variable ram
-    variable content_type x-text/html-fragment
+class create RAM {
+    variable ram prefix content_type
+
+    # get - gets keyed content only
+    method get {key} {
+	Debug.RAM {[self] get $key '$ram($key)'}
+	return [lindex $ram($key) 0]
+    }
+
+    # exists - does keyed content exist?
+    method exists {key} {
+	Debug.RAM {exists $key '[info exists ram($key)]'}
+	return [info exists ram($key)]
+    }
+
+    # _set - assumes first arg is content, rest are to be merged
+    method set {key args} {
+	if {$args ne {}} {
+	    # calculate an accurate content length
+	    set now [clock seconds]
+	    lappend args -modified $now
+	    lappend args last-modified [Http Date $now]
+	    lappend args content-length [string length [lindex $args 0]]
+	    Debug.RAM {$key set '$args'}
+	    set ram($key) $args
+	}
+
+	# fetch ram for prefix
+	return $ram($key)
+    }
+
+    # unset - remove content
+    method unset {key} {
+	# unset ram element
+	Debug.RAM {unset $key '$ram($key)'}
+	unset ram($key)
+    }
+
+    method keys {prefix} {
+	set result {}
+	return [array names ram]
+    }
 
     # called as "do $request" returns the value stored in this RAM to be returned.
-    proc _do {prefix rsp} {
-
+    method do {rsp} {
 	# compute suffix
 	if {[dict exists $rsp -suffix]} {
 	    # caller has munged path already
@@ -31,16 +72,16 @@ namespace eval RAM {
 	}
 
 	variable ram
-	Debug.RAM {exists ram $prefix$suffix [info exists ram($prefix$suffix)]}
-	if {![info exists ram($prefix$suffix)]} {
+	Debug.RAM {exists ram $suffix [info exists ram($suffix)]}
+	if {![info exists ram($suffix)]} {
 	    # path isn't inside our domain suffix - error
 	    return [Http NotFound $rsp]
 	}
 
 	variable content_type
-	set content [lindex $ram($prefix$suffix) 0]
+	set content [lindex $ram($suffix) 0]
 	set els {}
-	set extra [lrange $ram($prefix$suffix) 1 end]
+	set extra [lrange $ram($suffix) 1 end]
 
 	# check conditional
 	if {[dict exists $rsp if-modified-since]
@@ -66,76 +107,15 @@ namespace eval RAM {
 	return [Http Ok $rsp]
     }
 
-    # _get - gets keyed content only
-    proc _get {prefix key} {
-	variable ram
-	Debug.RAM {get $prefix$key '$ram($prefix$key)'}
-	return [lindex $ram($prefix$key) 0]
-    }
-
-    # _exists - does keyed content exist?
-    proc _exists {prefix key} {
-	variable ram
-	Debug.RAM {exists $prefix$key '[info exists ram($prefix$key)]'}
-	return [info exists ram($prefix$key)]
-    }
-
-    # _set - assumes first arg is content, rest are to be merged
-    proc _set {prefix key args} {
-	variable ram
-
-	if {$args ne {}} {
-	    # calculate an accurate content length
-	    set now [clock seconds]
-	    lappend args -modified $now
-	    lappend args last-modified [Http Date $now]
-	    lappend args content-length [string length [lindex $args 0]]
-	    Debug.RAM {$prefix$key set '$args'}
-	    set ram($prefix$key) $args
-	}
-
-	# fetch ram for prefix
-	return $ram($prefix$key)
-    }
-
-    # _unset - remove content
-    proc _unset {prefix key} {
-	# unset ram for prefix
-	variable ram;
-	Debug.RAM {unset $prefix$key '$ram($prefix$key)'}
-	unset ram($prefix$key)
-    }
-
-    proc _keys {prefix} {
-	variable ram
-	set result {}
-	set len [string length $prefix]
-	foreach name [array names ram $prefix*] {
-	    lappend result [string range $name $len end]
-	}
-	return $result
-    }
-
     # initialize view ensemble for RAM
-    proc init {cmd prefix args} {
-	if {$args ne {}} {
-	    variable {*}$args
+    constructor {args} {
+	set content_type x-text/html-fragment
+	set prefix /ram/
+	array set ram {}
+	foreach {n v} $args {
+	    set n [string trim $n -]
+	    set $n $v
 	}
-	set cmd [uplevel 1 namespace current]::$cmd
-	namespace ensemble create \
-	    -command $cmd -subcommands {} \
-	    -map [subst {
-		set "_set $prefix"
-		unset "_unset $prefix"
-		get "_get $prefix"
-		exists "_exists $prefix"
-		keys "_keys $prefix"
-		do "_do $prefix"
-	    }]
-
-	return $cmd
+	set prefix /[string trim $prefix /]/
     }
-
-    namespace export -clear *
-    namespace ensemble create -subcommands {}
 }

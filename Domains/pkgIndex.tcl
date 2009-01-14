@@ -21,7 +21,7 @@ package ifneeded Icons 1.0 [list source [file join $dir Icons Icons.tcl]]
 #package ifneeded Host 2.0 [list source [file join $dir Host.tcl]]
 #package ifneeded Cache 1.0 [list source [file join $dir Cache.tcl]]
 
-package ifneeded RAM  1.1 [list source [file join $dir RAM.tcl]]
+package ifneeded RAM  2.0 [list source [file join $dir RAM.tcl]]
 package ifneeded Tie  1.0 [list source [file join $dir Tie.tcl]]
 package ifneeded Rest  1.0 [list source [file join $dir Rest.tcl]]
 package ifneeded Coco  1.0 [list source [file join $dir Coco.tcl]]
