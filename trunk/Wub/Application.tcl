@@ -271,7 +271,8 @@ namespace eval ::Introspect {
 #### initialize Session
 Session init cpath /_s/
 
-proc ::Httpd::do {req} {
+proc ::Httpd::do {op req} {
+    if {$op ne "REQUEST"} return
     switch -glob -- [dict get $req -path] {
 	/ {
 	    # redirect / to /wub
