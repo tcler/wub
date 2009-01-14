@@ -135,7 +135,7 @@ namespace eval Httpd {
 
     # wrapper for chan ops - alert on errors
     proc chan {args} {
-	set code [catch {uplevel 1 ::chan $args} e eo]
+	set code [catch {uplevel 1 [list ::chan {*}$args]} e eo]
 	if {$code} {
 	    if {[info coroutine] ne ""} {
 		Debug.Httpd {[info coroutine]: chan error $code - $e ($eo)}
@@ -194,7 +194,7 @@ namespace eval Httpd {
 	variable connbyIP; incr connbyIP($ipaddr) -1
 
 	# clean up socket - the only point where we close
-	chan close $socket
+	catch {chan close $socket}
 
 	# destroy reader - that's all she wrote
 	Debug.Httpd {reader [info coroutine]: terminated}
@@ -428,7 +428,11 @@ namespace eval Httpd {
 	    Debug.HttpdLow {coro [info coroutine] yielding}
 
 	    # unpack event
-	    set args [lassign [::yield $retval] op]; set retval ""
+	    if {[catch {
+		set args [lassign [::yield $retval] op]; set retval ""
+	    } e eo]} {
+		terminate yieldcrash
+	    }
 	    lappend status $op
 	    Debug.HttpdLow {yield [info coroutine] -> $op}
 
@@ -945,10 +949,10 @@ namespace eval Httpd {
 	if {[catch {
 	    post $r
 	} rsp eo]} {
-	    Debug.error {[info coroutine] POST ERROR: $e ($eo)} 1
-	    return [Http ServerError $r $e $eo]
+	    Debug.error {[info coroutine] POST ERROR: $rsp ($eo)} 1
+	    return [Http ServerError $r $rsp $eo]
 	} else {
-	    Debug.Httpd {[info coroutine] POST: [rdump $e]} 10
+	    Debug.Httpd {[info coroutine] POST: [rdump $rsp]} 10
 	    return $rsp
 	}
     }
@@ -1017,6 +1021,7 @@ namespace eval Httpd {
 	}
     }
 
+    # return a bunch of status information about sock procs
     proc stats {} {
 	set result {}
 	foreach coro [info commands ::Httpd::sock*] {
@@ -1025,6 +1030,7 @@ namespace eval Httpd {
 	return $result
     }
 
+    # return a bunch of data about all the channels in use by Httpd
     proc chans {} {
 	foreach cchan [info commands ::Httpd::sock*] {
 	    set chan [namespace tail $cchan]
@@ -1103,107 +1109,52 @@ namespace eval Httpd {
 	}
     }
 
-    # we have received a new connection
-    # set up a consumer and a reader for it
-    proc associate {request} {
-	set socket [dict get $request -sock]
-	set cid [dict get $request -cid]	;# remember the connection id
-	set ipaddr [dict get $request -ipaddr]	;# remember the ip address
-	Debug.socket {associate $request $socket}
-
-	# condition the socket
-	chan configure $socket -buffering none -translation {crlf binary}
-
-	# generate a connection record prototype
-	variable generation	;# unique generation
-	set gen [incr generation]
-	set request [dict merge $request [list -sock $socket -generation $gen]]
-
-	# create reader coroutine
-	variable reader
-	set R ::Httpd::${socket}
-	if {[info commands $R] ne {}} {
-	    # the old socket stuff hasn't yet been cleaned up.
-	    # this is potentially very bad.
-	    Debug.log {reader $R not dead yet, rename to ${R}_DEAD to kill it.}
-	    rename $R ${R}_DEAD
-	    after 1 [list ${R}_DEAD [list TERMINATE "socket's gone"]]	;# ensure the old reader's dead
-	}
-
-	# construct consumer
-	#set cr ::Httpd::CO_[uniq]
-	set cr ::Httpd::CO_${socket}
-	if {[info commands $cr] ne {}} {
-	    # the consumer seems to be lingering - we have to tell it to die
-	    set cn ::Httpd::CO_DEAD_[uniq]
-	    Debug.log {consumer $cr not dead yet, rename to $cn to kill it.}
-	    rename $cr $cn	;# move it out of the way first
-	    after 1 [list $cn ""]	;# ensure the old consumer's dead
-	}
-	coroutine $cr ::Httpd::consumer reader $R
-
-	# construct the reader
-	variable timeout
-	variable log
-	set result [coroutine $R ::Httpd::reader socket $socket consumer $cr prototype $request generation $gen cid $cid log $log]
-
-	# start the ball rolling
-	chan event $socket readable [list $R READ]
-
-	return $result
-    }
-
-    proc default_pre {req} {
-	return [Cookies 4Server $req]		;# process cookies
-    }
-
     proc pre {req} {
 	package require Cookies
-	rename ::Httpd::pre {}
-	rename ::Httpd::default_pre ::Httpd::pre
+	package require Session
+	proc pre {req} {
+	    return [::Session fetch [::Cookies 4Server $req]]
+	}
 	return [pre $req]
-    }
-
-    proc default_post {req} {
-	return [Session store [::Convert do $req]]
     }
 
     proc post {req} {
 	package require Cookies
+	package require Session
 	package require Convert
-	rename ::Httpd::post {}
-	rename ::Httpd::default_post ::Httpd::post
+	proc post {req} {
+	    return [::Session store [::Convert do $req]]
+	}
 	return [post $req]
     }
 
-    proc default_do {op req} {
-	switch -- $op {
-	    REQUEST {
-		switch -glob -- [dict get $req -path] {
-		    / -
-		    /* {
-			# redirect / to /wub
-			return [wub do $req]
-		    }
-		}
-	    }
-	    TERMINATE {
-		return
-	    }
-	    default {
-		error "[info coroutine] OP $op not understood by consumer"
-	    }
-	}
-    }
-
     proc do {op req} {
+	#Debug on Httpd 10
+	#Debug on HttpdLow 10
 	if {[info commands ::wub] eq {}} {
 	    package require Mason
-	    Mason create ::wub -url / -root $::docroot -auth .before -wrapper .after
+	    Mason create ::wub -url / -root $::Site::docroot -auth .before -wrapper .after
 	}
-	rename ::Httpd::do {}
-	rename ::Httpd::default_do ::Httpd::do
-	return [do $req]
+	proc do {op req} {
+	    switch -- $op {
+		REQUEST {
+		    switch -glob -- [dict get $req -path] {
+			/ -
+			/* {
+			    # redirect / to /wub
+			    return [::wub do $req]
+			}
+		    }
+		}
+		TERMINATE {
+		    return
+		}
+		default {
+		    error "[info coroutine] OP $op not understood by consumer"
+		}
+	    }
+	}
+	return [do REQUEST $req]
     }
 
     # connect - process a connection request
@@ -1267,8 +1218,69 @@ namespace eval Httpd {
 	variable server_id; dict set args -server_id $server_id
 	dict set args -version 1.1	;# HTTP/1.1
 
-	# process partial request
-	associate $args
+	# condition the socket
+	chan configure $sock -buffering none -translation {crlf binary}
+
+	# generate a connection record prototype
+	variable generation	;# unique generation
+	set gen [incr generation]
+	set args [dict merge $args [list -generation $gen]]
+
+	# create reader coroutine
+	variable reader
+	set R ::Httpd::${sock}
+	if {[info commands $R] ne {}} {
+	    # the old socket stuff hasn't yet been cleaned up.
+	    # this is potentially very bad.
+	    Debug.log {reader $R not dead yet, rename to ${R}_DEAD to kill it.}
+	    rename $R ${R}_DEAD
+	    after 1 [list ${R}_DEAD [list TERMINATE "socket's gone"]]	;# ensure the old reader's dead
+	}
+
+	# construct consumer
+	set cr ::Httpd::CO_${sock}
+	if {[info commands $cr] ne {}} {
+	    # the consumer seems to be lingering - we have to tell it to die
+	    set cn ::Httpd::CO_DEAD_[uniq]
+	    Debug.log {consumer $cr not dead yet, rename to $cn to kill it.}
+	    rename $cr $cn	;# move it out of the way first
+	    after 1 [list $cn ""]	;# ensure the old consumer's dead
+	}
+	coroutine $cr ::Httpd::consumer reader $R
+
+	# construct the reader
+	variable timeout
+	variable log
+	set result [coroutine $R ::Httpd::reader socket $sock consumer $cr prototype $args generation $gen cid $cid log $log]
+
+	#trace add command $cr {rename delete} [list ::Httpd::corogone $R]
+	#trace add command $R {rename delete} [list ::Httpd::sockgone $cr $sock]
+
+	# start the ball rolling
+	chan event $sock readable [list $R READ]
+
+	return $result
+    }
+
+    proc corogone {match from to op} {
+	if {$op eq "delete"} {
+	    catch {$match TERMINATE}
+	    puts stderr "CORO $op: $from"
+	} elseif {$op eq "rename"} {
+	    puts stderr "CORO $op: $from $to"
+	    catch {puts stderr "([trace info command $from]) ([trace info command $to])"}
+	}
+    }
+    proc sockgone {match sock from to op} {
+	if {$op eq "delete"} {
+	    catch {chan close $sock}
+	    catch {$match TERMINATE}
+	    puts stderr "SOCK $op: $from $to"
+	} elseif {$op eq "rename"} {
+	    puts stderr "SOCK $op: $from $to"
+	    catch {puts stderr "([trace info command $from]) ([trace info command $to])"}
+	}
+
     }
 
     # common log format log - per request, for log analysis
