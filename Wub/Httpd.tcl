@@ -152,6 +152,19 @@ namespace eval Httpd {
 
     # shut down socket and reader
     proc terminate {{reason ""}} {
+	corovars consumer
+	if {![info exists consumer]} {
+	    # a consumer is trying to terminate directly
+	    # ask socket coro to terminate too
+	    corovars reader
+	    if {[catch {
+		$reader [list TERMINATE $reason]
+	    } e eo]} {
+		Debug.error {[info coroutine] direct termination via $reader: $e ($eo)} 1
+	    }
+	    return -level [info level] terminated	;# terminate consumer
+	}
+
 	Debug.Httpd {[info coroutine] terminate: ($reason)}
 
 	# disable inactivity reaper for this coro
@@ -166,14 +179,14 @@ namespace eval Httpd {
 	}
 
 	# forget whatever higher level connection info
-	corovars cid socket consumer ipaddr
+	corovars cid socket ipaddr
 
 	# terminate consumer if it's still alive
 	if {[info commands $consumer] ne {}} {
 	    catch {
 		set cn ${consumer}_DEAD_[uniq]
 		rename $consumer $cn
-		after 1 [list catch [list $cn ""]]
+		after 1 [list catch [list $cn TERMINATE]]
 	    }
 	}
 
@@ -217,7 +230,7 @@ namespace eval Httpd {
 
     # we have been told we can write a reply
     proc write {r cache} {
-	corovars replies response sequence consumer generation satisfied transaction closing unsatisfied socket
+	corovars replies response sequence generation satisfied transaction closing unsatisfied socket
 
 	if {$closing && ![dict size $unsatisfied]} {
 	    # we have no more requests to satisfy and we want to close
@@ -340,6 +353,19 @@ namespace eval Httpd {
 	return 0
     }
 
+    # send from consumer via associated reader
+    proc csend {reader rsp {cache 1}} {
+	# ask socket coro to send the response for us
+	if {[catch {
+	    $reader [list SEND $rsp]
+	} e eo] || $e in {EOF ERROR}} {
+	    Debug.error {[info coroutine] sending terminated via $reader: $e ($eo)} 1
+	    return -level [info level] terminated	;# terminate coro
+	} else {
+	    return $e
+	}
+    }
+
     # send --
     #	deliver in-sequence transaction responses
     #
@@ -349,27 +375,18 @@ namespace eval Httpd {
     #	Send transaction responses to client
     #	Possibly close socket
     proc send {r {cache 1}} {
-	if {[string match ::Httpd::CO* [info coroutine]]} {
+	corovars consumer
+	if {![info exists consumer]} {
 	    # a consumer is trying to send directly
 	    # ask socket coro to send the response for it
 	    corovars reader
-	    if {[catch {
-		$reader [list SEND $r $cache]
-	    } e eo]} {
-		Debug.error {[info coroutine] direct send terminated via $reader: $e ($eo)} 1
-		return -level [info level] terminated	;# terminate consumer
-	    } elseif {$e in {EOF ERROR}} {
-		Debug.Httpd {[info coroutine] direct send terminated via $reader: $e} 1
-		return -level [info level] terminated	;# terminate consumer
-	    } else {
-		return $e
-	    }
+	    return [csend $r $cache]
 	}
 
 	Debug.Httpd {[info coroutine] send: ([rdump $r]) $cache}
 
 	# check generation
-	corovars generation consumer
+	corovars generation
 	if {![dict exists $r -generation]} {
 	    # there's no generation here - hope it's a low-level auto response
 	    # like Block etc.
@@ -906,12 +923,12 @@ namespace eval Httpd {
 	    }
 
 	    # deliver request to consumer
-	    if {[info commands [lindex $consumer 0]] ne {}} {
+	    if {[info commands $consumer] ne {}} {
 		# deliver the assembled request to the consumer
 		dict set unsatisfied [dict get $r -transaction] {}
 		dict set r -send [info coroutine]	;# let consumer know how to reply
 		lappend status PROCESS
-		after 1 [list catch [list {*}$consumer $r]]
+		after 1 [list catch [list $consumer [list REQUEST $r]]]
 		Debug.Httpd {reader [info coroutine]: sent to consumer, waiting for next}
 	    } else {
 		# the consumer has gone away
@@ -923,6 +940,19 @@ namespace eval Httpd {
 	}
     }
 
+    # run the postprocess
+    proc pprocess {r} {
+	if {[catch {
+	    post $r
+	} rsp eo]} {
+	    Debug.error {[info coroutine] POST ERROR: $e ($eo)} 1
+	    return [Http ServerError $r $e $eo]
+	} else {
+	    Debug.Httpd {[info coroutine] POST: [rdump $e]} 10
+	    return $rsp
+	}
+    }
+
     # the request consumer
     proc consumer {args} {
 	Debug.Httpd {consumer: $args}
@@ -930,63 +960,59 @@ namespace eval Httpd {
 
 	set retval ""
 	while {1} {
-	    set r [::yield $retval]
-	    if {[catch {dict size $r} size] || $size == 0} {
-		Debug.Httpd {consumer [info coroutine] terminating}
-		break
-	    }
-	    
-	    Debug.Httpd {consumer [info coroutine] got: $r}
-	    catch {
-		do [pre $r]
-	    } rsp eo	;# process the request
-	    # handle response code
+	    # unpack event
+	    set args [lassign [::yield $retval] op]; set retval ""
 
-	    switch [dict get $eo -code] {
-		0 -
-		2 {
-		    # does application want to suspend?
-		    if {[dict size $rsp] == 0 || [dict exists $rsp -suspend]} {
-			if {[dict size $rsp] == 0} {
-			    set duration 0
-			} else {
-			    set duration [dict get $rsp -suspend]
+	    switch -- $op {
+		TERMINATE {
+		    Debug.Httpd {consumer [info coroutine] terminating because "$op $args"}
+		    catch {
+			do TERMINATE $args
+		    } e eo	;# process the termination
+		    return -level [info level] terminated	;# terminate coro
+		}
+
+		RESUME {
+		    # post-process the response
+		    set r [dict merge [lindex $args 0] {*}[lrange $args 1 end]]
+		    csend $reader [pprocess $r]
+		}
+
+		REQUEST {
+		    Debug.Httpd {consumer [info coroutine] got: $op ($args)}
+		    set r [dict merge [lindex $args 0] {*}[lrange $args 1 end]]
+		    catch {
+			do REQUEST [pre $r]
+		    } rsp eo	;# process the request
+		    # handle response code
+		    
+		    switch [dict get $eo -code] {
+			0 -
+			2 {
+			    # does application want to suspend?
+			    if {[dict size $rsp] == 0 || [dict exists $rsp -suspend]} {
+				if {[dict size $rsp] == 0} {
+				    set duration 0
+				} else {
+				    set duration [dict get $rsp -suspend]
+				}
+				$reader [list SUSPEND $duration]
+				continue
+			    }
+
+			    # ok - return
+			    if {![dict exists $rsp -code]} {
+				set rsp [Http Ok $rsp]
+			    }
 			}
-			$reader [list SUSPEND $duration]
-			continue
-		    }
-
-		    # ok - return
-		    if {![dict exists $rsp -code]} {
-			set rsp [Http Ok $rsp]
-		    }
-		}
 		
-		1 { # error
-		    set rsp [Http ServerError $r $rsp $eo]
+			1 { # error
+			    set rsp [Http ServerError $r $rsp $eo]
+			}
+		    }
+
+		    csend $reader [pprocess $rsp]
 		}
-	    }
-
-	    # post-process the response
-	    if {[catch {
-		post $rsp
-	    } e eo]} {
-		Debug.error {[info coroutine] POST ERROR: $e ($eo)} 1
-		set rsp [Http ServerError $r $e $eo]
-	    } else {
-		Debug.Httpd {[info coroutine] POST: [rdump $e]} 10
-		set rsp $e
-	    }
-
-	    # ask socket coro to send the response for us
-	    if {[catch {
-		$reader [list SEND $rsp]
-	    } e eo]} {
-		Debug.error {[info coroutine] sending terminated via $reader: $e ($eo)} 1
-		break
-	    } elseif {$e in {EOF ERROR}} {
-		Debug.Httpd {[info coroutine] sending terminated via $reader: $e} 1
-		break
 	    }
 	}
     }
@@ -1114,13 +1140,11 @@ namespace eval Httpd {
 	    rename $cr $cn	;# move it out of the way first
 	    after 1 [list $cn ""]	;# ensure the old consumer's dead
 	}
-	#variable consumer; coroutine $cr ::apply [list args $consumer ::Httpd] reader $R
 	coroutine $cr ::Httpd::consumer reader $R
 
 	# construct the reader
 	variable timeout
 	variable log
-	#set result [coroutine $R ::apply [list args $reader ::Httpd] socket $socket consumer $cr prototype $request generation $gen cid $cid log $log ipaddr $ipaddr]
 	set result [coroutine $R ::Httpd::reader socket $socket consumer $cr prototype $request generation $gen cid $cid log $log]
 
 	# start the ball rolling
@@ -1152,17 +1176,27 @@ namespace eval Httpd {
 	return [post $req]
     }
 
-    proc default_do {req} {
-	switch -glob -- [dict get $req -path] {
-	    / -
-	    /* {
-		# redirect / to /wub
-		return [wub do $req]
+    proc default_do {op req} {
+	switch -- $op {
+	    REQUEST {
+		switch -glob -- [dict get $req -path] {
+		    / -
+		    /* {
+			# redirect / to /wub
+			return [wub do $req]
+		    }
+		}
+	    }
+	    TERMINATE {
+		return
+	    }
+	    default {
+		error "[info coroutine] OP $op not understood by consumer"
 	    }
 	}
     }
 
-    proc do {req} {
+    proc do {op req} {
 	if {[info commands ::wub] eq {}} {
 	    package require Mason
 	    Mason create ::wub -url / -root $::docroot -auth .before -wrapper .after
