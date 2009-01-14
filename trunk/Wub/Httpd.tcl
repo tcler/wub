@@ -1045,7 +1045,11 @@ namespace eval Httpd {
     # grant the caller some timeout grace
     proc grace {{grace 20000}} {
 	variable activity
-	set activity([info coroutine]) [expr {$grace + [clock milliseconds]}]
+	if {$grace < 0} {
+	    catch {unset activity([info coroutine])}
+	} else {
+	    set activity([info coroutine]) [expr {$grace + [clock milliseconds]}]
+	}
     }
 
     # every script
