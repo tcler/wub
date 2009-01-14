@@ -1053,6 +1053,11 @@ namespace eval Httpd {
 	}
     }
 
+    # format something to suspend the consumer coro
+    proc Suspend {{grace -1}} {
+	return [list -suspend $grace]
+    }
+
     # every script
     proc every {interval script} {
 	variable everyIds
