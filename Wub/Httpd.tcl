@@ -1046,6 +1046,7 @@ namespace eval Httpd {
     proc grace {{grace 20000}} {
 	variable activity
 	if {$grace < 0} {
+	    # take this coro off the reaper's list until next activity
 	    catch {unset activity([info coroutine])}
 	} else {
 	    set activity([info coroutine]) [expr {$grace + [clock milliseconds]}]
