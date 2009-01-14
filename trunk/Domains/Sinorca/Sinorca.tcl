@@ -172,7 +172,7 @@ namespace eval Sinorca {
 	    [<div> id header [subst {
 		[<header> $header]
 		[<global> "[Html links $globlinks]\n$global"]
-		[<site> "$search [Html links $sitelinks]"]
+		[<site> "search [Html links $sitelinks]"]
 	    }]]
 	    $sidebars
 	    [<content> {*}$mainclass navbox $navbox breadcrumbs $breadcrumbs $content]
@@ -245,10 +245,12 @@ namespace eval Sinorca {
 	    variable {*}$args
 	}
 	variable path
-	RAM init ram $path
+	RAM create ::Sinorca::ram -prefix $path
+	namespace export -clear *
+	namespace ensemble create -subcommands {}
 
 	variable hue; rehue $hue
-
+	
 	variable print
 	variable expires
 	ram set print.css $print content-type text/css {*}[Http Cache {} $expires]
@@ -301,9 +303,6 @@ namespace eval Sinorca {
 	}]]]
 
 	ram set "" index.html content-type x-system/redirect
-
-	namespace export -clear *
-	namespace ensemble create -subcommands {}
     }
 
     namespace export -clear *
