@@ -5,8 +5,10 @@
 package require Html
 package require TclOO
 namespace import oo::*
+
 package require Debug
 Debug off mason 10
+
 package provide Mason 1.0
 
 class create Mason {
@@ -429,6 +431,8 @@ class create Mason {
     }
 }
 
+package require Convert
+
 namespace eval ::MConvert {
     proc .x-text/dict.x-text/html-fragment {rsp} {
 	Debug.convert {x-text/dict.x-text/html-fragment conversion: $rsp}
@@ -457,3 +461,5 @@ namespace eval ::MConvert {
 	return $rsp
     }
 }
+
+Convert Namespace ::MConvert	;# add Mason conversions
