@@ -97,7 +97,7 @@ class create RAM {
 	
 	foreach {el val} $extra {
 	    if {$el eq "-header"} {
-		dict lappend $rsp -headers $val
+		dict lappend rsp -headers $val
 	    } else {
 		dict set els $el $val
 	    }

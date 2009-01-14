@@ -5,7 +5,7 @@ package require Form
 
 package provide Widget 1.0
 
-RAM init Widget /widget/
+RAM create Widget -prefix /widget/
 
 # Documentation for Login widget
 Widget set login.doc {
