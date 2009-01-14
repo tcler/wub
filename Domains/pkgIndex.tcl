@@ -26,7 +26,5 @@ package ifneeded Tie  1.0 [list source [file join $dir Tie.tcl]]
 package ifneeded Rest  1.0 [list source [file join $dir Rest.tcl]]
 package ifneeded Coco  1.0 [list source [file join $dir Coco.tcl]]
 
-package ifneeded Widget 1.0 [list source [file join $dir Widget.tcl]]
-
 package ifneeded Sinorca 1.0 [list source [file join $dir Sinorca Sinorca.tcl]]
 package ifneeded Simplicio 1.0 [list source [file join $dir Simplicio.tcl]]
