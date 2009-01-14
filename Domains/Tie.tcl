@@ -12,7 +12,7 @@ package provide Tie 1.0
 # make textareas autogrow
 
 namespace eval Tie {
-    variable mount /tie/	;# mount point for vars
+    variable mount /tie/	;# (default) mount point for vars
     variable mime x-text/html-fragment	;# default mime type of responses
     variable icons 
     dict set icons delete [<img> width 32px alt "delete field" src /icons/remove.gif]
