@@ -8,7 +8,6 @@ namespace eval Site {
     # return all the configuration state of Site in a handy form
     proc vars {args} {
 	set vars {}
-	#puts stderr [info vars ::Site::*]
 	foreach var [info vars ::Site::*] {
 	    if {[info exists $var]} {
 		set svar [namespace tail $var] 
@@ -39,8 +38,6 @@ namespace eval Site {
     variable configuration {
 	home [file normalize [file dirname [info script]]] ;# home of application script
 	host [info hostname]	;# default home for relative paths
-	multi 0			;# we're single-threaded
-	coro 0			;# we want coroutines
 
 	globaldocroot 1		;# do we use Wub's docroot, or caller's
 	backends 5		;# number of backends to add on demand
@@ -51,9 +48,11 @@ namespace eval Site {
 	wubdir [file normalize [file join [file dirname [info script]] ..]] ;# where's wub
 	scriptdir [file normalize [file dirname [info script]]] ;# scripts for Backend
 	local [file normalize [file join [list $home] local.tcl]] ;# post-init localism
-	vars [file normalize [file join $home vars.tcl]] ;# pre-init localism
+	vars [file normalize [file join [list $home] vars.tcl]] ;# pre-init localism
 	# topdir	;# Where to look for Wub libs - don't change
 	# docroot	;# Where to look for document root.
+
+	stx_scripting 0	;# permit stx scripting?
 
 	# HTTP Listener configuration
 	listener [rc {
@@ -162,7 +161,7 @@ namespace eval Site {
 
 	# find Wub stuff
 	Variable topdir [file normalize $wubdir]
-	foreach lib {Mime extensions Wub Domains Utilities stx} {
+	foreach lib {Mime extensions stx Wub Domains Utilities} {
 	    lappend ::auto_path [file join $topdir $lib]
 	}
 
@@ -181,14 +180,13 @@ namespace eval Site {
 	Debug Http Html Listener Block
 	File Mason Convert Direct Mime
 	Url Query Form Cookies CGI
-	Sitemap stx
+	Sitemap stx stx2html
     } {
 	package require $package
     }
 
     # install default conversions
     Convert init
-    Convert Namespace ::MConvert	;# add Mason conversions
 
     #### Debug init - set some reasonable Debug narrative levels
     Debug on error 100
@@ -205,6 +203,7 @@ namespace eval Site {
     Debug off direct 10
     Debug off convert 10
     Debug off cookies 10
+    Debug off scgi 10
 
     # backend may be in this thread. store its config in ::config()
     variable backend
@@ -222,7 +221,6 @@ namespace eval Site {
 	Block init logdir $docroot
 
 	variable varnish
-
 	if {[info exists varnish] && ($varnish ne {})} {
 	    #### Varnish cache
 	    package require Varnish
@@ -245,6 +243,10 @@ namespace eval Site {
 	    package provide Cache 2.0
 	    proc Cache args {return {}}
 	}
+
+	#### stx init
+	variable stx_scripting
+	stx2html init script $stx_scripting
 
 	#### Mime init
 	variable home
@@ -310,7 +312,6 @@ namespace eval Site {
 	variable scgi
 	if {[dict exists $scgi -port] && ([dict get $scgi -port] > 0)} {
 	    package require scgi
-	    Debug on scgi 10
 	    Listener listen -host $host -httpd scgi {*}$scgi
 	    Debug.log {Listening on scgi $host [dict get $scgi -port] using docroot $docroot}
 	}
@@ -338,18 +339,4 @@ namespace eval Site {
 
     namespace export -clear *
     namespace ensemble create -subcommands {}
-}
-
-# this will be used to send responses to processed requests
-# since we're in a single thread, it's got to be fairly simple
-proc ::Send {r} {
-    if {[dict exists $r -send]} {
-	if {[catch {info coroutine}]} {
-	    {*}[dict get $r -send] $r
-	} else {
-	    [dict get $r -send] [list SEND $r]
-	}
-    } else {
-	HttpdWorker Send $r
-    }
 }
