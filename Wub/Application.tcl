@@ -146,7 +146,11 @@ Tie init
 package require RAM
 Debug off RAM 10
 # Declare a RAM domain, invoked by [ram], whose URL prefix is /ram/
-RAM init ram /ram/
+RAM create ram -prefix /ram/
+
+# declares a top level ram page
+ram set "" [<a> href /ram/test.html "This is a ram test"]
+ram set "/" [<a> href ./test.html "This is also a ram test"]
 
 # Declares /ram/test.html which is an literal html-fragment including
 # a <head> <style> element which includes /ram/test.css
@@ -154,10 +158,6 @@ ram set test.html "[<h1> Test][<p> {This is a test of RAM domain.  You should se
 
 # declares /ram/test.css is a CSS which colours the <body> red
 ram set test.css "body {color: red} ;" content-type text/css
-
-#### Widgets package
-# provides a bunch of HTML/JS/CSS widget sets
-package require Widget
 
 #### Sinorca package
 # provides a page-level conversion
@@ -337,11 +337,6 @@ proc ::Httpd::do {op req} {
 	/jquery/* -
 	/jquery/ {
 	    jQ do $req
-	}
-
-	/widget/* -
-	/widget/ {
-	    Widget do $req
 	}
 
 	/sinorca/* -
