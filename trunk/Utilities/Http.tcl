@@ -985,6 +985,7 @@ namespace eval Http {
 	Debug.http {CE -encoding:[Dict get? $args -encoding]}
 	if {![dict exists $reply -gzip]
 	    && ("gzip" in [Dict get? $args -encoding])
+	    && ![string match image/* [Dict get? $reply content-type]] 
 	} {
 	    set reply [gzip_content $reply]
 	}
