@@ -1,6 +1,7 @@
 # Site - simple configuration for single-threaded Wub Server.
 
 package require fileutil
+package require inifile
 
 package provide Site 1.0
 
@@ -11,7 +12,7 @@ namespace eval Site {
 	foreach var [info vars ::Site::*] {
 	    if {[info exists $var]} {
 		set svar [namespace tail $var] 
-		lappend vars $svar [set $var]
+		catch {lappend vars $svar [set $var]}
 	    }
 	}
 	return $vars
@@ -55,14 +56,14 @@ namespace eval Site {
 	stx_scripting 0	;# permit stx scripting?
 
 	# HTTP Listener configuration
-	listener [rc {
+	@listener [rc {
 	    -port 8080	;# Wub listener port
 	    #-host	;# listening host (default [info hostname]
 	    #-http	;# dispatch handler (default Http)
 	}]
 
 	# HTTPS Listener configuration
-	https [rc {
+	@https [rc {
 	    -port 8081	;# Wub listener port
 	    #-host	;# listening host (default [info hostname]
 	    #-http	;# dispatch handler (default Http)
@@ -70,14 +71,14 @@ namespace eval Site {
 	}]
 
 	# SCGI Listener configuration
-	scgi [rc {
+	@scgi [rc {
 	    -port 8088			;# what port does SCGI run on
 	    -port 0			;# disable SCGI - comment to enable
 	    -scgi_send {::scgi Send}	;# how does SCGI communicate incoming?
 	}]
 	
 	# Backend configuration
-	backend [rc {
+	@backend [rc {
 	    scriptname Worker.tcl
 	    dispatch Backend
 	    # scriptdir ;# directory to find scripts
@@ -87,13 +88,13 @@ namespace eval Site {
 	}]
 
 	# Varnish configuration
-	varnish [rc { ;# don't use varnish cache by default
+	@varnish [rc { ;# don't use varnish cache by default
 	    # vaddress localhost	;# where is varnish running?
 	    # vport 6082		;# on what port is varnish control?
 	}]
 
 	# Internal Cach configuration
-	cache [rc { ;# use in-RAM cache by default
+	@cache [rc { ;# use in-RAM cache by default
 	    maxsize 204800	;# maximum size of object to cache
 	    # high 100	;# high water mark for cache
 	    # low 90	;# low water mark for cache
@@ -104,7 +105,7 @@ namespace eval Site {
 	}]
 
 	# Httpd protocol engine configuration
-	httpd [rc {
+	@httpd [rc {
 	    max 1		;# max # of worker threads
 	    incr 1		;# number of threads to add on exhaustion
 	    over 40		;# degree of thread overcommittment
@@ -127,7 +128,12 @@ namespace eval Site {
 
     #### Configuration
     # set some default configuration flags and values
+    variable modules
     foreach {name val} [rc $configuration] {
+	if {[string match @* $name]} {
+	    set name [string trim $name @]
+	    set modules($name) {}
+	}
 	Variable $name $val
     }
     unset configuration
@@ -143,10 +149,63 @@ namespace eval Site {
 	}
     }
 
+    proc do_ini {file} {
+	variable modules
+	if {![file exists $file]} return
+	set ini [::ini::open $file]
+	foreach sect [::ini::sections $ini] {
+	    set cs [string tolower $sect]
+	    set modules($cs) {}
+	    foreach key [::ini::keys $ini $sect] {
+		set v [::ini::value $ini $sect $key]
+		if {$cs eq "wub"} {
+		    set ::Site::$key $v
+		} else {
+		    dict set ::Site::$sect $key $v
+		}
+	    }
+	}
+	::ini::close $ini
+    }
+    do_ini [file join [file normalize $home] site.ini]
+
     # load command-line configuration vars
     foreach {name val} $::argv {
 	variable $name
 	set $name $val	;# set global config vars
+    }
+    unset name; unset val
+
+    proc write_ini {file} {
+	variable modules
+	set ini [::ini::open $file w]
+	foreach var [info vars ::Site::*] {
+	    if {[catch {
+		set val [set $var]
+		set vvar [namespace tail $var]
+	    }]} continue
+
+	    if {[info exists modules($vvar)]} {
+		# it's a module
+		dict for {k v} $val {
+		    ::ini::set $ini $vvar $k $v
+		}
+	    } else {
+		# it's in wub
+		catch {
+		    if {$val ne ""} {
+			::ini::set $ini wub $vvar $val
+		    }
+		}
+	    }
+	}
+	::ini::commit $ini
+	::ini::close $ini
+    }
+
+    if {[info exists ::Site::write_ini]} {
+	unset e; unset eo
+	write_ini [file normalize $::Site::write_ini]
     }
 
     Variable url "http://$host:[dict get $listener -port]/"
