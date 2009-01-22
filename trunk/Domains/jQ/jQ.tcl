@@ -304,12 +304,12 @@ namespace eval jQ {
 	return $r
     }
 
-    # http://docs.jquery.com/UI/Accordian
-    proc accordian {r selector args} {
+    # http://docs.jquery.com/UI/Accordion
+    proc accordion {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.dimensions.js jquery.ui.js
-	} %SEL $selector %OPTS [opts accordian $args] {
-	    $('%SEL').accordian(%OPTS);
+	} %SEL $selector %OPTS [opts accordion $args] {
+	    $('%SEL').accordion(%OPTS);
 	}]
     }
 
@@ -410,11 +410,11 @@ namespace eval jQ {
 	}]
     }
 
-    proc aaccordian {r selector args} {
+    proc aaccordion {r selector args} {
 	return [weave $r {
-	    jquery.js jquery.accordian.js
-	} %SEL $selector %OPTS [opts aaccordian $args] {
-	    $('%SEL').Accordian(%OPTS);
+	    jquery.js jquery.accordion.js
+	} %SEL $selector %OPTS [opts aaccordion $args] {
+	    $('%SEL').Accordion(%OPTS);
 	}]
     }
 
