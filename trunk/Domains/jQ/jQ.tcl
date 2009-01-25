@@ -40,7 +40,7 @@ namespace eval jQ {
 
     proc theme {r theme} {
 	variable prefix
-	dict set r -style ${prefix}/scripts/trunk/themes/$theme/$theme.all.css {}
+	dict set r -style ${prefix}/themes/$theme/ui.all.css {}
 	return $r
     }
 
@@ -219,9 +219,9 @@ namespace eval jQ {
     # http://docs.jquery.com/UI/Datepicker
     proc datepicker {r selector args} {
 	return [weave $r {
-	    jquery.js jquery.timeentry.js
+	    jquery.js jquery.ui.js
 	} %SEL $selector %OPTS [opts datepicker $args] {
-	    $('%SEL').timeEntry(%OPTS);
+	    $('%SEL').datepicker(%OPTS);
 	}]
     }
 
