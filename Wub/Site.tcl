@@ -107,16 +107,17 @@ namespace eval Site {
 	# Httpd protocol engine configuration
 	@httpd [rc {
 	    max 1		;# max # of worker threads
-	    incr 1		;# number of threads to add on exhaustion
-	    over 40		;# degree of thread overcommittment
+	     incr 1		;# number of threads to add on exhaustion
+	     over 40		;# degree of thread overcommittment
 
-	    # logfile ""	;# log filename for common log format loggin
-	    # max_conn 10	;# max connections per IP
-	    # no_really 3	;# how many times to complain about max_conn
-	    # server_port	;# server's port, if different from Listener's
-	    # server_id		;# server ID to client (default "Wub")
-	    # retry_wait	;# 
-	}]
+	     # logfile ""	;# log filename for common log format loggin
+	     # max_conn 10	;# max connections per IP
+	     # no_really 3	;# how many times to complain about max_conn
+	     # server_port	;# server's port, if different from Listener's
+	     # server_id		;# server ID to client (default "Wub")
+	     # retry_wait	;# 
+	 }]
+	password ""		;# account (and general) root password
     }
 
     proc Variable {name value} {
