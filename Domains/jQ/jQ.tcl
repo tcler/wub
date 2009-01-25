@@ -432,10 +432,12 @@ namespace eval jQ {
 	}]
     }
 
-    proc form  {r selector {fn ""}} {
+    proc form  {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.form.js
-	} %SEL $selector %FN $fn {$('%SEL').ajaxForm(%FN);}]
+	} %SEL $selector %OPTS [opts validate $args] {
+	    $('%SEL').ajaxForm(%OPTS);
+	}]
     }
     
     # http://bassistance.de/jquery-plugins/jquery-plugin-validation/
