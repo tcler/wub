@@ -380,7 +380,7 @@ namespace eval Session {
 
 	variable db; variable dir; variable layout
 	set dbn [file join $dir $db]
-	View new session file $dbn db sessdb view session layout $layout
+	View create session file $dbn db sessdb view session layout $layout
 	fields
 	gc	;# start up by garbage collecting Session db.
     }
