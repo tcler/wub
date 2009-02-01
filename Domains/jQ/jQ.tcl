@@ -16,6 +16,11 @@ namespace eval jQ {
 	return $r
     }
 
+    proc postscript {r script} {
+	dict set r -postscript ![clock microseconds] [<script> $script]
+	return $r
+    }
+
     variable google 0
     proc scripts {r args} {
 	variable prefix
@@ -307,7 +312,7 @@ namespace eval jQ {
     # http://docs.jquery.com/UI/Accordion
     proc accordion {r selector args} {
 	return [weave $r {
-	    jquery.js jquery.dimensions.js jquery.ui.js
+	    jquery.js jquery.ui.js
 	} %SEL $selector %OPTS [opts accordion $args] {
 	    $('%SEL').accordion(%OPTS);
 	}]
@@ -316,7 +321,7 @@ namespace eval jQ {
     # http://docs.jquery.com/UI/Resizeables
     proc resizable {r selector args} {
 	return [weave $r {
-	    jquery.js jquery.dimensions.js jquery.ui.js
+	    jquery.js jquery.ui.js
 	} %SEL $selector %OPTS [opts resizable $args] {
 	    $('%SEL').resizable(%OPTS);
 	}]
@@ -325,7 +330,7 @@ namespace eval jQ {
     # http://docs.jquery.com/UI/Draggables
     proc draggable {r selector args} {
 	return [weave $r {
-	    jquery.js jquery.dimensions.js jquery.ui.js
+	    jquery.js jquery.ui.js
 	} %SEL $selector %OPTS [opts draggable $args] {
 	    $('%SEL').draggable(%OPTS);
 	}]
@@ -334,7 +339,7 @@ namespace eval jQ {
     # http://docs.jquery.com/UI/Droppables
     proc droppable {r selector args} {
 	return [weave $r {
-	    jquery.js jquery.dimensions.js jquery.ui.js
+	    jquery.js jquery.ui.js
 	} %SEL $selector %OPTS [opts droppable $args] {
 	    $('%SEL').droppable(%OPTS);
 	}]
@@ -352,7 +357,7 @@ namespace eval jQ {
     # http://docs.jquery.com/UI/Selectables
     proc selectable {r selector args} {
 	return [weave $r {
-	    jquery.js jquery.dimensions.js jquery.ui.js
+	    jquery.js jquery.ui.js
 	} %SEL $selector %OPTS [opts selectable $args] {
 	    $('%SEL').selectable(%OPTS);
 	}]
@@ -495,7 +500,7 @@ namespace eval jQ {
 
     proc sheet {r selector args} {
 	return [weave $r {
-	    jquery.js jquery.dimensions.js jquery.clickmenu.js jquery.sheet.calc.js jquery.sheet.js
+	    jquery.js jquery.clickmenu.js jquery.sheet.calc.js jquery.sheet.js
 	} css clickable.css %SEL $selector %OPTS [opts sheet $args] {
 	    $('%SEL').sheet(%OPTS);
 	}]
