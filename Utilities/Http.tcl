@@ -616,17 +616,38 @@ namespace eval Http {
 	return $rsp
     }
 
+    proc BasicAuth {realm} {
+	return "Basic realm=\"$realm\""
+    }
+
+    proc Credentials {r} {
+	if {![dict exists $r authorization]} {
+	    return ""
+	}
+	set cred [join [lassign [split [dict get $r authorization]] scheme]]
+	package require base64
+	
+	return [split [::base64::decode $cred] :]
+    }
+
+    proc CredCheck {r checker} {
+	lassign [Credentials $r] userid password
+	return [$checker $userid $password]
+    }
+
     # construct an HTTP Unauthorized response
     proc Unauthorized {rsp
-		       challenge
+		       {challenge ""}
 		       {content ""}
 		       {ctype "x-text/html-fragment"}} {
-	dict lappend rsp -auth $challenge
+	if {$challenge ne ""} {
+	    dict set rsp WWW-Authenticate $challenge
+	}
 	if {$content ne ""} {
 	    dict set rsp content-type $ctype
 	    dict set rsp -content $content
 	} elseif {![dict exists $rsp -content]} {
-	    set rsp [sysPage $rsp Unauthorised [<p> "You are not permitted to access this page."]]
+	    set rsp [sysPage $rsp Unauthorized [<p> "You are not permitted to access this page."]]
 	}
 
 	dict set rsp -code 401
