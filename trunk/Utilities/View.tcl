@@ -15,6 +15,71 @@ if {[info commands ::Debug] eq {}} {
 
 package provide View 3.0
 
+class create Synview {
+    method incr {index field {qty 1}} {
+	Debug.view {mixin incr}
+	return [[my parent] incr [[my view] get $index index] $field $qty]
+    }
+
+    # lappend to a field
+    method lappend {index field args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	return [[my parent] lappend [[my view] get $index index] $field {*}$args]
+    }
+
+    # append values to field as dict/value pairs
+    method dlappend {index field args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	return [[my parent] lappend [[my view] get $index index] $field {*}$args]
+    }
+
+    # info - return view's layout
+    method info {args} {
+	set result [[my parent] info {*}$args]
+	Debug.view {mixin info [self] ([[my view] info]) -> $result}
+	return $result
+    }
+
+    method get {index args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	Debug.view {MIXIN get [my view]!$index ([[my view] info]) (which is [my parent]/[[my view] get $index index]) $args}
+	return [[my parent] get [[my view] get $index index] {*}$args]
+    }
+
+    # set a field's value
+    method set {index args} {
+	if {[llength $args] eq 1} {
+	    set args [lindex $args 0]
+	}
+	Debug.view {MIXIN [my view] set $index keys: '[dict keys $args]'}
+	return [[my parent] get [[my view] get $index] {*}$args]
+    }
+
+    method all {script} {
+	set view [my view]
+	set mysize [expr {[$view size] - 1}]
+	set indices {}
+	for {set i $mysize} {$i >= 0} {incr i -1} {
+	    set record [$view get $i index]
+	    Debug.view {MIXIN $view}
+	    lappend indices [$view get $i index]
+	}
+	set result [uplevel 1 [my parent] foreach [list $script] {*}$indices]
+	Debug.view {MIXIN $view [$view size] ([$view info]) all -> [my parent]/[[my parent] view] foreach $indices -> $result }
+	return $result
+    }
+
+    method select {args} {
+	error "select on indexed synthetic view unsupported"
+    }
+}
+
 class create View {
     # incr a field
     method incr {index field {qty 1}} {
@@ -100,7 +165,7 @@ class create View {
 	    foreach sv $subviews {
 		dict set result $sv [my open $index $sv]
 	    }
-	    #puts stderr "subview $index $result"
+	    Debug.views {subview $index $result}
 	    return $result
 	}
     }
@@ -116,17 +181,18 @@ class create View {
 	}
 
 	if {![info exists name]} {
-	    set v [my select $view {*}$args]
+	    [my select {*}$args] as v
 	    set vs [$v size]
+	    Debug.view {lselect ($args) over synthetic view [self] [my info] -> $v: [$v info] with $vs results}
 	    set r {}
 	    for {set i 0} {$i < $vs} {incr i} {
-		lappend r [dict get [$v get $i] index]
+		lappend r [[$v view] get $i index]
 	    }
-	    $v destroy
+	    #$v destroy
 	} else {
 	    set r [::mk::select $db.$name {*}$args]
 	}
-
+	
 	Debug.view {[self] lselect $args -> $r}
 	return $r
     }
@@ -138,7 +204,7 @@ class create View {
 	}
 	Debug.view {dselect $view $args}
 	set result {}
-	foreach index [::mk::select $db.$name {*}$args] {
+	foreach index [my lselect {*}$args] {
 	    dict set result [my get $index]
 	}
 	return $result
@@ -149,8 +215,15 @@ class create View {
 	if {[llength $args] eq 1} {
 	    set args [lindex $args 0]
 	}
-	Debug.view {$view select $args}
-	return [View new [$view select {*}$args] parents [self]]
+
+	if {[lsearch $args -sort] > -1 || [lsearch $args -rsort] > -1} {
+	    set type {}	;# a select with a sort is conformant with the parent
+	} else {
+	    set type {type index}
+	}
+	set result [View new [$view select {*}$args] parents [self] {*}$type]
+	Debug.view {[self]: $view select ($args) -> $result/[$result size] ([$result info]) }
+	return $result
     }
 
     # info - return view's layout
@@ -243,13 +316,56 @@ class create View {
 	trace add variable lifetime unset "[self] destroy;#"
     }
 
-    # all - perform script over all records
-    method all {script} {
-	Debug.view {[self] all over [my size] rows}
+    method as {varname} {
+	upvar $varname lifetime
+	set lifetime [self]
+	trace add variable lifetime unset "[self] destroy;#"
+    }
+
+    method foreach {script args} {
+	if {[llength $args] eq 1} {
+	    set args [lindex $args 0]
+	}
+	Debug.view {[self] foreach over ($args)}
 	set vn __all__[namespace tail [self]]
 	upvar $vn uv
 	set results {}
-	for {set index 0} {$index < [my size]} {incr index} {
+	foreach index $args {
+	    set uv [my get $index]
+
+	    # create subviews
+	    foreach {n v} [my subviews $index] {
+		$v local
+		dict set uv $n $v
+	    }
+
+	    dict set uv "" $index
+	    set code [catch {uplevel 1 dict with $vn [list $script]} result eo]
+
+	    switch -- $code {
+		1 {# error - re-raise the error
+		    return -options $eo $result
+		}
+		3 {break}
+		4 {continue}
+		2 {return $result}
+
+		default {# normal
+		    lappend results $index $result
+		}
+	    }
+	}
+
+	return $results
+    }
+
+    # all - perform script over all records
+    method all {script} {
+	Debug.view {[self]/$view ([my info]) all over [my size] rows}
+	set vn __all__[namespace tail [self]]
+	upvar $vn uv
+	set results {}
+	for {set index [expr {[my size]-1}]} {$index >= 0} {incr index -1} {
 	    set uv [my get $index]
 
 	    # create subviews
@@ -286,6 +402,9 @@ class create View {
 	set vn __with__[namespace tail [self]]
 	upvar $vn uv
 	set results {}
+	[my select {*}$args] as __vs
+	return [uplevel 1 $__vs all [list $script]]
+
 	foreach index [my lselect {*}$args] {
 	    set uv [my get $index]
 	    dict set uv "" $index
@@ -625,6 +744,9 @@ class create View {
     # return the underlying view
     method view {} {return $view}
 
+    # return our first parent
+    method parent {} {return [lindex $parents 0]}
+
     # delete the indicated rows
     method delete {args} {
 	return [$view delete {*}$args]
@@ -673,11 +795,10 @@ class create View {
 	}
     }
 
-    variable db view name parents children
+    variable db view name parents children type
 
     # construct or open a view
     constructor {args} {
-	Debug.view {View constructor: $args}
 	set children {}
 	set parents {}
 	if {[llength $args]%2} {
@@ -685,13 +806,18 @@ class create View {
 	    # (could be from one of the mk view builtins.)
 	    set args [lassign $args view]
 	    catch {dict unset args view}
+	    Debug.view {View [self] synthetic constructor over $view ([$view info]): $args}
 	    foreach {n v} $args {
 		set $n $v
 	    }
 	    if {[info exists parents]} {
 		set db [[lindex $parents 0] db]	;# our db is our parents' db
 	    }
+	    if {[dict exists $args type] && [dict get $args type] eq "index"} {
+		oo::objdefine [self] mixin Synview
+	    }
 	} else {
+	    Debug.view {View constructor: $args}
 	    # no already-open view supplied, have to open it
 	    foreach {n v} $args {
 		set $n $v
@@ -761,11 +887,10 @@ class create View {
     }
 
     destructor {
-	#puts stderr "destroy [self]"
+	Debug.view {destroy [self]}
 	foreach p $parents {
 	    $p child rm [self]
 	}
-	
 	$view close
     }
 }
