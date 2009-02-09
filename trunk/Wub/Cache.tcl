@@ -470,8 +470,9 @@ namespace eval Cache {
     }
 
     # initialise the state of Cache
-    proc init {args} {
+    proc new {args} {
 	variable {*}$args
+	return ::Cache
     }
 
     namespace export -clear *
