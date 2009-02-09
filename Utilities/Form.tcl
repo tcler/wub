@@ -117,7 +117,8 @@ namespace eval Form {
 	}
 	return $content
     }
-    
+
+    # <form> and <fieldset>
     foreach {type} {form fieldset} {
 	if {0 && $type eq "form"} {
 	    set ti "variable tabindex 0"
@@ -125,24 +126,34 @@ namespace eval Form {
 	    set ti ""
 	}
 	eval [string map [list @TI $ti @T $type] {
-	    proc <@T> {name args} {
+	    proc <@T> {args} {
 		variable @TA
 		variable Fdefaults
-		set config [dict merge [Dict get? $Fdefaults @T] [lrange $args 0 end-1]]
+		set body [lindex $args end]
+		set args [lrange $args 0 end-1]
+
+		set name ""
+		if {[llength $args]%2} {
+		    set args [lassign $args name]
+		} 
+
+		set config [dict merge [Dict get? $Fdefaults @T] $args]
 		if {$name ne "" && ![dict exists $config id]} {
 		    dict set config id $name
 		}
+
 		if {[dict exists $config legend]} {
 		    append content [<legend> [dict get $config legend]] \n
 		}
+
 		@TI
-		append content [uplevel 1 [list subst [lindex $args end]]]
+		append content [uplevel 1 [list subst $body]]
 		set content [string trim $content " \t\n\r"]
 
 		if {[dict exists $config vertical]
 		    && [dict get $config vertical]
 		} {
-		    set content [string map {\n <br>} $content]
+		    set content [string map {\n <br>\n} [string trim $content \n]]
 		}
 
 		return "<[attr @T [Dict subset $config $@TA]]>$content</@T>"
