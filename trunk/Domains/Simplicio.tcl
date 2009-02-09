@@ -9,7 +9,9 @@ package require Color
 package require fileutil
 
 package provide Simplicio 1.0
-
+set API(Simplicio) {
+    {experimental SVG iconset}
+}
 namespace eval Simplicio {
     variable xml {<?xml version="1.0" encoding="UTF-8" standalone="no"?>}
     variable svg {<svg xmlns="http://www.w3.org/2000/svg" width="64px" height="64px">}
@@ -42,6 +44,11 @@ namespace eval Simplicio {
     }
 
     variable ignore {ec2024 f1b326 279f48 5ebb67 292f6d a7cae3 a7cae3 292f6d 000000}
+
+    proc get {icon} {
+	variable icons
+	return [dict get $icons $icon]
+    }
 
     proc all {r} {
 	variable icons
@@ -104,8 +111,9 @@ namespace eval Simplicio {
     }
 
     variable mount /simplicio/
-    proc init {args} {
+    proc new {args} {
 	variable {*}$args
+	return Simplico
     }
 
     namespace export -clear *

@@ -9,8 +9,13 @@ Debug off RAM 10
 
 package provide RAM 2.0
 
+set API(RAM) {
+    {in-RAM store for page contents}
+    content_type {default content-type (default: x-text/html-fragment)}
+}
+
 class create RAM {
-    variable ram prefix content_type
+    variable ram mount content_type
 
     # get - gets keyed content only
     method get {key} {
@@ -47,7 +52,7 @@ class create RAM {
 	unset ram($key)
     }
 
-    method keys {prefix} {
+    method keys {} {
 	set result {}
 	return [array names ram]
     }
@@ -63,8 +68,8 @@ class create RAM {
 	    # assume we've been parsed by package Url
 	    # remove the specified prefix from path, giving suffix
 	    set path [dict get $rsp -path]
-	    set suffix [Url pstrip $prefix $path]
-	    Debug.RAM {-suffix not given - calculated '$suffix' from '$prefix' and '$path'}
+	    set suffix [Url pstrip $mount $path]
+	    Debug.RAM {-suffix not given - calculated '$suffix' from '$mount' and '$path'}
 	    if {($suffix ne "/") && [string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
 		return [Http NotFound $rsp]
@@ -110,12 +115,11 @@ class create RAM {
     # initialize view ensemble for RAM
     constructor {args} {
 	set content_type x-text/html-fragment
-	set prefix /ram/
+	set mount /ram/
 	array set ram {}
 	foreach {n v} $args {
-	    set n [string trim $n -]
-	    set $n $v
+	    set [string trimleft $n -] $v
 	}
-	set prefix /[string trim $prefix /]/
+	set mount /[string trim $mount /]/
     }
 }

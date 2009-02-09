@@ -12,6 +12,11 @@ package require functional
 
 package provide Commenter 1.0
 
+set API(Commenter) {
+    {a utility to parse tcl source files and associate out-line comments with procs.}
+    root {filesystem root containing source files to comment}
+}
+
 namespace eval Commenter {
 
     # gather leading comment block
@@ -273,7 +278,7 @@ namespace eval Commenter {
 	return $result
     }
 
-    variable path [file dirname [file dirname [file normalize [info script]]]]
+    variable root [file dirname [file dirname [file normalize [info script]]]]
     variable display ""	;#
     variable munged ""
 
@@ -281,8 +286,8 @@ namespace eval Commenter {
 	variable display
 	variable munged
 	if {$display eq ""} {
-	    variable path
-	    set display [Commenter parseFS $path]
+	    variable root
+	    set display [Commenter parseFS $root]
 	    set munged [munge $display]
 	}
 
@@ -302,14 +307,21 @@ namespace eval Commenter {
 	return [Http Ok $r [Commenter 2html $display contexts "*$ns"]]
     }
 
+    proc new {args} {
+	return [Direct new {*}$args namespace ::Commenter]
+    }
+    proc create {name args} {
+	return [Direct create $name {*}$args namespace ::Commenter]
+    }
+
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
     # this thing tests itself
-    set path [info script]
-    set comments [Commenter parseFS [file dirname [file dirname [file normalize $path]]]]
+    set root [info script]
+    set comments [Commenter parseFS [file dirname [file dirname [file normalize $root]]]]
     if {0} {
 	puts stderr "Contexts: [dict keys [dict get $comments contexts]]"
 	puts stderr $comments

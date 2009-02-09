@@ -3,7 +3,13 @@ package require Debug
 Debug off tie 10
 
 package require Report
+
 package provide Tie 1.0
+
+set API(Tie) {
+    {Experimental mapping from namespace variables to Urls.  Each namespace needs to [add] itself to the Tie.}
+    mime {default mime type of responses (default: x-text/html-fragment)}
+}
 
 # TODO:
 # per-variable perms
@@ -324,11 +330,12 @@ namespace eval Tie {
 	}
     }
 
-    proc init {args} {
+    proc new {args} {
 	if {$args ne {}} {
 	    variable {*}$args
 	}
 	add tparams -format {{tparam hparam thparam tfparam rparam eparam} {* tcl} {sortable evenodd} bool footer textarea * text}
+	return Tie
     }
 
     namespace export -clear *

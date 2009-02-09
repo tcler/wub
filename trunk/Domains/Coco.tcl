@@ -12,6 +12,11 @@ package require md5
 
 package provide Coco 1.0
 
+set API(Coco) {
+    {A domain built around Tcl8.6 Coroutines.  Calling the domain creates a subdomain running the corouting given by lambda}
+    lambda {+a lambda or procname (taking a single argument) which is invoked as a coroutine to process client input.}
+}
+
 namespace eval Coco {
     proc <message> {message} {
 	return [<p> class message [join $message "</p><p class='message'>"]]
@@ -96,23 +101,23 @@ namespace eval Coco {
     }
 
     # process request helper
-    proc process {prefix lambda r} {
+    proc process {mount lambda r} {
 	dict set r -rest [lassign [split [Dict get? $r -suffix] /] suffix]
-	Debug.coco {process '$suffix' over $prefix with ($lambda)}
+	Debug.coco {process '$suffix' over $mount with ($lambda)}
 	
 	if {$suffix eq "/" || $suffix eq ""} {
 	    # this is a new call - create the coroutine
 	    set cmd [uniq]
 	    dict set r -cmd $cmd
-	    dict set r -csuffix $prefix$cmd
+	    dict set r -csuffix $mount/$cmd
 	    set result [coroutine $cmd ::apply [list {*}$lambda ::Coco] $r]
 	    if {$result ne ""} {
 		Debug.coco {coroutine initialised - ($r) reply}
 		return $result	;# allow coroutine lambda to reply
 	    } else {
 		# otherwise redirect to coroutine lambda
-		Debug.coco {coroutine initialised - redirect to $prefix$cmd}
-		return [Http Redirect $r $prefix$cmd/]
+		Debug.coco {coroutine initialised - redirect to $mount/$cmd}
+		return [Http Redirect $r $mount/$cmd]
 	    }
 	} elseif {[llength [info command ::Coco::$suffix]]} {
 	    # this is an existing coroutine - call it and return result
@@ -131,7 +136,7 @@ namespace eval Coco {
     }
 
     # process request wrapper
-    proc _do {prefix lambda r} {
+    proc _do {mount lambda r} {
 	# compute suffix
 	if {[dict exists $r -suffix]} {
 	    # caller has munged path already
@@ -141,8 +146,8 @@ namespace eval Coco {
 	    # assume we've been parsed by package Url
 	    # remove the specified prefix from path, giving suffix
 	    set path [dict get $r -path]
-	    set suffix [Url pstrip $prefix $path]
-	    Debug.coco {-suffix not given - calculated '$suffix' from '$prefix' and '$path'}
+	    set suffix [Url pstrip $mount $path]
+	    Debug.coco {-suffix not given - calculated '$suffix' from '$mount' and '$path'}
 	    if {($suffix ne "/") && [string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
 		return [Http NotFound $r]
@@ -150,7 +155,7 @@ namespace eval Coco {
 	    dict set r -suffix $suffix
 	}
 
-	set result [process $prefix $lambda $r]
+	set result [process $mount $lambda $r]
 	if {[dict size $result]} {
 	    return $result
 	} else {
@@ -159,17 +164,25 @@ namespace eval Coco {
     }
 
     # initialize ensemble for Coco
-    proc init {cmd args} {
-	set lambda [lindex $args end]
-	if {[llength $args] > 1} {
-	    set prefix [lindex $args 0]
-	} else {
-	    set prefix /$cmd/
+    proc new {args} {
+	return [create CoCo[uniq] {*}$args]
+    }
+
+    proc create {cmd args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+
+	foreach {n v} $args {
+	    variable $n $v
+	}
+	if {![info exists mount]} {
+	    set mount /$cmd/
 	}
 	set cmd [uplevel 1 namespace current]::$cmd
 	namespace ensemble create \
 	    -command $cmd -subcommands {} \
-	    -map [list do [list _do $prefix $lambda]]
+	    -map [list do [list _do $mount $lambda]]
 	return $cmd
     }
 

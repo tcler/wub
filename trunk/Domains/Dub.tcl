@@ -10,10 +10,15 @@ package require jQ
 package require Debug
 Debug off dub 10
 
+set API(Dub) {
+    "A metakit database toy."
+    db {metakit database to use}
+}
+
 namespace eval Dub {
     variable db /tmp/dub.db
     variable toplevel
-    variable prefix /dub
+    variable mount /dub
 
     # default page
     proc /default {r args} {
@@ -255,10 +260,10 @@ namespace eval Dub {
     variable page {}
     proc init_page {} {
 	variable page
-	variable prefix
+	variable mount
 	dict set page globlinks [subst {
 	    Home /
-	    Dub ${prefix}
+	    Dub ${mount}
 	}]
 	dict set page global [<div> [<form> search action index.html {
 	    [<text> q size 15 maxlength 250]
@@ -267,10 +272,10 @@ namespace eval Dub {
 	dict set page header [<h1> "Wub[<span> class fade Dub]"]
 	dict set page sitelinks [subst {
 	    Home /
-	    Dub ${prefix}
-	    Views ${prefix}views
-	    Displays ${prefix}displays
-	    Export ${prefix}export
+	    Dub ${mount}
+	    Views ${mount}views
+	    Displays ${mount}displays
+	    Export ${mount}export
 	}]
 	dict set page breadcrumbs {}
 	
@@ -1320,7 +1325,7 @@ namespace eval Dub {
 	}
     }
 
-    proc init {args} {
+    proc new {args} {
 	if {$args ne {}} {
 	    variable {*}$args
 	}
@@ -1362,6 +1367,7 @@ namespace eval Dub {
 		reflect $v
 	    }
 	}
+	return ::Dub
     }
 
     namespace export -clear *

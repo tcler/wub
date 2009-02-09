@@ -66,6 +66,14 @@ package require md5
 package require View
 
 package provide Session 3.1
+set API(Session) {
+    {Session manipulation - note, may be redundant now coroutines are available.}
+    dir {}
+    file {session database (default session.db)}
+    fields {fields in session view}
+    cookie {session cookie name (default "session")}
+    cpath {session cookie path (default "/" - this default is a bad idea)}
+}
 
 namespace eval Session {
     variable dir ""
@@ -343,23 +351,6 @@ namespace eval Session {
 	return [Http NoCache [Http Ok $r "session default" text/plain]]
     }
 
-    variable subdomains {}
-    proc do {rq} {
-	variable cpath	;# use the cookie path for our path
-	variable subdomains	;# set of domains to traverse
-
-	# TODO: this could be much more efficient using arrays to
-	# match direct domains, rather than iterating through Direct
-	foreach sd [list {*}$subdomains ::Session] {
-	    set rsp [Direct::_do $sd x-text/html-fragment $cpath "" $rq]
-	    Debug.session {direct over $sd [dict get $rsp -code] [Dict get? $rsp -session]}
-	    if {[dict get $rsp -code] <= 400} {
-		return $rsp
-	    }
-	}
-	return [Http NotFound $rq]
-    }
-
     # record fields in session view
     proc fields {} {
 	variable fields
@@ -374,15 +365,23 @@ namespace eval Session {
 
     # initialize the session accessor functions
     proc init {args} {
+	variable file [file join [file dirname [info script]] session.db]
 	if {$args ne {}} {
 	    variable {*}$args
 	}
 
-	variable db; variable dir; variable layout
-	set dbn [file join $dir $db]
-	View create session file $dbn db sessdb view session layout $layout
+	variable file; variable layout
+	View create session file $file db sessdb view session layout $layout
 	fields
 	gc	;# start up by garbage collecting Session db.
+    }
+    proc create {name args} {
+	init {*}$args
+	return [Direct create $name {*}$args]
+    }
+    proc new {args} {
+	init {*}$args
+	return [Direct new {*}$args]
     }
 
     namespace export -clear *

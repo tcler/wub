@@ -1,13 +1,25 @@
 # cgi interface.  Blerk.
+package require TclOO
+namespace import oo::*
+
 package require Html
 package require Debug
 Debug on cgi 1000
 
 package provide CGI 1.0
 
-namespace eval CGI {
-    variable fields {}
-    proc env {r} {
+set API(CGI) {
+    {A traditional CGI interface}
+    fields {+additional fields to pass to CGI in ::env variable}
+    executors {+association list between extension and language processor (which should be somewhere on your exec path)}
+    root {root of directory containing scripts}
+    maxcgi {limit to number of simultaneously running CGI processes}
+}
+
+class create CGI {
+    variable fields executors mount root maxcgi cgi
+
+    method env {r} {
 	lappend env SERVER_SOFTWARE $::Httpd::server_id
 	# name and version of the server. Format: name/version
 
@@ -69,7 +81,6 @@ namespace eval CGI {
 	# into the environment with the prefix HTTP_ followed by the header name.
 	# If necessary, the server may choose to exclude any or all of these headers
 	# if including them would exceed any system environment limits.
-	variable fields
 	foreach field $fields {
 	    if {[dict exists $r $field]} {
 		lappend env [string map {- _} [string toupper $field]] [dict get $r $field]
@@ -81,7 +92,7 @@ namespace eval CGI {
 
     # parseSuffix - given a suffix, locate the named object and split its name
     # components into usable variables.
-    proc parseSuffix {suffix} {
+    method parseSuffix {suffix} {
 	Debug.cgi {parseSuffix $suffix}
 	set dir [expr {[string index $suffix end] eq "/"}]
 	if {$dir} {
@@ -124,19 +135,10 @@ namespace eval CGI {
 	return $retval
     }
 
-    # a set of executors for each extension
-    variable executors {.CGI ""}
-    foreach {ext lang} {.TCL tclsh .PY python .PL perl .SH bash .PHP php} {
-	catch {
-	    set l [join [exec which [lindex $lang 0]] [lrange $lang 1 end]]
-	    lappend executors $ext $l
-	}
-    }
-
-    proc closed {r pipe} {
+    method closed {r pipe} {
 	Debug.cgi {closed [string length [Dict get? $r -content]]}
 	if {[catch {
-	    variable cgi; incr cgi -1
+	    incr cgi -1
 
 	    # close the pipe and investigate the consequences
 	    catch {fileevent $pipe readable {}}
@@ -197,7 +199,7 @@ namespace eval CGI {
 	Http Resume $r
     }
 
-    proc entity {r pipe} {
+    method entity {r pipe} {
 	if {[catch {
 	    fconfigure $pipe -translation {binary binary} -encoding binary
 	    if {[eof $pipe]} {
@@ -209,7 +211,7 @@ namespace eval CGI {
 		# read the rest of the content
 		set c [read $pipe]
 		dict append r -content $c
-		fileevent $pipe readable [namespace code [list entity $r $pipe]]
+		fileevent $pipe readable [list [self] entity $r $pipe]
 		Debug.cgi {read body [string length $c]'}
 	    }
 	} e eo]} {
@@ -217,7 +219,7 @@ namespace eval CGI {
 	}
     }
 
-    proc headers {r pipe} {
+    method headers {r pipe} {
 	if {[catch {
 	    # get headers from CGI process
 	    if {[eof $pipe]} {
@@ -231,17 +233,17 @@ namespace eval CGI {
 		} elseif {$n == 0} {
 		    Debug.cgi {end of headers}
 		    fconfigure $pipe -translation {binary binary} -encoding binary
-		    fileevent $pipe readable [namespace code [list entity $r $pipe]]
+		    fileevent $pipe readable [list [self] entity $r $pipe]
 		} elseif {[string index $line 0] ne " "} {
 		    # read a new header
 		    set line [string trim [join [lassign [split $line :] header] :]]
 		    dict set r [string tolower $header] $line
-		    fileevent $pipe readable [namespace code [list headers $r $pipe]]
+		    fileevent $pipe readable [list [self] headers $r $pipe]]
 		    Debug.cgi {header: $header '$line'}
 		} else {
 		    # get field continuation
 		    dict append r [string tolower $header] " " [string trim $line]
-		    fileevent $pipe readable [namespace code [list headers $r $pipe]]
+		    fileevent $pipe readable [list [self] headers $r $pipe]
 		    Debug.cgi {continuation: $header '$line'}
 		}
 	    }
@@ -250,10 +252,7 @@ namespace eval CGI {
 	}
     }
 
-    variable maxcgi 10
-    variable cgi 0
-
-    proc _do {mount root r} {
+    method do {r} {
 	# grab some useful file values from request's url
 	if {[dict exists $r -suffix]} {
 	    # caller has set suffix
@@ -273,7 +272,7 @@ namespace eval CGI {
 
 	# parse suffix into semantically useful fields
 	if {[catch {
-	    parseSuffix $suffix
+	    my parseSuffix $suffix
 	} fparts eo]} {
 	    Debug.cgi {parseSuffix '$fparts' ($eo)}
 	    return [Http NotFound $r $fparts]
@@ -304,7 +303,6 @@ namespace eval CGI {
 	dict set r -translated $probe[dict get $r -info]
 
 	# only execute scripts with appropriate extension
-	variable executors
 	if {[catch {
 	    Debug.cgi {executors '$ext' in ($executors)}
 	    dict get $executors $ext
@@ -324,12 +322,10 @@ namespace eval CGI {
 	    dict set req -script $script
 	}
 
-	array set ::env [env $r]	;# construct the environment per CGI 1.1
+	array set ::env [my env $r]	;# construct the environment per CGI 1.1
 	# TODO - need to clean up a lot of sensitive stuff from the ::env
 
 	# limit the number of CGIs running
-	variable maxcgi
-	variable cgi
 	if {[incr cgi] > $maxcgi} {
 	    return [Http GatewayTimeout $r "Maximum CGI count exceeded"]
 	}
@@ -363,31 +359,32 @@ namespace eval CGI {
 	}
 
 	# collect input from the proc
-	fileevent $pipe readable [namespace code [list headers $r $pipe]]
+	fileevent $pipe readable [list [self] headers $r $pipe]
 
 	# suspend this response
 	return [Http Suspend $r]
     }
 
-    variable mount /CGI/
-    variable root /var/www/cgi-bin/
+    constructor {args} {
+	set fields {}
+	set executors {.CGI ""}
+	set mount /CGI/
+	set root /var/www/cgi-bin/
+	set maxcgi 10
+	set cgi 0
 
-    proc init {cmd args} {
-	if {$args ne {}} {
-	    variable {*}$args
+	foreach {n v} $args {
+	    set $n $v
 	}
-	variable mount
-	variable root
-	set cmd [uplevel 1 namespace current]::$cmd
-	namespace ensemble create \
-	    -command $cmd -subcommands {} \
-	    -map [subst {
-		do "_do $mount $root"
-	    }]
-
-	return $cmd
+	
+	# a set of executors for each extension
+	if {![info exists executors] || $executors eq {}} {
+	    foreach {ext lang} {.TCL tclsh .PY python .PL perl .SH bash .PHP php} {
+		catch {
+		    set l [join [exec which [lindex $lang 0]] [lrange $lang 1 end]]
+		    lappend executors $ext $l
+		}
+	    }
+	}
     }
-
-    namespace export -clear *
-    namespace ensemble create -subcommands {}
 }

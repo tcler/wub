@@ -16,6 +16,20 @@ package require jQ
 
 package provide Repo 1.0
 
+set API(Repo) {
+    {A simple file repository providing uploads and tar'ed directory downloads}
+    expires {a tcl clock expression indicating when contents expire (default:0 - no expiry)}
+    tar {flag: are directories to be provided as tar files? (default: no)}
+    index {a file which provides header text for a directory, (default: index.html)}
+    max {maximum upload file size in bytes (default: 1 megabyte)}
+    title {title prefix for display (default: Repo)}
+    titleURL {URL prefix for title (default: none)}
+    dirtime {tcl clock display format for times (default: "%Y %b %d %T")}
+    docprefix {URL prefix for documentation associated with directories}
+    icon_size {pixel size of icons (default 24)}
+    icons {icon domain to use for icons (default: /icons/)}
+}
+    
 # TODO - handle dangling softlinks in dirlist
 # TODO - some kind of permissions system
 
@@ -163,7 +177,7 @@ namespace eval Repo {
 	    # assume we've been parsed by package Url
 	    # remove the specified prefix from path, giving suffix
 	    set path [dict get $req -path]
-	    set suffix [Url pstrip $prefix $path]
+	    set suffix [Url pstrip $mount $path]
 	    if {($suffix ne "/") && [string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
 		return [Http NotFound $req]
@@ -291,14 +305,19 @@ namespace eval Repo {
 	}
     }
 
-    proc init {cmd prefix mount args} {
-	set prefix /[string trim $prefix /]/
-	set args [dict merge [list prefix $prefix mount $mount expires 0 tar 0 index index.html max [expr {1024 * 1024}] titleURL "" title Repo] $args]
+    proc create {cmd args} {
+	dict set args mount /[string trim [dict get $args mount] /]/
+	set args [dict merge [list expires 0 tar 0 index index.html max [expr {1024 * 1024}] titleURL "" title Repo] $args]
 	set cmd [uplevel 1 namespace current]::$cmd
 	namespace ensemble create \
 	    -command $cmd -subcommands {} \
 	    -map [list do [list _do $args]]
 	return $cmd
+    }
+
+    variable repocnt
+    proc new {args} {
+	return [create Repo[incr repocnt] {*}$args]
     }
 
     namespace export -clear *
