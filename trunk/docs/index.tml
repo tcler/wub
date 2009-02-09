@@ -33,7 +33,7 @@
 
 	<p>The <a href='docs/Architecture.stx'>Wub Architecture</a> page provides an architectural overview.
 
-	<p>The interpreted nature of Tcl allows dynamic reconfiguration of the server. Once the core interface between the web server and the hosted application is defined, it is possible to manage the web server, upload Safe-Tcl control scripts, download logging information, and otherwise debug the Tcl part of the application without restarting the application.</p>
+	<p>The interpreted nature of Tcl allows <a href='/nub/nubs'>dynamic reconfiguration of the server</a>. Once the core interface between the web server and the hosted application is defined, it is possible to manage the web server, upload Safe-Tcl control scripts, download logging information, and otherwise debug the Tcl part of the application without restarting the application.</p>
 	
 	<p>The <a href='mailto:wub-users@lists.sourceforge.net'>wub-users@lists.sourceforge.net</a> mailing list is the best source of current information about Wub.</p>
 	
@@ -54,6 +54,7 @@
       
       <div id='sidebar'>
 	<p class='list1'>Control/Status</p>
+	<p class='list2'><a href='/nub/nubs'>Server configuration</a></p>
 	<p class='list2'><a href='#'>Server stats</a></p>
 	<p class='list2last'><a href='#'>Control panel</a></p>
 	<p class='list1'><a href='docs/'>Documentation</a></p>
@@ -92,6 +93,7 @@
     <address><a href='mailto:colin@chinix.com'>Colin McCormack</a></address>
     <!-- Created: Thu Jan  5 13:00:57 EST 2006 -->
     <!-- hhmts start -->
-Last modified: <!--[hhmts {-->2006-07-24 20:24<!--}]--> <!-- hhmts end -->
+Last modified: Tue Feb 10 01:22:46 EST 2009
+<!-- hhmts end -->
   </body>
 </html>
