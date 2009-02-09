@@ -260,7 +260,9 @@ namespace eval Sinorca {
 	}
 	variable mount
 
-	set cmd [RAM create ::Sinorca::ram mount $mount]
+	if {[info commands ::Sinorca::ram] eq ""} {
+	    set cmd [RAM create ::Sinorca::ram mount $mount]
+	}
 	namespace export -clear *
 	namespace ensemble create -subcommands {}
 
