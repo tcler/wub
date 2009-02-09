@@ -8,6 +8,10 @@ package require Color
 
 package provide Sinorca 1.0
 
+set API(Sinorca) {
+    {experimental page-livery wrapper}
+}
+
 namespace eval Sinorca {
     proc <markup> {args} {
 	return [<code> class markup [join $args]]
@@ -122,9 +126,9 @@ namespace eval Sinorca {
 	set page [dict get $rsp -content]
 	Debug.sinorca {[dict keys $page]}
 
-	variable path
-	dict lappend rsp -headers [<stylesheet> [file join $path screen.css]]
-	dict lappend rsp -headers [<stylesheet> [file join $path print.css] print]
+	variable mount
+	dict lappend rsp -headers [<stylesheet> [file join $mount screen.css]]
+	dict lappend rsp -headers [<stylesheet> [file join $mount print.css] print]
 	#puts stderr "SINORCA: [dict keys $page]"
 
 	# process singleton vara
@@ -221,7 +225,7 @@ namespace eval Sinorca {
     variable print [::fileutil::cat [file join $home Sinorca-print.css]]
     variable index ""
 
-    variable path "/sinorca/"
+    variable mount "/sinorca/"
     variable hue 0
 
     proc rehue {hue} {
@@ -239,13 +243,24 @@ namespace eval Sinorca {
 	ram set screen.css [string map [dict merge $colours $vc] $screen] content-type text/css {*}[Http Cache {} $expires]
     }
 
+    proc do {args} {
+	return [ram do {*}$args]
+    }
+
     variable expires "next week"
-    proc init {args} {
+    proc new {args} {
+	init ::Sinorca::ram {*}$args
+    }
+    proc create {name args} {
+	init $name {*}$args
+    }
+    proc init {name args} {
 	if {$args ne {}} {
 	    variable {*}$args
 	}
-	variable path
-	RAM create ::Sinorca::ram -prefix $path
+	variable mount
+
+	set cmd [RAM create ::Sinorca::ram mount $mount]
 	namespace export -clear *
 	namespace ensemble create -subcommands {}
 
@@ -303,6 +318,8 @@ namespace eval Sinorca {
 	}]]]
 
 	ram set "" index.html content-type x-system/redirect
+	return $cmd
+	return Sinorca
     }
 
     namespace export -clear *
