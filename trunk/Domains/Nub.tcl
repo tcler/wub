@@ -243,7 +243,10 @@ namespace eval Nub {
 	    }
 	    apply {
 		variable urls
-		generate $urls
+		set do [generate $urls]
+		if {$error eq ""} {
+		    eval $do
+		}
 		set etitle "Applying"
 	    }
 	}
@@ -378,7 +381,7 @@ namespace eval Nub {
     proc generate {urls {domains {}} {defaults {}}} {
 	upvar error error
 
-	trace add variable error {write} outerr
+	#trace add variable error {write} outerr
 
 	# order urls by key length - longest first
 	set ordered [lsort -command urlorder [dict keys $urls]]
@@ -560,39 +563,54 @@ namespace eval Nub {
 
 	set p [string map [list %B $blocking %RW $rw %RD $redirecting %D $definitions %S $switch] {
 	    proc ::Httpd::do {op r} {
-		if {$op ne "REQUEST"} return
-		# get URL components
-		set r [dict merge $r [Url parse [dict get $r -uri]]]
-		%RW
-		# Block
-		switch -glob -- [dict get $r -host],[dict get $r -path] {
-		    %B { return [Block $r] }
-		    default {}
-		}
-		
-		# Redirects
-		switch -glob -- [dict get $r -host],[dict get $r -path] {
-		    %RD
-		    default {}
-		}
-		
-		# Definitions
 		variable defs
-		if {![info exists defs] || ![array size defs]} {
-		    Debug.nub {Creating Defs}
-		    %D
-		}
-		#puts stderr "Defs: [array names defs]"
-		
-		# Processing
-		switch -glob -- [dict get $r -host],[dict get $r -path] {
-		    %S
-		    default {
-			Http NotFound $r	;# by default we return NotFound
+		if {[info exists defs]} {
+		    # try to remove old definitions
+		    foreach o [array names defs] {
+			catch {$o destroy}
+			catch {rename $o ""}
 		    }
+		    unset defs
 		}
+
+		# Definitions
+		Debug.nub {Creating Defs}
+		%D
+
+		# this proc will replace the containing version after one run
+		proc ::Httpd::do {op r} {
+		    if {$op ne "REQUEST"} return
+
+		    # get URL components
+		    set r [dict merge $r [Url parse [dict get $r -uri]]]
+		    %RW
+
+		    # Block
+		    switch -glob -- [dict get $r -host],[dict get $r -path] {
+			%B { return [Block $r] }
+			default {}
+		    }
+		    
+		    # Redirects
+		    switch -glob -- [dict get $r -host],[dict get $r -path] {
+			%RD
+			default {}
+		    }
+		    
+		    # Processing
+		    variable defs
+		    switch -glob -- [dict get $r -host],[dict get $r -path] {
+			%S
+			default {
+			    Http NotFound $r	;# by default we return NotFound
+			}
+		    }
+		    # nothing should be put here
+		}
+		return [do $op $r]
 	    }
 	}]
+	
 	return $p
     }
 

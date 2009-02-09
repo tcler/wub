@@ -535,7 +535,9 @@ namespace eval jQ {
 	
 	# construct a File wrapper for the jscript dir
 	variable root; variable mount; variable expires
-	File create ::jQ::fs {*}$args root $root mount $mount expires $expires
+	if {[info commands ::jQ::fs] eq ""} {
+	    File create ::jQ::fs {*}$args root $root mount $mount expires $expires
+	}
 
 	return jQ
     }
