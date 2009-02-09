@@ -10,7 +10,12 @@ package require fileutil
 
 package provide Icons 1.0
 
+set API(Icons) {
+    {provides a set of nice icons}
+}
+
 namespace eval Icons {
+    variable mount /icons/
     variable icons; array set icons {}
     variable home [file dirname [file normalize [info script]]]
 
@@ -162,8 +167,7 @@ namespace eval Icons {
 	return [Http Ok [Http Cache $rsp "next week"] $icon $mime]
     }
 
-    variable mount /icons/
-    proc init {args} {
+    proc new {args} {
 	variable {*}$args
     }
 
