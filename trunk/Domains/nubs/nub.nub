@@ -1,0 +1,22 @@
+redirect / /wub/	;# site default is Wub
+redirect /favico.ico /images/favico.ico	;# find the icon in /images
+
+# important to have a robots.txt
+literal /robots.txt "User-agent: *\nDisallow: /" text/plain
+
+# main wub documentation and nub configuration
+domain /wub {Mason wub} auth .before wrapper .after root $::Site::docroot
+domain /nub Nub
+domain /jquery JQ
+domain /session Session	;# session manipulation interface
+
+# Useful static content directories
+domain /icons Icons
+domain /css {File css} root [file join $::Site::docroot css] expires tomorrow
+domain /images {File images} root [file join $::Site::docroot images] expires "next week"
+domain /scripts {File scripts} root [file join $::Site::docroot scripts] expires tomorrow
+domain /html {File images} root [file join $::Site::docroot html]
+domain /bin {File bin} root [file join $::Site::docroot bin]
+
+# just for fun
+code /clock.txt {clock format [clock seconds]} text/plain

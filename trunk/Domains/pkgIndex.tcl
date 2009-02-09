@@ -13,6 +13,7 @@ package ifneeded Honeypot 1.0 [list source [file join $dir Honeypot.tcl]]
 package ifneeded Dub 1.0 [list source [file join $dir Dub.tcl]]
 package ifneeded Commenter 1.0 [list source [file join $dir Commenter.tcl]]
 package ifneeded jQ 1.0 [list source [file join $dir jQ jQ.tcl]]
+package ifneeded JQ 1.0 [list source [file join $dir jQ jQ.tcl]]
 package ifneeded CGI 1.0 [list source [file join $dir CGI.tcl]]
 package ifneeded Icons 1.0 [list source [file join $dir Icons Icons.tcl]]
 #package ifneeded CA 1.0 [list source [file join $dir CA.tcl]]
@@ -27,3 +28,5 @@ package ifneeded Coco  1.0 [list source [file join $dir Coco.tcl]]
 
 package ifneeded Sinorca 1.0 [list source [file join $dir Sinorca Sinorca.tcl]]
 package ifneeded Simplicio 1.0 [list source [file join $dir Simplicio.tcl]]
+
+package ifneeded Nub 1.0 [list source [file join $dir Nub.tcl]]
