@@ -1,0 +1,6 @@
+# block some bogus URLs
+block /*.exe
+block /*.php
+block /*.wmv
+block /cgi-bin/*
+
