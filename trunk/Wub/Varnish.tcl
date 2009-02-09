@@ -83,7 +83,7 @@ namespace eval Varnish {
 	return $varnish
     }
 
-    proc init {args} {
+    proc new {args} {
 	if {$args ne {}} {
 	    variable {*}$args
 	}
@@ -134,7 +134,7 @@ namespace eval Cache {
 }
 
 if {0} {
-    Varnish init
+    Varnish new
     Varnish send url.purge /
     after 10 {puts stderr [Varnish collect]}
 
