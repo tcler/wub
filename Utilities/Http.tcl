@@ -620,19 +620,22 @@ namespace eval Http {
 	return "Basic realm=\"$realm\""
     }
 
-    proc Credentials {r} {
+    proc Credentials {r args} {
 	if {![dict exists $r authorization]} {
 	    return ""
 	}
 	set cred [join [lassign [split [dict get $r authorization]] scheme]]
 	package require base64
-	
-	return [split [::base64::decode $cred] :]
+	if {[llength $args]} {
+	    return [{*}$args $userid $password]
+	} else {
+	    return [split [::base64::decode $cred] :]
+	}
     }
 
     proc CredCheck {r checker} {
 	lassign [Credentials $r] userid password
-	return [$checker $userid $password]
+	return [{*}$checker $userid $password]
     }
 
     # construct an HTTP Unauthorized response
