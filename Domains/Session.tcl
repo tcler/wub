@@ -363,6 +363,8 @@ namespace eval Session {
 	}
     }
 
+    variable direct
+
     # initialize the session accessor functions
     proc init {args} {
 	variable file [file join [file dirname [info script]] session.db]
@@ -371,19 +373,28 @@ namespace eval Session {
 	}
 
 	variable file; variable layout
-	View create session file $file db sessdb view session layout $layout
-	fields
-	gc	;# start up by garbage collecting Session db.
+	variable direct
+	if {![info exists direct]} {
+	    View create session file $file db sessdb view session layout $layout
+	    fields
+	    gc	;# start up by garbage collecting Session db.
+	}
     }
+
     proc create {name args} {
 	init {*}$args
-	return [Direct create $name {*}$args]
+	variable direct [Direct create $name {*}$args]
+	return $direct
     }
     proc new {args} {
 	init {*}$args
-	return [Direct new {*}$args]
+	variable direct [Direct new {*}$args]
+	return $direct
     }
-
+    proc destroy {} {
+	variable direct
+	$direct destroy
+    }
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
