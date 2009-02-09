@@ -4,6 +4,10 @@ package require fileutil
 package require Http
 
 package provide Block 2.0
+set API(Block} {
+    {blocks misbehaving clients by IP address}
+    logdir {directory in which to log blockages and store blocked db}
+}
 
 namespace eval Block {
     variable blocked; array set blocked {}
@@ -29,13 +33,25 @@ namespace eval Block {
 	return [info exists blocked($ipaddr)]
     }
 
-    proc init {args} {
+    proc do {r} {
+	block [dict get $r -ipaddr]
+	return [Http Forbidden $r]
+    }
+
+    proc create {args} {
+	error "Can't create a named Block domain - must be anonymous"
+    }
+
+    proc new {args} {
 	variable {*}$args
 	variable blocked
 	variable logdir
-	catch {
-	    array set blocked [fileutil::cat [file join $logdir blocked]]
+	if {![info exists blocked]} {
+	    catch {
+		array set blocked [fileutil::cat [file join $logdir blocked]]
+	    }
 	}
+	return ::Block
     }
 
     proc blockdict {} {
