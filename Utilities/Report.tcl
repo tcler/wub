@@ -33,11 +33,13 @@ namespace eval Report {
 	variable defaults; set args [dict merge $defaults $args]
 	Debug.report {header $args}
 
+	# header and headers are synonyms
 	if {![dict exists $args header]} {
 	    if {![dict exists $args headers]} {
 		return $args
 	    }
 	    dict set args header [dict get $args headers]
+	    # dict unset args headers?
 	}
 	
 	set h {}
@@ -47,7 +49,7 @@ namespace eval Report {
 	    } else {
 		set params {}
 	    }
-	    
+
 	    if {[dict exists $args headerp] && [dict exists $args headerp $t]} {
 		set thead [dict get $args headerp $t]
 		if {[dict exists $thead title]} {
@@ -64,7 +66,8 @@ namespace eval Report {
 	    lappend h [<th> {*}$params {*}[Dict get? $args hparam] [string totitle $htext]]
 	}
 	dict append args _header [<thead> {*}[Dict get? $args thparam] \n[<tr> \n[join $h \n]\n]\n]
-
+	
+	# by default, headers and footers are the same
 	if {[dict exists $args footer] &&
 	    [dict get $args footer] eq ""
 	} {
@@ -132,7 +135,13 @@ namespace eval Report {
 	variable defaults; set args [dict merge $defaults $args]
 	Debug.report {body $args}
 
+	# traverse the data an element at a time
 	dict for {k v} $data {
+	    if {![dict exists $v ""]} {
+		# add in a special element to represent the item key
+		dict set v "" $k
+	    }
+	    
 	    set row {}
 	    if {[dict exists $args rclass]} {
 		set rparams [list class [dict get $args rclass]]
@@ -148,6 +157,7 @@ namespace eval Report {
 		    lappend rparams class [dict get $args odd]
 		}
 	    }
+
 	    # do column content string match for row parameters
 	    dict for {spec val} [Dict get? $args rowp] {
 		set match [lassign [split $spec ,] col]
@@ -165,19 +175,21 @@ namespace eval Report {
 		} else {
 		    set params {}
 		}
-		
+
 		if {[dict exists $args datap] && [dict exists $args datap $th]} {
 		    lappend params {*}[dict get $args datap $th]
 		}
 
 		if {[dict exists $v $th]} {
 		    if {[dict exists $args armour] && [dict get $args armour]} {
-			set datum [armour [dict get $v $th]]
+			set datum [armour [dict get $v $th]]	;# armour elements
 		    } else {
 			set datum [dict get $v $th]
 		    }
+
 		    lappend row [<td> {*}$params {*}[Dict get? $args eparam] $datum]
 		} else {
+		    # empty element
 		    lappend row [<td> {*}$params {*}[Dict get? $args eparam] {}]
 		}
 	    }
