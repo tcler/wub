@@ -4,15 +4,28 @@ package require Debug
 Debug off jq 10
 
 package provide jQ 1.0
+package provide JQ 1.0
+
+set API(JQ) {
+    {provides a tight integration to the jQuery web framework.  Also doubles as a File domain.}
+    expires {when do these javascript files expire?}
+    google {use the google versions of jQuery wherever possible}
+}
 
 namespace eval jQ {
+    variable root [file dirname [info script]]
+    variable mount /jquery/
+    variable expires 0
+    variable google 0
+
     proc postscript {script args} {
-	return [list -postscript ${prefix}/scripts/$script $args]
+	variable mount
+	return [list -postscript ${mount}/scripts/$script $args]
     }
 
     proc script {r script args} {
-	variable prefix
-	dict set r -postscript ${prefix}/scripts/$script $args
+	variable mount
+	dict set r -postscript ${mount}/scripts/$script $args
 	return $r
     }
 
@@ -21,9 +34,8 @@ namespace eval jQ {
 	return $r
     }
 
-    variable google 0
     proc scripts {r args} {
-	variable prefix
+	variable mount
 	#puts stderr "PRESCRIPT: [Dict get? $r -postscript]"
 
 	variable google
@@ -37,21 +49,21 @@ namespace eval jQ {
 	    if {$google
 		&& $script eq "jquery.js"
 	    } continue ;# needn't load jquery.js
-	    dict set r -postscript ${prefix}/scripts/$script {}
+	    dict set r -postscript ${mount}/scripts/$script {}
 	}
 	#puts stderr "SCRIPT: [dict get $r -postscript]"
 	return $r
     }
 
     proc theme {r theme} {
-	variable prefix
-	dict set r -style ${prefix}/themes/$theme/ui.all.css {}
+	variable mount
+	dict set r -style ${mount}/themes/$theme/ui.all.css {}
 	return $r
     }
 
     proc style {r style args} {
-	variable prefix
-	dict set r -style ${prefix}/css/$style $args
+	variable mount
+	dict set r -style ${mount}/css/$style $args
 	return $r
     }
 
@@ -309,6 +321,14 @@ namespace eval jQ {
 	return $r
     }
 
+    proc dict2accordion {dict args} {
+	set result {}
+	foreach {n v} $dict {
+	    lappend result [<div> "[<a> href #$n $n]\n[<div> $v]"]
+	}
+	return [<div> {*}$args [join $result \n]]
+    }
+
     # http://docs.jquery.com/UI/Accordion
     proc accordion {r selector args} {
 	return [weave $r {
@@ -506,27 +526,22 @@ namespace eval jQ {
 	}]
     }
 
-    variable root [file dirname [info script]]
-    variable prefix /jquery/
     proc do {r} {
 	fs do $r
     }
 
-    variable expires 0
-    proc init {args} {
-	if {$args ne {}} {
-	    variable {*}$args
-	}
+    proc new {args} {
+	variable {*}$args
 	
 	# construct a File wrapper for the jscript dir
-	variable prefix
-	variable root
-	variable expires
-	File create ::jQ::fs -prefix $prefix -root $root -expires $expires
-	
-	return $prefix
+	variable root; variable mount; variable expires
+	File create ::jQ::fs {*}$args root $root mount $mount expires $expires
+
+	return jQ
     }
     
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
+
+interp alias {} JQ {} jQ	;# convention - Domain names start with U/C char
