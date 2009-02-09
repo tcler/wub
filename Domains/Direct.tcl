@@ -12,29 +12,41 @@
 #
 #  fred do $r
 
+package require TclOO
+namespace import oo::*
+
 package require Query
 package require Url
 package require Debug
-
-package provide Direct 1.0
 Debug off direct 10
 
-namespace eval Direct {
+package provide Direct 1.0
+
+set API(Direct) {
+    {direct domain handler, which dispatches URL requests to commands within a given namespace}
+    namespace {namespace in which to invoke commands}
+    ctype {default content-type of returned values}
+    wildcard {process to be used if a request doesn't match any proc in $namespace (default /default)}
+}
+
+class create Direct {
+    variable namespace ctype mount wildcard
+
     # called as "do $request" causes procs defined within 
     # the specified namespace to be invoked, with the request as an argument,
     # expecting a response result.
-    proc _do {ns ctype prefix wildcard rsp} {
-	Debug.direct {do direct $ns $prefix $ctype}
-
+    method do {rsp} {
+	Debug.direct {do direct $namespace $mount $ctype}
+	
 	# get query dict
 	set qd [Query parse $rsp]
 	dict set rsp -Query $qd
 	Debug.direct {Query: [Query dump $qd]}
 
-	# remember which prefix we're using - this allows several
+	# remember which mount we're using - this allows several
 	# domains to share the same namespace, differentiating by
 	# reference to -prefix value.
-	dict set rsp -prefix $prefix
+	dict set rsp -prefix $mount
 
 	if {[dict exists $rsp -suffix]} {
 	    # caller has munged path already
@@ -42,30 +54,30 @@ namespace eval Direct {
 	    Debug.direct {-suffix given $suffix}
 	} else {
 	    # assume we've been parsed by package Url
-	    # remove the specified prefix from path, giving suffix
+	    # remove the specified mount from path, giving suffix
 	    set path [file rootname [dict get $rsp -path]]
-	    set suffix [Url pstrip $prefix $path]
-	    Debug.direct {-suffix not given - calculated '$suffix' from '$prefix' and '$path'}
+	    set suffix [Url pstrip $mount $path]
+	    Debug.direct {-suffix not given - calculated '$suffix' from '$mount' and '$path'}
 	    if {($suffix ne "/") && [string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
 		return [Http NotFound $rsp]
 	    }
 	}
-
+	
 	# record the suffix's extension
 	dict set rsp -extension [file extension $suffix]
-
+	
 	# remove suffix's extension and trim /s
 	set fn [string trim [file rootname $suffix] /]
 	dict set rsp -suffix $fn
 
-	set cmd ${ns}::/[armour $fn]
+	set cmd ${namespace}::/[armour $fn]
 	if {[info procs $cmd] eq {}} {
 	    # no match - use wildcard proc
-	    Debug.direct {$cmd not found looking for $fn in '$ns' ([info procs ${ns}::/*])}
-	    set cmd ${ns}::/$wildcard
+	    Debug.direct {$cmd not found looking for $fn in '$namespace' ([info procs ${namespace}::/*])}
+	    set cmd ${namespace}::/$wildcard
 	    if {[info procs $cmd] eq {}} {
-		Debug.direct {default not found looking for $cmd in ([info procs ${ns}::/*])}
+		Debug.direct {default not found looking for $cmd in ([info procs ${namespace}::/*])}
 		return [Http NotFound $rsp]
 	    }
 	}
@@ -127,31 +139,18 @@ namespace eval Direct {
 	}
     }
 
-    # init cmd {namespace ns} {ctype default-mime-type} {prefix prefix-of-domain}
+    # init cmd {namespace ns} {ctype default-mime-type} {mount mount-of-domain}
     # creates cmd command proxy/interface to procs within $ns called /name,
     # which will be invoked with Query args from the request assigned to actual
     # parameters of matching proc, procs are matched from the -path or -suffix
     # components of the passed request
-    proc init {cmd args} {
+    constructor {args} {
 	set ctype "text/html"
-	set prefix "/"
+	set mount "/"
 	set wildcard /default
 
 	foreach {n v} $args {
-	    set $n $v
+	    set [string trimleft $n -] $v
 	}
-
-	set cmd [uplevel 1 namespace current]::$cmd
-
-	namespace ensemble create \
-	    -command $cmd -subcommands {} \
-	    -map [subst {
-		do "_do $namespace $ctype $prefix $wildcard"
-	    }]
-
-	return $cmd
     }
-
-    namespace export -clear *
-    namespace ensemble create -subcommands {}
 }

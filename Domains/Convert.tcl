@@ -303,7 +303,7 @@ namespace eval Convert {
 	return $rsp
     }
 
-    proc init {args} {
+    proc new {args} {
 	if {$args ne {}} {
 	    variable {*}$args
 	}
@@ -319,6 +319,7 @@ namespace eval Convert {
 		Namespace ::$ns
 	    }
 	}
+	return ::Convert
     }
 
     namespace export -clear *
@@ -355,7 +356,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     Host localhost -name ""
     localhost Register /dump/ DumpDispatch	;# dump dispatcher
 
-    set fdom [File %AUTO% -root [file dirname [info script]]]
+    set fdom [File %AUTO% root [file dirname [info script]]]
     localhost Register /file/ $fdom Dispatch	;# filedomain dispatcher
 
     set collect [Compose %AUTO% -subdomains [list $sdom $fdom]]

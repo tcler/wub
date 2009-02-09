@@ -9,12 +9,22 @@ package provide File 2.0
 package require Report
 package require jQ
 
+set API(File) {
+    {provides a traditional Web view for filesystem hierarchies.}
+    root {filesystem root directory of File domain}
+    index {name of the file which stands for a directory, such as index.html}
+    hide {a regexp to hide temp and other uninteresting files (default hides .* *~ and #*)}
+    redirdir {flag: should references to directories be required to have a trailing /?}
+    expires {a tcl clock expression indicating when contents expire}
+    dateformat {a tcl clock format for displaying dates in directory listings}
+}
+
 class create File {
 
     method dir {req path args} {
 	Debug.file {dir over $path}
 	dict set files .. [list name [<a> href .. ..] type parent]
-	#my variable root hide dirtime
+	#my variable root hide dateformat
 
 	foreach file [glob -nocomplain -directory $path *] {
 	    Debug.file {dir element $file}
@@ -28,7 +38,7 @@ class create File {
 	    }
 
 	    set title [<a> href $name $name]
-	    catch {dict set files $name [list name $title modified [clock format [file mtime $file] -format $dirtime] size [file size $file] type $type]}
+	    catch {dict set files $name [list name $title modified [clock format [file mtime $file] -format $dateformat] size [file size $file] type $type]}
 	}
 
 	set suffix [dict get $req -suffix]
@@ -46,15 +56,15 @@ class create File {
     }
 
     method do {req} {
-	#my variable prefix root
+	#my variable mount root
 
 	if {[dict exists $req -suffix]} {
 	    # caller has munged path already
 	    set suffix [dict get $req -suffix]
 	} else {
 	    # assume we've been parsed by package Url
-	    # remove the specified prefix from path, giving suffix
-	    set suffix [Url pstrip $prefix [dict get $req -path]]
+	    # remove the specified mount from path, giving suffix
+	    set suffix [Url pstrip $mount [dict get $req -path]]
 	    if {($suffix ne "/") && [string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
 		return [Http NotFound $req]
@@ -65,7 +75,7 @@ class create File {
 	set ext [file extension $suffix]
 	set path [file join $root [string trimleft $suffix /]]
 
-	Debug.file {file: root:$root prefix:$prefix suffix:$suffix path:$path -path:[dict get $req -path]}
+	Debug.file {file: root:$root mount:$mount suffix:$suffix path:$path -path:[dict get $req -path]}
 
 	if {($ext ne "")
 	    && ([file tail $suffix] eq $ext)
@@ -136,15 +146,15 @@ class create File {
 	}
     }
 
-    variable root index prefix hide redirdir expires dirtime dirparams
+    variable root index mount hide redirdir expires dateformat dirparams
 
     constructor {args} {
 	set index "index.*"
-	set prefix /
+	set mount /
 	set hide {^([.].*)|(.*~)|(\#.*)$}
 	set redirdir 1	;# redirect dir to dir/
 	set expires 0	;# add an expiry to each response
-	set dirtime "%Y %b %d %T"
+	set dateformat "%Y %b %d %T"
 	set dirparams {
 	    sortable 1
 	    evenodd 0
@@ -163,9 +173,7 @@ class create File {
 	}
 
 	foreach {n v} $args {
-	    set n [string trim $n -]
-	    #my variable $n
-	    set $n $v
+	    set [string trimleft $n -] $v
 	}
     }
     destructor {}

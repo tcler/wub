@@ -28,10 +28,18 @@ package require Direct
 
 package provide Honeypot 1.0
 
+set API(Honeypot) {
+    {provide a honeypot to catch bad spiders and link harvesters.}
+    variable cdir {directory to contain captcha images}
+    variable length {length of captcha}
+    variable aliases {honeypot URL aliases}
+    variable captcha {captcha path (default: /_captcha)}
+}
+
 namespace eval Honeypot {
-    variable dir ./images/captcha	;# directory for captchas
+    variable cdir ./images/captcha	;# directory for captchas
     variable length 5			;# length of captcha
-    variable honeypot /_honeypot
+    variable mount /_honeypot
     variable aliases {}			;# honeypot aliases
     variable captcha /_captcha
 
@@ -40,17 +48,28 @@ namespace eval Honeypot {
 	foreach {n v} $args {
 	    variable $n $v
 	}
-
+	
 	# make sure there's a place to put the captchas
-	catch {variable dir}
-	catch {file mkdir $dir}
+	catch {variable cdir}
+	catch {file mkdir $cdir}
+    }
+
+    proc new {args} {
+	init {*}$args
+	# create a direct domain to handle the honeypot
+	return [Direct new namespace ::Honeypot ctype "x-text/system"]
+    }
+    proc create {name args} {
+	init {*}$args
+	# create a direct domain to handle the honeypot
+	return [Direct create $name namespace ::Honeypot ctype "x-text/system"]
     }
 
     # guard - redirect known bots to captcha or honeypot
     # detect access to honeypot and tag client as a bot
     proc guard {reqv} {
 	upvar 1 $reqv req
-	variable honeypot
+	variable mount
 	variable captcha
 	variable aliases
 	set path [dict get $req -path]
@@ -60,15 +79,15 @@ namespace eval Honeypot {
 	    if {$path eq $captcha} {
 		# return the captcha
 		set req [/captcha $req]
-	    } elseif {$path eq $honeypot} {
+	    } elseif {$path eq $mount} {
 		# return the honeypot
 		set req [/honeypot $req]
 	    } else {
-		# Known bot: everything but /_captcha gets redirected to /_honeypot
-		Debug.wikit {Honeypot: it's a bot, so we're redirecting to /_honeypot}
-		set req [Http Relocated $req "http://[Url host $req]/$honeypot"]
+		# Known bot: everything but /_captcha gets redirected to $mount
+		Debug.wikit {Honeypot: it's a bot, so we're redirecting to $mount}
+		set req [Http Relocated $req "http://[Url host $req]/$mount"]
 	    }
-	} elseif {$path in $aliases || $path eq $honeypot || [pest $req]} {
+	} elseif {$path in $aliases || $path eq $mount || [pest $req]} {
 	    # triggered the trap
 	    Debug.wikit {Honeypot: triggered}
 	    set req [/honeypot $req]
@@ -174,8 +193,8 @@ namespace eval Honeypot {
 
 	set ipaddr [dict get $r -ipaddr]
 
-	variable dir
-	set captchaf [file join $dir [string map {. _} $ipaddr].jpg]
+	variable cdir
+	set captchaf [file join $cdir [string map {. _} $ipaddr].jpg]
 
 	variable bots
 	if {[dict exists $r -bot]} {
@@ -209,8 +228,8 @@ namespace eval Honeypot {
 
 	# generate a bunch of plausible-looking emailto: links
 	# to poison any address harvesters' dbs, to show we care.
-	variable honeypot
-	return [Http NoCache [Http Ok $r [subst $honeypot]]]
+	variable mount
+	return [Http NoCache [Http Ok $r [subst $mount]]]
     }
 
     # this is text subst'd and returned upon release
@@ -228,8 +247,8 @@ namespace eval Honeypot {
 	this trap, before we decide you are in fact a bot.</p>
 	<p>To free yourself, you must type in the characters you see in
 	the following image:</p>
-	<p><a href='/_honeypot?redo=[incr redo]'><img src='/_captcha'/></a></p>
-	<form action='/_honeypot' method='post>
+	<p><a href='/$mount?redo=[incr redo]'><img src='/_captcha'/></a></p>
+	<form action='/$mount' method='post>
 	<fieldset>
 	<legend>Captcha</legend>
 	<label for='c'>Enter text from above image:</label> <input name='c' type='text'>
@@ -247,6 +266,3 @@ namespace eval Honeypot {
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
-
-# create a direct domain to handle the honeypot
-Direct init honeypot namespace ::Honeypot ctype "x-text/system"

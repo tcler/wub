@@ -11,6 +11,22 @@ Debug off mason 10
 
 package provide Mason 1.0
 
+set API(Mason) {
+    {A File-like domain, but on steroids.  Allows the definition of templates in each directory.
+	Templates are run before (auth) and after (wrapper) satisfying requests, and may completely transform request and response (respectively.)
+	If a requested file can't be located, the per-directory notfound template is evaluated in its stead.
+	Any file ending with $functional extension is considered to be a template, and is evaluated and its value returned.
+	auth, wrapper and notfound templates are searched for in parent directories, up to the root of the Mason domain.
+    }
+    root {Filesystem root for this domain}
+    hide {a regexp to hide temp and other files (default hides .* *~ and #*)}
+    functional {file extension which marks tcl scripts to be evaluated for value (default .tml)}
+    notfound {template evaluated when a requested resource can't be located (default .notfound)}
+    wrapper {template evaluated with successful response (default .wrapper)}
+    auth {template evaluated before searching for requested file (default .auth)}
+    indexfile {a file which stands for a directory (default index.html)}
+}
+
 class create Mason {
     method conditional {req path} {
 	# check conditional
@@ -130,8 +146,8 @@ class create Mason {
 	Debug.mason {Mason: [dumpMsg $req]}
 	
 	dict set req -mason [self]
-	#my variable prefix
-	dict set req -urlroot $prefix
+	#my variable mount
+	dict set req -urlroot $mount
 
 	set http [Dict get? $req -http]
 	set suffix [string trimleft [dict get $req -suffix] /]
@@ -315,7 +331,7 @@ class create Mason {
     }
 
     method do {req} {
-	#my variable root prefix
+	#my variable root mount
 	dict set req -root $root
 
 	if {[dict exists $req -suffix]} {
@@ -324,8 +340,8 @@ class create Mason {
 	} else {
 	    # assume we've been parsed by package Url
 	    # remove the specified prefix from path, giving suffix
-	    set suffix [Url pstrip $prefix [string trimleft [dict get $req -path] /]]
-	    Debug.mason {suffix:$suffix url:$prefix}
+	    set suffix [Url pstrip $mount [string trimleft [dict get $req -path] /]]
+	    Debug.mason {suffix:$suffix url:$mount}
 	    if {($suffix ne "/") && [string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
 		Debug.mason {[dict get $req -path] is outside domain suffix $suffix}
@@ -369,10 +385,10 @@ class create Mason {
 	return $rsp
     }
 
-    variable prefix root hide functional notfound wrapper auth indexfile dirhead dirfoot aliases cache
+    variable mount root hide functional notfound wrapper auth indexfile dirhead dirfoot aliases cache
 
     constructor {args} {
-	set prefix ""	;# url for top of this domain
+	set mount ""	;# url for top of this domain
 	set root ""		;# file system domain root
 	set hide {^([.].*)|(.*~)$}	;# these files are never matched
 	set functional ".tml"	;# functional extension
@@ -391,9 +407,7 @@ class create Mason {
 	set cache 1		;# cache file searches
 
 	foreach {n v} $args {
-	    set n [string trim $n -]
-	    #my variable $n
-	    set $n $v
+	    set [string trimleft $n -] $v
 	}
 
 	set root [file normalize $root]
