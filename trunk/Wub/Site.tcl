@@ -41,7 +41,7 @@ namespace eval Site {
 	host [info hostname]	;# default home for relative paths
 
 	globaldocroot 1		;# do we use Wub's docroot, or caller's
-	backends 5		;# number of backends to add on demand
+	#backends 5		;# number of backends to add on demand
 	cmdport 8082		;# Console listening socket
 
 	application ""		;# package to require as application
@@ -76,16 +76,6 @@ namespace eval Site {
 	    -port 0			;# disable SCGI - comment to enable
 	    -scgi_send {::scgi Send}	;# how does SCGI communicate incoming?
 	}]
-	
-	# Backend configuration
-	@backend [rc {
-	    scriptname Worker.tcl
-	    dispatch Backend
-	    # scriptdir ;# directory to find scripts
-	    # script ""	;# script to prime backend
-	    # max 257	;# maximum number of backend threads
-	    # incr 20	;# number of threads to add on exhaustion
-	}]
 
 	# Varnish configuration
 	@varnish [rc { ;# don't use varnish cache by default
@@ -96,27 +86,29 @@ namespace eval Site {
 	# Internal Cach configuration
 	@cache [rc { ;# use in-RAM cache by default
 	    maxsize 204800	;# maximum size of object to cache
-	    # high 100	;# high water mark for cache
-	    # low 90	;# low water mark for cache
-	    # weight_age 0.02	;# age weight for replacement
-	    # weight_hits -2.0	;# hits weight for replacement
+	    high 100		;# high water mark for cache
+	    low 90		;# low water mark for cache
+	    weight_age 0.02	;# age weight for replacement
+	    weight_hits -2.0	;# hits weight for replacement
 	    # CC 0	;# do we bother to parse cache-control?
 	    # obey_CC 0	;# do we act on cache-control? (Not Implemented)
 	}]
 
+	@nub [rc {
+	    nubdir [file join $home nubs]
+	    nubs {nub.nub bogus.nub}
+	}]
+
 	# Httpd protocol engine configuration
 	@httpd [rc {
-	    max 1		;# max # of worker threads
-	     incr 1		;# number of threads to add on exhaustion
-	     over 40		;# degree of thread overcommittment
-
-	     # logfile ""	;# log filename for common log format loggin
-	     # max_conn 10	;# max connections per IP
-	     # no_really 3	;# how many times to complain about max_conn
-	     # server_port	;# server's port, if different from Listener's
-	     # server_id		;# server ID to client (default "Wub")
-	     # retry_wait	;# 
-	 }]
+	    logfile "wub.log"	;# log filename for common log format logging
+	    max_conn 20		;# max connections per IP
+	    no_really 30	;# how many times to complain about max_conn
+	    # server_port	;# server's port, if different from Listener's
+	    # server_id		;# server ID to client (default "Wub")
+	    retry_wait	20	;# how long to advise client to wait on exhaustion
+	    timeout 60000	;# ms of idle to tolerate
+	}]
 	password ""		;# account (and general) root password
     }
 
@@ -145,6 +137,7 @@ namespace eval Site {
 	if {[catch {
 	    set x [::fileutil::cat [file join $home $vars]] 
 	    eval $x
+	    unset x
 	} e eo]} {
 	    puts stderr "ERROR reading '$vars' config file: '$e' ($eo) - config is incomplete."
 	}
@@ -246,7 +239,7 @@ namespace eval Site {
     }
 
     # install default conversions
-    Convert init
+    Convert new
 
     #### Debug init - set some reasonable Debug narrative levels
     Debug on error 100
@@ -266,9 +259,11 @@ namespace eval Site {
     Debug off scgi 10
 
     # backend may be in this thread. store its config in ::config()
-    variable backend
-    foreach {n v} $backend {
-	set ::config($n) $v
+    if {0} {
+	variable backend
+	foreach {n v} $backend {
+	    set ::config($n) $v
+	}
     }
 
     proc start {args} {
@@ -278,7 +273,7 @@ namespace eval Site {
 	variable docroot
 
 	#### initialize Block
-	Block init logdir $docroot
+	Block new logdir $docroot
 
 	variable varnish
 	if {[info exists varnish] && ($varnish ne {})} {
@@ -297,7 +292,7 @@ namespace eval Site {
 	if {[info exists cache] && ($cache ne {})} {
 	    #### in-RAM Cache
 	    package require Cache 
-	    Cache init {*}$cache
+	    Cache new {*}$cache
 	} else {
 	    #### Null Cache
 	    package provide Cache 2.0
@@ -388,6 +383,15 @@ namespace eval Site {
 		Debug.log {Site LOCAL: '$r' ($eo)}
 	    }
 	}
+
+	package require Nub
+	variable nub
+	Nub init {*}$nub
+	Nub config	;# start with the builtin
+	foreach file [dict get $nub nubs] {
+	    Nub configF $file
+	}
+	Nub apply	;# now apply them
 
 	variable done 0
 	while {!$done} {
