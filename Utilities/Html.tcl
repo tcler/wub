@@ -405,6 +405,10 @@ foreach tag {html body head} {
     }]
 }
 
+proc <message> {args} {
+    return [<p> class message [join $args "</p><p class='message'>"]]
+}
+
 # return a nested set of HTML <divs>
 proc divs {ids {content ""}} {
     set divs ""
