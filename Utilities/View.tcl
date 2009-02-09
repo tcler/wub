@@ -15,7 +15,7 @@ if {[info commands ::Debug] eq {}} {
 
 package provide View 3.0
 
-class create Synview {
+class create ViewSyn {
     method incr {index field {qty 1}} {
 	Debug.view {mixin incr}
 	return [[my parent] incr [[my view] get $index index] $field $qty]
@@ -76,7 +76,40 @@ class create Synview {
     }
 
     method select {args} {
-	error "select on indexed synthetic view unsupported"
+	error "select on indexed synthetic view unsupported - try sorting your selected set"
+    }
+}
+
+class create ViewLogger {
+    variable logger
+    set logger {}
+
+    method logger {{l ""}} {
+	if {$logger ne ""} {
+	    set logger $l
+	}
+	return $logger
+    }
+
+    method set {index args} {
+	set result [next $index {*}$args]
+	{*}$logger set [my name] $index $args [my get $index]
+	return $result
+    }
+
+    method insert {index args} {
+	set result [next $index {*}$args]
+	if {$index eq "end"} {
+	    set index $result
+	}
+	{*}$logger insert [my name] $index $args
+	return $result
+    }
+
+    method delete {args} {
+	set result [next {*}$args]
+	{*}$logger delete [my name] $args
+	return $result
     }
 }
 
@@ -143,12 +176,34 @@ class create View {
 
     # return a view's content as a nested dict
     method dict {_key args} {
-	set _args $args
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	if {![llength $args]} {
+	    set _args [dict keys [my info2dict]]	;# get the props
+	} else {
+	    set _args $args
+	}
+	set _subv [dict keys [dict filter [my info2dict] value V]]	;# get the subviews
 	set __result {}
 	my all {
 	    set _props {}
 	    foreach __v $_args {
-		lappend _props $__v [set $__v]
+		if {$__v in $_subv} {
+		    lappend props $__v [[lambda {_v} {
+			set _subv [dict keys [dict filter [$_v info2dict] value V]]
+			set _props {}
+			$_v all {
+			    foreach _el in $_v {
+				if {$_el in $_subv} continue
+				lappend _props $_el [set $_el]
+			    }
+			}
+			return $_props
+		    }] $__v]
+		} else {
+		    lappend _props $__v [set $__v]
+		}
 	    }
 	    lappend __result [set $_key] $_props
 	}
@@ -165,7 +220,7 @@ class create View {
 	    foreach sv $subviews {
 		dict set result $sv [my open $index $sv]
 	    }
-	    Debug.views {subview $index $result}
+	    Debug.view {subview $index $result}
 	    return $result
 	}
     }
@@ -313,13 +368,13 @@ class create View {
 	set varname [string map {: _} [self]]
 	#puts stderr "LOCAL $varname"
 	upvar $varname lifetime
-	trace add variable lifetime unset "[self] destroy;#"
+	trace add variable lifetime unset "catch {[self] destroy};#"
     }
 
     method as {varname} {
 	upvar $varname lifetime
 	set lifetime [self]
-	trace add variable lifetime unset "[self] destroy;#"
+	trace add variable lifetime {write unset} "catch {[self] destroy};#"
     }
 
     method foreach {script args} {
@@ -741,10 +796,16 @@ class create View {
 	return $result
     }
 
-    # return the underlying view
+    # all views in this db
+    method views {} {return [::mk::file views $db]}
+
+    # the name of this View
+    method name {} {return $name}
+
+    # the underlying view
     method view {} {return $view}
 
-    # return our first parent
+    # our first parent
     method parent {} {return [lindex $parents 0]}
 
     # delete the indicated rows
@@ -795,10 +856,11 @@ class create View {
 	}
     }
 
-    variable db view name parents children type
+    variable db view name parents children type logger
 
     # construct or open a view
     constructor {args} {
+	set mixins {}
 	set children {}
 	set parents {}
 	if {[llength $args]%2} {
@@ -810,11 +872,11 @@ class create View {
 	    foreach {n v} $args {
 		set $n $v
 	    }
-	    if {[info exists parents]} {
+	    if {[info exists parents] && $parents ne ""} {
 		set db [[lindex $parents 0] db]	;# our db is our parents' db
 	    }
 	    if {[dict exists $args type] && [dict get $args type] eq "index"} {
-		oo::objdefine [self] mixin Synview
+		lappend mixins ViewSyn
 	    }
 	} else {
 	    Debug.view {View constructor: $args}
@@ -881,6 +943,19 @@ class create View {
 	    # create the metakit view command which we're wrapping
 	    set view [::mk::view open $db.$name]
 	}
+
+	if {[info exists logger] && $logger ne ""} {
+	    lappend mixins ViewLogger
+	}
+
+	if {[llength $mixins]} {
+	    oo::objdefine [self] mixin {*}$mixins
+	}
+
+	if {[info exists logger] && $logger ne ""} {
+	    my logger $logger	;# initialize the logging functional
+	}
+
 	foreach p $parents {
 	    $p child add [self]
 	}
