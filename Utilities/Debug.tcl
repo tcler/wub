@@ -92,6 +92,26 @@ namespace eval Debug {
 	interp alias {} Debug.$tag {} ::Debug::noop
     }
 
+    proc setting {args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	set fd stderr
+	if {[llength $args]%2} {
+	    set fd [lindex $args end]
+	    set args [lrange $args 0 end-1]
+	}
+	foreach {tag level} $args {
+	    if {$level > 0} {
+		level $tag $level $fd
+		interp alias {} Debug.$tag {} ::Debug::debug $tag
+	    } else {
+		level $tag [expr {-$level}] $fd
+		interp alias {} Debug.$tag {} ::Debug::noop
+	    }
+	}
+    }
+
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
