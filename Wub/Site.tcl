@@ -32,10 +32,10 @@ proc findpaths {} {
 findpaths
 
 foreach package {
-    Httpd
-    Debug Http Html Listener Block
-    File Mason Convert Direct Mime
+    Httpd Debug Http Html Listener
     Url Query Form Cookies CGI
+    File Mason Convert Direct
+    Block Mime
     Sitemap stx stx2html
 } {
     package require $package
