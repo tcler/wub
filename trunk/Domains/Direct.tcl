@@ -27,10 +27,11 @@ set API(Direct) {
     namespace {namespace in which to invoke commands}
     ctype {default content-type of returned values}
     wildcard {process to be used if a request doesn't match any proc in $namespace (default /default)}
+    trim {a prefix which must be found at the beginning of, and will be removed from, the in-domain path component of any URL (default: none) not terribly useful.}
 }
 
 class create Direct {
-    variable namespace ctype mount wildcard
+    variable namespace ctype mount wildcard trim
 
     # called as "do $request" causes procs defined within 
     # the specified namespace to be invoked, with the request as an argument,
@@ -69,14 +70,36 @@ class create Direct {
 	
 	# remove suffix's extension and trim /s
 	set fn [string trim [file rootname $suffix] /]
+	if {[info exists trim] && $trim ne ""} {
+	    if {[string match $trim* $fn]} {
+		set fn [string range $fn [string length $trim] end]
+	    } else {
+		return [Http NotFound $rsp]
+	    }
+	}
 	dict set rsp -suffix $fn
 
-	set cmd ${namespace}::/[armour $fn]
-	if {[info procs $cmd] eq {}} {
-	    # no match - use wildcard proc
+	# search for a matching command prefix
+	set cmd ""
+	set cprefix [file split [armour $fn]]
+	set extra {}
+	while {$cmd eq "" && [llength $cprefix]} { 
+	    Debug.direct {searching for ($cprefix) in '$namespace'}
+	    set probe [info commands ${namespace}::/[join $cprefix /]*]
+	    if {[llength $probe]} {
+		set cmd [lindex $probe 0]
+	    } else {
+		lappend extra [lindex $cprefix end]
+		set cprefix [lrange $cprefix 0 end-1]
+	    }
+	}
+	dict set rsp -extra [file join [lreverse $extra]]	;# record the extra parts of the domain
+
+	# no match - use wildcard proc
+	if {$cmd eq ""} {
 	    Debug.direct {$cmd not found looking for $fn in '$namespace' ([info procs ${namespace}::/*])}
 	    set cmd ${namespace}::/$wildcard
-	    if {[info procs $cmd] eq {}} {
+	    if {[info commands $cmd] eq {}} {
 		Debug.direct {default not found looking for $cmd in ([info procs ${namespace}::/*])}
 		return [Http NotFound $rsp]
 	    }
