@@ -433,8 +433,8 @@ namespace eval Nub {
 	    set domain [dict get $urls $key domain]
 
 	    # get domain from section and constructor args, if any
-
-	    switch -- [string tolower $domain] {
+	    Debug.nub {processing: $key - $section - $domain}
+	    switch -- [string tolower [lindex $domain 0]] {
 		redirect {
 		    dict set redirects $key [dict get $urls $key body]; continue
 		}
@@ -454,6 +454,7 @@ namespace eval Nub {
 		code {
 		    dict set processed $key [dict get $urls $key]; continue
 		}
+
 		default {
 		    set name ""
 		    lassign $domain domain name
@@ -469,17 +470,9 @@ namespace eval Nub {
 		    } else {
 			# this is a Domain definition e.g. [/moop/] domain="File fred .."
 			# get the section name
-			
+			Debug.nub {defining domain: $name}
 			# see if we're defining or merely referencing domain
-			if {$name ne ""} {
-			    # defining: the constructor mentions a name
-			    if {[string index $name 0]
-				eq [string toupper [string index $name 0]]
-			    } {
-				lappend error "$section: Domain names must be lowercase ($section: $body)"
-				continue
-			    }
-			} else {
+			if {$name eq ""} {
 			    # anonymous domain of type Domain
 			    variable uniq
 			    set name _anonymous[incr uniq]	;# so make up a name
@@ -495,7 +488,7 @@ namespace eval Nub {
 
 			    # add 'mount' parameter
 			    append body " mount [join [lrange $key 1 end] /]"
-
+			    
 			    # create newly defined domain
 			    if {[string match */ $section]} {
 				# if the key is a directory, we redirect literals
@@ -515,7 +508,7 @@ namespace eval Nub {
 	Debug.nub {DOMAINS: $domains}
 	Debug.nub {PROCESSED: $processed}
 	#Debug.nub {REDIRECTS: $redirects}
-	#Debug.nub {REWRITES: $rewrites}
+	Debug.nub {REWRITES: $rewrites}
 	#Debug.nub {BLOCK: $blocks}
 	#Debug.nub {URLS: $urls}
 
@@ -529,29 +522,44 @@ namespace eval Nub {
 	# process definitions
 	set definitions ""
 	foreach {n d} $domains {
+	    Debug.nub {DEFINING: $n $d}
 	    set domain [dict get $d domain]; dict unset d domain
 	    set body [dict get $d body]; dict unset d body
+
 	    if {![info exists defined($domain)]} {
 		incr defined($domain)
 		append definitions "package require $domain" \n
 	    }
 
 	    if {[string match _anonymous* $n]} {
-		append definitions [string trim [string map [list %N $n %D $domain %A $body] {set defs(%N) [%D new %A]}] \n] \n
+		append definitions [string trim [string map [list %N $n %D $domain %A $body] {
+		    if {[catch {set defs(%N) [%D new %A]} e eo]} {
+			Debug.error {Nub Definition Error: '$e' in anonymous "%D new %A".  ($eo)}
+		    }
+		}] \n] \n
 	    } elseif {[string match _rewrite* $n]} {
-		append definitions [string trim [string map [list %N $n %L $body] {set defs(%N) [lambda r {%L}]}] \n] \n
+		set def [string trim [string map [list %N $n %L $body] {
+		    if {[catch {set defs(%N) {::apply {r {return "%L"}}}} e eo]} {
+			Debug.error {Nub Definition Error: '$e' in rewrite "lambda r {%L}".  ($eo)}
+		    }
+		}] \n]
+		append definitions $def \n
 	    } else {
-		append definitions [string trim [string map [list %N $n %D $domain %A $body] {set defs(%N) [%D create %N %A]}] \n] \n
+		append definitions [string trim [string map [list %N $n %D $domain %A $body] {
+		    if {[catch {set defs(%N) [%D create %N %A]} e eo]} {
+			Debug.error {Nub Definition Error: '$e' in running "%D create %N %A".  ($eo)}
+		    }
+		}] \n] \n
 	    }
 	}
+	Debug.nub {DEFINED: $definitions}
 
 	set rewriting ""
 	foreach {from name} $rewrites {
 	    set url [join [lassign $from host] /]
-	    append rewriting [string map [list %H $host %U $url %N $name] {
-		"%H,%U" { set url [$defs(%N) $r] }}] \n
+	    append rewriting [string map [list %H [expr {$host eq "*"?".*":$host}] %U $url %N $name] {{^%H,%U$} { set url [{*}$defs(%N) $r] }}] \n
 	}
-	
+
 	set redirecting ""
 	foreach {from to} $redirects {
 	    set url [join [lassign $from host] /]
@@ -575,18 +583,21 @@ namespace eval Nub {
 			    "%H,%U" {Http Ok $r [%C] %CT}
 			}]
 		    }
-		    
 		    default {
 			if {![dict exists $domains $name]} {
 			    lappend error "Domain $name (referenced in $section) doesn't exist."
 			}
 			append switch [string map [list %H $host %U $url %N $name] {
-			    "%H,%U*" {$defs(%N) do $r}}]
+			    "%H,%U*" {
+				Debug.nub {Dispatch [dict get $r -url] via %H,%U*}
+				$defs(%N) do $r
+			    }}]
 		    }
 		}
 	    }
 	}
 
+	Debug.nub {REWRITING: $rewriting}
 	if {$rewriting ne ""} {
 	    set rw [string map [list %RW $rewriting] {
 		# Rewrites
@@ -595,7 +606,8 @@ namespace eval Nub {
 		set r [dict merge $r [Url parse [dict get $r -url]]]
 		while {!$done && [incr count] < 30} {
 		    Debug.nub {pre-RW [dict get $r -url]}
-		    switch -glob -- [dict get $r -host],[dict get $r -path] {
+		    set prior [Url url $r]
+		    switch -regexp -- "[dict get $r -host],[dict get $r -path]" {
 			%RW
 			default {
 			    set url [dict get $r -url]
@@ -604,11 +616,15 @@ namespace eval Nub {
 		    }
 		    Debug.nub {post-RW [Url parse $url]}
 		    set r [dict merge $r [Url parse $url]]
+		    set post [Url url $r]
+		    if {$prior eq $post} break
+		    dict set r -url [Url url $r]
 		}
 	    }]
 	} else {
 	    set rw ""
 	}
+
 	set default {default {Http NotFound $r}}
 	set p [string map [list %B $blocking %RW $rw %RD $redirecting %DEF $default %D $definitions %S $switch] {
 	    proc ::Httpd::do {op r} {
@@ -630,6 +646,7 @@ namespace eval Nub {
 		proc ::Httpd::do {op r} {
 		    if {$op ne "REQUEST"} return
 		    Debug.nub {RX: [dict get $r -uri] - [dict get $r -url] - ([Url parse [dict get $r -url]]) }
+		    variable defs
 
 		    # get URL components
 		    set r [dict merge $r [Url parse [dict get $r -url]]]
@@ -650,7 +667,6 @@ namespace eval Nub {
 
 		    Debug.nub {PX: [dict get $r -host],[dict get $r -path]}
 		    # Processing
-		    variable defs
 		    switch -glob -- [dict get $r -host],[dict get $r -path] {
 			%S
 			%DEF
@@ -802,6 +818,7 @@ namespace eval Nub {
 	}
 	set do [Nub generate $urls]
 	Debug.nub {DO: $do}
+	#puts stderr "DO: $do"
 	eval $do
     }
 
