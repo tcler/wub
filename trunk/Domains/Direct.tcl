@@ -174,6 +174,10 @@ class create Direct {
 
 	foreach {n v} $args {
 	    set [string trimleft $n -] $v
+	    Debug.direct {variable: $n $v}
+	}
+	if {![info exist namespace]} {
+	    error "Direct domain must specify namespace"
 	}
     }
 }
