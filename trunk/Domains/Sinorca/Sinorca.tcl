@@ -248,12 +248,7 @@ namespace eval Sinorca {
     }
 
     variable expires "next week"
-    proc new {args} {
-	init ::Sinorca::ram {*}$args
-    }
-    proc create {name args} {
-	init $name {*}$args
-    }
+
     proc init {name args} {
 	if {$args ne {}} {
 	    variable {*}$args
@@ -262,6 +257,8 @@ namespace eval Sinorca {
 
 	if {[info commands ::Sinorca::ram] eq ""} {
 	    set cmd [RAM create ::Sinorca::ram mount $mount]
+	} else {
+	    set cmd ::Sinorca::ram
 	}
 	namespace export -clear *
 	namespace ensemble create -subcommands {}
@@ -322,6 +319,13 @@ namespace eval Sinorca {
 	ram set "" index.html content-type x-system/redirect
 	return $cmd
 	return Sinorca
+    }
+
+    proc new {args} {
+	init ::Sinorca::ram {*}$args
+    }
+    proc create {name args} {
+	init $name {*}$args
     }
 
     namespace export -clear *
