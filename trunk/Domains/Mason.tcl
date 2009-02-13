@@ -222,6 +222,7 @@ class create Mason {
 		#my variable indexfile functional
 		if {![string match */ $url]} {
 		    # redirect - insist on trailing /
+		    Debug.mason {Redirecting, as url '$url' doesn't end in a /, but '$path' a directory}
 		    return [Http Redirect $req "${url}/"]
 
 		    # Question: Why should a URL that names a directory have
