@@ -13,7 +13,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 package require Debug
 Debug off Httpd 10
 Debug off HttpdLow 10
-Debug on Watchdog 10
+Debug off Watchdog 10
 
 package require Listener
 package require Query
@@ -1133,7 +1133,7 @@ namespace eval Httpd {
 	package require Session
 	package require Convert
 	proc post {req} {
-	    return [::Session store [::Convert do $req]]
+	    return [::Convert do $req]
 	}
 	return [post $req]
     }
