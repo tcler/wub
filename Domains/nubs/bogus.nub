@@ -2,5 +2,4 @@
 block /*.exe
 block /*.php
 block /*.wmv
-block /cgi-bin/*
-
+block /cgi-bin/

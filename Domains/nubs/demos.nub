@@ -1,19 +1,19 @@
 # demonstration urls
-domain /repo Repo tar 1 upload 1 root $::Site::docroot
-domain /tie Tie
-domain /sinorca Sinorca
-domain /simplicio Simplicio
-domain /ram RAM
-domain /CGI CGI root [file join $::Site::docroot cgi]
-#domain /dub Dub namespace ::Dub ctype x-text/html-fragment
-domain /code Commenter ctype x-text/html-fragment
-domain /said {Coco said} lambda {r {
+domain /repo/ Repo tar 1 upload 1 root $::Site::docroot
+domain /tie/ Tie
+domain /sinorca/ Sinorca
+domain /simplicio/ Simplicio
+domain /ram/ RAM
+domain /CGI/ CGI root [file join $::Site::docroot cgi]
+#domain /dub/ Dub namespace ::Dub ctype x-text/html-fragment
+domain /code/ Commenter ctype x-text/html-fragment
+domain /said/ {Coco said} lambda {r {
     set r [yield [Http Ok+ [yield] [<form> said "[<text> stuff][<submit> ok]"]]]
     Query qvars [Query parse $r] stuff
     return [Http Ok+ [yield [Http Ok+ $r [<a> href . "click here"]]] [<p> "You said: $stuff"]]
 }}
 
-domain /coco {Coco coco} lambda {r {
+domain /coco/ {Coco coco} lambda {r {
     set r [yield]	;# initially just redirect
     while {1} {
 	set content [<h1> "Coco - Coroutining"]
@@ -22,7 +22,7 @@ domain /coco {Coco coco} lambda {r {
     }
 }}
 
-domain /copf {Coco copf} lambda {r {
+domain /copf/ {Coco copf} lambda {r {
     set referer [Http Referer $r]	;# remember referer
     set r [yield]	;# initially just redirect
     
