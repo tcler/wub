@@ -3,9 +3,51 @@
 package require fileutil
 package require inifile
 
+proc findpaths {} {
+    foreach el $::auto_path {
+	dict set apath [file normalize $el] {}
+    }
+    set nousrlib [catch {dict unset apath /usr/lib}]
+
+    if {![info exists ::starkit::topdir]} {
+	# unpacked startup
+	set home [file normalize [file dirname [info script]]]
+	dict set apath $home {}
+
+	# find Wub stuff
+	set top [file dirname $home]
+	foreach lib {Mime extensions stx Wub Domains Utilities} {
+	    dict set apath [file join $top $lib] {}
+	}
+    }
+
+    if {!$nousrlib} {
+	dict set apath /usr/lib {}
+    }
+
+    set ::auto_path [dict keys $apath]
+
+    puts "AUTOPATH: $::auto_path"
+}
+findpaths
+
+foreach package {
+    Httpd
+    Debug Http Html Listener Block
+    File Mason Convert Direct Mime
+    Url Query Form Cookies CGI
+    Sitemap stx stx2html
+} {
+    package require $package
+}
 package provide Site 1.0
 
 namespace eval Site {
+    set home [file normalize [file dirname [info script]]]
+
+    # uncomment to turn off caching for testing
+    # package provide Cache 2.0 ; proc Cache args {return {}}
+
     # return all the configuration state of Site in a handy form
     proc vars {args} {
 	set vars {}
@@ -36,12 +78,65 @@ namespace eval Site {
 	return $result
     }
 
+    proc Variable {name value} {
+	variable $name
+	if {![info exists $name]} {
+	    set $name $value
+	}
+	uplevel variable $name
+    }
+
+    proc do_ini {file} {
+	variable modules
+	if {![file exists $file]} return
+	set ini [::ini::open $file]
+	foreach sect [::ini::sections $ini] {
+	    set cs [string tolower $sect]
+	    set modules($cs) {}
+	    foreach key [::ini::keys $ini $sect] {
+		set v [::ini::value $ini $sect $key]
+		if {$cs eq "wub"} {
+		    set ::Site::$key $v
+		} else {
+		    dict set ::Site::$sect $key $v
+		}
+	    }
+	}
+	::ini::close $ini
+    }
+
+    proc write_ini {file} {
+	variable modules
+	set ini [::ini::open $file w]
+	foreach var [info vars ::Site::*] {
+	    if {[catch {
+		set val [set $var]
+		set vvar [namespace tail $var]
+	    }]} continue
+
+	    if {[info exists modules($vvar)]} {
+		# it's a module
+		dict for {k v} $val {
+		    ::ini::set $ini $vvar $k $v
+		}
+	    } else {
+		# it's in wub
+		catch {
+		    if {$val ne ""} {
+			::ini::set $ini wub $vvar $val
+		    }
+		}
+	    }
+	}
+	::ini::commit $ini
+	::ini::close $ini
+    }
+
     variable configuration {
 	home [file normalize [file dirname [info script]]] ;# home of application script
 	host [info hostname]	;# default home for relative paths
-
-	globaldocroot 1		;# do we use Wub's docroot, or caller's
-	#backends 5		;# number of backends to add on demand
+	ini site.ini		;# init files
+	globaldocroot 0		;# do we use Wub's docroot, or caller's
 	cmdport 8082		;# Console listening socket
 
 	application ""		;# package to require as application
@@ -112,134 +207,100 @@ namespace eval Site {
 	password ""		;# account (and general) root password
     }
 
-    proc Variable {name value} {
-	variable $name
-	if {![info exists $name]} {
-	    set $name $value
+    proc init {args} {
+	# can pass in 'configuration' dict like above
+	variable configuration
+	if {[dict exists $args configuration]} {
+	    set configuration [dict merge $configuration [dict get $args configuration]]
+	    dict unset args configuration
 	}
-    }
 
-    #### Configuration
-    # set some default configuration flags and values
-    variable modules
-    foreach {name val} [rc $configuration] {
-	if {[string match @* $name]} {
-	    set name [string trim $name @]
-	    set modules($name) {}
+	# args to Site::init become initial variable values
+	if {$args ne {}} {
+	    variable {*}$args
 	}
-	Variable $name $val
-    }
-    unset configuration
 
-    # load site configuration script (not under SVN control)
-    variable vars
-    if {$vars ne ""} {
-	if {[catch {
-	    set x [::fileutil::cat [file join $home $vars]] 
-	    eval $x
-	    unset x
-	} e eo]} {
-	    puts stderr "ERROR reading '$vars' config file: '$e' ($eo) - config is incomplete."
-	}
-    }
-
-    proc do_ini {file} {
+	# configuration variable contains defaults
+	# set some default configuration flags and values
 	variable modules
-	if {![file exists $file]} return
-	set ini [::ini::open $file]
-	foreach sect [::ini::sections $ini] {
-	    set cs [string tolower $sect]
-	    set modules($cs) {}
-	    foreach key [::ini::keys $ini $sect] {
-		set v [::ini::value $ini $sect $key]
-		if {$cs eq "wub"} {
-		    set ::Site::$key $v
-		} else {
-		    dict set ::Site::$sect $key $v
-		}
+	variable configuration
+	foreach {name val} [namespace eval ::Site [list rc $configuration]] {
+	    if {[string match @* $name]} {
+		set name [string trim $name @]
+		set modules($name) {}
 	    }
+	    Variable $name $val
 	}
-	::ini::close $ini
-    }
-    do_ini [file join [file normalize $home] site.ini]
+	unset configuration
 
-    # load command-line configuration vars
-    foreach {name val} $::argv {
-	variable $name
-	set $name $val	;# set global config vars
-    }
-    unset name; unset val
+	# load ini files
+	variable ini
+	foreach i $ini {
+	    if {[file pathtype $i] eq "relative"} {
+		set i [file join [file normalize $home] $i] 
+	    }
+	    do_ini $i
+	}
 
-    proc write_ini {file} {
-	variable modules
-	set ini [::ini::open $file w]
-	foreach var [info vars ::Site::*] {
+	# load site configuration script vars.tcl (not under SVN control)
+	variable vars
+	variable home
+	if {$vars ne ""} {
 	    if {[catch {
-		set val [set $var]
-		set vvar [namespace tail $var]
-	    }]} continue
-
-	    if {[info exists modules($vvar)]} {
-		# it's a module
-		dict for {k v} $val {
-		    ::ini::set $ini $vvar $k $v
-		}
-	    } else {
-		# it's in wub
-		catch {
-		    if {$val ne ""} {
-			::ini::set $ini wub $vvar $val
-		    }
-		}
+		set x [::fileutil::cat [file join $home $vars]] 
+		eval $x
+		unset x
+	    } e eo]} {
+		puts stderr "ERROR reading '$vars' config file: '$e' ($eo) - config is incomplete."
 	    }
 	}
-	::ini::commit $ini
-	::ini::close $ini
-    }
 
-    if {[info exists ::Site::write_ini]} {
-	unset e; unset eo
-	write_ini [file normalize $::Site::write_ini]
-    }
+	# command-line configuration of vars
+	foreach {name val} $::argv {
+	    variable $name $val	;# set global config vars
+	}
+	unset name; unset val
 
-    Variable url "http://$host:[dict get $listener -port]/"
-
-    if {[info exists ::starkit::topdir]} {
-	# starkit startup
-	Variable topdir $::starkit::topdir
-	Variable docroot [file join $topdir docroot]
-    } else {
-	# unpacked startup
-	lappend ::auto_path $home
-
-	# find Wub stuff
-	Variable topdir [file normalize $wubdir]
-	foreach lib {Mime extensions stx Wub Domains Utilities} {
-	    lappend ::auto_path [file join $topdir $lib]
+	# we can write all this stuff back out, if desired
+	if {[info exists ::Site::write_ini]} {
+	    unset e; unset eo
+	    write_ini [file normalize $::Site::write_ini]
 	}
 
-	# find docroot
-	if {$globaldocroot} {
+	variable host; variable listener
+	Variable url "http://$host:[dict get $listener -port]/"
+
+
+	# now we're configured set some derived values
+	if {[info exists ::starkit::topdir]} {
+	    # starkit startup
+	    Variable topdir $::starkit::topdir
 	    Variable docroot [file join $topdir docroot]
 	} else {
-	    Variable docroot [file join $home docroot]
+	    # unpacked startup
+	    lappend ::auto_path $home
+	    
+	    # find Wub stuff
+	    variable wubdir; variable topdir
+	    Variable topdir [file normalize $wubdir]
+
+	    foreach lib {Mime extensions stx Wub Domains Utilities} {
+		lappend ::auto_path [file join $topdir $lib]
+	    }
+	    
+	    # find docroot
+	    if {$globaldocroot} {
+		Variable docroot [file join $topdir docroot]
+	    } else {
+		Variable docroot [file join $home docroot]
+	    }
 	}
-    }
 
-    # uncomment to turn off caching for testing
-    # package provide Cache 2.0 ; proc Cache args {return {}}
-    foreach package {
-	Httpd
-	Debug Http Html Listener Block
-	File Mason Convert Direct Mime
-	Url Query Form Cookies CGI
-	Sitemap stx stx2html
-    } {
-	package require $package
-    }
+	# install default conversions
+	Convert new
 
-    # install default conversions
-    Convert new
+	proc init {args} {}	;# ensure init can't be called twice
+    }
 
     #### Debug init - set some reasonable Debug narrative levels
     Debug on error 100
@@ -258,18 +319,8 @@ namespace eval Site {
     Debug off cookies 10
     Debug off scgi 10
 
-    # backend may be in this thread. store its config in ::config()
-    if {0} {
-	variable backend
-	foreach {n v} $backend {
-	    set ::config($n) $v
-	}
-    }
-
     proc start {args} {
-	if {$args ne {}} {
-	    variable {*}$args
-	}
+	init {*}$args
 	variable docroot
 
 	#### initialize Block
@@ -317,11 +368,16 @@ namespace eval Site {
 	    Stdin start $cmdport ;# start a command shell on localhost,$cmdport
 	}
 
-	array set ::config [vars]
-
 	variable application
 	if {[info exists application] && $application ne ""} {
 	    package require {*}$application
+
+	    # install variables defined by local, argv, etc
+	    variable modules
+	    if {[info exists modules($application)]} {
+		variable $application
+		namespace eval $application [list variable {*}[set $application]]
+	    }
 	}
 
 	#### start Httpd protocol
@@ -387,9 +443,13 @@ namespace eval Site {
 	package require Nub
 	variable nub
 	Nub init {*}$nub
-	Nub config	;# start with the builtin
-	foreach file [dict get $nub nubs] {
-	    Nub configF $file
+	if {[dict exists $nub nubs] && [llength [dict get $nub nubs]]} {
+	    foreach file [dict get $nub nubs] {
+		Nub configF $file
+	    }
+	} else {
+	    # no nubs supplied
+	    Nub config	;# start with the builtin
 	}
 	Nub apply	;# now apply them
 
