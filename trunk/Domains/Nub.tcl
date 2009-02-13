@@ -5,7 +5,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 }
 
 package require Debug
-Debug on nub 10
+Debug off nub 10
 
 package require fileutil
 package require functional
@@ -16,6 +16,7 @@ package require Html
 package require Form
 package require jQ
 package provide Nub 1.0
+package provide Rewrite 1.0	;# to satisfy requirement
 
 set API(Nub) {
     {Configuration domain for Wub.  Provides simple text and web-based website configuration.}
@@ -24,6 +25,20 @@ set API(Nub) {
 }
 
 namespace eval Nub {
+    set showhide {
+	// http://www.learningjquery.com/2006/09/slicker-show-and-hide
+
+	// hides the slickbox as soon as the DOM is ready
+	// (a little sooner than page load)
+	$('#box').hide();
+	    
+	// toggles the slickbox on clicking the noted link  
+	$('a#toggle').click(function() {
+	    $('#box').toggle(400);
+	    return false;
+	});
+    }
+
     proc /css {r} {
 	set css "* {zoom: 1.0;}"
 	return [Http Ok $r $css text/css]
@@ -42,7 +57,7 @@ namespace eval Nub {
 		    append extra [<p> "Redirect $section URL to the $body URL"]
 		} 
 		rewrite {
-		    set extra [Form <text> to_$count label "To:" $body]
+		    set extra [Form <textarea> to_$count class autogrow label "To:" $body]
 		    append extra [<p> "Rewrite $section URL to $body"]
 		}
 		
@@ -299,7 +314,26 @@ namespace eval Nub {
 	append content [<br> clear both][<hr>]
 
 	variable loaded
-	set content "[<h3> "Nubs from $loaded"]\n$content"
+	set header [<h3> "Nubs from $loaded"]
+	append header [<a> id toggle href # "What's this? ..."]
+	append header \n [subst {
+	    [<div> id box style [subst {
+		[<p> "This facility allows you to change the URLs the server responds to."]
+		[<p> "Below, you will see a collection of 'nubs', which are mappings from a URL glob to a domain.  You may create new nubs, edit or delete existing nubs, and apply them to the currently running server."]
+		[<p> "Each domain provides different functionality:"]
+		[<dl> [subst {
+		    [<dt> [<a> href /docs/docs/block.html Block]]
+		    [<dd> "Blocks an IP address which attempts to access the URL"]
+		    [<dt> [<a> href /docs/docs/rewrite.html Rewrite]]
+		    [<dd> "Transforms a URL into another."]
+		    [<dt> [<a> href /docs/docs/redirect.html Redirect]]
+		    [<dd> "Sends the client a redirect."]
+		}]]
+	    }]]
+	}] \n
+	append header [<hr>]
+
+	set content "$header\n$content"
 
 	if {$error ne ""} {
 	    append content [<h3> "Result of $etitle:"]
@@ -339,6 +373,7 @@ namespace eval Nub {
 
 	set r [jQ accordion $r .accordion active false alwaysOpen false clearStyle true autoHeight false fillSpace false]
 	set r [jQ autogrow $r .autogrow]
+	variable showhide; set r [jQ postscript $r $showhide]
 	return [Http Ok $r $content]
     }
 
@@ -404,7 +439,11 @@ namespace eval Nub {
 		    dict set redirects $key [dict get $urls $key body]; continue
 		}
 		rewrite {
-		    dict set rewrites $key [dict get $urls $key body]; continue
+		    variable uniq
+		    set name _rewrite[incr uniq]	;# so make up a name
+		    dict set rewrites $key $name
+		    dict set domains $name [list domain $domain body [dict get $urls $key body]]
+		    continue
 		}
 		block {
 		    dict set blocks $key {}; continue
@@ -458,7 +497,11 @@ namespace eval Nub {
 			    append body " mount [join [lrange $key 1 end] /]"
 
 			    # create newly defined domain
-			    dict set redirects $key [join [lassign $key host] /]/
+			    if {[string match */ $section]} {
+				# if the key is a directory, we redirect literals
+				set rkey [parseurl [string trimright $section /]]
+				dict set redirects $rkey $section
+			    }
 			    dict set domains $name [list domain $domain body $body]
 			    dict set processed $key [list domain $domain name $name section $section]
 			    
@@ -483,19 +526,6 @@ namespace eval Nub {
 	}
 	set blocking [join $blocking " -\n"]
 
-	set rewriting ""
-	foreach {from to} $rewrites {
-	    set url [join [lassign $from host] /]
-	    append rewriting [string map [list %H $host %U $url %T $to] {
-		"%H,%U" { set url [Url rewrite $url %T] }}] \n
-	}
-
-	set redirecting ""
-	foreach {from to} $redirects {
-	    set url [join [lassign $from host] /]
-	    append redirecting [string map [list %H $host %U $url %T $to] {"%H,%U" { return [Http Redir $r %T] }}] \n
-	}
-	
 	# process definitions
 	set definitions ""
 	foreach {n d} $domains {
@@ -506,13 +536,28 @@ namespace eval Nub {
 		append definitions "package require $domain" \n
 	    }
 
-	    if {[string match _* $n]} {
+	    if {[string match _anonymous* $n]} {
 		append definitions [string trim [string map [list %N $n %D $domain %A $body] {set defs(%N) [%D new %A]}] \n] \n
+	    } elseif {[string match _rewrite* $n]} {
+		append definitions [string trim [string map [list %N $n %L $body] {set defs(%N) [lambda r {%L}]}] \n] \n
 	    } else {
 		append definitions [string trim [string map [list %N $n %D $domain %A $body] {set defs(%N) [%D create %N %A]}] \n] \n
 	    }
 	}
 
+	set rewriting ""
+	foreach {from name} $rewrites {
+	    set url [join [lassign $from host] /]
+	    append rewriting [string map [list %H $host %U $url %N $name] {
+		"%H,%U" { set url [$defs(%N) $r] }}] \n
+	}
+	
+	set redirecting ""
+	foreach {from to} $redirects {
+	    set url [join [lassign $from host] /]
+	    append redirecting [string map [list %H $host %U $url %T $to] {"%H,%U" { Debug.nub {REDIR %U -> %T}; return [Http Redir $r %T] }}] \n
+	}
+	
 	set switch ""
 	foreach {u d} $processed {
 	    set url [join [lassign $u host] /]
@@ -536,7 +581,7 @@ namespace eval Nub {
 			    lappend error "Domain $name (referenced in $section) doesn't exist."
 			}
 			append switch [string map [list %H $host %U $url %N $name] {
-			    "%H,%U/*" {$defs(%N) do $r}}]
+			    "%H,%U*" {$defs(%N) do $r}}]
 		    }
 		}
 	    }
@@ -546,22 +591,26 @@ namespace eval Nub {
 	    set rw [string map [list %RW $rewriting] {
 		# Rewrites
 		set count 0
-		
 		set done 0
+		set r [dict merge $r [Url parse [dict get $r -url]]]
 		while {!$done && [incr count] < 30} {
-		    set url [Url parse [dict get $r -uri]]
-		    switch -glob -- [dict get $url -host],[dict get $url -path] {
+		    Debug.nub {pre-RW [dict get $r -url]}
+		    switch -glob -- [dict get $r -host],[dict get $r -path] {
 			%RW
-			default {set done 1}
+			default {
+			    set url [dict get $r -url]
+			    set done 1
+			}
 		    }
+		    Debug.nub {post-RW [Url parse $url]}
+		    set r [dict merge $r [Url parse $url]]
 		}
-		set r [dict merge $r [Url parse $url]]
 	    }]
 	} else {
 	    set rw ""
 	}
-
-	set p [string map [list %B $blocking %RW $rw %RD $redirecting %D $definitions %S $switch] {
+	set default {default {Http NotFound $r}}
+	set p [string map [list %B $blocking %RW $rw %RD $redirecting %DEF $default %D $definitions %S $switch] {
 	    proc ::Httpd::do {op r} {
 		variable defs
 		if {[info exists defs]} {
@@ -580,9 +629,11 @@ namespace eval Nub {
 		# this proc will replace the containing version after one run
 		proc ::Httpd::do {op r} {
 		    if {$op ne "REQUEST"} return
+		    Debug.nub {RX: [dict get $r -uri] - [dict get $r -url] - ([Url parse [dict get $r -url]]) }
 
 		    # get URL components
-		    set r [dict merge $r [Url parse [dict get $r -uri]]]
+		    set r [dict merge $r [Url parse [dict get $r -url]]]
+
 		    %RW
 
 		    # Block
@@ -590,27 +641,26 @@ namespace eval Nub {
 			%B { return [Block $r] }
 			default {}
 		    }
-		    
+ 
 		    # Redirects
 		    switch -glob -- [dict get $r -host],[dict get $r -path] {
 			%RD
 			default {}
 		    }
-		    
+
+		    Debug.nub {PX: [dict get $r -host],[dict get $r -path]}
 		    # Processing
 		    variable defs
 		    switch -glob -- [dict get $r -host],[dict get $r -path] {
 			%S
-			default {
-			    Http NotFound $r	;# by default we return NotFound
-			}
+			%DEF
 		    }
 		    # nothing should be put here
 		}
 		return [do $op $r]
 	    }
 	}]
-	
+	Debug.nub {GEN: $p}
 	return $p
     }
 
@@ -628,12 +678,15 @@ namespace eval Nub {
     variable urls {}
 
     proc parseurl {url} {
+	if {$url eq "default"} {
+	    set url //*/*
+	}
 	set parsed [Url parse $url]
 	switch -nocase -glob -- $url {
 	    http://* -
 	    //* {
 		# absolute URL - specifies hosts
-		set key [list $dict get $parsed -host]
+		set key [dict get $parsed -host]
 		lappend key {*}[split [dict get $parsed -path] /]
 		return $key
 	    }
@@ -692,19 +745,19 @@ namespace eval Nub {
 	literal /robots.txt "User-agent: *\nDisallow: /" text/plain
 
 	# main wub documentation and nub configuration
-	domain /wub {Mason wub} auth .before wrapper .after root $::Site::docroot
-	domain /nub Nub
-	domain /jquery JQ
-	domain /session Session	;# session manipulation interface
+	domain /wub/ {Mason wub} auth .before wrapper .after root $::Site::docroot
+	domain /nub/ Nub
+	domain /jquery/ JQ
+	domain /session/ Session	;# session manipulation interface
 
 	# Useful static content directories
-	domain /icons Icons
-	domain /css {File css} root [file join $::Site::docroot css] expires tomorrow
-	domain /images {File images} root [file join $::Site::docroot images] expires "next week"
-	domain /scripts {File scripts} root [file join $::Site::docroot scripts] expires tomorrow
-	domain /img {File img} root [file join $::Site::docroot img] expires "next week"
-	domain /html {File images} root [file join $::Site::docroot html]
-	domain /bin {File bin} root [file join $::Site::docroot bin]
+	domain /icons/ Icons
+	domain /css/ {File css} root [file join $::Site::docroot css] expires tomorrow
+	domain /images/ {File images} root [file join $::Site::docroot images] expires "next week"
+	domain /scripts/ {File scripts} root [file join $::Site::docroot scripts] expires tomorrow
+	domain /img/ {File img} root [file join $::Site::docroot img] expires "next week"
+	domain /html/ {File images} root [file join $::Site::docroot html]
+	domain /bin/ {File bin} root [file join $::Site::docroot bin]
     }
 
     proc config {{config ""}} {
