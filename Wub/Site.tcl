@@ -27,7 +27,7 @@ proc findpaths {} {
 
     set ::auto_path [dict keys $apath]
 
-    puts "AUTOPATH: $::auto_path"
+    puts stderr "AUTOPATH: $::auto_path"
 }
 findpaths
 
@@ -81,6 +81,7 @@ namespace eval Site {
     proc Variable {name value} {
 	variable $name
 	if {![info exists $name]} {
+	    #puts stderr "Variable: $name $value"
 	    set $name $value
 	}
 	uplevel variable $name
@@ -88,6 +89,7 @@ namespace eval Site {
 
     proc do_ini {file} {
 	variable modules
+	#puts stderr "INI file: $file [file exists $file]"
 	if {![file exists $file]} return
 	set ini [::ini::open $file]
 	foreach sect [::ini::sections $ini] {
@@ -96,8 +98,10 @@ namespace eval Site {
 	    foreach key [::ini::keys $ini $sect] {
 		set v [::ini::value $ini $sect $key]
 		if {$cs eq "wub"} {
+		    #puts stderr "INI: ::Site::$sect $key $v"
 		    set ::Site::$key $v
 		} else {
+		    #puts stderr "INI: ::Site::$sect $key $v"
 		    dict set ::Site::$sect $key $v
 		}
 	    }
@@ -246,7 +250,7 @@ namespace eval Site {
 	variable vars
 	variable home
 	if {$vars ne ""} {
-	    if {[catch {
+	    if {[file exists [file join $home $vars]] && [catch {
 		set x [::fileutil::cat [file join $home $vars]] 
 		eval $x
 		unset x
@@ -443,6 +447,7 @@ namespace eval Site {
 	package require Nub
 	variable nub
 	Nub init {*}$nub
+	#puts stderr "NUB:$nub"
 	if {[dict exists $nub nubs] && [llength [dict get $nub nubs]]} {
 	    foreach file [dict get $nub nubs] {
 		Nub configF $file
