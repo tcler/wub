@@ -129,7 +129,7 @@ class create File {
 		if {$index ne ""} {
 		    set indices [glob -nocomplain -tails -directory $path $index]
 		    if {[llength $indices]} {
-			dict set req -path [file join $root [lindex $indices 0]]
+			dict set req -path [file join [dict get $req -path] [lindex $indices 0]]
 			return [Http Redirect $req [Url uri $req]]
 		    }
 		}
