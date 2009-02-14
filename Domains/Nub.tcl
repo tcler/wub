@@ -91,17 +91,19 @@ namespace eval Nub {
 		    if {[llength $opts]} {
 			foreach {opt text} $opts {
 			    set val [tclarmour [armour [Dict get? $body $opt]]]
+			    set text [tclarmour [armour $text]]
 			    if {[string match +* $text]} {
-				append extra [<textarea> ${opt}_$count cols 80 class autogrow label "[string totitle $opt]: " title [armour $text] $val] \n
+				append extra [<textarea> ${opt}_$count cols 80 class autogrow label "[string totitle $opt]: " title $text $val] \n
 			    } else {
-				append extra [<text> ${opt}_$count label "[string totitle $opt]: " title [armour $text] [tclarmour $val]] \n
+				append extra [<text> ${opt}_$count label "[string totitle $opt]: " title $text $val] \n
 			    }
 			}
+			#puts stderr "EXTRA: $extra"
 			set extra [Form <fieldset> vertical 1 $extra]
 		    } else {
 			set extra ""
 		    }
-		    append extra [<p> "$domain domain: $description"]
+		    append extra [<p> [tclarmour "$domain domain: $description"]]
 		}
 	    }
 
