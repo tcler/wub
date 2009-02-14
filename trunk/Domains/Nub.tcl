@@ -679,7 +679,7 @@ namespace eval Nub {
 
 		    # Block
 		    switch -glob -- [dict get $r -host],[dict get $r -path] {
-			%B { return [Block block [dict get $r -ipaddr] "Blocked by Nub"] }
+			%B { return [Block block [dict get $r -ipaddr] "Blocked by Nub [dict get $r -url]"] }
 			default {}
 		    }
  
