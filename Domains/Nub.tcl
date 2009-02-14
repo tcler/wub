@@ -144,7 +144,7 @@ namespace eval Nub {
     variable loaded {}
     variable theme start
     variable keymap
-    proc /nubs {r {submit 0} args} {
+    proc /nubs {r {submit ""} args} {
 	Debug.nub {/nubs ($submit) $args}
 	variable theme
 	dict lappend r -headers [<stylesheet> css]
