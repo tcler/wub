@@ -322,10 +322,10 @@ namespace eval Sinorca {
     }
 
     proc new {args} {
-	init ::Sinorca::ram {*}$args
+	return [init ::Sinorca::ram {*}$args]
     }
     proc create {name args} {
-	init $name {*}$args
+	return [init $name {*}$args]
     }
 
     namespace export -clear *
