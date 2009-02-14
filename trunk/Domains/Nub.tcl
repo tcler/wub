@@ -158,7 +158,7 @@ namespace eval Nub {
 	set etitle ""
 
 	
-	if {[credentials $r $troop $uid] ne ""} {
+	if {[credentials $r] ne ""} {
 	    set challenge "Nub Modification"
 	    return [Http Unauthorized $r [Http BasicAuth $challenge]]
 	} else {
