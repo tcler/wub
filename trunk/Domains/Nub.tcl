@@ -54,11 +54,11 @@ namespace eval Nub {
 	    
 	    switch -- [string tolower $domain] {
 		redirect {
-		    set extra [Form <text> to_$count label "To:" $body]
+		    set extra [Form <text> to_$count label "To:" [armour $body]]
 		    append extra [<p> "Redirect $section URL to the $body URL"]
 		} 
 		rewrite {
-		    set extra [Form <textarea> to_$count class autogrow label "To:" $body]
+		    set extra [Form <textarea> to_$count class autogrow label "To:" [armour $body]]
 		    append extra [<p> "Rewrite $section URL to $body"]
 		}
 		
