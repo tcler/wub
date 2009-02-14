@@ -54,11 +54,11 @@ namespace eval Nub {
 	    
 	    switch -- [string tolower $domain] {
 		redirect {
-		    set extra [Form <text> to_$count label "To:" [armour $body]]
+		    set extra [Form <text> to_$count label "To:" [tclarmour $body]]
 		    append extra [<p> "Redirect $section URL to the $body URL"]
 		} 
 		rewrite {
-		    set extra [Form <textarea> to_$count class autogrow label "To:" [armour $body]]
+		    set extra [Form <textarea> to_$count class autogrow label "To:" [tclarmour $body]]
 		    append extra [<p> "Rewrite $section URL to $body"]
 		}
 		
@@ -71,7 +71,7 @@ namespace eval Nub {
 		    dict with body {
 			append extra [<br>]
 			append extra [Form <textarea> content_$count class autogrow cols 80 label "Content: " [tclarmour [armour $content]]]
-			append extra [Form <text> ctype_$count label "Mime Type: " [armour $ctype]]
+			append extra [Form <text> ctype_$count label "Mime Type: " [tclarmour $ctype]]
 		    }
 		    append extra [<p> "Return the literal content of the given mime type."]
 		}
@@ -94,7 +94,7 @@ namespace eval Nub {
 			    if {[string match +* $text]} {
 				append extra [<textarea> ${opt}_$count cols 80 class autogrow label "[string totitle $opt]: " title [armour $text] $val] \n
 			    } else {
-				append extra [<text> ${opt}_$count label "[string totitle $opt]: " title [armour $text] $val] \n
+				append extra [<text> ${opt}_$count label "[string totitle $opt]: " title [armour $text] [tclarmour $val]] \n
 			    }
 			}
 			set extra [Form <fieldset> vertical 1 $extra]
