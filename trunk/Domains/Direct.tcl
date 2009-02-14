@@ -86,11 +86,14 @@ class create Direct {
 	while {$cmd eq "" && [llength $cprefix]} { 
 	    Debug.direct {searching for ($cprefix) in '$namespace'}
 	    set probe [info commands ${namespace}::/[join $cprefix /]*]
-	    if {[llength $probe]} {
-		set cmd [lindex $probe 0]
-	    } else {
+	    if {[llength $probe] == 0} {
 		lappend extra [lindex $cprefix end]
 		set cprefix [lrange $cprefix 0 end-1]
+	    } elseif {[llength $probe] == 1} {
+		set cmd [lindex $probe 0]
+	    } else {
+		# pick shortest
+		set cmd [lindex [lsort -dictionary $probe] 0]
 	    }
 	}
 	dict set rsp -extra [file join [lreverse $extra]]	;# record the extra parts of the domain
