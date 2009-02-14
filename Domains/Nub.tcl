@@ -116,7 +116,7 @@ namespace eval Nub {
 		[<fieldset> {
 		    [<legend> [tclarmour "$domain $section"]]
 		    [<text> url_$count disable $disable label "Url: " [tclarmour $url]]
-		    $extra
+		    [tclarmour $extra]
 		    [<hidden> domain_$count $domain]
 		    [<submit> submit title "Change this Nub" style {float:right} value "edit $count" Change]
 		    [<submit> submit title "Delete this Nub" style {float:right} value "delete $count" Delete]
