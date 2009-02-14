@@ -114,7 +114,7 @@ namespace eval Nub {
 	    }
 	    set form [<form> f$count action nubs {
 		[<fieldset> {
-		    [<legend> "$domain $section"]
+		    [<legend> [armour "$domain $section"]]
 		    [<text> url_$count disable $disable label "Url: " $url]
 		    $extra
 		    [<hidden> domain_$count $domain]
