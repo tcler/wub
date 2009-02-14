@@ -383,12 +383,12 @@ namespace eval Session {
 
     proc create {name args} {
 	init {*}$args
-	variable direct [Direct create $name {*}$args]
+	variable direct [Direct create $name {*}$args namespace ::Session]
 	return $direct
     }
     proc new {args} {
 	init {*}$args
-	variable direct [Direct new {*}$args]
+	variable direct [Direct new {*}$args namespace ::Session]
 	return $direct
     }
     proc destroy {} {
