@@ -23,6 +23,7 @@ set API(Nub) {
     nubdir {directory for user-defined nubs}
     theme {jQuery theme for Nub web interaction}
     password {password for modifying nubs.}
+    docs {url prefix for domain docs. (default none)}
 }
 
 namespace eval Nub {
@@ -146,6 +147,7 @@ namespace eval Nub {
     variable loaded {}
     variable theme start
     variable keymap
+    variable docs ""
     proc /nubs {r {submit ""} args} {
 	Debug.nub {/nubs ($submit) $args}
 	variable theme
@@ -336,7 +338,7 @@ namespace eval Nub {
 	}]
 	append content [<br> clear both][<hr>]
 
-	variable loaded
+	variable loaded; variable docs
 	set header [<h3> "Nubs from $loaded"]
 	append header [<a> id toggle href # "What's this? ..."]
 	append header \n [subst {
@@ -345,12 +347,13 @@ namespace eval Nub {
 		[<p> "Below, you will see a collection of 'nubs', which are mappings from a URL glob to a domain.  You may create new nubs, edit or delete existing nubs, and apply them to the currently running server."]
 		[<p> "Each domain provides different functionality:"]
 		[<dl> [subst {
-		    [<dt> [<a> href /docs/docs/block.html Block]]
+		    [<dt> [<a> href $docs/block.html Block]]
 		    [<dd> "Blocks an IP address which attempts to access the URL"]
-		    [<dt> [<a> href /docs/docs/rewrite.html Rewrite]]
+		    [<dt> [<a> href $docs/rewrite.html Rewrite]]
 		    [<dd> "Transforms a URL into another."]
-		    [<dt> [<a> href /docs/docs/redirect.html Redirect]]
+		    [<dt> [<a> href $docs/redirect.html Redirect]]
 		    [<dd> "Sends the client a redirect."]
+		    
 		}]]
 	    }]]
 	}] \n
