@@ -136,6 +136,7 @@ namespace eval Site {
 	::ini::close $ini
     }
 
+    variable wubdir [file normalize [file join [file dirname [info script]] ..]] ;# where's wub
     variable configuration {
 	home [file normalize [file dirname [info script]]] ;# home of application script
 	host [info hostname]	;# default home for relative paths
@@ -145,8 +146,6 @@ namespace eval Site {
 
 	application ""		;# package to require as application
 
-	wubdir [file normalize [file join [file dirname [info script]] ..]] ;# where's wub
-	scriptdir [file normalize [file dirname [info script]]] ;# scripts for Backend
 	local [file normalize [file join [list $home] local.tcl]] ;# post-init localism
 	vars [file normalize [file join [list $home] vars.tcl]] ;# pre-init localism
 	# topdir	;# Where to look for Wub libs - don't change
@@ -288,9 +287,9 @@ namespace eval Site {
 	    variable wubdir; variable topdir
 	    Variable topdir [file normalize $wubdir]
 
-	    foreach lib {Mime extensions stx Wub Domains Utilities} {
-		lappend ::auto_path [file join $topdir $lib]
-	    }
+	    #foreach lib {Mime extensions stx Wub Domains Utilities} {
+	    #lappend ::auto_path [file join $topdir $lib]
+	    #}
 	    
 	    # find docroot
 	    if {$globaldocroot} {
