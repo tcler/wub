@@ -93,8 +93,8 @@ namespace eval Site {
 	if {![file exists $file]} return
 	set ini [::ini::open $file]
 	foreach sect [::ini::sections $ini] {
-	    set cs [string tolower $sect]
-	    set modules($cs) {}
+	    #set cs [string tolower $sect]
+	    set modules($sect) {}
 	    foreach key [::ini::keys $ini $sect] {
 		set v [::ini::value $ini $sect $key]
 		if {$cs eq "wub"} {
@@ -374,7 +374,7 @@ namespace eval Site {
 
 	variable application
 	if {[info exists application] && $application ne ""} {
-	    package require {*}$application
+	    package require $application
 
 	    # install variables defined by local, argv, etc
 	    variable modules
