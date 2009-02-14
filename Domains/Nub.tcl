@@ -115,7 +115,7 @@ namespace eval Nub {
 	    set form [<form> f$count action nubs {
 		[<fieldset> {
 		    [<legend> [tclarmour "$domain $section"]]
-		    [<text> url_$count disable $disable label "Url: " $url]
+		    [<text> url_$count disable $disable label "Url: " [tclarmour $url]]
 		    $extra
 		    [<hidden> domain_$count $domain]
 		    [<submit> submit title "Change this Nub" style {float:right} value "edit $count" Change]
