@@ -97,7 +97,7 @@ namespace eval Site {
 	    set modules($sect) {}
 	    foreach key [::ini::keys $ini $sect] {
 		set v [::ini::value $ini $sect $key]
-		if {$cs eq "wub"} {
+		if {$sect eq "Wub"} {
 		    #puts stderr "INI: ::Site::$sect $key $v"
 		    set ::Site::$key $v
 		} else {
