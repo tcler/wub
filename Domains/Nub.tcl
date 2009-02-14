@@ -147,7 +147,7 @@ namespace eval Nub {
     variable loaded {}
     variable theme start
     variable keymap
-    variable docs ""
+    variable docs "/docs/domains"
     proc /nubs {r {submit ""} args} {
 	Debug.nub {/nubs ($submit) $args}
 	variable theme
@@ -345,15 +345,42 @@ namespace eval Nub {
 	    [<div> id box style [subst {
 		[<p> "This facility allows you to change the URLs the server responds to."]
 		[<p> "Below, you will see a collection of 'nubs', which are mappings from a URL glob to a domain.  You may create new nubs, edit or delete existing nubs, and apply them to the currently running server."]
-		[<p> "Each domain provides different functionality:"]
+		[<p> "Each [<a> href $docs/ domain] provides different functionality:"]
 		[<dl> [subst {
+		    [<dt> [<a> href $docs/file File]]
+		    [<dd> "Traditional filesystem-based website"]
+		    [<dt> [<a> href $docs/direct Direct]]
+		    [<dd> "A domain permitting procs and methods to be directly invoked (with query args) by URL"]
+		    [<dt> [<a> href $docs/rewrite.html Rewrite]]
+		    [<dd> "Transforms a URL (selected by regexp) into another (delivered by code)."]
 		    [<dt> [<a> href $docs/block.html Block]]
 		    [<dd> "Blocks an IP address which attempts to access the URL"]
-		    [<dt> [<a> href $docs/rewrite.html Rewrite]]
-		    [<dd> "Transforms a URL into another."]
 		    [<dt> [<a> href $docs/redirect.html Redirect]]
 		    [<dd> "Sends the client a redirect."]
-		    
+		    [<dt> [<a> href $docs/code.html Code]]
+		    [<dd> "Returns the result of evaluating tcl code."]
+		    [<dt> [<a> href $docs/literal.html Literal]]
+		    [<dd> "Returns literal content to client."]
+		    [<dt> [<a> href $docs/ram RAM]]
+		    [<dd> "RAM-based filesystem"]
+		    [<dt> [<a> href $docs/cgi CGI]]
+		    [<dd> "Traditional CGI interface"]
+		    [<dt> [<a> href $docs/jq JQ]]
+		    [<dd> "jQuery interface"]
+		    [<dt> [<a> href $docs/nub Nub]]
+		    [<dd> "You are currently using Nub - it's a URL space configuration facility."]
+		    [<dt> [<a> href $docs/mason Mason]]
+		    [<dd> "Mason - A File-like domain, but on steroids.  Heavy templating."]
+		    [<dt> [<a> href $docs/icons Icons]]
+		    [<dd> "A set of useful free icons."]
+		    [<dt> [<a> href $docs/repo Repo]]
+		    [<dd> "Simple-minded file repository with uploading, tarring of directories."]
+		    [<dt> [<a> href $docs/honeypot Honeypot]]
+		    [<dd> "Trap bots."]
+		    [<dt> [<a> href $docs/sinorca Sinorca]]
+		    [<dd> "Experimental Styling"]
+		    [<dt> [<a> href $docs/commenter Commenter]]
+		    [<dd> "Commenter - experimental code comment miner"]
 		}]]
 	    }]]
 	}] \n
