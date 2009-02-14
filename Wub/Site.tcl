@@ -379,8 +379,8 @@ namespace eval Site {
 	    # install variables defined by local, argv, etc
 	    variable modules
 	    if {[info exists modules([string tolower $application])]} {
-		variable $application
-		namespace eval $application [list variable {*}[set $application]]
+		variable [string tolower $application]
+		namespace eval $application [list variable {*}[set [string tolower $application]]]
 	    }
 	}
 
