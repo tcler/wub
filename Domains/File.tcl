@@ -127,7 +127,7 @@ class create File {
 		# try to return an index file's contents in lieue of the directory
 		#my variable index
 		if {$index ne ""} {
-		    set indices [glob -nocomplain -tails -directory $path]
+		    set indices [glob -nocomplain -tails -directory $path $index]
 		    if {[llength $indices]} {
 			dict set req -path [file join $root [lindex $indices 0]]
 			return [Http Redirect $req [Url uri $req]]
