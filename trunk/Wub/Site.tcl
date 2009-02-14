@@ -93,11 +93,11 @@ namespace eval Site {
 	if {![file exists $file]} return
 	set ini [::ini::open $file]
 	foreach sect [::ini::sections $ini] {
-	    #set cs [string tolower $sect]
-	    set modules($sect) {}
+	    set cs [string tolower $sect]
+	    set modules($cs) {}
 	    foreach key [::ini::keys $ini $sect] {
 		set v [::ini::value $ini $sect $key]
-		if {$sect eq "Wub"} {
+		if {$cs eq "wub"} {
 		    #puts stderr "INI: ::Site::$sect $key $v"
 		    set ::Site::$key $v
 		} else {
@@ -230,7 +230,7 @@ namespace eval Site {
 	variable configuration
 	foreach {name val} [namespace eval ::Site [list rc $configuration]] {
 	    if {[string match @* $name]} {
-		set name [string trim $name @]
+		set name [string tolower [string trim $name @]]
 		set modules($name) {}
 	    }
 	    Variable $name $val
@@ -375,10 +375,10 @@ namespace eval Site {
 	variable application
 	if {[info exists application] && $application ne ""} {
 	    package require $application
-
+	    
 	    # install variables defined by local, argv, etc
 	    variable modules
-	    if {[info exists modules($application)]} {
+	    if {[info exists modules([string tolower $application])]} {
 		variable $application
 		namespace eval $application [list variable {*}[set $application]]
 	    }
