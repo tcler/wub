@@ -22,6 +22,7 @@ set API(Nub) {
     {Configuration domain for Wub.  Provides simple text and web-based website configuration.}
     nubdir {directory for user-defined nubs}
     theme {jQuery theme for Nub web interaction}
+    password {password for modifying nubs.}
 }
 
 namespace eval Nub {
@@ -126,6 +127,20 @@ namespace eval Nub {
 	return [list "$domain $section" $form]
     }
 
+    variable password ""
+    proc credentials {r} {
+	variable password
+	if {$password eq ""} {
+	    return "No Nub Password has been set.  Check site.ini and add a password definition under section \[nub\]."
+	}
+	lassign [Http Credentials $r] userid pass
+	if {$pass ne $password} {
+	    return "Passwords don't match.  Check site.ini for password."
+	} else {
+	    return ""
+	}
+    }
+
     variable loaded {}
     variable theme start
     variable keymap
@@ -142,127 +157,133 @@ namespace eval Nub {
 	set error ""
 	set etitle ""
 
-	switch -- [lindex $submit 0] {
-	    edit {
-		# edit this element
-		set el [lindex $submit end]
-		set url [dict get $args url_$el]; dict unset args url_$el
-		set section [dict get $urls $keymap($el) section]
-		if {$url ne $section} {
-		    # they've changed the url - copy-edit its content
-		    set nkey [parseurl $url]
-		    set urls $nkey [dict merge [dict get $urls $keymap($el)] [list section $url]]
-		    set keymap($el) $nkey
-		    set section $url
-		}
-
-		set domain [dict get $args domain_$el]; dict unset args domain_$el
-		switch -- $domain {
-		    Redirect -
-		    Rewrite {
-			dict set urls $keymap($el) body [dict get $args to_$el]
+	
+	if {[credentials $r $troop $uid] ne ""} {
+	    set challenge "Nub Modification"
+	    return [Http Unauthorized $r [Http BasicAuth $challenge]]
+	} else {
+	    switch -- [lindex $submit 0] {
+		edit {
+		    # edit this element
+		    set el [lindex $submit end]
+		    set url [dict get $args url_$el]; dict unset args url_$el
+		    set section [dict get $urls $keymap($el) section]
+		    if {$url ne $section} {
+			# they've changed the url - copy-edit its content
+			set nkey [parseurl $url]
+			set urls $nkey [dict merge [dict get $urls $keymap($el)] [list section $url]]
+			set keymap($el) $nkey
+			set section $url
 		    }
-
-		    Block {
-			if {![dict get $args block_$el]} {
-			    dict unset urls $keymap($el)
+		    
+		    set domain [dict get $args domain_$el]; dict unset args domain_$el
+		    switch -- $domain {
+			Redirect -
+			Rewrite {
+			    dict set urls $keymap($el) body [dict get $args to_$el]
 			}
-		    }
-		    Literal -
-		    Code {
-			dict set urls $keymap($el) body content [dict get $args content_$el]
-			dict set urls $keymap($el) body ctype [dict get $args ctype_$el]
-		    }
-		    default {
-			# this is a proper domain
-			global API
-			set opts [lassign $API($domain) description]
-			foreach {opt text} $opts {
-			    if {[dict exists $args ${opt}_$el]} {
-				dict set urls $keymap($el) body $opt [dict get $args ${opt}_$el]
+			
+			Block {
+			    if {![dict get $args block_$el]} {
+				dict unset urls $keymap($el)
+			    }
+			}
+			Literal -
+			Code {
+			    dict set urls $keymap($el) body content [dict get $args content_$el]
+			    dict set urls $keymap($el) body ctype [dict get $args ctype_$el]
+			}
+			default {
+			    # this is a proper domain
+			    global API
+			    set opts [lassign $API($domain) description]
+			    foreach {opt text} $opts {
+				if {[dict exists $args ${opt}_$el]} {
+				    dict set urls $keymap($el) body $opt [dict get $args ${opt}_$el]
+				}
 			    }
 			}
 		    }
 		}
-	    }
-	    delete {
-		# delete this element
-		set el [lindex $submit end]
-		dict unset urls $keymap($el)
-	    }
-	    add {
-		# add a new element
-		foreach v {host domain path} {
-		    set $v [dict get $args ${v}_new]
+		delete {
+		    # delete this element
+		    set el [lindex $submit end]
+		    dict unset urls $keymap($el)
 		}
-		set path /[string trimleft $path /]
-		if {$host ni {"" *}} {
-		    set section $host/$path
-		} else {
-		    set section $path
+		add {
+		    # add a new element
+		    foreach v {host domain path} {
+			set $v [dict get $args ${v}_new]
+		    }
+		    set path /[string trimleft $path /]
+		    if {$host ni {"" *}} {
+			set section $host/$path
+		    } else {
+			set section $path
+		    }
+		    set key [parseurl $section]
+		    dict set urls $key [list domain $domain section $section body {}]
 		}
-		set key [parseurl $section]
-		dict set urls $key [list domain $domain section $section body {}]
-	    }
-	    load {
-		if {[catch {configF [dict get $args load_file]} result]} {
-		    lappend error $result
+		load {
+		    if {[catch {configF [dict get $args load_file]} result]} {
+			lappend error $result
+		    }
+		    set etitle "Loading"
 		}
-		set etitle "Loading"
-	    }
-	    save {
-		variable urls
-		generate $urls
-		set etitle "Saving"
-		if {![llength $error]} {
-		    set result ""
-		    foreach {key val} $urls {
-			dict with val {
-			    switch -- $domain {
-				Literal -
-				Code {
-				    dict with body {
-					set line "[string tolower $domain] $section [list $content] $ctype"
+		save {
+		    variable urls
+		    generate $urls
+		    set etitle "Saving"
+		    if {![llength $error]} {
+			set result ""
+			foreach {key val} $urls {
+			    dict with val {
+				switch -- $domain {
+				    Literal -
+				    Code {
+					dict with body {
+					    set line "[string tolower $domain] $section [list $content] $ctype"
+					}
+				    }
+				    Redirect -
+				    Rewrite {
+					set line "[string tolower $domain] $section $body"
+				    }
+				    Block {
+					set line "[string tolower $domain] $section"
+				    }
+				    default {
+					set line "domain [list $domain] $section $body"
 				    }
 				}
-				Redirect -
-				Rewrite {
-				    set line "[string tolower $domain] $section $body"
-				}
-				Block {
-				    set line "[string tolower $domain] $section"
-				}
-				default {
-				    set line "domain [list $domain] $section $body"
-				}
 			    }
+			    append result $line \n
 			}
-			append result $line \n
+			variable nubdir
+			set file [file rootname [file join $nubdir [file tail [dict get $args save_file]]]].nub
+			
+			if {[file exists $file]} {
+			    file rename -force $file $file.[clock seconds]
+			}
+			if {[catch {
+			    ::fileutil::writeFile $file $result
+			} e]} {
+			    set error "Failed to Save in $file: $e"
+			}
+			Debug.nub {SAVE: $file $e ($result)}
+			lappend error "Saved $file"
+		    } else {
+			lappend error "Refused to Save"
 		    }
-		    variable nubdir
-		    set file [file rootname [file join $nubdir [file tail [dict get $args save_file]]]].nub
-
-		    if {[file exists $file]} {
-			file rename -force $file $file.[clock seconds]
-		    }
-		    if {[catch {
-			::fileutil::writeFile $file $result
-		    } e]} {
-			set error "Failed to Save in $file: $e"
-		    }
-		    Debug.nub {SAVE: $file $e ($result)}
-		    lappend error "Saved $file"
-		} else {
-		    lappend error "Refused to Save"
 		}
-	    }
-	    apply {
-		variable urls
-		set do [generate $urls]
-		if {$error eq ""} {
-		    eval $do
+		apply {
+		    variable urls
+		    set do [generate $urls]
+		    if {$error eq ""} {
+			eval $do
+		    }
+		    set etitle "Applying"
 		}
-		set etitle "Applying"
 	    }
 	}
 
@@ -625,6 +646,7 @@ namespace eval Nub {
 	    set rw ""
 	}
 
+	# ASSEMBLE
 	set default {default {Http NotFound $r}}
 	set p [string map [list %B $blocking %RW $rw %RD $redirecting %DEF $default %D $definitions %S $switch] {
 	    proc ::Httpd::do {op r} {
@@ -666,6 +688,7 @@ namespace eval Nub {
 		    }
 
 		    Debug.nub {PX: [dict get $r -host],[dict get $r -path]}
+		    Debug.dispatch {[dict get $r -url]}
 		    # Processing
 		    switch -glob -- [dict get $r -host],[dict get $r -path] {
 			%S
