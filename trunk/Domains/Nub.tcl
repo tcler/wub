@@ -115,6 +115,7 @@ namespace eval Nub {
 	    } else {
 		set url $path
 	    }
+
 	    set form [<form> f$count action nubs {
 		[<fieldset> {
 		    [<legend> [tclarmour "$domain $section"]]

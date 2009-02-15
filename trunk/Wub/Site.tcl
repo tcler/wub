@@ -19,10 +19,13 @@ proc findpaths {} {
 	foreach lib {Mime extensions stx Wub Domains Utilities} {
 	    dict set apath [file join $top $lib] {}
 	}
+    } else {
+	# starkits handle the auto_path for us
+	# but do they handle the home for us?
     }
 
     if {!$nousrlib} {
-	dict set apath /usr/lib {}
+	dict set apath /usr/lib {}	;# put the fallback libdir at the end
     }
 
     set ::auto_path [dict keys $apath]
@@ -43,6 +46,7 @@ foreach package {
 package provide Site 1.0
 
 namespace eval Site {
+    # record wub's home
     set home [file normalize [file dirname [info script]]]
 
     # uncomment to turn off caching for testing
@@ -236,7 +240,9 @@ namespace eval Site {
 	}
 	unset configuration
 
-	# load ini files
+	variable home	;# application's home
+
+	# load ini files from app's home
 	variable ini
 	foreach i $ini {
 	    if {[file pathtype $i] eq "relative"} {
@@ -247,7 +253,6 @@ namespace eval Site {
 
 	# load site configuration script vars.tcl (not under SVN control)
 	variable vars
-	variable home
 	if {$vars ne ""} {
 	    if {[file exists [file join $home $vars]] && [catch {
 		set x [::fileutil::cat [file join $home $vars]] 
@@ -281,7 +286,7 @@ namespace eval Site {
 	    Variable docroot [file join $topdir docroot]
 	} else {
 	    # unpacked startup
-	    lappend ::auto_path $home
+	    lappend ::auto_path $home	;# add the app's home dir to auto_path
 	    
 	    # find Wub stuff
 	    variable wubdir; variable topdir
