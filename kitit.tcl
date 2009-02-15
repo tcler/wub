@@ -51,10 +51,10 @@ foreach arg $argv {
 }
 
 puts stderr "PKGDICT: [dict keys $pkgdirs]"
-file delete -force wub.vfs
-file mkdir wub.vfs
-file mkdir wub.vfs/lib
+file delete -force wub.kit.vfs
+file mkdir wub.kit.vfs
+file mkdir wub.kit.vfs/lib
 foreach file [dict keys $pkgdirs] {
-    file link -symbolic wub.vfs/lib/[file tail $file] $file
+    file link -symbolic wub.kit.vfs/lib/[file tail $file] $file
 }
-file copy -force main.tcl wub.vfs
+file copy -force main.tcl wub.kit.vfs
