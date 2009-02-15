@@ -28,7 +28,7 @@ proc require {what} {
     }
 }
 
-foreach tcllib {cmdline csv
+foreach tcllib {cmdline csv inifile
     dns fileutil snit struct
     tar textutil tie} {
     require $tcllib
