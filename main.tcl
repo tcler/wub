@@ -7,7 +7,7 @@ set user_dir [pwd]	;# this is the dir from which the user ran the kit
 # start up Wub
 package require Site
 
-if {![info exists $argv application]} {
+if {![dict exists $argv application]} {
     # Initialize Site
     Site init ini site.ini
 
