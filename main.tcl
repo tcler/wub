@@ -2,15 +2,15 @@
 package require starkit
 starkit::startup
 
-set user_dir [pwd]	;# this is the dir from which the user ran the kit
+set userdir [pwd]	;# this is the dir from which the user ran the kit
 
 # start up Wub
 package require Site
 
 if {![dict exists $argv application]} {
     # Initialize Site
-    Site init ini site.ini
+    Site init ini site.ini userdir $userdir
 
     # Start Site Server(s)
-    Site start 
+    Site start
 }
