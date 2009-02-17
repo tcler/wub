@@ -95,7 +95,7 @@ namespace eval Site {
 	variable modules
 	#puts stderr "INI file: $file [file exists $file]"
 	if {![file exists $file]} return
-	set ini [::ini::open $file]
+	set ini [::ini::open $file r]
 	foreach sect [::ini::sections $ini] {
 	    set cs [string tolower $sect]
 	    set modules($cs) {}
