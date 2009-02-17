@@ -369,7 +369,11 @@ namespace eval Site {
 
 	#### Mime init
 	variable home
-	Mime::Init -dsname [file join $home ext2mime.tie]
+	if {[info exists ::starkit_ext2mimedir]} {
+	    Mime::Init -dsname [file join $::starkit_ext2mimedir ext2mime.tie]
+	} else {
+	    Mime::Init -dsname [file join $home ext2mime.tie]
+	}
 
 	#### Console init
 	variable cmdport
