@@ -241,6 +241,11 @@ namespace eval Site {
 	unset configuration
 
 	variable home	;# application's home
+	if {[dict exists $::argv home]} {
+	    # set this most important of variables.
+	    # It's the app's home, other stuff is made relative to it.
+	    set home [dict get $::argv home]
+	}
 
 	# load ini files from app's home
 	variable ini
