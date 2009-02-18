@@ -169,6 +169,7 @@ namespace eval Icons {
 
     proc new {args} {
 	variable {*}$args
+	return ::Icons
     }
 
     namespace export -clear *
