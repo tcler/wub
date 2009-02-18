@@ -43,6 +43,7 @@ foreach package {
 } {
     package require $package
 }
+Debug off site 10
 package provide Site 1.0
 
 namespace eval Site {
@@ -85,7 +86,7 @@ namespace eval Site {
     proc Variable {name value} {
 	variable $name
 	if {![info exists $name]} {
-	    #puts stderr "Variable: $name $value"
+	    Debug.site {Variable: $name $value}
 	    set $name $value
 	}
 	uplevel variable $name
@@ -93,7 +94,7 @@ namespace eval Site {
 
     proc do_ini {file} {
 	variable modules
-	#puts stderr "INI file: $file [file exists $file]"
+	Debug.site {INI file: $file [file exists $file]}
 	if {![file exists $file]} return
 	set ini [::ini::open $file r]
 	foreach sect [::ini::sections $ini] {
@@ -102,10 +103,10 @@ namespace eval Site {
 	    foreach key [::ini::keys $ini $sect] {
 		set v [::ini::value $ini $sect $key]
 		if {$cs eq "wub"} {
-		    #puts stderr "INI: ::Site::$sect $key $v"
+		    Debug.site {INI: ::Site::$sect $key $v}
 		    set ::Site::$key $v
 		} else {
-		    #puts stderr "INI: ::Site::$sect $key $v"
+		    Debug.site {INI: ::Site::$sect $key $v}
 		    dict set ::Site::$sect $key $v
 		}
 	    }
@@ -220,6 +221,11 @@ namespace eval Site {
 	if {[dict exists $args configuration]} {
 	    set configuration [dict merge $configuration [dict get $args configuration]]
 	    dict unset args configuration
+	}
+	if {[dict exists $args debug]} {
+	    set debug [dict get $args debug]
+	    Debug on site $debug
+	    dict unset args debug
 	}
 
 	# args to Site::init become initial variable values
@@ -452,7 +458,7 @@ namespace eval Site {
 	package require Nub
 	variable nub
 	Nub init {*}$nub
-	#puts stderr "NUB:$nub"
+	Debug.site {NUB:$nub}
 	if {[dict exists $nub nubs] && [llength [dict get $nub nubs]]} {
 	    foreach file [dict get $nub nubs] {
 		Nub configF $file
