@@ -367,14 +367,6 @@ namespace eval Site {
 	variable stx_scripting
 	stx2html init script $stx_scripting
 
-	#### Mime init
-	variable home
-	if {[info exists ::starkit_ext2mimedir]} {
-	    Mime::Init -dsname [file join $::starkit_ext2mimedir ext2mime.tie]
-	} else {
-	    Mime::Init -dsname [file join $home ext2mime.tie]
-	}
-
 	#### Console init
 	variable cmdport
 	if {$cmdport eq ""} {
