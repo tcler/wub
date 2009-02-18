@@ -190,7 +190,7 @@ namespace eval Repo {
 	    set title [<a> href $titleURL $title]
 	}
 	set ext [file extension $suffix]
-	set path [file normalize [file join $mount [string trimleft $suffix /]]]
+	set path [file normalize [file join $root [string trimleft $suffix /]]]
 	#dict set req -path $path
 	
 	# unpack query response
