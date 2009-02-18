@@ -15,6 +15,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 
 package require WubUtils
 package require Debug
+Debug listener off 10
 package provide Listener 2.0
 
 namespace eval Listener {
@@ -40,7 +41,7 @@ namespace eval Listener {
     #	and upvar is used to create a local "data" alias for this global array.
 
     proc accept {opts sock ipaddr rport} {
-	Debug.socket {accepted: $sock $ipaddr $rport}
+	Debug.listener {accepted: $sock $ipaddr $rport}
 
 	if {[catch {
 	    # select an Http object to handle incoming
@@ -82,8 +83,7 @@ namespace eval Listener {
 	    
 	    lappend cmd [dict get $args -port]
 
-	    Debug.socket {server: $cmd}
-	    puts stderr "LL: $cmd"
+	    Debug.listener {server: $cmd}
 	    if {[catch $cmd listen eo]} {
 		error "[dict get $args -host]:[dict get $args -port] $listen\ncmd=$cmd"
 	    }
