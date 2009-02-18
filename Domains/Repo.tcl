@@ -59,7 +59,7 @@ namespace eval Repo {
 	dict set files .. [list name [<a> href .. ..] type parent]
 	variable dirtime
 	variable icon_size
-	variable icons
+
 	foreach file [glob -nocomplain -directory $path *] {
 	    set name [file tail $file]
 	    if {![regexp {^([.].*)|(.*~)|(\#.*)$} $name]} {
@@ -69,10 +69,10 @@ namespace eval Repo {
 		    append name /
 		}
 		set title [<a> href $name $name]
-		set del [<a> href $name?op=del title "click to delete" [<img> height $icon_size src ${icons}remove.gif]]
+		set del [<a> href $name?op=del title "click to delete" [<img> height $icon_size src [dict get $args icons]remove.gif]]
 		set del [<form> del$name action ./$name {
 		    [<hidden> op del]
-		    [<submit> submit [<img> height $icon_size src ${icons}remove.gif]]
+		    [<submit> submit [<img> height $icon_size src [dict get $args icons]remove.gif]]
 		}]
 		dict set files $name [list name $title modified [clock format [file mtime $file] -format $dirtime] size [file size $file] type $type delete $del view [<a> href $name?format=plain view]]
 	    }
