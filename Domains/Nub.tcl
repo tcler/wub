@@ -41,6 +41,7 @@ namespace eval Nub {
 	});
     }
 
+    # construct an interaction form for each nub
     proc donub {urls key count} {
 	set script [dict get $urls $key]
 	set extra ""
@@ -50,11 +51,11 @@ namespace eval Nub {
 	    
 	    switch -- [string tolower $domain] {
 		redirect {
-		    set extra [Form <text> to_$count label "To:" [tclarmour $body]]
+		    set extra [Form <text> to_$count class autogrow size 80 label "To:" [tclarmour $body]]
 		    append extra [<p> "Redirect $section URL to the $body URL"]
 		} 
 		rewrite {
-		    set extra [Form <textarea> to_$count class autogrow label "To:" [tclarmour $body]]
+		    set extra [Form <textarea> to_$count class autogrow cols 80 label "To:" [tclarmour $body]]
 		    append extra [<p> "Rewrite $section URL to $body"]
 		}
 		
@@ -115,7 +116,7 @@ namespace eval Nub {
 		[<fieldset> {
 		    [<legend> [tclarmour "$domain $section"]]
 		    [<text> url_$count disable $disable label "Url: " [tclarmour $url]]
-		    [tclarmour $extra]
+		    [<br>][tclarmour $extra]
 		    [<hidden> domain_$count $domain]
 		    [<submit> submit title "Change this Nub" style {float:right} value "edit $count" Change]
 		    [<submit> submit title "Delete this Nub" style {float:right} value "delete $count" Delete]
@@ -343,7 +344,7 @@ namespace eval Nub {
 	set header [<h3> "Nubs from $loaded"]
 	append header [<a> id toggle href # "What's this? ..."]
 	append header \n [subst {
-	    [<div> id box style [subst {
+	    [<div> id box style {display:none} [subst {
 		[<p> "This facility allows you to change the URLs the server responds to."]
 		[<p> "Below, you will see a collection of 'nubs', which are mappings from a URL glob to a domain.  You may create new nubs, edit or delete existing nubs, and apply them to the currently running server."]
 		[<p> "Each [<a> href $docs/Domains domain] provides different functionality:"]
