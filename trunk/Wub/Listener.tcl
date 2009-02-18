@@ -15,7 +15,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 
 package require WubUtils
 package require Debug
-Debug listener off 10
+Debug off listener 10
 package provide Listener 2.0
 
 namespace eval Listener {
