@@ -3,7 +3,7 @@
 # A domain to present a file system as a series of URLs
 
 package require Debug
-Debug on repo 10
+Debug off repo 10
 
 package require tar
 package require fileutil
