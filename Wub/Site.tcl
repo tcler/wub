@@ -1,5 +1,5 @@
 # Site - simple configuration for single-threaded Wub Server.
-
+package require Tcl 8.6	;# minimum version of tcl required
 package require fileutil
 package require inifile
 
