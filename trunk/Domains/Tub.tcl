@@ -9,7 +9,9 @@ set API(Tub) {
     key {key within view which uniquely identifies store (default "user")}
     realm {Realm used in password challenges}
     cookie {cookie for storing key - not implemented}
+    age {cookie age}
     permissive {boolean - will storing under a new key create record?}
+    emptypass {boolean - are passwords required to be non-blank (default: 0, of course)}
 }
 
 package require Debug
@@ -22,7 +24,7 @@ package require Cookies
 package provide Tub 1.0
 
 class create Tub {
-    variable view realm key properties cookie permissive
+    variable view realm key properties cookie age permissive emptypass
     
     # get the data given by key
     method get {r k} {
@@ -106,7 +108,7 @@ class create Tub {
 	    error "No key to Tub."
 	}
 	set k [dict get $args $key]
-	dict unset args $key
+	catch {dict unset args $key}
 	return [my set $r [dict get $args $k] {*}$args]
     }
 
@@ -114,7 +116,7 @@ class create Tub {
 	lassign [Http Credentials $r] userid pass
 	if {[catch {$view find $key $userid} index]
 	    || $userid eq ""
-	    || $pass eq ""
+	    || (!$emptypass && $pass eq "")
 	    || [$view get $index password] ne $password
 	} {
 	    return [challenge $r $realm]
@@ -132,21 +134,105 @@ class create Tub {
 	    }
 	}
 	if {$userid eq ""
-	    || $pass eq ""
+	    || (!$emptypass && $pass eq "")
 	    || [$view get $index password] ne $pass
 	} {
 	    return [challenge $r $realm]
 	}
+	catch {dict unset args $key}
 	return [my set $r $userid {*}$args]
     }
 
-    method /getCookie {r} {
-	return [Http NotImplemented]
-    }
-    method /setCookie {r args} {
-	return [Http NotImplemented]
+    method /login {r userid {password ""} {url ""}} {
+	# prelim check on args
+	if {$userid eq ""} {
+	    return [Httpd NotFound $r "Blank username not permitted."]
+	}
+	if {!$emptypass && $password eq ""} {
+	    return [Httpd NotFound $r "Blank password not permitted."]
+	}
+
+	# find matching userid in view
+	if {[catch {$view find $key $userid} index]} {
+	    if {$permissive && $userid ne "" && $password ne ""} {
+		# permissive - create a new user
+		set index [$view append $key $userid password $password]
+	    } else {
+		return [Httpd NotFound $r "There is no such user as '$userid'"]
+	    }
+	}
+
+	if {password in $properties} {
+	    # we're storing passwords in this view, so match them
+	    if {[$view get $index password] ne $password} {
+		return [Httpd NotFound $r "Passwords don't match for '$userid'"]
+	    }
+	}
+	
+	# now set the cookie up with the appropriate value
+	set r [Cookies 4server $r]
+
+	if {[dict exists $r -cookies]} {
+	    set cdict [dict get $r -cookies]
+	} else {
+	    set cdict {}
+	}
+
+	# include an optional expiry age
+	if {$age} {
+	    set expiry [list -expires $age]
+	} else {
+	    set expiry {}
+	}
+
+	# add in the cookie
+	set cdict [Cookies add $cdict -path $mount -name $cookie -value [list $userid $password] {*}$expiry]
+	dict set r -cookies $cdict
+
+	if {$url eq ""} {
+	    set url [Http Referer $r]
+	    if {$url eq ""} {
+		set url "http://[dict get $r host]/"
+	    }
+	}
+
+	return [Http NoCache [Http SeeOther $r $url "Logged in as $userid"]]
     }
 
+    method /logout {r {url ""}} {
+	set r [Cookies 4server $r]
+	dict set r -cookies [Cookie clear [dict get $r -cookies] -name $cookie]
+
+	if {$url eq ""} {
+	    set url [Http Referer $r]
+	    if {$url eq ""} {
+		set url "http://[dict get $r host]/"
+	    }
+	}
+
+	return [Http NoCache [Http SeeOther $r $url "Logged out"]]
+    }
+
+    # get store with cookie
+    method /getCookie {r} {
+	set r [Cookies 4server $r]
+	lassign [Cookie fetch [dict get $r -cookies]] userid pass
+	if {[catch {$view find $key $userid} index]} {
+	    return [Httpd NotFound $r "There is no such user as '$userid'"]
+	}
+
+	return [my get $r $userid]
+    }
+
+    method /setCookie {r args} {
+	set r [Cookies 4server $r]
+	lassign [Cookie fetch [dict get $r -cookies]] userid pass
+	if {[catch {$view find $key $userid} index]} {
+	    return [Httpd NotFound $r "There is no such user as '$userid'"]
+	}
+	catch {dict unset args $key}	;# can't change key
+	return [my set $r $userid {*}$args]
+    }
 
     method do {r} {
 	return [$direct do $r]
@@ -157,6 +243,7 @@ class create Tub {
 	set permissive 0
 	set key user
 	set cookie tub
+	set emptypass 0
 	dict for {n v} $args {
 	    set $n $v
 	}
@@ -170,7 +257,17 @@ class create Tub {
 	}
 
 	set properties [$view properties]
-	set properties [lassign [lindex $properties 0] key]
+
+
+	if {![info exists key] || $key eq ""} {
+	    if {[info exists cookie] && $cookie ne ""} {
+		set key $cookie
+	    } else {
+		set properties [lassign [lindex $properties 0] key]
+	    }
+	} elseif {$key ni $properties} {
+	    error "Key $key must appear in $view's layout ($properties)"
+	}
 
 	# this is the means by which we're invoked.
 	set direct [Direct new object [self] ctype application/json]
