@@ -16,6 +16,7 @@ package ifneeded jQ 1.0 [list source [file join $dir jQ jQ.tcl]]
 package ifneeded JQ 1.0 [list source [file join $dir jQ jQ.tcl]]
 package ifneeded CGI 1.0 [list source [file join $dir CGI.tcl]]
 package ifneeded Icons 1.0 [list source [file join $dir Icons Icons.tcl]]
+package ifneeded Tub 1.0 [list source [file join $dir Tub.tcl]]
 #package ifneeded CA 1.0 [list source [file join $dir CA.tcl]]
 
 #package ifneeded Host 2.0 [list source [file join $dir Host.tcl]]
