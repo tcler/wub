@@ -853,10 +853,10 @@ namespace eval Nub {
 		&& [file exists [file join $nubdir $file]]
 	    } {
 		set f [file join $nubdir $file]
-	    } elseif {[file exists [file join $nubdirSys $file]]} {
-		set f [file join $nubdirSys $file]
 	    } elseif {[file exists $file]} {
 		set f $file
+	    } elseif {[file exists [file join $nubdirSys $file]]} {
+		set f [file join $nubdirSys $file]
 	    } else {
 		Debug.error {Can't locate $f in directories nubdir:$nubdir, pwd:[pwd] or $nubdirSys}
 		return
