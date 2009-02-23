@@ -20,12 +20,12 @@ namespace eval jQ {
 
     proc postscript {script args} {
 	variable mount
-	return [list -postscript ${mount}/scripts/$script $args]
+	return [list -postscript [file join $mount scripts $script] $args]
     }
 
     proc script {r script args} {
 	variable mount
-	dict set r -postscript ${mount}/scripts/$script $args
+	dict set r -postscript [file join $mount scripts $script] $args
 	return $r
     }
 
@@ -36,7 +36,7 @@ namespace eval jQ {
 
     proc scripts {r args} {
 	variable mount
-	#puts stderr "PRESCRIPT: [Dict get? $r -postscript]"
+	Debug.jq {PRESCRIPT: [Dict get? $r -postscript]}
 
 	variable google
 	if {$google} {
@@ -49,21 +49,21 @@ namespace eval jQ {
 	    if {$google
 		&& $script eq "jquery.js"
 	    } continue ;# needn't load jquery.js
-	    dict set r -postscript ${mount}/scripts/$script {}
+	    dict set r -postscript [file join $mount scripts $script] {}
 	}
-	#puts stderr "SCRIPT: [dict get $r -postscript]"
+	Debug.jq {SCRIPT: [dict get $r -postscript]}
 	return $r
     }
 
     proc theme {r theme} {
 	variable mount
-	dict set r -style ${mount}/themes/$theme/ui.all.css {}
+	dict set r -style [file join $mount themes $theme ui.all.css] {}
 	return $r
     }
 
     proc style {r style args} {
 	variable mount
-	dict set r -style ${mount}/css/$style $args
+	dict set r -style [file join $mount css $style] $args
 	return $r
     }
 
@@ -535,10 +535,11 @@ namespace eval jQ {
 	
 	# construct a File wrapper for the jscript dir
 	variable root; variable mount; variable expires
+	set mount /[string trim $mount /]/
+
 	if {[info commands ::jQ::fs] eq ""} {
 	    File create ::jQ::fs {*}$args root $root mount $mount expires $expires
 	}
-
 	return jQ
     }
     
