@@ -105,45 +105,53 @@ class create File {
 	Debug.file {FILE DISPATCH '$path' $req}
 	#my variable expires redirdir
 	Debug.file {Found file '$path' of type [file type $path]}
-	switch -- [file type $path] {
-	    link -
-	    file {
-		# allow client caching
-		set r [Http Cache $req $expires]
-		return [Http CacheableFile $r $path]
-	    }
-	    
-	    directory {
-		# if a directory reference doesn't end in /, redirect.
-		Debug.file {redirecting path:$path, suffix:$suffix, -path:[dict get $req -path]}
-		set rpath [dict get $req -path]
-		if {$redirdir && ([string index $rpath end] ne "/")} {
-		    dict set req -path "$rpath/"
-		    return [Http Redirect $req [Url uri $req]]
-		} else {
-		    # TODO do something to return the whole dir in one hit
+	set count 20
+	while {[incr count -1]} {
+	    switch -- [file type $path] {
+		link {
+		    set path [file readlink $path]
 		}
 
-		# try to return an index file's contents in lieue of the directory
-		#my variable index
-		if {$index ne ""} {
-		    set indices [glob -nocomplain -tails -directory $path $index]
-		    if {[llength $indices]} {
-			dict set req -path [file join [dict get $req -path] [lindex $indices 0]]
+		file {
+		    # allow client caching
+		    set r [Http Cache $req $expires]
+		    return [Http CacheableFile $r $path]
+		}
+		
+		directory {
+		    # if a directory reference doesn't end in /, redirect.
+		    Debug.file {redirecting path:$path, suffix:$suffix, -path:[dict get $req -path]}
+		    set rpath [dict get $req -path]
+		    if {$redirdir && ([string index $rpath end] ne "/")} {
+			dict set req -path "$rpath/"
 			return [Http Redirect $req [Url uri $req]]
+		    } else {
+			# TODO do something to return the whole dir in one hit
 		    }
+		    
+		    # try to return an index file's contents in lieue of the directory
+		    #my variable index
+		    if {$index ne ""} {
+			set indices [glob -nocomplain -tails -directory $path $index]
+			if {[llength $indices]} {
+			    dict set req -path [file join [dict get $req -path] [lindex $indices 0]]
+			    return [Http Redirect $req [Url uri $req]]
+			}
+		    }
+		    
+		    # no index file - generate a directory listing
+		    set req [my dir $req $path]
+		    return [Http CacheableContent [Http Cache $req $expires] [clock seconds]]
 		}
-
-		# no index file - generate a directory listing
-		set req [my dir $req $path]
-		return [Http CacheableContent [Http Cache $req $expires] [clock seconds]]
-	    }
-	    
-	    default {
-		set req [Http Cache $req $expires]
-		return [Http NotFound $req "<p>File '$suffix' is of illegal type [file type $path]</p>"]
+		
+		default {
+		    set req [Http Cache $req $expires]
+		    return [Http NotFound $req "<p>File '$suffix' is of illegal type [file type $path]</p>"]
+		}
 	    }
 	}
+
+	return [Http NotFound $req "<p>File '$suffix' doesn't resolve to a file.</p>"]
     }
 
     variable root index mount hide redirdir expires dateformat dirparams
