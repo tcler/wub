@@ -109,15 +109,15 @@ namespace eval Coco {
 	    # this is a new call - create the coroutine
 	    set cmd [uniq]
 	    dict set r -cmd $cmd
-	    dict set r -csuffix $mount/$cmd
+	    dict set r -csuffix [file join $mount $cmd]
 	    set result [coroutine $cmd ::apply [list {*}$lambda ::Coco] $r]
 	    if {$result ne ""} {
 		Debug.coco {coroutine initialised - ($r) reply}
 		return $result	;# allow coroutine lambda to reply
 	    } else {
 		# otherwise redirect to coroutine lambda
-		Debug.coco {coroutine initialised - redirect to $mount/$cmd}
-		return [Http Redirect $r $mount/$cmd]
+		Debug.coco {coroutine initialised - redirect to [file join $mount $cmd]}
+		return [Http Redirect $r [file join $mount $cmd]]
 	    }
 	} elseif {[llength [info command ::Coco::$suffix]]} {
 	    # this is an existing coroutine - call it and return result

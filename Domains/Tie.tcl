@@ -59,7 +59,7 @@ namespace eval Tie {
 
 	# get full URL of variable
 	set prefix [Dict get? $args -prefix]
-	set fname [join [list {*}$prefix $name] /]
+	set fname [file join $prefix $name]
 
 	# store args in vars against variable's full URL
 	variable vars
