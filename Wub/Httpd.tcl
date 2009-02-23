@@ -1176,7 +1176,7 @@ namespace eval Httpd {
 	    "normal" {
 		# check list of blocked ip addresses
 		if {[Block blocked? $ipaddr]} {
-		    Debug.Httpd {Forbidden $sock}
+		    Debug.log {Blocked attempt from $ipaddr}
 
 		    variable server_id
 		    puts $sock "HTTP/1.1 403 Forbidden\r"
