@@ -17,6 +17,7 @@ set API(File) {
     redirdir {flag: should references to directories be required to have a trailing /?}
     expires {a tcl clock expression indicating when contents expire}
     dateformat {a tcl clock format for displaying dates in directory listings}
+    nodir {don't allow the browsing of directories (default: 0 - browsing allowed.)}
 }
 
 class create File {
@@ -142,10 +143,13 @@ class create File {
 			    return [Http Redirect $req [Url uri $req]]
 			}
 		    }
-		    
-		    # no index file - generate a directory listing
-		    set req [my dir $req $path]
-		    return [Http CacheableContent [Http Cache $req $expires] [clock seconds]]
+		    if {$nodir} {
+			return [Http NotFound "No Such Directory"]
+		    } else {
+			# no index file - generate a directory listing
+			set req [my dir $req $path]
+			return [Http CacheableContent [Http Cache $req $expires] [clock seconds]]
+		    }
 		}
 		
 		default {
@@ -162,6 +166,7 @@ class create File {
 
     constructor {args} {
 	set index "index.*"
+	set nodir 0
 	set mount /
 	set hide {^([.].*)|(.*~)|(\#.*)$}
 	set redirdir 1	;# redirect dir to dir/
