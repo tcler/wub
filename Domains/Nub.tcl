@@ -482,7 +482,7 @@ namespace eval Nub {
 	set processed {}
 	set rewrites {}
 	set redirects {}
-
+	set blocks {}
 	foreach key $ordered {
 	    set section [dict get $urls $key section]
 	    set domain [dict get $urls $key domain]
