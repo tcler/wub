@@ -12,7 +12,8 @@ package provide Simplicio 1.0
 set API(Simplicio) {
     {experimental SVG iconset}
 }
-namespace eval Simplicio {
+
+namespace eval ::Simplicio {
     variable xml {<?xml version="1.0" encoding="UTF-8" standalone="no"?>}
     variable svg {<svg xmlns="http://www.w3.org/2000/svg" width="64px" height="64px">}
 
@@ -113,7 +114,7 @@ namespace eval Simplicio {
     variable mount /simplicio/
     proc new {args} {
 	variable {*}$args
-	return Simplico
+	return ::Simplicio
     }
 
     namespace export -clear *
