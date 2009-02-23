@@ -107,7 +107,6 @@ class create File {
 	Debug.file {Found file '$path' of type [file type $path]}
 	set count 20
 	while {[incr count -1]} {
-	    puts "path=$path"
 	    switch -- [file type $path] {
 		link {
 		    set lpath $path
