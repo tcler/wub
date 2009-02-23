@@ -389,9 +389,9 @@ namespace eval Site {
 	    
 	    # install variables defined by local, argv, etc
 	    variable modules
-	    if {[info exists modules([string tolower $application])]} {
-		variable [string tolower $application]
-		namespace eval $application [list variable {*}[set [string tolower $application]]]
+	    if {[info exists modules($application)]} {
+		variable $application
+		namespace eval $application [list variable {*}[set $application]]
 	    }
 	}
 
@@ -442,6 +442,28 @@ namespace eval Site {
 	    Debug.log {Listening on scgi $host [dict get $scgi -port] using docroot $docroot}
 	}
 
+	#### Load up nubs
+	package require Nub
+	variable nub
+	variable nubs
+	if {[llength $nubs]} {
+	    if {[dict exists $nub nubs]} {
+		lappend nubs {*}[dict get $nub nubs]
+	    }
+	    dict set nub nubs $nubs
+	}
+
+	Nub init {*}$nub
+	Debug.site {NUB:$nub}
+	if {[dict exists $nub nubs] && [llength [dict get $nub nubs]]} {
+	    foreach file [dict get $nub nubs] {
+		Nub configF $file
+	    }
+	} else {
+	    # no nubs supplied
+	    Nub config	;# start with the builtin
+	}
+
 	#### Load local semantics from ./local.tcl
 	variable local
 	variable home
@@ -455,19 +477,8 @@ namespace eval Site {
 	    }
 	}
 
-	package require Nub
-	variable nub
-	Nub init {*}$nub
-	Debug.site {NUB:$nub}
-	if {[dict exists $nub nubs] && [llength [dict get $nub nubs]]} {
-	    foreach file [dict get $nub nubs] {
-		Nub configF $file
-	    }
-	} else {
-	    # no nubs supplied
-	    Nub config	;# start with the builtin
-	}
-	Nub apply	;# now apply them
+	# apply all collected Nubs
+	Nub apply
 
 	variable done 0
 	while {!$done} {
