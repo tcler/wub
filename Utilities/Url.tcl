@@ -15,40 +15,39 @@ namespace eval Url {
 
     # strip off path prefix - from ::fileutil
     proc pstrip {prefix path} {
+	Debug.url {pstrip $prefix $path}
 	# [file split] is used to generate a canonical form for both
 	# paths, for easy comparison, and also one which is easy to modify
 	# using list commands.
+	set trailing [expr {([string index $path end] eq "/")?"/":""}]
+
+	# canonicalise the paths: no bracketing /, no multiple /
+	set prefix [string trim [file join $prefix] /]
+	set path [string trim [file join $path] /]
+
 	if {[string equal $prefix $path]} {
-	    return "/"
+	    return "/"	;# if the paths are canonically string equal, we're sweet
 	}
 
+	# split the paths into components
 	set prefix [file split $prefix]
-	if {[lindex $prefix 0] eq "/"} {
-	    set prefix [lrange $prefix 1 end]
-	}
 	set npath [file split $path]
-	if {[lindex $npath 0] eq "/"} {
-	    set npath [lrange $npath 1 end]
-	}
 
 	# strip non-matching prolog
-	while {$npath ne ""
-	       &&
-	       ![string match ${prefix}* $npath]
-	   } {
-	    set npath [lrange $npath 1 end]
+	while {[llength $npath] && ![string match ${prefix}* $npath]} {
+	    set npath [lrange $npath 1 end]	;# trim off an element
 	}
+	# $npath is empty or they match.
 
 	# now check if there's a match
-	if {[string match ${prefix}* $npath]} {
-	    # preserve dir suffix
-	    if {[string match */ $path]} {
-		return [file join {*}[lrange $npath [llength $prefix] end] {}]/
-	    } else {
-		return [file join {*}[lrange $npath [llength $prefix] end] {}]
-	    }
+	if {[llength $npath]} {
+	    # ergo there's a match - preserve dir suffix
+	    set match [file join {*}[lrange $npath [llength $prefix] end] {}]$trailing
+	    Debug.url {pstrip match [file join $prefix] + [file join $npath] -> $match}
+	    return $match
 	} else {
 	    # the prefix doesn't match ... try stripping some leading prefix
+	    Debug.url {pstrip no match [file join $prefix] $path}
 	    return /$path
 	}
     }
