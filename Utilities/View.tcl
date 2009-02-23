@@ -175,39 +175,50 @@ class create View {
     }
 
     # return a view's content as a nested dict
-    method dict {_key args} {
+    method dict {key args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
+
+	# get a list of the properties we want in the dict,
+	# default to all of them
 	if {![llength $args]} {
-	    set _args [dict keys [my info2dict]]	;# get the props
-	} else {
-	    set _args $args
+	    set args [dict keys [my info2dict]]	;# get the props
 	}
-	set _subv [dict keys [dict filter [my info2dict] value V]]	;# get the subviews
-	set __result {}
-	my all {
-	    set _props {}
-	    foreach __v $_args {
-		if {$__v in $_subv} {
-		    lappend props $__v [[lambda {_v} {
-			set _subv [dict keys [dict filter [$_v info2dict] value V]]
-			set _props {}
-			$_v all {
-			    foreach _el in $_v {
-				if {$_el in $_subv} continue
-				lappend _props $_el [set $_el]
-			    }
-			}
-			return $_props
-		    }] $__v]
+
+	set pd [my info2dict]	;# dict of propname->type
+	set subv [dict keys [dict filter $pd value V]]	;# get the subviews
+
+	# if key's unspecified, just use the first property
+	if {$key eq {}} {
+	    set key [lindex [dict keys $pd] 0]
+	}
+
+	# if we're doing a nested dict, then _key must be a dict
+	set keys [lassign $key key]
+
+	set result {}	;# this is collecting the results
+	set size [my size]
+	for {set i 0} {$i < $size} {incr i} {
+	    set r [my get $i]
+	    set record {}
+	    dict for {n v} $r {
+		if {$n ni $subv} {
+		    dict set record $n $v	;# collect this property's value
 		} else {
-		    lappend _props $__v [set $__v]
+		    if {[dict exists $keys $n]} {
+			set sk [dict get $keys $n]
+		    } else {
+			set sk {}
+		    }
+		    [my open $n] as sv
+		    dict record $n [$sv dict $sk]
+		    $sv close
 		}
 	    }
-	    lappend __result [set $_key] $_props
+	    dict set result [dict get $r $key] $record
 	}
-	return $__result
+	return $result
     }
 
     # open all the subviews of the index
@@ -375,6 +386,7 @@ class create View {
 	upvar $varname lifetime
 	set lifetime [self]
 	trace add variable lifetime {write unset} "catch {[self] destroy};#"
+	return [self]
     }
 
     method foreach {script args} {
