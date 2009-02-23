@@ -446,7 +446,7 @@ namespace eval Site {
 	package require Nub
 	variable nub
 	variable nubs
-	if {[llength $nubs]} {
+	if {[info exists nubs] && [llength $nubs]} {
 	    if {[dict exists $nub nubs]} {
 		lappend nubs {*}[dict get $nub nubs]
 	    }
