@@ -572,7 +572,16 @@ namespace eval Nub {
 	    set url [join [lassign $from host] /]
 	    lappend blocking "$host,$url"
 	}
-	set blocking [join $blocking " -\n"]
+
+	# construct blocking code
+	if {[llength $blocking]} {
+	    set blocking [string map [list %B [join $blocking " -\n"]] {
+		switch -glob -- [dict get $r -host],[dict get $r -path] {
+		    %B { return [Block block [dict get $r -ipaddr] "Blocked by Nub [dict get $r -url]"] }
+		    default {}
+		}
+	    }]
+	}
 
 	# process definitions
 	set definitions ""
@@ -710,10 +719,7 @@ namespace eval Nub {
 		    %RW
 
 		    # Block
-		    switch -glob -- [dict get $r -host],[dict get $r -path] {
-			%B { return [Block block [dict get $r -ipaddr] "Blocked by Nub [dict get $r -url]"] }
-			default {}
-		    }
+		    %B
  
 		    # Redirects
 		    switch -glob -- [dict get $r -host],[dict get $r -path] {
