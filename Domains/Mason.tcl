@@ -207,10 +207,18 @@ class create Mason {
 
 	# file $path exists
 	Debug.mason {Found file '$path' of type [file type $path]}
-	while {[file type $path] eq "link"} {
-	    set path [file readlink $path]	;# remove links
+	set cnt 20
+	while {[file type $path] eq "link" && [incr cnt -1]} {
+	    # chase down links
+	    set lpath $path
+	    set path [file readlink $path]
+	    if {[file pathtype $path] eq "relative"} {
+		set path [file normalize [file join [file dirname $lpath] $path]]
+	    }
 	}
-
+	if {!$cnt} {
+	    return [Http NotFound $req "File path has too many symlinks"]
+	}
 	switch -- [file type $path] {
 	    file {
 		# allow client caching
