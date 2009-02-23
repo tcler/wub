@@ -447,9 +447,6 @@ namespace eval Site {
 	variable nub
 	variable nubs
 	if {[info exists nubs] && [llength $nubs]} {
-	    if {[dict exists $nub nubs]} {
-		lappend nubs {*}[dict get $nub nubs]
-	    }
 	    dict set nub nubs $nubs
 	}
 
