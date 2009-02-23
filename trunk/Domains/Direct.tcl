@@ -38,12 +38,12 @@ class create Direct {
 	
 	# search for a matching command prefix
 	set cmd ""
-	set fn [dict get $rsp -suffix]
+	set fn [dict get $rsp -suffix]; if {$fn eq ""} {set fn /}
 	set cprefix [file split [armour $fn]]
 	set extra {}
 	while {$cmd eq "" && [llength $cprefix]} { 
-	    Debug.direct {searching for ($cprefix) in '$namespace'}
-	    set probe [info commands ${namespace}::/[join $cprefix /]*]
+	    set probe [info commands ${namespace}::/[string trim [join $cprefix /] /]*]
+	    Debug.direct {searching for ($cprefix) in '$namespace' among $probe}
 	    if {[llength $probe] == 0} {
 		lappend extra [lindex $cprefix end]
 		set cprefix [lrange $cprefix 0 end-1]
@@ -58,7 +58,7 @@ class create Direct {
 
 	# no match - use wildcard proc
 	if {$cmd eq ""} {
-	    Debug.direct {$cmd not found looking for $fn in '$namespace' ([info procs ${namespace}::/*])}
+	    Debug.direct {no match looking for '$fn' in '$namespace' ([info procs ${namespace}::/*])}
 	    set cmd ${namespace}::/$wildcard
 	    if {[info commands $cmd] eq {}} {
 		Debug.direct {default not found looking for $cmd in ([info procs ${namespace}::/*])}
