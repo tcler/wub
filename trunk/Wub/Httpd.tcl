@@ -705,6 +705,14 @@ namespace eval Httpd {
 	    # parse the URL
 	    set r [dict merge $r [Url parse [dict get $r -uri]]]
 
+	    # re-check the connections and log a bit of stuff
+	    variable connbyIP
+	    variable max_conn
+	    if {$connbyIP([dict get $r -ipaddr]) > $max_conn} {
+		# let's log this sucker and see what he's asking for
+		Debug.log {Overconnector [dict get $r -ipaddr] ([Dict get? $r user-agent]) wants [dict get $r -uri]}
+	    }
+
 	    # block spiders by UA
 	    if {[info exists ::spiders([Dict get? $r user-agent])]} {
 		Block block [dict get $r -ipaddr] "spider UA ([Dict get? $r user-agent])"
