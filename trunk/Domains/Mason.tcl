@@ -300,7 +300,7 @@ class create Mason {
 		catch {dict unset req content-type}
 	    }
 	} else {
-	    set req -code 200
+	    dict set req -code 200
 	}
 
 	return $req
