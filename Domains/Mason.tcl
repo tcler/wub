@@ -366,10 +366,7 @@ class create Mason {
 
 	# filter/reprocess this response
 	#my variable wrapper
-	if {(![dict exists $rsp -code] || [string match 2* [Dict get? $rsp -code]])
-	    && ($wrapper ne "")
-	    && [set wrap [my findUp $rsp $wrapper]] ne ""
-	} {
+	if {$wrapper ne "" && [set wrap [my findUp $rsp $wrapper]] ne ""} {
 	    Debug.mason {wrapper $wrapper - $wrap}
 
 	    # run template over request
