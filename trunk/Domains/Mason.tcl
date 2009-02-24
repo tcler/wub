@@ -46,7 +46,6 @@ class create Mason {
     method findUp {req name} {
 	Debug.mason {findUp [dict get $req -root] [dict get $req -suffix] $name} 3
 	set suffix [string trim [dict get $req -suffix] /]
-	#my variable cache
 	if {$cache} {
 	    set result [file upm [dict get $req -root] $suffix $name]
 	} else {
@@ -129,7 +128,6 @@ class create Mason {
 	}
 	
 	# no such file - may be a functional?
-	#my variable functional
 	set fpath [file rootname $file]$functional
 	Debug.mason {candidate $fpath - [file exists $fpath]}
 	if {[file exists $fpath]} {
@@ -143,7 +141,6 @@ class create Mason {
 	Debug.mason {Mason: [dumpMsg $req]}
 	
 	dict set req -mason [self]
-	#my variable mount
 	dict set req -urlroot $mount
 
 	set http [Dict get? $req -http]
@@ -155,7 +152,6 @@ class create Mason {
 	set url [dict get $req -url]	;# full URL
 	
 	Debug.mason {Mason: -url:$url - suffix:$suffix - path:$path - tail:$tail - ext:$ext}
-	#my variable hide
 	if {(($tail eq $ext) && ($ext ne "")
 	     && ![dict exists $req -extonly])
 	    || [regexp $hide $tail]
@@ -168,7 +164,6 @@ class create Mason {
 	}
 	
 	# .notfound processing
-	#my variable notfound functional
 	set fpath [my candidate $path]
 	if {$fpath eq ""} {
 	    Debug.mason {not found $fpath - looking for $notfound}
@@ -224,7 +219,6 @@ class create Mason {
 	    
 	    directory {
 		# URL maps to a directory.
-		#my variable indexfile functional
 		if {![string match */ $url]} {
 		    # redirect - insist on trailing /
 		    Debug.mason {Redirecting, as url '$url' doesn't end in a /, but '$path' a directory}
@@ -269,11 +263,9 @@ class create Mason {
 		    # respond notfound template
 		    return [Http NotFound $req]
 		}
-		#my variable dirhead
 		if {$dirhead ne {}} {
 		    dict set req -thead $dirhead
 		}
-		#my variable dirfoot
 		if {$dirfoot eq {}} {
 		    dict set req -tfoot [list [<a> href .. Up]]
 		}
@@ -293,7 +285,6 @@ class create Mason {
     
     method auth {req} {
 	# run authentication and return any codes
-	#my variable auth
 	set fpath [my findUp $req $auth]
 	if {$fpath ne ""} {
 	    Debug.mason {Mason got auth: $fpath}
@@ -320,7 +311,6 @@ class create Mason {
 	# run a wrapper over the content
 	if {([dict exists $rsp -content])  && [string match 2* $code]} {
 	    # filter/reprocess this response
-	    #my variable wrapper
 	    set wrap [my findUp $rsp $wrapper]
 
 	    if {$wrap ne ""} {
@@ -337,7 +327,6 @@ class create Mason {
     }
 
     method do {req} {
-	#my variable root mount
 	dict set req -root $root
 
 	if {[dict exists $req -suffix]} {
@@ -365,7 +354,6 @@ class create Mason {
 	Debug.mason {processed $rsp}
 
 	# filter/reprocess this response
-	#my variable wrapper
 	if {$wrapper ne "" && [set wrap [my findUp $rsp $wrapper]] ne ""} {
 	    Debug.mason {wrapper $wrapper - $wrap}
 
