@@ -89,7 +89,7 @@ class create Mason {
 
 	if {$code == 0} {
 	    if {![dict exists $response -code]} {
-		set code 200
+		dict set response code 200
 	    }
 	} elseif {$code < 200} {
 	    dict set response -dynamic 1
