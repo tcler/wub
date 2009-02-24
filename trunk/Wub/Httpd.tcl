@@ -390,7 +390,7 @@ namespace eval Httpd {
 	if {![dict exists $r -generation]} {
 	    # there's no generation here - hope it's a low-level auto response
 	    # like Block etc.
-	    Debug.Httpd {[info coroutine] Send without -generation ($r)}
+	    Debug.log {[info coroutine] Send without -generation ($r)}
 	    dict set r -generation $generation
 	} elseif {[dict get $r -generation] != $generation} {
 	    # report error to sender, but don't die ourselves
@@ -402,7 +402,8 @@ namespace eval Httpd {
 	    # send all pending responses, ensuring we don't send out of sequence
 	    write $r $cache
 	} close eo]} {
-	    Debug.error {FAILED write $close ($eo)}
+	    Debug.error {FAILED write $close ($eo) IP [dict get $r -ipaddr] ([Dict get? $r user-agent]) wanted [dict get $r -uri]}
+
 	    terminate closed
 	}
 
@@ -709,6 +710,7 @@ namespace eval Httpd {
 	    variable connbyIP
 	    variable max_conn
 	    if {$connbyIP([dict get $r -ipaddr]) > $max_conn} {
+		dict set r -OC 1
 		# let's log this sucker and see what he's asking for
 		Debug.log {Overconnector [dict get $r -ipaddr] ([Dict get? $r user-agent]) wants [dict get $r -uri]}
 	    }
@@ -729,6 +731,7 @@ namespace eval Httpd {
 		# check the incoming ip for bot detection
 		# this is a bot - reply directly to it
 		send $r	0	;# queue up error response
+		Debug.log {Honeypot Sticks [dict get $r -ipaddr] ([Dict get? $r user-agent]) wants [dict get $r -uri]}
 		continue
 	    }
 
