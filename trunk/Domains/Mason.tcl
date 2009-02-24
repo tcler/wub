@@ -326,7 +326,7 @@ class create Mason {
 	Debug.mason {do $suffix}
 
 	set req [my auth $req]	;# authenticate - must not be caught!
-	if {[dict get $req -code != 200]} {
+	if {[dict get $req -code] != 200} {
 	    return $req
 	}
 	dict set req -dynamic 0		;# default: static content
