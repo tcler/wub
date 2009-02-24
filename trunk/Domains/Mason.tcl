@@ -87,15 +87,12 @@ class create Mason {
 	} result eo]	;# result is the substituted template
 	Debug.mason {template result: $code ($eo) - '$result' over '$template'} 2
 
-	if {$code == 0} {
-	    if {![dict exists $response -code]} {
-		dict set response code 200
-	    }
-	} elseif {$code < 200} {
+	if {$code && $code < 200} {
 	    dict set response -dynamic 1
 	    return [Http ServerError $response $result $eo]
-	} elseif {![dict exists $response -code]} {
-	    dict set response -code $code
+	}
+	if {![dict exists $response -code]} {
+	    dict set response code 200
 	}
 
 	# implicit return value - use the substitution
@@ -369,10 +366,9 @@ class create Mason {
 
 	# filter/reprocess this response
 	#my variable wrapper
-	if {[string match 2* [Dict get? $rsp -code]] &&
-	    ($wrapper ne "") &&
-	    [dict exists $rsp -content] &&
-	    ([set wrap [my findUp $rsp $wrapper]] ne "")
+	if {(![dict exists $rsp -code] || [string match 2* [Dict get? $rsp -code]])
+	    && ($wrapper ne "")
+	    && [set wrap [my findUp $rsp $wrapper]] ne ""
 	} {
 	    Debug.mason {wrapper $wrapper - $wrap}
 
