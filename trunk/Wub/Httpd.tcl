@@ -662,7 +662,8 @@ namespace eval Httpd {
 	    dict set r -header $header
 	    dict set r -method [string toupper [lindex $header 0]]
 	    switch -- [dict get $r -method] {
-		CONNECT {
+		CONNECT -
+		LINK {
 		    # stop the bastard SMTP spammers
 		    Block block [dict get $r -ipaddr] "CONNECT method"
 		    handle [Http NotImplemented $r "Connect Method"] "CONNECT method"
