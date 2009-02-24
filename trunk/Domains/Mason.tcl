@@ -109,9 +109,7 @@ class create Mason {
 	Debug.mason {Mason Functional ($fpath): [dumpMsg $rsp]}
 
 	# determine whether content is dynamic or not
-	if {[dict exists $rsp -dynamic]
-	    && [dict get $rsp -dynamic]
-	} {
+	if {[dict exists $rsp -dynamic] && [dict get $rsp -dynamic]} {
 	    # it's completely dynamic - no caching
 	    return [Http NoCache $rsp]
 	} else {
@@ -294,7 +292,6 @@ class create Mason {
 	    if {[dict get $req -code] != 200} {
 		# auth preprocessing has an exception - we're done
 		Debug.mason {Mason auth exception: [dict get $req -code]}
-		return -code [dict get $req -code] -response $req
 	    } else {
 		Debug.mason {Mason auth OK}
 
@@ -305,25 +302,6 @@ class create Mason {
 	}
 
 	return $req
-    }
-
-    method wrap {code rsp} {
-	# run a wrapper over the content
-	if {([dict exists $rsp -content])  && [string match 2* $code]} {
-	    # filter/reprocess this response
-	    set wrap [my findUp $rsp $wrapper]
-
-	    if {$wrap ne ""} {
-		# found a wrapper
-		# evaluate autopath template
-		Debug.mason {MASON Respond autopath $wrapper - $wrap}
-		dict set req -wrapper $wrap
-		return [my functional $rsp $wrap]
-		# never returns - straight to Respond
-	    }
-	}
-
-	return [list $code $rsp]
     }
 
     method do {req} {
@@ -348,6 +326,9 @@ class create Mason {
 	Debug.mason {do $suffix}
 
 	set req [my auth $req]	;# authenticate - must not be caught!
+	if {[dict get $req -code != 200]} {
+	    return $req
+	}
 	dict set req -dynamic 0		;# default: static content
 	set rsp [my mason $req]	;# process request
 
