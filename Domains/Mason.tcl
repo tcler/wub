@@ -91,7 +91,7 @@ class create Mason {
 	    return [Http ServerError $response $result $eo]
 	}
 	if {![dict exists $response -code]} {
-	    dict set response code 200
+	    dict set response -code 200
 	}
 
 	# implicit return value - use the substitution
