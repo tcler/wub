@@ -157,10 +157,10 @@ class create Direct {
 	lassign [info class definition [info object class $object] $cmd] def
 	if {[lindex $def end] eq "args"} {
 	    set needargs 1
-	    set params [lrange $def 0 end-1]	;# remove args from params
+	    set params [lrange $def 1 end-1]	;# remove args from params
 	} else {
 	    set needargs 0
-	    set params $def
+	    set params [lrange $def 1 end]
 	}
 
 	set qd [dict get $rsp -Query]
