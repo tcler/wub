@@ -154,11 +154,12 @@ class create Direct {
 	}
 
 	# get the formal parameters of the method
-	lassign [info object definition $object $cmd] def
+	lassign [info class definition [info object class $object] $cmd] def
 	if {[lindex $def end] eq "args"} {
 	    set needargs 1
 	    set params [lrange $def 0 end-1]	;# remove args from params
 	} else {
+	    set needargs 0
 	    set params [lrange $def 0 end]
 	}
 
@@ -289,7 +290,8 @@ class create Direct {
 
 	    # object name must be fully ns-qualified
 	    if {![string match "::*" $object]} {
-		set object ::$object
+		set object
+ ::$object
 	    }
 
 	    foreach m [lreverse [lsort -dictionary [info object methods $object -all]]] {
