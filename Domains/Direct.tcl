@@ -31,7 +31,12 @@ set API(Direct) {
 }
 
 class create Direct {
-    variable namespace object class ctype mount wildcard trim methods
+    variable namespace object class ctype mount wildcard trim candidates
+
+    method prefix {path args} {
+	set path [file split $path]
+	
+    }
 
     method do_ns {rsp} {
 	Debug.direct {do direct $namespace $mount $ctype}
@@ -43,19 +48,15 @@ class create Direct {
 	set extra {}
 	while {$cmd eq "" && [llength $cprefix]} { 
 	    set probe [info commands ${namespace}::/[string trim [join $cprefix /] /]]
-	    if {[llength $probe] == 0} {
-		set probe [info commands ${namespace}::/[string trim [join $cprefix /] /]*]
-	    }
-	    Debug.direct {searching for ($cprefix) in '$namespace' among $probe}
-	    if {[llength $probe] == 0} {
-		lappend extra [lindex $cprefix end]
-		set cprefix [lrange $cprefix 0 end-1]
-	    } elseif {[llength $probe] == 1} {
+	    if {[llength $probe] == 1} {
 		set cmd [lindex $probe 0]
-	    } else {
-		# pick shortest
-		set cmd [lindex [lsort -dictionary $probe] 0]
+		break
 	    }
+
+	    # there's no exact match, so trim cprefix and try again.
+	    Debug.direct {searching for ($cprefix) in '$namespace' among $probe}
+	    lappend extra [lindex $cprefix end]
+	    set cprefix [lrange $cprefix 0 end-1]
 	}
 	dict set rsp -extra [file join [lreverse $extra]]	;# record the extra parts of the domain
 
@@ -133,28 +134,25 @@ class create Direct {
 	set cmd ""
 	while {$cmd eq "" && [llength $cprefix]} { 
 	    Debug.direct {searching for ($cprefix) in '$namespace'}
-	    set probe [dict keys $methods /[join $cprefix /]]
-	    if {[llength $probe] == 0} {
-		set probe [dict keys $methods /[join $cprefix /]*]
+	    set probe [dict keys $candidates /[join $cprefix /]]
+	    # this strict match can only have 1 or 0 results
+	    if {[llength $probe == 1]} {
+		set cmd $probe
+		break
 	    }
-	    if {[llength $probe] == 0} {
-		lappend extra [lindex $cprefix end]
-		set cprefix [lrange $cprefix 0 end-1]
-	    } elseif {[llength $probe] == 1} {
-		set cmd [lindex $probe 0]
-	    } else {
-		# pick shortest
-		set cmd [lindex $probe 0]
-	    }
+
+	    # there's no exact match, so trim cprefix and try again.
+	    lappend extra [lindex $cprefix end]	;# remember the non-matching bits
+	    set cprefix [lrange $cprefix 0 end-1]
 	}
 	dict set rsp -extra [file join [lreverse $extra]]	;# record the extra parts of the domain
 
 	# no match - use wildcard method
 	if {$cmd eq ""} {
-	    Debug.direct {$cmd not found looking for $fn in '$namespace' ($methods)}
+	    Debug.direct {$cmd not found looking for $fn in '$namespace' ($candidates)}
 	    set cmd $wildcard
-	    if {![dict exists $methods $cmd] eq {}} {
-		Debug.direct {default not found looking for $cmd in ($methods)}
+	    if {![dict exists $candidates $cmd] eq {}} {
+		Debug.direct {default not found looking for $cmd in ($candidates)}
 		return [Http NotFound $rsp]
 	    }
 	}
@@ -299,12 +297,12 @@ class create Direct {
 		set object ::$object
 	    }
 
-	    foreach m [lreverse [lsort -dictionary [info object methods $object -private -all]]] {
+	    foreach m [lreverse [lsort -dictionary [info object candidates $object -private -all]]] {
 		if {[string match /* $m]} {
-		    dict set methods $m {}
+		    dict set candidates $m {}
 		}
 	    }
-	    objdefine $object export {*}[info object methods $object -all] {*}[dict keys $methods]
+	    objdefine $object export {*}[info object methods $object -all] {*}[dict keys $candidates]
 
 	} else {
 	    # namespace must be fully qualified
