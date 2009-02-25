@@ -296,7 +296,7 @@ class create Direct {
 
 	    foreach m [lreverse [lsort -dictionary [info object methods $object -all]]] {
 		if {[string match /* $m]} {
-		    dict add methods $m {}
+		    dict set methods $m {}
 		}
 	    }
 	    
