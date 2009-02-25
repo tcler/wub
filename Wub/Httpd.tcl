@@ -332,6 +332,7 @@ namespace eval Httpd {
 	    # send headers with terminating nl
 	    chan puts -nonewline $socket "$head\r\n"
 	    Debug.Httpd {[info coroutine] SENT HEADER: $socket '[lindex [split $head \r] 0]' [string length $head] bytes} 4
+	    chan flush $socket	;# try to flush as early as possible
 
 	    # send the content/entity (if any)
 	    # note: we must *not* send a trailing newline, as this
