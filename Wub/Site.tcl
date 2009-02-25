@@ -48,7 +48,9 @@ package provide Site 1.0
 
 namespace eval Site {
     # record wub's home
-    set home [file normalize [file dirname [info script]]]
+    variable home [file normalize [file dirname [info script]]]
+    variable wubroot $home
+    variable wubtop [file dirname $home]
 
     # uncomment to turn off caching for testing
     # package provide Cache 2.0 ; proc Cache args {return {}}
@@ -151,8 +153,8 @@ namespace eval Site {
 
 	application ""		;# package to require as application
 
-	local [file normalize [file join [list $home] local.tcl]] ;# post-init localism
-	vars [file normalize [file join [list $home] vars.tcl]] ;# pre-init localism
+	local local.tcl	;# post-init localism
+	vars vars.tcl	;# pre-init localism
 	# topdir	;# Where to look for Wub libs - don't change
 	# docroot	;# Where to look for document root.
 
@@ -198,7 +200,6 @@ namespace eval Site {
 	}]
 
 	@nub [rc {
-	    nubdir [file join $home nubs]
 	    nubs {nub.nub bogus.nub}
 	}]
 
@@ -256,17 +257,14 @@ namespace eval Site {
 	# load ini files from app's home
 	variable ini
 	foreach i $ini {
-	    if {[file pathtype $i] eq "relative"} {
-		set i [file join [file normalize $home] $i] 
-	    }
 	    do_ini $i
 	}
 
 	# load site configuration script vars.tcl (not under SVN control)
 	variable vars
 	if {$vars ne ""} {
-	    if {[file exists [file join $home $vars]] && [catch {
-		set x [::fileutil::cat [file join $home $vars]] 
+	    if {[file exists $vars] && [catch {
+		set x [::fileutil::cat $vars]
 		eval $x
 		unset x
 	    } e eo]} {
@@ -325,18 +323,6 @@ namespace eval Site {
     Debug on error 100
     Debug on log 10
     Debug on block 10
-
-    Debug off timer 10
-    Debug off socket 10
-    Debug off http 2
-    Debug off cache 10
-    Debug off cookies 10
-    Debug off direct 10
-    Debug off query 10
-    Debug off direct 10
-    Debug off convert 10
-    Debug off cookies 10
-    Debug off scgi 10
 
     proc start {args} {
 	init {*}$args
@@ -464,13 +450,10 @@ namespace eval Site {
 	#### Load local semantics from ./local.tcl
 	variable local
 	variable home
-	if {$local ne ""} {
-	    if {[file pathtype $local] eq "relative"} {
-		set local [file normalize [file join $home $local]]
-	    }
+	if {[info exists local] && $local ne ""} {
 	    if {[file exists $local]} {
 		catch {source $local} r eo
-		Debug.log {Site LOCAL: '$r' ($eo)}
+		Debug.log {Site LOCAL ($local): '$r' ($eo)}
 	    }
 	}
 
