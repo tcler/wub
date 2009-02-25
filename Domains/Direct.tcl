@@ -286,6 +286,12 @@ class create Direct {
 	    if {[info exists namespace]} {
 		error "Direct domain: can only specify one of object or namespace"
 	    }
+
+	    # object name must be fully ns-qualified
+	    if {![string match "::*" $object]} {
+		set object ::$object
+	    }
+
 	    foreach m [lreverse [lsort -dictionary [info object methods $object -all]]] {
 		if {[string match /* $m]} {
 		    dict add methods $m {}
