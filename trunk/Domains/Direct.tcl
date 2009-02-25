@@ -304,7 +304,7 @@ class create Direct {
 		    dict set methods $m {}
 		}
 	    }
-	    objdefine $object export {*}[info object methods $object -all] {*}[dict keys {*}$methods]
+	    objdefine $object export {*}[info object methods $object -all] {*}[dict keys $methods]
 
 	} else {
 	    # namespace must be fully qualified
