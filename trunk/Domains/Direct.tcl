@@ -31,7 +31,7 @@ set API(Direct) {
 }
 
 class create Direct {
-    variable namespace object class ctype mount wildcard trim candidates
+    variable namespace object class ctype mount wildcard trim methods
 
     method prefix {path args} {
 	set path [file split $path]
@@ -135,7 +135,7 @@ class create Direct {
 	set cmd ""
 	while {$cmd eq "" && [llength $cprefix]} { 
 	    Debug.direct {searching for ($cprefix) in '$namespace'}
-	    set probe [dict keys $candidates /[join $cprefix /]]
+	    set probe [dict keys $methods /[join $cprefix /]]
 	    # this strict match can only have 1 or 0 results
 	    if {[llength $probe == 1]} {
 		set cmd $probe
@@ -149,10 +149,10 @@ class create Direct {
 
 	# no match - use wildcard method
 	if {$cmd eq ""} {
-	    Debug.direct {$cmd not found looking for $fn in '$namespace' ($candidates)}
+	    Debug.direct {$cmd not found looking for $fn in '$namespace' ($methods)}
 	    set cmd $wildcard
-	    if {![dict exists $candidates $cmd] eq {}} {
-		Debug.direct {default not found looking for $cmd in ($candidates)}
+	    if {![dict exists $methods $cmd] eq {}} {
+		Debug.direct {default not found looking for $cmd in ($methods)}
 		return [Http NotFound $rsp]
 	    }
 	} else {
@@ -299,12 +299,12 @@ class create Direct {
 		set object ::$object
 	    }
 
-	    foreach m [lreverse [lsort -dictionary [info object candidates $object -private -all]]] {
+	    foreach m [lreverse [lsort -dictionary [info object methods $object -private -all]]] {
 		if {[string match /* $m]} {
-		    dict set candidates $m {}
+		    dict set methods $m {}
 		}
 	    }
-	    objdefine $object export {*}[info object methods $object -all] {*}[dict keys $candidates]
+	    objdefine $object export {*}[info object methods $object -all] {*}[dict keys $methods]
 
 	} else {
 	    # namespace must be fully qualified
