@@ -160,7 +160,7 @@ class create Direct {
 	    set params [lrange $def 0 end-1]	;# remove args from params
 	} else {
 	    set needargs 0
-	    set params [lrange $def 0 end]
+	    set params $def
 	}
 
 	set qd [dict get $rsp -Query]
