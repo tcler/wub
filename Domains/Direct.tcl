@@ -59,7 +59,7 @@ class create Direct {
 	# no match - use wildcard proc
 	if {$cmd eq ""} {
 	    Debug.direct {no match looking for '$fn' in '$namespace' ([info procs ${namespace}::/*])}
-	    set cmd ${namespace}::/$wildcard
+	    set cmd ${namespace}::$wildcard
 	    if {[info commands $cmd] eq {}} {
 		Debug.direct {default not found looking for $cmd in ([info procs ${namespace}::/*])}
 		return [Http NotFound $rsp]
@@ -146,7 +146,7 @@ class create Direct {
 	# no match - use wildcard method
 	if {$cmd eq ""} {
 	    Debug.direct {$cmd not found looking for $fn in '$namespace' ($methods)}
-	    set cmd /$wildcard
+	    set cmd $wildcard
 	    if {![dict exists $methods $cmd] eq {}} {
 		Debug.direct {default not found looking for $cmd in ($methods)}
 		return [Http NotFound $rsp]
@@ -306,5 +306,6 @@ class create Direct {
 		set namespace ::$namespace
 	    }
 	}
+	set wildcard /[string trim $wildcard /]
     }
 }
