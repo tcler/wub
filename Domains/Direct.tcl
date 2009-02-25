@@ -58,7 +58,6 @@ class create Direct {
 	    lappend extra [lindex $cprefix end]
 	    set cprefix [lrange $cprefix 0 end-1]
 	}
-	dict set rsp -extra [file join [lreverse $extra]]	;# record the extra parts of the domain
 
 	# no match - use wildcard proc
 	if {$cmd eq ""} {
@@ -68,6 +67,8 @@ class create Direct {
 		Debug.direct {default not found looking for $cmd in ([info procs ${namespace}::/*])}
 		return [Http NotFound $rsp]
 	    }
+	} else {
+	    dict set rsp -extra [file join [lreverse $extra]]	;# record the extra parts of the domain
 	}
 
 	set params [lrange [info args $cmd] 1 end]
@@ -145,7 +146,6 @@ class create Direct {
 	    lappend extra [lindex $cprefix end]	;# remember the non-matching bits
 	    set cprefix [lrange $cprefix 0 end-1]
 	}
-	dict set rsp -extra [file join [lreverse $extra]]	;# record the extra parts of the domain
 
 	# no match - use wildcard method
 	if {$cmd eq ""} {
@@ -155,6 +155,8 @@ class create Direct {
 		Debug.direct {default not found looking for $cmd in ($candidates)}
 		return [Http NotFound $rsp]
 	    }
+	} else {
+	    dict set rsp -extra [file join [lreverse $extra]]	;# record the extra parts of the domain
 	}
 
 	# get the formal parameters of the method
