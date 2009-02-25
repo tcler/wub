@@ -644,7 +644,12 @@ namespace eval Nub {
 		
 		    code {
 			append switch [string map [list %H $host %U $url %CT [dict get $body ctype] %C [dict get $body content]] {
-			    "%H,%U" {Http Ok $r [%C] %CT}
+			    "%H,%U" {
+				dict set r -code 200
+				dict set r content-type %CT
+				set content [%C]	;# permits mods to $r
+				Http Pass $r $content
+			    }
 			}]
 		    }
 		    default {
@@ -690,8 +695,7 @@ namespace eval Nub {
 	}
 
 	# ASSEMBLE
-	set default {default {Http NotFound $r}}
-	set p [string map [list %B $blocking %RW $rw %RD $redirecting %DEF $default %D $definitions %S $switch] {
+	set p [string map [list %B $blocking %RW $rw %RD $redirecting %D $definitions %S $switch] {
 	    proc ::Httpd::do {op r} {
 		variable defs
 		if {[info exists defs]} {
@@ -732,7 +736,10 @@ namespace eval Nub {
 		    # Processing
 		    switch -glob -- [dict get $r -host],[dict get $r -path] {
 			%S
-			%DEF
+			default {
+			    set r [Http NotFound $r]
+			    <p> "[dict get $r -uri] Not Found."
+			}
 		    }
 		    # nothing should be put here
 		}
@@ -849,7 +856,6 @@ namespace eval Nub {
     }
 
     variable nubdirSys [file join [file dirname [info script]] nubs]
-    variable nubdir
     proc configF {file} {
 	variable nubdirSys
 	variable nubdir
