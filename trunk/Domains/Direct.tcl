@@ -31,7 +31,7 @@ set API(Direct) {
 }
 
 class create Direct {
-    variable namespace object class ctype mount wildcard trim
+    variable namespace object class ctype mount wildcard trim methods
 
     method do_ns {rsp} {
 	Debug.direct {do direct $namespace $mount $ctype}
