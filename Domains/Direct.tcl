@@ -42,7 +42,10 @@ class create Direct {
 	set cprefix [file split [armour $fn]]
 	set extra {}
 	while {$cmd eq "" && [llength $cprefix]} { 
-	    set probe [info commands ${namespace}::/[string trim [join $cprefix /] /]*]
+	    set probe [info commands ${namespace}::/[string trim [join $cprefix /] /]]
+	    if {[llength $probe] == 0} {
+		set probe [info commands ${namespace}::/[string trim [join $cprefix /] /]*]
+	    }
 	    Debug.direct {searching for ($cprefix) in '$namespace' among $probe}
 	    if {[llength $probe] == 0} {
 		lappend extra [lindex $cprefix end]
@@ -130,7 +133,10 @@ class create Direct {
 	set cmd ""
 	while {$cmd eq "" && [llength $cprefix]} { 
 	    Debug.direct {searching for ($cprefix) in '$namespace'}
-	    set probe [dict keys $methods /[join $cprefix /]*]
+	    set probe [dict keys $methods /[join $cprefix /]]
+	    if {[llength $probe] == 0} {
+		set probe [dict keys $methods /[join $cprefix /]*]
+	    }
 	    if {[llength $probe] == 0} {
 		lappend extra [lindex $cprefix end]
 		set cprefix [lrange $cprefix 0 end-1]
