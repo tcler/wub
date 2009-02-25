@@ -206,6 +206,19 @@ namespace eval Cookies {
 	return $cookies
     }
 
+    # construct a unique name for cookie storage
+    # cookies are distinguished by -name, -domain and -path qualifiers
+    proc unique {cookie} {
+	Debug.cookies {unique: $cookie} 10
+	if {![dict exists $cookie -domain]} {
+	    dict set cookie -domain ""
+	}
+	if {![dict exists $cookie -path]} {
+	    dict set cookie -path ""
+	}
+	return [list [dict get $cookie -domain] [dict get $cookie -path] [dict get $cookie -name]]
+    }
+
     # decode a cookie header received from a server into a dict
     proc parse4client {cookies {now ""}} {
 	# get a time value as a base for expiry calculations
@@ -358,6 +371,24 @@ namespace eval Cookies {
 	#set rsp [Http Vary $rsp set-cookie]	;# cookies are significant to caching
     }
 
+    # jiggery pokery to get around the fact that browsers
+    # don't send attrs with cookies, but just send multiple cookie assignments
+    # so we have to have multiple -valueN elements if this occurs.  Le Sigh.
+    proc setVal {cdict attrs} {
+	set cname [unique $attrs]
+
+	set cnt 0
+	if {[dict exists $cdict $cname]} {
+	    dict set cdict $cname [dict merge $attrs [dict get $cdict $cname]]
+	    while {[dict exists $cdict $cname value[incr cnt]]} {}	;# get unique 'value' name
+	    dict set cdict $cname -value$cnt [dict get $attrs -value]	;# add a valueN element
+	} else {
+	    dict set cdict $cname $attrs	;# this is truly unique, so just set it
+	}
+
+	return $cdict
+    }
+
     # decode a cookie header received from a client.
     proc parse4server {cookies} {
 	Debug.cookies {PARSING '$cookies'} 10
@@ -377,7 +408,7 @@ namespace eval Cookies {
 
 	# process each cookie from client
 	set cname ""
-	set attrs [dict create]
+	set attrs {}
 	set version 0
 	foreach cookie $cookies {
 	    set cookie [string trim [string map [array get quoted] $cookie]]
@@ -399,9 +430,8 @@ namespace eval Cookies {
 		    # we have the full dict for previous cookie,
 		    # save it uniquely in cdict
 		    dict set attrs -version $version
-		    set cname [unique $attrs]
-		    dict set cdict $cname $attrs
-		    set attrs [dict create]
+		    set cdict [setVal $cdict $attrs]
+		    set attrs {}
 		}
 
 		# it's a value name, but we can't store it
@@ -414,8 +444,7 @@ namespace eval Cookies {
 	# store final cookie's values
 	if {[dict size $attrs] != 0} {
 	    dict set attrs -version $version
-	    set cname [unique $attrs]
-	    dict set cdict $cname $attrs
+	    set cdict [setVal $cdict $attrs]
 	}
 
 	Debug.cookies {parsed: '$cdict'} 2
@@ -438,19 +467,6 @@ namespace eval Cookies {
 	    dict set req -cookies [parse4server [dict get $req cookie]]
 	}
 	return $req
-    }
-
-    # construct a unique name for cookie storage
-    # cookies are distinguished by -name, -domain and -path qualifiers
-    proc unique {cookie} {
-	Debug.cookies {unique: $cookie} 10
-	if {![dict exists $cookie -domain]} {
-	    dict set cookie -domain ""
-	}
-	if {![dict exists $cookie -path]} {
-	    dict set cookie -path ""
-	}
-	return [list [dict get $cookie -domain] [dict get $cookie -path] [dict get $cookie -name]]
     }
 
     # return a list of unique cookie names within cookies dict
