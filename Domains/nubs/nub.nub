@@ -1,4 +1,4 @@
-code default {Http NotFound $r}
+code default {set r [Http NotFound $r]; <p> "[dict get $r -uri] Not Found"}
 rewrite /moop {
     return /wub
 }
