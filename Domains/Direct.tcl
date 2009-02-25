@@ -296,16 +296,16 @@ class create Direct {
 
 	    # object name must be fully ns-qualified
 	    if {![string match "::*" $object]} {
-		set object
- ::$object
+		set object ::$object
 	    }
 
-	    foreach m [lreverse [lsort -dictionary [info object methods $object -all]]] {
+	    foreach m [lreverse [lsort -dictionary [info object methods $object -private -all]]] {
 		if {[string match /* $m]} {
 		    dict set methods $m {}
 		}
 	    }
-	    
+	    objdefine $object export {*}[info object methods $object -all] {*}[dict keys {*}methods]
+
 	} else {
 	    # namespace must be fully qualified
 	    if {![string match "::*" $namespace]} {
