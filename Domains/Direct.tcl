@@ -137,7 +137,7 @@ class create Direct {
 	    Debug.direct {searching for ($cprefix) in '$namespace'}
 	    set probe [dict keys $methods /[join $cprefix /]]
 	    # this strict match can only have 1 or 0 results
-	    if {[llength $probe == 1]} {
+	    if {[llength $probe] == 1} {
 		set cmd $probe
 		break
 	    }
