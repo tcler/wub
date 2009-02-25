@@ -293,6 +293,10 @@ class create Direct {
 	    }
 	    
 	} else {
+	    # namespace must be fully qualified
+	    if {![string match "::*" $namespace]} {
+		set namespace ::$namespace
+	    }
 	}
     }
 }
