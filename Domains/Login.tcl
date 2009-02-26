@@ -7,12 +7,15 @@ set API(Login) {
     {
 	Login is a [Direct] domain for simple cookie-based login account management.
 
+	Login requires an account [View] which contains at least a user and password field, these allow a user to log.  It can perform in a permissive mode, which allows anonymous account creation, or (the default) can refuse to create a new account from the login form.  In this case, the /new url can be used to construct a new user (/new can paramterised as any URL, and can be called from another [Direct] domain to compose a new user creation form.)
+
 	== Methods ==
-	;user $r {user ""}: fetches account record of the specified user, or the logged-in user if blank.
-	;set $r args: sets account record of user (specified by the value of the user field.)
+	;user r {user ""}: fetches account record of the specified user, or the logged-in user if blank.
+	;set r args: sets account record of user (specified by the value of the user field.)
 	;account args: evaluates args over the account [View] or (if empty args) returns the [View].
-	;clear $r: clears all login cookies - effectively logging user out
-	
+	;clear r: clears all login cookies - effectively logging user out
+	;login r index {user ""} {password ""}: performs login from code, given at least account index of user to log in.
+
 	== URLs ==
 	;/login args: logs in the current user, must specify user and password fields
 	;/logout {url ""}: logs out the current user, then redirects to specified url
@@ -44,7 +47,7 @@ package require Cookies
 package provide Login 1.0
 
 class create Login {
-    variable account realm properties cookie age emptypass userF passF cpath domain forms keys jQ permissive autocommit
+    variable account realm properties cookie age emptypass userF passF cpath domain forms keys jQ permissive autocommit new
 
     # fetch account record of logged-in user
     method user {r {user ""}} {
@@ -269,6 +272,53 @@ class create Login {
 	}
     }
 
+    method /new {r args} {
+	set record [user $args]
+	if {$record ne ""} {
+	    return [my logerr $r "There's already a user [dict get $args $argF]"]
+	}
+	set index [$account append $userF $user $passF $password]
+    }
+
+    # perform the login of user at $index
+    method login {r index {user ""} {password ""}} {
+	if {$user eq ""} {
+	    # fetch user details
+	    lassign [$account get $index $userF $passF] user password
+	}
+    	if {[dict exists $r -cookies]} {
+	    set cdict [dict get $r -cookies]
+	} else {
+	    set cdict {}
+	}
+
+	# construct a login record keyed by md5
+	set key [::md5::md5 -hex "[clock microseconds]$user$password"]
+	set keys($key) [list user $user password $password "" $index]
+	Debug.login {login: created key $key}
+
+	set cd [list -name $cookie -value $key]
+	
+	# include an optional expiry age for the cookie
+	if {[info exists age] && $age} {
+	    dict set cd -expires $age
+	}
+	
+	# determine the right domain/path for the cookie
+	if {[info exists domain] && $domain ne ""} {
+	    dict set cd -domain $domain
+	}
+	
+	# add in the cookies
+	foreach cp $cpath {
+	    set cdict [Cookies add $cdict {*}$cd -path $cp]
+	}
+	dict set r -cookies $cdict
+	Debug.login {login: added cookie $cookie to $cdict}
+
+	return $r
+    }
+
     # login from a form
     method /login {r args} {
 	set r [Http NoCache $r]
@@ -300,7 +350,13 @@ class create Login {
 		set index [$account append $userF $user $passF $password]
 	    } else {
 		Debug.login {/login: no such user}
-		return [my logerr $r "There is no such user as '$user'." $url]
+		if {$new eq ""} {
+		    return [my logerr $r "There is no such user as '$user'." $url]
+		} else {
+		    # redirect to a new URL for collecting account information
+		    # the URL can decide to grant an account using /new
+		    return [Http Redirect $req $new]
+		}
 	    }
 	}
 
@@ -312,37 +368,9 @@ class create Login {
 	    Debug.login {/login: passwords don't match}
 	    return [my logerr $r "Password doesn't match for '$user'." $url]
 	}
+
+	set r [login $r $index $user $password]
 	
-	if {[dict exists $r -cookies]} {
-	    set cdict [dict get $r -cookies]
-	} else {
-	    set cdict {}
-	}
-
-	# construct a login record keyed by md5
-	set key [::md5::md5 -hex "[clock microseconds]$user$password"]
-	set keys($key) [list user $user password $password "" $index]
-	Debug.login {/login: created key $key}
-
-	set cd [list -name $cookie -value $key]
-
-	# include an optional expiry age for the cookie
-	if {[info exists age] && $age} {
-	    dict set cd -expires $age
-	}
-
-	# determine the right domain/path for the cookie
-	if {[info exists domain] && $domain ne ""} {
-	    dict set cd -domain $domain
-	}
-
-	# add in the cookies
-	foreach cp $cpath {
-	    set cdict [Cookies add $cdict {*}$cd -path $cp]
-	}
-	dict set r -cookies $cdict
-
-	Debug.login {/login: added cookie $cookie to $cdict}
 	if {$jQ} {
 	    # assume the .form plugin is handling this.
 	    return [Http Ok $r [<message> "User $user Logged in."]]
@@ -371,6 +399,7 @@ class create Login {
 	set realm "Login [self]"	;# login for Basic AUTH
 	set permissive 0	;# no you can't have a login
 	set autocommit 1	;# commit on each write
+	set new ""		;# url to redirect to on new user creation request
 
 	dict for {n v} $args {
 	    set $n $v
