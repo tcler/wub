@@ -5,7 +5,8 @@ namespace import oo::*
 
 set API(Login) {
     {
-	Login is a [Direct] domain for simple cookie-based login account management and a is simultaneously repository for user-specific field values.
+	== Login Domain ==
+	Login is a domain for simple cookie-based login account management and a is simultaneously repository for user-specific field values.  It is intended to be constructed under a [Direct] domain, as illustrated in the example below.
 
 	== Operation ==
 	Login provides a /login url to authenticate a user by password, and generate a cookie recording this authentication.  /logout removes the login cookies.
@@ -13,6 +14,8 @@ set API(Login) {
 	/login can operate in a ''permissive'' mode (which allows anonymous account creation,) but the default response to non-existent user is to redirect to the url /new which will collect account information construct a new user.
 
 	The provided /new will refuse to create duplicate users, and also refuse blank users and (by default) blank passwords.
+
+	The /logout url will remove all the login cookies, logging the user out.
 
 	Login also provides a /form url which either returns a form suitable to /login, or a button to /logout a user.
 
@@ -39,11 +42,51 @@ set API(Login) {
 	Login requires an account [View] which contains at least ''user'' and ''password'' fields, these are the minimum to allow a user to log in.  In addition, a field password_old is available as a fallback password, useful in the case of incomplete password changes.  Any other fields in the View are available to be stored and fetched by /set and /get (respectively.)
 
 	== Methods ==
-	;user r {user ""}: fetches account record of the specified user, or the logged-in user if blank.
-	;set r args: sets account record of user (specified by the value of the user field.)
-	;account args: evaluates args over the account [View] or (if empty args) returns the [View].
-	;clear r: clears all login cookies - effectively logging user out
+	;user r {user ""}: fetches account record of the specified user, or the logged-in user if no user is specified.  If the data can't be fetched (if, for example, there's no user logged in) then this method returns an empty list.  This can be reliably used to determine the identity of a logged-in user.
+	;set r args: sets fields in the account record of user according to the dict in $args.
+	;account args: evaluates args over the account [View] or (if empty args) returns the [View].  This can be used to process the account database.
+	;clear r: clears any login cookies for this instance of Login - effectively logging user out
 	;login r index {user ""} {password ""}: performs login from code, given at least account index of user to log in.
+
+	== Forms ==
+	Login requires several predefined forms, and these can be overriden with a ''forms'' configuration variable whose value is some or all of the forms in a dictionary.
+
+	;forms login: is returned by /form to allow login.  It must at least provide the ''user'' and ''password'' variables.
+	;forms logout: is returned by /form to allow logout.  It should allow the user to invoke the /logout url.
+	;forms new: is used by /new, when a new account is to be created.  It may collect and deliver any variable/values to /new, all of which will be stored with the user.  It must at least provide the ''user'' and ''password'' variables.
+	;forms logmsg: is used to indicate errors and successes.
+
+	== Example ==
+	This code illustrates how Login can be used to control the domain /cookie/
+
+	   package require Login
+	   package require Direct
+
+	   # create a Login object called ::L which uses the account view
+	   # to store user account data.
+	   # it will commit to the account db immediately upon each modification
+	   # it will service the /cookie/ domain, enabling any url handler under /cookie/
+	   # access to the account db
+	   Login ::L account {
+	       db accountdb file account.db layout {user:S password:S args:S}
+	   } cpath /cookie/ jQ 1 autocommit 1
+
+	   # construct a Direct Login domain under /login
+	   # it uses the account file specified, and generates cookies for /cookie/ domain
+	   Nub domain /login/ Direct object ::L ctype x-text/html-fragment
+	
+	   # this is a test page for Login.  It will permit you to log in with a new account,
+	   # (invoking /new for collection of account information) and will display the user
+	   # account information recorded in the database for user.
+	   Nub code /login/test {
+	       set r [::L /form $r]
+	       set user [::L user $r]
+	       set cdict [Dict get? $r -cookies]
+	    
+	       set result [dict get $r -content]
+	       append result [<div> id message {}]
+	       append result [<p> "User: $user"]
+	   }
     }
     account {View for storing accounts (must have at least user and password fields)}
     cookie {cookie for storing tub key (default: tub)}
@@ -278,7 +321,7 @@ class create Login {
     }
 
     # send the client to a page indicating the failure of their login
-    method logerr {r {message "Login Failed"} {url ""}} {
+    method logmsg {r {message "Login Failed"} {url ""}} {
 	if {$jQ} {
 	    if {0} {
 		set r [jQ postscript $r {
@@ -286,7 +329,7 @@ class create Login {
 		    $('.login').ajaxForm({target:'#message'});
 		}]
 	    }
-	    return [Http Ok $r [subst [dict get $forms logerr]]]
+	    return [Http Ok $r [subst [dict get $forms logmsg]]]
 	} else {
 	    if {$url eq ""} {
 		set url [Http Referer $r]
@@ -294,7 +337,7 @@ class create Login {
 		    set url "http://[dict get $r host]/"
 		}
 	    }
-	    return [Http Forbidden $r [subst [dict get $forms logerr]]]
+	    return [Http Forbidden $r [subst [dict get $forms logmsg]]]
 	}
     }
 
@@ -329,9 +372,9 @@ class create Login {
 	    set index [my new $r {*}$args]
 	    if {$index != -1} {
 		my login $r $index	;# log in the new user
-		return [my logerr $r "New user '[dict get $args $userF]' created"]
+		return [my logmsg $r "New user '[dict get $args $userF]' created"]
 	    } else {
-		return [my logerr $r "There's already a user '[dict get $args $userF]'"]
+		return [my logmsg $r "There's already a user '[dict get $args $userF]'"]
 	    }
 	} else {
 	    # throw up a new user form.
@@ -405,10 +448,10 @@ class create Login {
 
 	# prelim check on args
 	if {$user eq ""} {
-	    return [my logerr $r "Blank username not permitted." $url]
+	    return [my logmsg $r "Blank username not permitted." $url]
 	}
 	if {!$emptypass && $password eq ""} {
-	    return [my logerr $r "Blank password not permitted." $url]
+	    return [my logmsg $r "Blank password not permitted." $url]
 	}
 
 	# find matching user in account
@@ -420,7 +463,7 @@ class create Login {
 	    } else {
 		Debug.login {/login: no such user}
 		if {$new eq ""} {
-		    return [my logerr $r "There is no such user as '$user'." $url]
+		    return [my logmsg $r "There is no such user as '$user'." $url]
 		} else {
 		    # redirect to a new URL for collecting account information
 		    # the URL can decide to grant an account using /new
@@ -435,7 +478,7 @@ class create Login {
 		|| [$account get $index old_$passF] ne $password)	   
 	} {
 	    Debug.login {/login: passwords don't match}
-	    return [my logerr $r "Password doesn't match for '$user'." $url]
+	    return [my logmsg $r "Password doesn't match for '$user'." $url]
 	}
 
 	set r [my login $r $index $user $password]
@@ -476,7 +519,6 @@ class create Login {
 	set cpath ""	;# list of paths for cookies
 	set jQ 1	;# use jQ by default
 	set realm "Login [self]"	;# login for Basic AUTH
-	set permissive 0	;# no you can't have a login
 	set autocommit 1	;# commit on each write
 	set new "new"		;# url to redirect to on new user creation request
 
@@ -503,8 +545,8 @@ class create Login {
 	if {![dict exists $forms logout]} {
 	    dict set forms logout [<a> href [file join $mount logout] Logout]
 	}
-	if {![dict exists $forms logerr]} {
-	    dict set forms logerr {[<message> "$message [<a> href $url {Go Back.}]"]}
+	if {![dict exists $forms logmsg]} {
+	    dict set forms logmsg {[<message> "$message [<a> href $url {Go Back.}]"]}
 	}
 	if {![dict exists $forms new]} {
 	    dict set forms new [<form> newuser action new class login [<fieldset> [subst {
@@ -516,6 +558,7 @@ class create Login {
 		[<br>][<submit> submit value 1]
 	    }]]]
 	}
+
 	# create the data account
 	if {[llength $account] > 1} {
 	    if {[llength $account]%2} {
