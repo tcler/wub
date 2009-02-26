@@ -105,8 +105,9 @@ class create Login {
 
 	# convert dict to json
 	set result {}
-	if {[info exists $record args]} {
-	    set record [dict merge $args $record]	;# merge args field into record
+	if {[dict exists $record args]} {
+	    set record [dict merge [dict get $record args] $record]	;# merge args field into record
+	    dict unset record args
 	}
 	dict for {n v} $record {
 	    if {$n eq ""} continue
@@ -137,7 +138,7 @@ class create Login {
 	dict for {n v} $args {
 	    if {$n eq "args"} continue
 	    if {$n in $properties} {
-		set dict $record $v
+		dict set record $n $v
 		dict unset args $n
 	    }
 	}
@@ -282,32 +283,33 @@ class create Login {
     method new {r args} {
 	# ensure the new record is minimally compliant
 	if {![dict exists $args $userF] || [dict get $args $userF] == 0} {
-	    return 0	;# we refuse to allow blank users
+	    return -1	;# we refuse to allow blank users
 	}
 	if {$emptypass && ![dict exists $args $passF] || [dict get $args $passF] == 0} {
-	    return 0	;# we refuse to allow blank users
+	    return -1	;# we refuse to allow blank users
 	}
 
 	set record [my user $args]
 	if {$record ne ""} {
 	    # the user must be unique
-	    return 0
+	    return -1
 	}
 
 	# create a new account record
 	set user [dict get $args $userF]
-	set password [dict get $passF]
-	set index [$account append $userF $user $passF [dict get $args $password]]
+	set password [dict get $args $passF]
+	set index [$account append $userF $user $passF $password]
 	my set $r {*}$args	;# store the rest of the data
 
-	return 1
+	return $index
     }
 
     # create new user and log them in
     method /new {r {submit 0} args} {
 	if {$submit} {
-	    if {[my new $r {*}$args]} {
-		my login $r $index {*}$args	;# log in the new user
+	    set index [my new $r {*}$args]
+	    if {$index != -1} {
+		my login $r $index	;# log in the new user
 		return [my logerr $r "New user '[dict get $args $userF]' created"]
 	    } else {
 		return [my logerr $r "There's already a user '[dict get $args $userF]'"]
@@ -318,7 +320,9 @@ class create Login {
 		set r [jQ form $r .login target '#message']
 		set r [jQ hint $r]	;# style up the form
 	    }
-	    return [Http Ok $r [dict get $forms new]]
+	    set user [Dict get? $args $userF]
+	    set password [Dict get? $args $passF]
+	    return [Http Ok $r [string map [list %USER $user %PASSWORD $password] [dict get $forms new]]]
 	}
     }
 
@@ -397,7 +401,7 @@ class create Login {
 		} else {
 		    # redirect to a new URL for collecting account information
 		    # the URL can decide to grant an account using /new
-		    return [Http Redirect $r $new "User '$user' doesn't exist.  Create a new user."]
+		    return [Http Redirect $r $new?$userF=$user&$passF=$password "User '$user' doesn't exist.  Create a new user."]
 		}
 	    }
 	}
@@ -472,8 +476,8 @@ class create Login {
 	if {![dict exists $forms new]} {
 	    dict set forms new [<form> newuser action new class login [<fieldset> [subst {
 		[<legend> "Create User"]
-		[<text> $userF title "user id" label "User Id: " ""]
-		[<text> $passF title "password" label "Password: " ""]
+		[<text> $userF title "user id" label "User Id: " "%USER"]
+		[<text> $passF title "password" label "Password: " "%PASSWORD"]
 		[<br>][<text> given title "given name" label "Given: " ""]
 		[<text> surname title "surname" label "Surname: " ""]
 		[<br>][<submit> submit value 1]
