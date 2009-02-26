@@ -95,7 +95,11 @@ class create Login {
 
     # open account view to outside
     method account {args} {
-	return [$account {*}$args]
+	if {[llength $args]} {
+	    return [$account {*}$args]
+	} else {
+	    return $account
+	}
     }
 
     method clear {r} {
