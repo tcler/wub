@@ -5,9 +5,11 @@ namespace import oo::*
 
 set API(Login) {
     {
-	Login is a [Direct] domain for simple cookie-based login account management.
+	Login is a [Direct] domain for simple cookie-based login account management and a repository for user specific field values.
 
 	Login requires an account [View] which contains at least a user and password field, these allow a user to log.  It can perform in a permissive mode, which allows anonymous account creation, or (the default) can refuse to create a new account from the login form.  In this case, the /new url can be used to construct a new user (/new can paramterised as any URL, and can be called from another [Direct] domain to compose a new user creation form.)
+
+	Using the /set URL you can store any data in the account View of the logged-in user from a simple <form>.  The /get method returns this data in JSON format, for AJAX processing.  You don't need to declare the data you wish to store in the user's account record: any fields which appear in the account db layout can be searched and manipulated by server code, and any others are stashed as a tcl dict in the 'args' field of the account record (if it is specified in the db layout.)  This makes Login a general purpose store for associating data with a logged in user.
 
 	== Methods ==
 	;user r {user ""}: fetches account record of the specified user, or the logged-in user if blank.
@@ -22,6 +24,7 @@ set API(Login) {
 	;/form: returns a login form or a logout link, depending on current login status
 	;/get {fields ""}: returns JSON object containing specified account information fields for logged-in user (default: all fields).
 	;/set args: sets account information for logged-in user, suitable for use as the action in a <form>
+	;/new: args stores a new user's data - the user must be unique.  By default, non-permissive /login redirects to /new if the user doesn't exist (redirection may be respecified by the configuration variable new.)
     }
     account {View for storing accounts (must have at least user and password fields)}
     cookie {cookie for storing tub key (default: tub)}
@@ -272,12 +275,37 @@ class create Login {
 	}
     }
 
-    method /new {r args} {
+    method new {r args} {
+	# ensure the new record is minimally compliant
+	if {![dict exists $args $userF] || [dict get $args $userF] == 0} {
+	    return 0	;# we refuse to allow blank users
+	}
+	if {$emptypass && ![dict exists $args $passF] || [dict get $args $passF] == 0} {
+	    return 0	;# we refuse to allow blank users
+	}
+
 	set record [user $args]
 	if {$record ne ""} {
-	    return [my logerr $r "There's already a user [dict get $args $argF]"]
+	    # the user must be unique
+	    return 0
 	}
-	set index [$account append $userF $user $passF $password]
+
+	set index [$account append $userF $user $passF $password]	;# create a new account record
+	my set $r {*}$args	;# store the rest of the data
+	return 1
+    }
+
+    method /new {r {submit 0} args} {
+	if {$submit} {
+	    if {[$new $r {*}$args]} {
+		return [my logerr $r "New user '[dict get $args $argF]' created"]
+	    } else {
+		return [my logerr $r "There's already a user '[dict get $args $argF]'"]
+	    }
+	} else {
+	    # throw up a new user form.
+	    return [dict get $forms new]
+	}
     }
 
     # perform the login of user at $index
@@ -410,6 +438,7 @@ class create Login {
 	if {![info exists forms]} {
 	    set forms {}
 	}
+
 	if {![dict exists $forms login]} {
 	    # forms for Login
 	    dict set forms login [subst {
@@ -426,7 +455,16 @@ class create Login {
 	if {![dict exists $forms logerr]} {
 	    dict set forms logerr {[<message> "$message [<a> href $url {Go Back.}]"]}
 	}
-	
+	if {![dict exists $forms new]} {
+	    dict set forms new [<form> newuser [<fieldset> [subst {
+		[<legend> "Create User"]
+		[<text> $userF title "user id" label "User Id: " ""]
+		[<text> $passF title "password" label "Password: " ""]
+		[<text> given title "given name" label "Given: " ""]
+		[<text> surname title "surname" label "Surname: " ""]
+		[<submit> submit value 1]
+	    }]]]
+	}
 	# create the data account
 	if {[llength $account] > 1} {
 	    if {[llength $account]%2} {
