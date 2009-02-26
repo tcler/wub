@@ -383,7 +383,7 @@ class create Login {
 		} else {
 		    # redirect to a new URL for collecting account information
 		    # the URL can decide to grant an account using /new
-		    return [Http Redirect $req $new]
+		    return [Http Redirect $r $new]
 		}
 	    }
 	}
@@ -427,7 +427,7 @@ class create Login {
 	set realm "Login [self]"	;# login for Basic AUTH
 	set permissive 0	;# no you can't have a login
 	set autocommit 1	;# commit on each write
-	set new ""		;# url to redirect to on new user creation request
+	set new "new"		;# url to redirect to on new user creation request
 
 	dict for {n v} $args {
 	    set $n $v
