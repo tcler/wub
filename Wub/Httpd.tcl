@@ -1,6 +1,5 @@
 # Httpd - near HTTP/1.1 protocol server.
 #
-catch {package require zlib}
 
 # fast read starts a series of tasks to cope with each listener.
 if {[info exists argv0] && ($argv0 eq [info script])} {
@@ -108,13 +107,7 @@ namespace eval Httpd {
     # activity log - array used for centralised timeout
     variable activity
 
-    # arrange gzip Transfer Encoding
-    if {![catch {package require zlib}]} {
-	variable ce_encodings {gzip}
-    } else {
-	variable ce_encodings {}
-    }
-    #set ce_encodings {}	;# uncomment to stop gzip transfers
+    variable ce_encodings {gzip}
     variable te_encodings {chunked}
 
     variable uniq [pid]	;# seed for unique coroutine names
@@ -378,7 +371,7 @@ namespace eval Httpd {
 		    # 204 (no content),
 		    # and 304 (not modified)
 		    # responses MUST NOT include a message-body
-		    set reply [expunge $reply]
+		    set reply [Http expunge $reply]
 		    set content ""
 		    set cache 0	;# can't cache these
 		    set empty 1
