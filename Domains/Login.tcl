@@ -84,6 +84,7 @@ class create Login {
 	# convert dict to json
 	set result {}
 	dict for {n v} $record {
+	    if {$n eq ""} continue
 	    lappend result "\"$n\": \"$v\""
 	}
 	set result \{[join $result ,\n]\}
@@ -128,7 +129,7 @@ class create Login {
 
     # store some data in the user's record
     method /set {r args} {
-	# want logged-in user
+	catch {[dict unset args $userF]}	;# want only logged-in user
 	set record [my set $r {*}$args]
 
 	if {$record ""} {
