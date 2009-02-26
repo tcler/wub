@@ -25,7 +25,6 @@ class create File {
     method dir {req path args} {
 	Debug.file {dir over $path}
 	dict set files .. [list name [<a> href .. ..] type parent]
-	#my variable root hide dateformat
 
 	foreach file [glob -nocomplain -directory $path *] {
 	    Debug.file {dir element $file}
@@ -46,7 +45,6 @@ class create File {
 	set doctitle [string trimright $suffix /]
 	append content [<h1> $doctitle] \n
 
-	#my variable dirparams
 	append content [Report html $files {*}$dirparams headers {name type modified size}] \n
 
 	dict set req -content $content
@@ -57,7 +55,6 @@ class create File {
     }
 
     method do {req} {
-	#my variable mount root
 
 	if {[dict exists $req -suffix]} {
 	    # caller has munged path already
@@ -104,7 +101,6 @@ class create File {
 	}
 	
 	Debug.file {FILE DISPATCH '$path' $req}
-	#my variable expires redirdir
 	Debug.file {Found file '$path' of type [file type $path]}
 	set count 20
 	while {[incr count -1]} {
@@ -135,7 +131,6 @@ class create File {
 		    }
 		    
 		    # try to return an index file's contents in lieue of the directory
-		    #my variable index
 		    if {$index ne ""} {
 			set indices [glob -nocomplain -tails -directory $path $index]
 			if {[llength $indices]} {
@@ -162,7 +157,7 @@ class create File {
 	return [Http NotFound $req "<p>File '$suffix' doesn't resolve to a file.</p>"]
     }
 
-    variable root index mount hide redirdir expires dateformat dirparams
+    variable root index mount hide redirdir expires dateformat dirparams nodir
 
     constructor {args} {
 	set index "index.*"
