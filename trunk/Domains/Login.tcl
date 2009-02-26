@@ -4,7 +4,22 @@ package require TclOO
 namespace import oo::*
 
 set API(Login) {
-    {Login is a domain for simple cookie-based login account management}
+    {
+	Login is a [Direct] domain for simple cookie-based login account management.
+
+	== Methods ==
+	;user $r {user ""}: fetches account record of the specified user, or the logged-in user if blank.
+	;set $r args: sets account record of user (specified by the value of the user field.)
+	;account args: evaluates args over the account [View] or (if empty args) returns the [View].
+	;clear $r: clears all login cookies - effectively logging user out
+	
+	== URLs ==
+	;/login args: logs in the current user, must specify user and password fields
+	;/logout {url ""}: logs out the current user, then redirects to specified url
+	;/form: returns a login form or a logout link, depending on current login status
+	;/get: returns JSON object containing account information for logged-in user
+	;/set args: sets account information for logged-in user
+    }
     account {View for storing accounts (must have at least user and password fields)}
     cookie {cookie for storing tub key (default: tub)}
     age {cookie age}
