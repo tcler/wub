@@ -55,8 +55,8 @@ class create Direct {
 
 	    # there's no exact match, so trim cprefix and try again.
 	    Debug.direct {searching for ($cprefix) in '$namespace' among $probe}
-	    lappend extra [lindex $cprefix end]
-	    set cprefix [lrange $cprefix 0 end-1]
+	    lappend extra [lindex $cprefix end]		;# remember trailing part of url
+	    set cprefix [lrange $cprefix 0 end-1]	;# trim url and try again
 	}
 
 	# no match - use wildcard proc
