@@ -18,6 +18,7 @@ package ifneeded CGI 1.0 [list source [file join $dir CGI.tcl]]
 package ifneeded Icons 1.0 [list source [file join $dir Icons Icons.tcl]]
 package ifneeded Tub 1.0 [list source [file join $dir Tub.tcl]]
 #package ifneeded CA 1.0 [list source [file join $dir CA.tcl]]
+package ifneeded Login 1.0 [list source [file join $dir Login.tcl]]
 
 #package ifneeded Host 2.0 [list source [file join $dir Host.tcl]]
 #package ifneeded Cache 1.0 [list source [file join $dir Cache.tcl]]
