@@ -82,7 +82,7 @@ class create Login {
 	} else {
 	    # passed in a user key - search for it
 	    Debug.login {user for '$user'}
-	    if {[catch {$accound find $userF $user} index]} {
+	    if {[catch {$account find $userF $user} index]} {
 		Debug.login {no such user '$user'}
 		return ""
 	    }
@@ -284,7 +284,7 @@ class create Login {
 	    return 0	;# we refuse to allow blank users
 	}
 
-	set record [user $args]
+	set record [my user $args]
 	if {$record ne ""} {
 	    # the user must be unique
 	    return 0
@@ -297,7 +297,7 @@ class create Login {
 
     method /new {r {submit 0} args} {
 	if {$submit} {
-	    if {[$new $r {*}$args]} {
+	    if {[my new $r {*}$args]} {
 		return [my logerr $r "New user '[dict get $args $argF]' created"]
 	    } else {
 		return [my logerr $r "There's already a user '[dict get $args $argF]'"]
@@ -397,7 +397,7 @@ class create Login {
 	    return [my logerr $r "Password doesn't match for '$user'." $url]
 	}
 
-	set r [login $r $index $user $password]
+	set r [my login $r $index $user $password]
 	
 	if {$jQ} {
 	    # assume the .form plugin is handling this.
@@ -456,7 +456,7 @@ class create Login {
 	    dict set forms logerr {[<message> "$message [<a> href $url {Go Back.}]"]}
 	}
 	if {![dict exists $forms new]} {
-	    dict set forms new [<form> newuser [<fieldset> [subst {
+	    dict set forms new [<form> newuser action new [<fieldset> [subst {
 		[<legend> "Create User"]
 		[<text> $userF title "user id" label "User Id: " ""]
 		[<text> $passF title "password" label "Password: " ""]
