@@ -79,7 +79,7 @@ class create Login {
 
     # return data stored in user record
     method /get {r args} {
-	set record [user $r]
+	set record [my user $r]
 
 	# convert dict to json
 	set result {}
@@ -94,10 +94,10 @@ class create Login {
     method set {r args} {
 	if {[dict exists $args $userF]} {
 	    # specified user
-	    set record [user $r [dict get $args $userF]]
+	    set record [my user $r [dict get $args $userF]]
 	} else {
 	    # want logged-in user
-	    set record [user $r]
+	    set record [my user $r]
 	}
 
 	if {$record ""} {
@@ -129,7 +129,7 @@ class create Login {
     # store some data in the user's record
     method /set {r args} {
 	# want logged-in user
-	set record [set $r {*}$args]
+	set record [my set $r {*}$args]
 
 	if {$record ""} {
 	    return [Http NotFound $r [<p> "Not logged in"]]
