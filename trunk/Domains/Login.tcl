@@ -74,6 +74,7 @@ class create Login {
 		} else {
 		    Debug.login {bogus key: $key}
 		    set r [my clear $r]
+		    return ""
 		}
 	    } {
 		Debug.login {no user logged in under cookie '$cookie'}
@@ -126,7 +127,7 @@ class create Login {
 	    set record [my user $r]
 	}
 
-	if {$record ""} {
+	if {$record eq ""} {
 	    return ""
 	}
 
@@ -148,7 +149,9 @@ class create Login {
 
 	set record [dict merge $record $args]
 	$account set $index {*}$record
-	$account db commit
+	if {$autocommit} {
+	    $account db commit
+	}
 	return $record
     }
 
@@ -157,7 +160,7 @@ class create Login {
 	catch {[dict unset args $userF]}	;# want only logged-in user
 	set record [my set $r {*}$args]
 
-	if {$record ""} {
+	if {$record eq ""} {
 	    return [Http NotFound $r [<p> "Not logged in"]]
 	} else {
 	    return [Http Ok $r [<message> "User $user Logged in."]]
@@ -275,6 +278,7 @@ class create Login {
 	}
     }
 
+    # create new user
     method new {r args} {
 	# ensure the new record is minimally compliant
 	if {![dict exists $args $userF] || [dict get $args $userF] == 0} {
@@ -290,21 +294,31 @@ class create Login {
 	    return 0
 	}
 
-	set index [$account append $userF $user $passF $password]	;# create a new account record
+	# create a new account record
+	set user [dict get $args $userF]
+	set password [dict get $passF]
+	set index [$account append $userF $user $passF [dict get $args $password]]
 	my set $r {*}$args	;# store the rest of the data
+
 	return 1
     }
 
+    # create new user and log them in
     method /new {r {submit 0} args} {
 	if {$submit} {
 	    if {[my new $r {*}$args]} {
-		return [my logerr $r "New user '[dict get $args $argF]' created"]
+		my login $r $index {*}$args	;# log in the new user
+		return [my logerr $r "New user '[dict get $args $userF]' created"]
 	    } else {
-		return [my logerr $r "There's already a user '[dict get $args $argF]'"]
+		return [my logerr $r "There's already a user '[dict get $args $userF]'"]
 	    }
 	} else {
 	    # throw up a new user form.
-	    return [dict get $forms new]
+	    if {$jQ} {
+		set r [jQ form $r .login target '#message']
+		set r [jQ hint $r]	;# style up the form
+	    }
+	    return [Http Ok $r [dict get $forms new]]
 	}
     }
 
@@ -383,7 +397,7 @@ class create Login {
 		} else {
 		    # redirect to a new URL for collecting account information
 		    # the URL can decide to grant an account using /new
-		    return [Http Redirect $r $new]
+		    return [Http Redirect $r $new "User '$user' doesn't exist.  Create a new user."]
 		}
 	    }
 	}
@@ -456,13 +470,13 @@ class create Login {
 	    dict set forms logerr {[<message> "$message [<a> href $url {Go Back.}]"]}
 	}
 	if {![dict exists $forms new]} {
-	    dict set forms new [<form> newuser action new [<fieldset> [subst {
+	    dict set forms new [<form> newuser action new class login [<fieldset> [subst {
 		[<legend> "Create User"]
 		[<text> $userF title "user id" label "User Id: " ""]
 		[<text> $passF title "password" label "Password: " ""]
-		[<text> given title "given name" label "Given: " ""]
+		[<br>][<text> given title "given name" label "Given: " ""]
 		[<text> surname title "surname" label "Surname: " ""]
-		[<submit> submit value 1]
+		[<br>][<submit> submit value 1]
 	    }]]]
 	}
 	# create the data account
@@ -502,7 +516,7 @@ if {0} {
     # example of how Login might be used to control the domain /cookie/
     package require Login 
     Debug on login 100
-    Nub domain /login/ Direct object {Login ::L account {db accountdb file account.db layout {user:S password:S args:S}} cpath /cookie/ permissive 1 jQ 1} ctype x-text/html-fragment
+    Nub domain /login/ Direct object {Login ::L account {db accountdb file account.db layout {user:S password:S args:S}} cpath /cookie/ permissive 0 jQ 1 autocommit 1} ctype x-text/html-fragment
     
     Nub code /login/test {
 	set r [::L /form $r]
