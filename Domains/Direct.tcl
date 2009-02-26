@@ -126,7 +126,7 @@ class create Direct {
 
     # locate a matching direct method in an object
     method do_obj {rsp} {
-	Debug.direct {do direct $namespace $mount $ctype}
+	Debug.direct {do direct $object $mount $ctype}
 	
 	# search for a matching command prefix
 	set fn [dict get $rsp -suffix]
@@ -134,7 +134,7 @@ class create Direct {
 	set extra {}
 	set cmd ""
 	while {$cmd eq "" && [llength $cprefix]} { 
-	    Debug.direct {searching for ($cprefix) in '$namespace'}
+	    Debug.direct {searching for ($cprefix) in '$object'}
 	    set probe [dict keys $methods /[join $cprefix /]]
 	    # this strict match can only have 1 or 0 results
 	    if {[llength $probe] == 1} {
@@ -149,7 +149,7 @@ class create Direct {
 
 	# no match - use wildcard method
 	if {$cmd eq ""} {
-	    Debug.direct {$cmd not found looking for $fn in '$namespace' ($methods)}
+	    Debug.direct {$cmd not found looking for $fn in '$object' ($methods)}
 	    set cmd $wildcard
 	    if {![dict exists $methods $cmd] eq {}} {
 		Debug.direct {default not found looking for $cmd in ($methods)}
@@ -294,9 +294,17 @@ class create Direct {
 		error "Direct domain: can only specify one of object or namespace"
 	    }
 
-	    # object name must be fully ns-qualified
-	    if {![string match "::*" $object]} {
-		set object ::$object
+	    if {[llength $object] == 1} {
+		# object name must be fully ns-qualified
+		if {![string match "::*" $object]} {
+		    set object ::$object
+		}
+	    } elseif {[llength $object]%2} {
+		Debug.direct {[lindex $object 0] new {*}[lrange $object 1 end] mount $mount}
+		set object [[lindex $object 0] new {*}[lrange $object 1 end] mount $mount]
+	    } else {
+		Debug.direct {[lindex $object 0] new {*}[lrange $object 1 end] mount $mount}
+		set object [[lindex $object 0] create {*}[lrange $object 1 end] mount $mount]
 	    }
 
 	    foreach m [lreverse [lsort -dictionary [info object methods $object -private -all]]] {
