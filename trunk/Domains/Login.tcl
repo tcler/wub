@@ -98,6 +98,9 @@ class create Login {
 
 	# convert dict to json
 	set result {}
+	if {[info exists $record args]} {
+	    set record [dict merge $args $record]	;# merge args field into record
+	}
 	dict for {n v} $record {
 	    if {$n eq ""} continue
 	    if {$fields ne "" && $n ni $fields} continue
