@@ -5,11 +5,36 @@ namespace import oo::*
 
 set API(Login) {
     {
-	Login is a [Direct] domain for simple cookie-based login account management and a repository for user specific field values.
+	Login is a [Direct] domain for simple cookie-based login account management and a is simultaneously repository for user-specific field values.
 
-	Login requires an account [View] which contains at least a user and password field, these allow a user to log.  It can perform in a permissive mode, which allows anonymous account creation, or (the default) can refuse to create a new account from the login form.  In this case, the /new url can be used to construct a new user (/new can paramterised as any URL, and can be called from another [Direct] domain to compose a new user creation form.)
+	== Operation ==
+	Login provides a /login url to authenticate a user by password, and generate a cookie recording this authentication.  /logout removes the login cookies.
 
-	Using the /set URL you can store any data in the account View of the logged-in user from a simple <form>.  The /get method returns this data in JSON format, for AJAX processing.  You don't need to declare the data you wish to store in the user's account record: any fields which appear in the account db layout can be searched and manipulated by server code, and any others are stashed as a tcl dict in the 'args' field of the account record (if it is specified in the db layout.)  This makes Login a general purpose store for associating data with a logged in user.
+	/login can operate in a ''permissive'' mode (which allows anonymous account creation,) but the default response to non-existent user is to redirect to the url /new which will collect account information construct a new user.
+
+	The provided /new will refuse to create duplicate users, and also refuse blank users and (by default) blank passwords.
+
+	Login also provides a /form url which either returns a form suitable to /login, or a button to /logout a user.
+
+	=== URLs ===
+	;/login args: logs in the current user, must specify user and password fields
+	;/logout {url ""}: logs out the current user, then redirects to specified url
+	;/form: returns a login form or a logout link, depending on current login status
+	;/new: args stores a new user's data - the user must be unique.
+
+	== Repository ==
+	The /set URL stores any data it is passed in the account View of the logged-in user.  It's intended to be invoked from a simple <form>.
+
+	The /get method returns all account data in JSON format, suitable for AJAX processing.
+
+	The data stored with /set doesn't have to be declared: any fields which appear explictly in the account db layout can be searched and manipulated by server db code, and any other fields and values are stashed as a tcl dict in the ''args'' field of the account record (if it is specified in the db layout.)  This makes Login a general purpose store for associating data with a logged in user.
+
+	=== URLS ===
+	;/get {fields ""}: returns JSON object containing specified account information fields for logged-in user (default: all fields).
+	;/set args: sets account information for logged-in user, suitable for use as the action in a <form>
+
+	== Database ==
+	Login requires an account [View] which contains at least ''user'' and ''password'' fields, these are the minimum to allow a user to log in.  In addition, a field password_old is available as a fallback password, useful in the case of incomplete password changes.  Any other fields in the View are available to be stored and fetched by /set and /get (respectively.)
 
 	== Methods ==
 	;user r {user ""}: fetches account record of the specified user, or the logged-in user if blank.
@@ -17,14 +42,6 @@ set API(Login) {
 	;account args: evaluates args over the account [View] or (if empty args) returns the [View].
 	;clear r: clears all login cookies - effectively logging user out
 	;login r index {user ""} {password ""}: performs login from code, given at least account index of user to log in.
-
-	== URLs ==
-	;/login args: logs in the current user, must specify user and password fields
-	;/logout {url ""}: logs out the current user, then redirects to specified url
-	;/form: returns a login form or a logout link, depending on current login status
-	;/get {fields ""}: returns JSON object containing specified account information fields for logged-in user (default: all fields).
-	;/set args: sets account information for logged-in user, suitable for use as the action in a <form>
-	;/new: args stores a new user's data - the user must be unique.  By default, non-permissive /login redirects to /new if the user doesn't exist (redirection may be respecified by the configuration variable new.)
     }
     account {View for storing accounts (must have at least user and password fields)}
     cookie {cookie for storing tub key (default: tub)}
@@ -433,6 +450,16 @@ class create Login {
 	    }
 	    return [Http NoCache [Http SeeOther $r $url "Logged in as $user"]]
 	}
+    }
+
+    method /about {r} {
+	package require textutil
+	set about [string trim [lindex $::API(Login) 0] "\n"]
+	set about [::textutil::untabify $about]
+	set about [::textutil::undent $about]
+	puts stderr "ABOUT: $about"
+
+	return [Http Ok $r $about x-text/stx]
     }
 
     constructor {args} {
