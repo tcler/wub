@@ -23,6 +23,8 @@ set API(Login) {
 	;/new: args stores a new user's data - the user must be unique.
 
 	== Repository ==
+	Login also functions as a repository for form data associated with logged-in users.  You can easily store and data from <form>s and fetch them for javascript processing.
+
 	The /set URL stores any data it is passed in the account View of the logged-in user.  It's intended to be invoked from a simple <form>.
 
 	The /get method returns all account data in JSON format, suitable for AJAX processing.
