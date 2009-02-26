@@ -365,6 +365,10 @@ class create Login {
 	return $r
     }
 
+    method / {r args} {
+	return [/login $r {*}$args]
+    }
+    
     # login from a form
     method /login {r args} {
 	set r [Http NoCache $r]
