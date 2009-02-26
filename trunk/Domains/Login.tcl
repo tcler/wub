@@ -368,3 +368,20 @@ class create Login {
 	Debug.login {constructed [self] $args}
     }
 }
+
+if {0} {
+    # example of how Login might be used to control the domain /cookie/
+    package require Login 
+    Debug on login 100
+    Nub domain /login/ Direct object {Login ::L account {db accountdb file account.db layout {user:S password:S}} cpath /cookie/ permissive 1 jQ 1} ctype x-text/html-fragment
+    
+    Nub code /login/test {
+	set r [::L /form $r]
+	set user [::L user $r]
+	set cdict [Dict get? $r -cookies]
+	
+	set result [dict get $r -content]
+	append result [<div> id message {}]
+	append result [<p> "User: $user"]
+    }
+}
