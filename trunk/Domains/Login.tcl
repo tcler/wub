@@ -87,7 +87,7 @@ class create Login {
 	    lappend result "\"$n\": \"$v\""
 	}
 	set result \{[join $result ,\n]\}
-	return [Http Ok $r $result application/json]
+	return [Http NoCache [Http Ok $r $result application/json]]
     }
 
     # set account record of logged-in user
@@ -109,15 +109,15 @@ class create Login {
 
 	dict for {n v} $args {
 	    if {$n eq "args"} continue
-	    if {[dict exists $record $n]} {
+	    if {$n in $properties} {
 		set dict $record $v
 		dict unset args $n
 	    }
 	}
 
 	# store surplus variables in args, if it exists
-	if {[dict exists $record args]} {
-	    dict set record args [dict merge [dict get $record args] $args]
+	if {"args" in $properties} {
+	    dict set record args [dict merge [Dict get? $record args] $args]
 	}
 
 	set record [dict merge $record $args]
