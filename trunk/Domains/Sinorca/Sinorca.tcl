@@ -132,7 +132,7 @@ namespace eval Sinorca {
 	#puts stderr "SINORCA: [dict keys $page]"
 
 	# process singleton vara
-	foreach var {global header copyright footer navbox} {
+	foreach var {global header copyright footer navbox search} {
 	    set $var {}
 	}
 
@@ -175,8 +175,8 @@ namespace eval Sinorca {
 	    [<div> id mainlink [<a> href "\#main" "Skip to main content."]]
 	    [<div> id header [subst {
 		[<header> $header]
-		[<global> "[Html links $globlinks]\n$global"]
-		[<site> "search [Html links $sitelinks]"]
+		[<global> "[Html links $globlinks]$search$global"]
+		[<site> [Html links $sitelinks]]
 	    }]]
 	    $sidebars
 	    [<content> {*}$mainclass navbox $navbox breadcrumbs $breadcrumbs $content]
