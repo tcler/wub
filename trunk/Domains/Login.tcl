@@ -17,8 +17,8 @@ set API(Login) {
 	;/login args: logs in the current user, must specify user and password fields
 	;/logout {url ""}: logs out the current user, then redirects to specified url
 	;/form: returns a login form or a logout link, depending on current login status
-	;/get: returns JSON object containing account information for logged-in user
-	;/set args: sets account information for logged-in user
+	;/get {fields ""}: returns JSON object containing specified account information fields for logged-in user (default: all fields).
+	;/set args: sets account information for logged-in user, suitable for use as the action in a <form>
     }
     account {View for storing accounts (must have at least user and password fields)}
     cookie {cookie for storing tub key (default: tub)}
@@ -93,13 +93,14 @@ class create Login {
     }
 
     # return data stored in user record
-    method /get {r args} {
+    method /get {r {fields ""}} {
 	set record [my user $r]
 
 	# convert dict to json
 	set result {}
 	dict for {n v} $record {
 	    if {$n eq ""} continue
+	    if {$fields ne "" && $n ni $fields} continue
 	    lappend result "\"$n\": \"$v\""
 	}
 	set result \{[join $result ,\n]\}
