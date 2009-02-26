@@ -15,6 +15,7 @@ set API(Login) {
     userF {field name for user name/id (default: user)}
     passF {field name for password (default: password)}
     permissive {boolean - completely anonymous accounts?}
+    autocommit {boolean - commit on each write?}
 }
 
 package require Debug
@@ -28,7 +29,7 @@ package require Cookies
 package provide Login 1.0
 
 class create Login {
-    variable account realm properties cookie age emptypass userF passF cpath domain forms keys jQ permissive
+    variable account realm properties cookie age emptypass userF passF cpath domain forms keys jQ permissive autocommit
 
     # fetch account record of logged-in user
     method user {r {user ""}} {
@@ -76,6 +77,19 @@ class create Login {
 	}
     }
 
+    # return data stored in user record
+    method /get {r args} {
+	set record [user $r]
+
+	# convert dict to json
+	set result {}
+	dict for {n v} $record {
+	    lappend result "\"$n\": \"$v\""
+	}
+	set result \{[join $result ,\n]\}
+	return [Http Ok $r $result application/json]
+    }
+
     # set account record of logged-in user
     method set {r args} {
 	if {[dict exists $args $userF]} {
@@ -86,11 +100,42 @@ class create Login {
 	    set record [user $r]
 	}
 
-	if {$record ""} return
+	if {$record ""} {
+	    return ""
+	}
+
 	set index [dict get $record ""]; dict unset record ""
-	catch {dict unset args ""}
+	catch {dict unset args ""}	;# remove the index
+
+	dict for {n v} $args {
+	    if {$n eq "args"} continue
+	    if {[dict exists $record $n]} {
+		set dict $record $v
+		dict unset args $n
+	    }
+	}
+
+	# store surplus variables in args, if it exists
+	if {[dict exists $record args]} {
+	    dict set record args [dict merge [dict get $record args] $args]
+	}
+
 	set record [dict merge $record $args]
 	$account set $index {*}$record
+	$account db commit
+	return $record
+    }
+
+    # store some data in the user's record
+    method /set {r args} {
+	# want logged-in user
+	set record [set $r {*}$args]
+
+	if {$record ""} {
+	    return [Http NotFound $r [<p> "Not logged in"]]
+	} else {
+	    return [Http Ok $r [<message> "User $user Logged in."]]
+	}
     }
 
     # open account view to outside
@@ -116,12 +161,8 @@ class create Login {
 	if {![catch {Cookies fetch $cdict -name $cookie} cl]} {
 	    catch {unset keys([dict get $cl -value])}	;# forget key
 	    # clear cookies
-	    if {[info exists cpath] && $cpath ne ""} {
-		foreach cp $cpath {
-		    set cdict [Cookies clear $cdict {*}$cd -path $cp]
-		}
-	    } else {
-		set cdict [Cookies add $cdict {*}$cd]
+	    foreach cp $cpath {
+		set cdict [Cookies clear $cdict {*}$cd -path $cp]
 	    }
 
 	    # rewrite the cleared cookies
@@ -276,12 +317,8 @@ class create Login {
 	}
 
 	# add in the cookies
-	if {[info exists cpath] && $cpath ne ""} {
-	    foreach cp $cpath {
-		set cdict [Cookies add $cdict {*}$cd -path $cp]
-	    }
-	} else {
-	    set cdict [Cookies add $cdict {*}$cd]
+	foreach cp $cpath {
+	    set cdict [Cookies add $cdict {*}$cd -path $cp]
 	}
 	dict set r -cookies $cdict
 
@@ -313,6 +350,7 @@ class create Login {
 	set jQ 1	;# use jQ by default
 	set realm "Login [self]"	;# login for Basic AUTH
 	set permissive 0	;# no you can't have a login
+	set autocommit 1	;# commit on each write
 
 	dict for {n v} $args {
 	    set $n $v
@@ -377,7 +415,7 @@ if {0} {
     # example of how Login might be used to control the domain /cookie/
     package require Login 
     Debug on login 100
-    Nub domain /login/ Direct object {Login ::L account {db accountdb file account.db layout {user:S password:S}} cpath /cookie/ permissive 1 jQ 1} ctype x-text/html-fragment
+    Nub domain /login/ Direct object {Login ::L account {db accountdb file account.db layout {user:S password:S args:S}} cpath /cookie/ permissive 1 jQ 1} ctype x-text/html-fragment
     
     Nub code /login/test {
 	set r [::L /form $r]
