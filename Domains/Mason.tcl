@@ -6,6 +6,7 @@ package require Html
 package require TclOO
 namespace import oo::*
 
+package require Report
 package require Debug
 Debug off mason 10
 
@@ -50,9 +51,13 @@ set API(Mason) {
     notfound {template sought and evaluated when a requested resource can't be located (default .notfound)}
     wrapper {template sought and evaluated with successful response (default .wrapper)}
     auth {template sought and evaluated before processing requested file (default .auth)}
+    nodir {don't allow the browsing of directories (default: 0 - browsing allowed.)}
+    dateformat {a tcl clock format for displaying dates in directory listings}
 }
 
 class create Mason {
+    variable mount root hide functional notfound wrapper auth indexfile dirhead dirfoot aliases cache ctype nodir dirparams dateformat
+
     method conditional {req path} {
 	# check conditional
 	if {[dict exists $req if-modified-since]
@@ -80,7 +85,7 @@ class create Mason {
     }
 
     method template {req fpath} {
-	Debug.mason {template run: $fpath [dumpMsg $req]}
+	Debug.mason {template run: '$fpath' [dumpMsg $req]}
 
 	dict lappend req -depends $fpath ;# cache functional dependency
 
@@ -91,6 +96,7 @@ class create Mason {
 	    close $fd
 	    Debug.mason {template code: $template}
 	} r eo]} {
+	    Debug.mason {template error: $r ($eo)}
 	    catch {close $fd}
 	    return [Http ServerError $req $r $eo]
 	}
@@ -164,6 +170,39 @@ class create Mason {
 	}
     }
 
+    # dir - fallback to listing a directory
+    method dir {req path args} {
+	Debug.mason {dir over $path}
+	dict set files .. [list name [<a> href .. ..] type parent]
+
+	foreach file [glob -nocomplain -directory $path *] {
+	    Debug.mason {dir element $file}
+	    set name [file tail $file]
+	    if {[regexp $hide $name]} continue
+
+	    set type [Mime type $file]
+	    if {$type eq "multipart/x-directory"} {
+		set type directory
+		append name /
+	    }
+
+	    set title [<a> href $name $name]
+	    catch {dict set files $name [list name $title modified [clock format [file mtime $file] -format $dateformat] size [file size $file] type $type]}
+	}
+
+	set suffix [dict get $req -suffix]
+	set doctitle [string trimright $suffix /]
+	append content [<h1> $doctitle] \n
+
+	append content [Report html $files {*}$dirparams headers {name type modified size}] \n
+
+	dict set req -content $content
+	dict set req content-type x-text/html-fragment
+	set req [jQ tablesorter $req .sortable]
+
+	return $req
+    }
+
     method mason {req} {
 	Debug.mason {Mason: [dumpMsg $req]}
 	
@@ -196,15 +235,21 @@ class create Mason {
 	    Debug.mason {not found $fpath - looking for $notfound}
 	    set fpath [my findUp $req $notfound]	;# get the .notfound
 	    if {$fpath eq ""} {
-		Debug.mason {notfound failed - really not here}
-		# respond notfound template
-		return [Http NotFound $req]
+		Debug.mason {.notfound failed - really not here}
+		# .notfound template completely missing
+		# just pick some match at random and return it
+		set globs [glob -nocomplain [file rootname $file].*]
+		if {![llength $globs]} {
+		    return [Http NotFound $req]
+		}
+		set path [lindex $globs 0]	;# desperation
 	    } else {
 		# handle conditional request on .notfound
 		if {[my conditional $req $fpath]} {
 		    return [Http NotModified $req]
 		}
 		dict set req -dynamic 1	;# functionals are dynamic by default
+		Debug.mason {running .notfound}
 		return [my functional $req $fpath]	;# invoke the .notfound
 	    }
 	} elseif {[file extension $fpath] eq $functional} {
@@ -214,9 +259,11 @@ class create Mason {
 	    }
 
 	    dict set req -dynamic 1	;# functionals are dynamic by default
+	    Debug.mason {running user template '$fpath'}
 	    return [my functional $req $fpath]	;# invoke the functional
 	} else {
 	    set path $fpath
+	    Debug.mason {found user content '$fpath'}
 
 	    # handle conditional request on path
 	    if {[my conditional $req $path]} {
@@ -278,7 +325,16 @@ class create Mason {
 			    if {[my conditional $req $fpath]} {
 				return [Http NotModified $req]
 			    }
-			    
+			    Debug.mason {processing index candidate '$fpath' for $path/$indexfile}
+
+			    # hand the functional some layout parameters
+			    if {$dirhead ne {}} {
+				dict set req -thead $dirhead
+			    }
+			    if {$dirfoot eq {}} {
+				dict set req -tfoot [list [<a> href .. Up]]
+			    }
+
 			    dict set req -dynamic 1	;# functionals are dynamic by default
 			    return [my functional $req $fpath]	;# invoke the functional
 			}
@@ -287,15 +343,17 @@ class create Mason {
 			    set r [Http Cache $req $expires]
 			}
 			return [Http CacheableFile $req $fpath]
+		    } else {
+			Debug.mason {didn't find index candidate $path/$indexfile}
+			if {$nodir} {
+			    return [Http NotFound $r [<p> "Couldn't find $path"]]
+			} else {
+			    # we're expected to generate some kind of dirlisting.
+			    return [my dir $req $path]
+			}
 		    }
 		}
 
-		if {$dirhead ne {}} {
-		    dict set req -thead $dirhead
-		}
-		if {$dirfoot eq {}} {
-		    dict set req -tfoot [list [<a> href .. Up]]
-		}
 		dict set req -dynamic 1	;# functionals are dynamic by default
 		return [my functional $req $fpath]	;# invoke the functional
 	    }
@@ -390,8 +448,6 @@ class create Mason {
 	return $rsp
     }
 
-    variable mount root hide functional notfound wrapper auth indexfile dirhead dirfoot aliases cache ctype
-
     constructor {args} {
 	set mount ""	;# url for top of this domain
 	set root ""		;# file system domain root
@@ -406,7 +462,25 @@ class create Mason {
 	set dirfoot {}
 	# additional aliases to be installed in session interpreter
 	set aliases {}
-	
+	set nodir 0
+	set dirparams {
+	    sortable 1
+	    evenodd 0
+	    class table
+	    tparam {title "Registry for this class"}
+	    hclass header
+	    hparam {title "click to sort"}
+	    thparam {class thead}
+	    fclass footer
+	    tfparam {class tfoot}
+	    rclass row
+	    rparam {}
+	    eclass el
+	    eparam {}
+	    footer {}
+	}
+	set dateformat "%Y %b %d %T"
+
 	# when a file is not located, it will be searched for.
 	# to minimise the cost of this search, -cache will
 	# instruct Mason to memoize found files
