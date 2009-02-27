@@ -12,7 +12,7 @@ package require jQ
 set API(File) {
     {provides a traditional Web view for filesystem hierarchies.}
     root {filesystem root directory of File domain}
-    index {name of the file which stands for a directory, such as index.html}
+    indexfile {name of the file which stands for a directory, such as index.html}
     hide {a regexp to hide temp and other uninteresting files (default hides .* *~ and #*)}
     redirdir {flag: should references to directories be required to have a trailing /?}
     expires {a tcl clock expression indicating when contents expire}
@@ -131,8 +131,8 @@ class create File {
 		    }
 		    
 		    # try to return an index file's contents in lieue of the directory
-		    if {$index ne ""} {
-			set indices [glob -nocomplain -tails -directory $path $index]
+		    if {$indexfile ne ""} {
+			set indices [glob -nocomplain -tails -directory $path $indexfile]
 			if {[llength $indices]} {
 			    dict set req -path [file join [dict get $req -path] [lindex $indices 0]]
 			    return [Http Redirect $req [Url uri $req]]
