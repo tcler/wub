@@ -8,15 +8,17 @@ package require Debug
 Debug off nub 10
 
 package require fileutil
+package require textutil
 package require functional
 package require Url
 package require Direct
 
+package require stx2html
 package require Html
 package require Form
 package require jQ
 package provide Nub 1.0
-package provide Rewrite 1.0	;# to satisfy requirement
+package provide Rewrite 1.0	;# to satisfy synthetic requirement of codegen
 
 set API(Nub) {
     {Configuration domain for Wub.  Provides simple text and web-based website configuration.}
@@ -27,6 +29,75 @@ set API(Nub) {
 }
 
 namespace eval Nub {
+    proc stxify {about} {
+	set about [string trim $about "\n"]
+	set about [::textutil::untabify $about]
+	set about [::textutil::undent $about]
+	
+	if {[catch {
+	    stx2html::translate $about
+	} result eo]} {
+	    puts stderr "Nub About Err: $result ($eo)"
+	    return $about
+	} else {
+	    return $result
+	}
+    }
+
+    variable docurl /wub/docs/Domains/	;# this interfaces to the Mason domain /wub, if it's there
+
+    variable whatsthis [::textutil::undent [::textutil::untabify {
+	Nub allows you to change the URLs the server responds to, and to create new nubs, edit or delete existing nubs, and apply them to the currently running server.
+	
+	A nub is a mapping from a URL glob to content.  The content may be provided by domain handlers, listed below.
+	
+	== Synthetic Nubs ==
+	The following synthetic nubs are available to pre-filter or manipulate the URL request, or to provide immedite content:
+	
+	;Block: Blocks an IP address which attempts to access the URL.
+	;Redirect: Sends the client a redirect.
+	;Code: Returns the result of evaluating tcl code.
+	;Literal: Returns literal content to client.
+	;Rewrite: Transforms a URL (selected by regexp) into another (as calculate by the rewrite tcl script).
+
+	== Domain Nubs ==
+	Domains are modules which generate content from URLs. This is the currently available collection of domain 'nubs':
+    }]]
+
+    proc options {domain body} {
+	upvar count count
+	global API
+	if {![info exists API($domain)]} {
+	    return ""
+	}
+
+	set opts [lassign $API($domain) about]
+	if {[llength $opts]} {
+	    foreach {opt text} $opts {
+		set val [tclarmour [armour [Dict get? $body $opt]]]
+		set text [tclarmour [armour $text]]
+		if {[string match +* $text]} {
+		    append extra [<textarea> ${opt}_$count cols 80 class autogrow label "[string totitle $opt]: " title $text $val] \n
+		} else {
+		    append extra [<text> ${opt}_$count label "[string totitle $opt]: " title $text $val] \n
+		}
+	    }
+	    #puts stderr "EXTRA: $extra"
+	    set extra [Form <fieldset> vertical 1 $extra]
+	} else {
+	    set extra ""
+	}
+
+	if {[string index $about 0] eq "\n"} {
+	    set about [string trim $about "\n"]
+	}
+	set about [lindex [split $about] 0]
+	variable docurl
+	append extra [<p> [tclarmour "[<a> href [file join $docurl $domain] $domain] domain: $about"]]
+
+	return $extra
+    }
+
     set showhide {
 	// http://www.learningjquery.com/2006/09/slicker-show-and-hide
 
@@ -81,26 +152,9 @@ namespace eval Nub {
 		    append extra [<p> "Return the result of evaluating content as a Tcl expression, with the given mime type."]
 		}
 		default {
-		    global API
 		    catch {package require $domain}
 		    set extra [<legend> "$domain parameters"]\n
-		    set opts [lassign $API($domain) description]
-		    if {[llength $opts]} {
-			foreach {opt text} $opts {
-			    set val [tclarmour [armour [Dict get? $body $opt]]]
-			    set text [tclarmour [armour $text]]
-			    if {[string match +* $text]} {
-				append extra [<textarea> ${opt}_$count cols 80 class autogrow label "[string totitle $opt]: " title $text $val] \n
-			    } else {
-				append extra [<text> ${opt}_$count label "[string totitle $opt]: " title $text $val] \n
-			    }
-			}
-			#puts stderr "EXTRA: $extra"
-			set extra [Form <fieldset> vertical 1 $extra]
-		    } else {
-			set extra ""
-		    }
-		    append extra [<p> [tclarmour "$domain domain: $description"]]
+		    append extra [options $domain $body]
 		}
 	    }
 
@@ -202,10 +256,13 @@ namespace eval Nub {
 			default {
 			    # this is a proper domain
 			    global API
-			    set opts [lassign $API($domain) description]
-			    foreach {opt text} $opts {
-				if {[dict exists $args ${opt}_$el]} {
-				    dict set urls $keymap($el) body $opt [dict get $args ${opt}_$el]
+			    if {[info exists API($domain)]} {
+				set opts [lassign $API($domain) about]
+
+				foreach {opt text} $opts {
+				    if {[dict exists $args ${opt}_$el]} {
+					dict set urls $keymap($el) body $opt [dict get $args ${opt}_$el]
+				    }
 				}
 			    }
 			}
@@ -342,50 +399,23 @@ namespace eval Nub {
 
 	variable loaded; variable docs
 	set header [<h3> "Nubs from $loaded"]
+
+	variable whatsthis; variable docurl
 	append header [<a> id toggle href # "What's this? ..."]
-	append header \n [subst {
-	    [<div> id box style {display:none} [subst {
-		[<p> "This facility allows you to change the URLs the server responds to."]
-		[<p> "Below, you will see a collection of 'nubs', which are mappings from a URL glob to a domain.  You may create new nubs, edit or delete existing nubs, and apply them to the currently running server."]
-		[<p> "Each [<a> href $docs/Domains domain] provides different functionality:"]
-		[<dl> [subst {
-		    [<dt> [<a> href $docs/Domains/File.html File]]
-		    [<dd> "Traditional filesystem-based website"]
-		    [<dt> [<a> href $docs/Domains/Direct.html Direct]]
-		    [<dd> "A domain permitting procs and methods to be directly invoked (with query args) by URL"]
-		    [<dt> [<a> href $docs/Domains/Mason.html Mason]]
-		    [<dd> "Mason - A File-like domain, but on steroids.  Heavy templating."]
-		    [<dt> [<a> href $docs/Domains/Rewrite.html Rewrite]]
-		    [<dd> "Transforms a URL (selected by regexp) into another (delivered by code)."]
-		    [<dt> [<a> href $docs/Domains/Block.html Block]]
-		    [<dd> "Blocks an IP address which attempts to access the URL"]
-		    [<dt> [<a> href $docs/Domains/Redirect.html Redirect]]
-		    [<dd> "Sends the client a redirect."]
-		    [<dt> [<a> href $docs/Domains/Code.html Code]]
-		    [<dd> "Returns the result of evaluating tcl code."]
-		    [<dt> [<a> href $docs/Domains/Literal.html Literal]]
-		    [<dd> "Returns literal content to client."]
-		    [<dt> [<a> href $docs/Domains/Ram.html RAM]]
-		    [<dd> "RAM-based filesystem"]
-		    [<dt> [<a> href $docs/Domains/Cgi.html CGI]]
-		    [<dd> "Traditional CGI interface"]
-		    [<dt> [<a> href $docs/Domains/jQ.html JQ]]
-		    [<dd> "jQuery interface"]
-		    [<dt> [<a> href $docs/Domains/Nub.html Nub]]
-		    [<dd> "You are currently using Nub - it's a URL space configuration facility."]
-		    [<dt> [<a> href $docs/Domains/Icons.html Icons]]
-		    [<dd> "A set of useful free icons."]
-		    [<dt> [<a> href $docs/Domains/Repo.html Repo]]
-		    [<dd> "Simple-minded file repository with uploading, tarring of directories."]
-		    [<dt> [<a> href $docs/Domains/Honeypot.html Honeypot]]
-		    [<dd> "Trap bots."]
-		    [<dt> [<a> href $docs/Domains/Sinorca.html Sinorca]]
-		    [<dd> "Experimental Styling"]
-		    [<dt> [<a> href $docs/Domains/Commenter.html Commenter]]
-		    [<dd> "Commenter - experimental code comment miner"]
-		}]]
-	    }]]
-	}] \n
+
+	set huh $whatsthis
+	foreach {n v} [array get ::API] {
+	    append huh ";\[[file join $docurl $n] $n\]: "
+	    set v [lindex $v 0]
+
+	    if {[string index $v 0] eq "\n"} {
+		set v [string trim $v "\n"]
+	    }
+	    append huh [lindex [split $v \n] 0] \n
+	}
+	set huh [stxify $huh]
+
+	append header \n [<div> id box style {display:none} $huh] \n
 	append header [<hr>]
 
 	set content "$header\n$content"
