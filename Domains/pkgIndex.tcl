@@ -1,3 +1,5 @@
+set ::APIDomains {File Repo Mason Direct Honeypot Dub Commenter JQ CGI Icons Tub Login About RAM Tie Coco Sinorca Simplicio Nub}
+
 # utilities
 package ifneeded conversions 1.0 [list source [file join $dir conversions.tcl]]
 
@@ -19,6 +21,7 @@ package ifneeded Icons 1.0 [list source [file join $dir Icons Icons.tcl]]
 package ifneeded Tub 1.0 [list source [file join $dir Tub.tcl]]
 #package ifneeded CA 1.0 [list source [file join $dir CA.tcl]]
 package ifneeded Login 1.0 [list source [file join $dir Login.tcl]]
+package ifneeded About 1.0 [list source [file join $dir About.tcl]]
 
 #package ifneeded Host 2.0 [list source [file join $dir Host.tcl]]
 #package ifneeded Cache 1.0 [list source [file join $dir Cache.tcl]]
