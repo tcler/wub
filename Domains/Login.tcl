@@ -5,7 +5,6 @@ namespace import oo::*
 
 set API(Login) {
     {
-	== Login Domain ==
 	Login is a domain for simple cookie-based login account management and a is simultaneously repository for user-specific field values.  It is intended to be constructed under a [Direct] domain, as illustrated in the example below.
 
 	== Operation ==
