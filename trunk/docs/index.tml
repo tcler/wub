@@ -58,10 +58,10 @@
 	<p class='list2'><a href='#'>Server stats</a></p>
 	<p class='list2last'><a href='#'>Control panel</a></p>
 	<p class='list1'><a href='docs/'>Documentation</a></p>
-	<p class='list2'><a href='docs/Server'>Server</a></p>
-	<p class='list2'><a href='docs/Domains'>Domains</a></p>
-	<p class='list2'><a href='docs/Utilities'>Utilities</a></p>
-	<p class='list2'><a href='/code'>Packages</a></p>
+	<p class='list2'><a href='docs/Server/'>Server</a></p>
+	<p class='list2'><a href='docs/Domains/'>Domains</a></p>
+	<p class='list2'><a href='docs/Utilities/'>Utilities</a></p>
+	<p class='list2'><a href='/code/'>Packages</a></p>
 	<p class='list1'>Instrospection</p>
 	<p class='list2'><a href='/introspect/block'>Blocked</a></p>
 	<p class='list2'><a href='/introspect/cache'>Cache</a></p>
@@ -93,7 +93,7 @@
     <address><a href='mailto:colin@chinix.com'>Colin McCormack</a></address>
     <!-- Created: Thu Jan  5 13:00:57 EST 2006 -->
     <!-- hhmts start -->
-Last modified: Tue Feb 10 01:22:46 EST 2009
+Last modified: Fri Feb 27 13:41:25 EST 2009
 <!-- hhmts end -->
   </body>
 </html>
