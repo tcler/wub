@@ -1,5 +1,3 @@
-set ::APIDomains {File Repo Mason Direct Honeypot Dub Commenter JQ CGI Icons Tub Login About RAM Tie Coco Sinorca Simplicio Nub}
-
 # utilities
 package ifneeded conversions 1.0 [list source [file join $dir conversions.tcl]]
 
