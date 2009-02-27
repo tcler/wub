@@ -21,6 +21,7 @@ domain /images/ {File images} root [file join $::Site::docroot images] expires "
 domain /scripts/ {File scripts} root [file join $::Site::docroot scripts] expires tomorrow
 domain /html/ {File html} root [file join $::Site::docroot html]
 domain /bin/ {File bin} root [file join $::Site::docroot bin]
+domain /wub/docs/Domains/ About
 
 # just for fun
 code /clock.txt {clock format [clock seconds]} text/plain
