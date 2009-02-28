@@ -13,7 +13,8 @@ package require Http
 package require Url
 
 package require Debug
-Debug on HTTP 10
+Debug off HTTP 10
+Debug off HTTPdetail 10
 
 set MODULE(HTTP) {
     {
@@ -75,11 +76,11 @@ set MODULE(HTTP) {
 # this enables urls to be commands.
 if {![catch {package require know}]} {
     know {[string match http://* [lindex $args 0]]} {
-	HTTP new {*}$args
+	HTTP new {*}$args close close
     }
 }
 
-package provide HTTP 1.0
+package provide HTTP 2.0
 
 class create HTTP {
 
@@ -115,7 +116,7 @@ class create HTTP {
 	}
 	append request "\r\n"	;# signal end of header
 	chan puts -nonewline $socket $request
-
+	Debug.HTTPdetail {Sent header: $request}
 	if {[info exists entity]} {
 	    # send the entity
 	    chan puts -nonewline $socket $entity
@@ -163,7 +164,7 @@ class create HTTP {
 	    set reason "EOF reading HEADER"
 	    [self] destroy
 	} else {
-	    Debug.HTTP {gets: '$line' [chan blocked $socket] [chan eof $socket]}
+	    Debug.HTTPdetail {gets: '$line' [chan blocked $socket] [chan eof $socket]}
 	    return $line
 	}
     }
@@ -184,10 +185,33 @@ class create HTTP {
 	    [self] destroy
 	} else {
 	    # we have successfully read our chunk of $size
-	    Debug.HTTP {Read: '$chunk' of size $size}
+	    Debug.HTTPdetail {Read: '$chunk' of size $size}
 	    return $chunk
 	}
     }
+
+    # gzip_content - gzip-encode the content
+    method gzip {r} {
+	if {[dict exists $r -gzip]} {
+	    return $r	;# it's already been gzipped
+	}
+
+	# prepend a minimal gzip file header:
+	# signature, deflate compression, no flags, mtime,
+	# xfl=0, os=3
+	set content [dict get $r -content]
+	set gzip [binary format "H*iH*" "1f8b0800" [clock seconds] "0003"]
+	append gzip [zlib deflate $content]
+
+	# append CRC and ISIZE fields
+	append gzip [binary format i [zlib crc32 $content]]
+	append gzip [binary format i [string length $content]]
+
+	dict set r -gzip $gzip
+	return $r
+    }
+
+
 
     variable closing outstanding reader writer consumer socket reason self
 
@@ -301,8 +325,8 @@ class create HTTP {
 			incr left -[string length $chunk]
 			Debug.HTTP {reader getting remainder of entity of length ($left)}
 			dict append r -content $chunk
-			Debug.HTTP {reader got whole entity}
 		    }
+		    Debug.HTTP {reader got whole entity}
 		} elseif {[dict exists $r transfer-encoding]} {
 		    switch -- [dict get $r transfer-encoding] {
 			chunked {
@@ -331,8 +355,20 @@ class create HTTP {
 		# reset to header config
 		chan configure $socket -encoding binary -translation {crlf binary}
 
+		# check content-encoding and gunzip content if necessary
+		if {[dict exists $r content-encoding]} {
+		    switch -- [string tolower [dict get $r content-encoding]] {
+			gzip {
+			    set content [dict get $r -content]
+			    dict set r -content [zlib gunzip $content]
+			}
+			default {}
+		    }
+		}
+
 		# hand consumer the result
-		variable consumer; variable self; after 1 [list $consumer [list RESPONSE $self $r]]
+		variable self
+		variable consumer; after 1 [list $consumer [list RESPONSE $self $r]]
 
 		# count the outstanding responses left
 		# close if there are none
@@ -343,7 +379,7 @@ class create HTTP {
 		variable closing
 		if {$closing && !$outstanding} {
 		    set reason "requested by WRITER"
-		    [self] destroy
+		    $self destroy
 		} elseif {!$outstanding} {
 		    # nothing to read
 		    chan event $socket readable {}
@@ -378,36 +414,49 @@ class create HTTP {
 	    # construct a request template
 	    set http [dict merge $template $http]
 	    dict set http User-Agent "HTTP/[package present HTTP]"
-	    #lappend http accept-encoding gzip
+	    lappend http accept-encoding gzip
 	    
+	    variable closing; variable self
+
 	    # send any ops we were passed
 	    if {[info exists ops]} {
 		Debug.HTTP {initial ops: $ops}
 		foreach {op val} $ops {
 		    if {$op eq "close"} {
 			# we've been asked to close
+			Debug.HTTP {closing upon request}
+			variable reason "Requested by Consumer"
+			proc writethis {args} {
+			    error "The writer has been closed"
+			}
+			set closing 1
+			return
+		    } else {
+			set entity [lassign $val url]
+			my send $op $url {*}$entity
 		    }
-		    set entity [lassign $val url]
-		    my send $op $url {*}$entity
 		}
 	    }
 
-	    variable closing
+	    variable closing; variable self
 	    set retval ""
 	    while {!$closing} {
 		# unpack event
 		if {[catch {
-		    set args [lassign [::yield $retval] op]; set retval ""
+		    set args [lassign [::yield $self] op]; set retval ""
 		} e eo]} {
 		    Debug.HTTP {[info coroutine] yield: $e ($eo)}
 		    return
 		}
 		
-		Debug.HTTP {writer $cmd -> ($result) ($eof)}
 		set op [string tolower $op]
+		Debug.HTTP {writer $op $args}
 		if {$closing || $op eq "close"} {
 		    Debug.HTTP {close: $op / $closing}
 		    variable reason "Requested by Consumer"
+		    proc writethis {args} {
+			error "The writer has been closed"
+		    }
 		    set closing 1
 		    return
 		} elseif {$op in {get put post delete}} {
@@ -444,8 +493,16 @@ class create HTTP {
 if {[info exists argv0] && ($argv0 eq [info script])} {
     proc echo {arg} {
 	puts "ECHO: $arg"
+	lassign $arg op
+	if {$op eq "CLOSED"} {
+	    global done
+	    set done 1
+	}
     }
-    http://www.google.com.au/ echo get http://www.google.com.au/ get /
+
+    Debug on HTTP 10
+    http://localhost:8080/wub/ echo
+    #http://www.google.com.au/ echo get http://www.google.com.au/ get /
 
     set done 0
     vwait done
