@@ -253,7 +253,8 @@ class create HTTP {
 	    # condition the socket
 	    chan configure $socket -blocking 0 -buffering none -encoding binary -translation {crlf binary}
 	}]} {
-	    catch {after 1 $consumer [list [list CLOSED [self] $socket]]}
+	    #catch {after 1 $consumer [list [list CLOSED [self] $socket]]}
+	    set reason $socket
 	    catch {after 1 [self] destroy}
 	    return
 	}
