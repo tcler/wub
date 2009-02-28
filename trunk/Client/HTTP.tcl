@@ -55,6 +55,9 @@ set MODULE(HTTP) {
 
 	== Limitations ==
 
+	=== Protocol Incompatibilities ===
+	TBD: The HTTP1.1 protocol requires that a pipeline (of queued requests) be stalled until the response to a PUT or POST request has been received.  This version of HTTP doesn't do that, but later versions will.
+
 	=== Redirections ===
 	Servers may response with redirection response codes, indicating that the requested resource is located elsewhere.  This may necessitate a new connection be opened, perhaps to a different host.  The HTTP package doesn't attempt to follow redirections, reasoning that the consumer is in a better position to know what it wants.
 
