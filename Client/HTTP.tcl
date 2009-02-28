@@ -221,11 +221,7 @@ class create HTTP {
 	catch {close $socket}
 
 	# alert consumer
-	if {[catch {
-	    after 1 $consumer [list [list CLOSED [self] $reason]]
-	}] && [info commands $consumer] == {}} {
-	    Debug.HTTP {reader: consumer error or gone on EOF}
-	}
+	catch {after 1 $consumer [list [list CLOSED [self] $reason]]}
     }
 
     constructor {url _consumer args} {
@@ -272,12 +268,18 @@ class create HTTP {
 	    set port 80 
 	}
 
-	# create the socket
-	set socket [socket -async $host $port]
-	
-	# condition the socket
-	chan configure $socket -blocking 0 -buffering none -encoding binary -translation {crlf binary}
-	
+	set socket ""
+	if {[catch {
+	    set socket [socket -async $host $port]	;# create the socket
+	} socket eo] || [catch {
+	    # condition the socket
+	    chan configure $socket -blocking 0 -buffering none -encoding binary -translation {crlf binary}
+	}]} {
+	    catch {after 1 $consumer [list [list CLOSED [self] $socket]]}
+	    catch {after 1 [self] destroy}
+	    return
+	}
+
 	# create reader coroutine
 	set reader [self]::${socket}R
 	coroutine $reader ::apply [list args {
@@ -496,13 +498,14 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	lassign $arg op
 	if {$op eq "CLOSED"} {
 	    global done
-	    set done 1
+	    #set done 1
 	}
     }
 
     Debug on HTTP 10
-    http://localhost:8080/wub/ echo
-    #http://www.google.com.au/ echo get http://www.google.com.au/ get /
+    http://1023.1024.1025.0126:8080/ echo	;# a bad url
+    http://localhost:8080/wub/ echo get /
+    http://www.google.com.au/ echo
 
     set done 0
     vwait done
