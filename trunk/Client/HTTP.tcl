@@ -258,9 +258,8 @@ class create HTTP {
 	    return
 	}
 
-	# create reader coroutine
-	set reader [self]::${socket}R
-	coroutine $reader ::apply [list args {
+	# reader proc - the functional base of the read coroutine
+	proc reader {args} {
 	    Debug.HTTP {reader: $args}
 	    # unpack all the passed-in args
 	    dict with args {}
@@ -367,13 +366,16 @@ class create HTTP {
 		Debug.HTTP {reader: sent response, waiting for next}
 		yield
 	    }
-	    [self] destroy
-	} [self]] socket $socket
+	    $self destroy
+	}
+
+	# create reader coroutine
+	set reader [self]::${socket}R
+	coroutine $reader reader socket $socket
 	objdefine [self] forward reader $reader	;# forward the method to the coro
 
-	# create writer coroutine
-	set writer [self]::${socket}W 
-	coroutine $writer ::apply [list args {
+	# writer proc - the functional basis of the writer coroutine
+	proc writer {args} {
 	    # writer - coro to send HTTP requests to a server
 	    Debug.HTTP {writer: $args}
 	    
@@ -445,7 +447,12 @@ class create HTTP {
 		    my send $op $url {*}$entity
 		}
 	    }
-	} [self]] socket $socket ops $ops template $template host $host
+	}
+
+	# create writer coroutine
+	set writer [self]::${socket}W 
+	coroutine $writer writer socket $socket ops $ops template $template host $host
+	objdefine [self] forward write [self] writethis	;# forward the method to the coro
 
 	# forward some methods for writing
 	proc writethis {args} {
@@ -458,6 +465,8 @@ class create HTTP {
 			dict set urld -host $host
 		    } elseif {[dict get $urld -host] ne $host} {
 			error "$self is connected to host $host, not [dict get $urld -host]"
+			# note: could simply spawn a new HTTP object with the same args as [self]
+			# and return its name from here.
 		    }
 		    if {![info exists ${-port}]} {
 			dict set urld -host $port
@@ -472,7 +481,6 @@ class create HTTP {
 	    }
 	}
 
-	objdefine [self] forward write [self] writethis	;# forward the method to the coro
 	foreach v {get put post delete close} {
 	    objdefine [self] forward $v [self] writethis $v	;# forward the method to the coro
 	}
