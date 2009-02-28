@@ -3,18 +3,102 @@
 package require TclOO
 namespace import oo::*
 
-if {[info exists argv0] && ($argv0 eq [info script])} {
-    set wubdir [file dirname [file dirname [file normalize [info script]]]]
-    lappend ::auto_path [file join $wubdir Utilities] [file join $wubdir extensions]
+# import the relevant commands from WubUtils package
+if {[catch {package require WubUtils}]} {
+    proc corovars {args} {
+	foreach n $args {lappend v $n $n}
+	uplevel 1 [list upvar #1 {*}$v]
+    }
 }
 
-# import the relevant commands from Wub
-package require Http
-package require Url
+# import the relevant commands from Wub Http package
+if {[catch {package require Http}]} {
+    namespace eval ::Http {}
+    # return an HTTP date
+    proc ::Http::Date {{seconds ""}} {
+	if {$seconds eq ""} {
+	    set seconds [clock seconds]
+	}
 
-package require Debug
-Debug off HTTP 10
-Debug off HTTPdetail 10
+	return [clock format $seconds -format {%a, %d %b %Y %T GMT} -gmt true]
+    }
+}
+
+# import the relevant commands from Wub Url package
+if {[catch {package require Url}]} {
+    namespace eval ::Url {}
+    # subset the Url package for stand-alone use
+    proc ::Url::url {args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	# minimize -port
+	if {[dict exists $args -port]
+	    && ([dict get $args -port] eq "" || [dict get $args -port] eq "80")} {
+	    dict unset args -port
+	}
+
+	foreach {part pre post} {
+	    -scheme "" :
+	    -host // ""
+	    -port : ""
+	    -path "" ""
+	} {
+	    if {[dict exists $args $part]} {
+		append result "${pre}[dict get $args $part]${post}"
+	    }
+	}
+	return $result
+    }
+    proc ::Url::normalize {url} {
+	while {[set new [regsub -all {(/+)|(^[.][.]/)|(^/[.][.])|(/[^/]+/[.][.]$)|(/[^/]+/[.][.]/)|(^[.]/)|(/[.]$)|(/[.]/)|(^[.][.]$)|(^[.]$)} $url /]] ne $url} {
+	    set url $new
+	}
+	return "/[string trimleft $url /]"
+    }
+    proc ::Url::parse {url {normalize 1}} {
+	array set x {}
+	regexp {^(([^:/?\#]+):)?(//([^/?\#]*))?([^?\#]*)([?]([^\#]*))?(\#(.*))?$} $url \
+	    -> . x(-scheme) . x(-authority) x(-path) . x(-query) . x(-fragment)
+	regexp {^(([^@]+)@)?([^@:]+)?(:([0-9]+))?$} $x(-authority) \
+	    -> . x(-authority) x(-host) . x(-port)
+	
+	if {$normalize} {
+	    set x(-path) [normalize $x(-path)]	;# fix up oddities in URLs
+	}
+	
+	foreach n [array names x] {
+	    if {$x($n) eq ""} {
+		unset x($n)
+	    }
+	}
+	if {[info exists x(-scheme)]} {
+	    set x(-url) [url [array get x]]
+	}
+	return [array get x]
+    }
+
+    proc ::Url::http {x args} {
+	foreach {part pre post} {
+	    -path "" ""
+	    -fragment \# ""
+	    -query ? ""
+	} {
+	    if {[dict exists $x $part]} {
+		append result "${pre}[dict get $x $part]${post}"
+	    }
+	}
+	return $result
+    }
+}
+
+if {[catch {package require Debug}]} {
+    proc Debug.HTTP {args} {}
+    proc Debug.HTTPdetail {args} {}
+} else {
+    Debug off HTTP 10
+    Debug off HTTPdetail 10
+}
 
 set MODULE(HTTP) {
     {
@@ -74,10 +158,18 @@ set MODULE(HTTP) {
 }
 
 # this enables urls to be commands.
-if {![catch {package require know}]} {
-    know {[string match http://* [lindex $args 0]]} {
-	HTTP new {*}$args close close
-    }
+if {[catch {package require know}]} {
+    proc know {cond body} {
+	if {![info complete $body]} {error "incomplete command(s) $body"}
+	proc ::unknown {args} [string map [list @c@ $cond @b@ $body] {
+	    if {![catch {expr {@c@}} res eo] && $res} {
+		return [eval {@b@}]
+	    }
+	}][info body ::unknown]
+    } ;# RS
+}
+know {[string match http://* [lindex $args 0]]} {
+    HTTP new {*}$args close close
 }
 
 package provide HTTP 2.0
@@ -89,8 +181,8 @@ class create HTTP {
 	corovars socket sent host http
 	Debug.HTTP {send method:$method url:$url entity: [string length $entity] ($args)}
 
-	set T [dict merge $http $args [Url parse $url]]
-	set T [dict merge $T [list -method $method date [Http Date] host $host]]
+	set T [dict merge $http $args [::Url::parse $url]]
+	set T [dict merge $T [list -method $method date [::Http::Date] host $host]]
 
 	# format entity
 	if {$entity ne ""} {
@@ -101,7 +193,7 @@ class create HTTP {
 	}
 
 	# format up header
-	set request "$method [Url http $T] HTTP/1.1\r\n"
+	set request "$method [::Url::http $T] HTTP/1.1\r\n"
 	dict for {n v} [dict filter $T key {[a-zA-Z]*}] {
 	    if {[string length $v] > 100} {
 		# break long lines into partial lines
@@ -239,7 +331,7 @@ class create HTTP {
 	}
 
 	# parse url
-	set urld [Url parse $url]
+	set urld [::Url::parse $url]
 	set host [dict get $urld -host]
 	if {[dict exists $urld -port]} {
 	    set port [dict get $urld -port]
@@ -465,7 +557,7 @@ class create HTTP {
 	    variable self
 	    if {[llength $args]} {
 		set args [lassign $args op url]
-		set urld [Url parse $url]
+		set urld [::Url::parse $url]
 		dict with urld {
 		    if {![info exists ${-host}]} {
 			dict set urld -host $host
