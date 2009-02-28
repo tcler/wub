@@ -138,7 +138,7 @@ class create HTTP {
 
 	# alert consumer
 	if {[catch {
-	    after 1 $consumer [list closing [info coroutine] where]
+	    after 1 $consumer [list [list CLOSING [info coroutine] $reason]]
 	}] && [info commands $consumer] == {}} {
 	    Debug.HTTP {reader: consumer error or gone on EOF}
 	}
