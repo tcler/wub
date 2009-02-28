@@ -14,6 +14,27 @@ package require Url
 package require Debug
 Debug on HTTP 10
 
+set MODULE(HTTP) {
+    {
+	HTTP constructs a connection to a host and initiates a series of HTTP 1.1 requests, it supports HTTP methods [[get]] [[put]] [[post]] [[delete]], and a [[close]] method for terminating the connection.
+
+	Server responses are sent to the consumer in the form: [[list RESPONSE [[self]] $response]] where $response is a response dictionary.  The actual respone may be found in [[dict get $response -content]].  [[self]] is merely sent so consumers can handle multiple open connections.
+
+	== Termination ==
+	Termination of the connection causes a CLOSED indication to the consumer in the form [[list CLOSED [[self]] $reason]].   A consumer managing multiple connections may use the [[self]] value to associate responses with connections.
+
+	The [[close]] method requests that the object destroy itself and close the connection after all outstanding responses are collected and have been forwarded as responses.
+
+	An eof on the socket destroys the object immediately after sending a CLOSED indication to the consumer.  By the time the consumer receives the CLOSED indication, the HTTP object has probably already been destroyed.
+
+	== Examples ==
+	[[HTTP new $consumer get http://somewhere.com/something get http://somewhere.com/somethingelse ...]]
+	[[http://somewhere.com $consumer get http://somewhere.com/somethingelse]] -- equivalent
+    }
+    {consumer "A single-word command, or a constructor, to consume responses from the connection"}
+}
+
+# this enables urls to be commands.
 package require know
 know {[string match http://* [lindex $args 0]]} {
     HTTP new {*}$args
@@ -129,7 +150,7 @@ class create HTTP {
 	}
     }
 
-    variable closing outstanding reader writer consumer socket reason
+    variable closing outstanding reader writer consumer socket reason self
 
     destructor {
 	Debug.HTTP {[self]: $socket closed because: $reason}
@@ -138,13 +159,14 @@ class create HTTP {
 
 	# alert consumer
 	if {[catch {
-	    after 1 $consumer [list [list CLOSING [info coroutine] $reason]]
+	    after 1 $consumer [list [list CLOSED [self] $reason]]
 	}] && [info commands $consumer] == {}} {
 	    Debug.HTTP {reader: consumer error or gone on EOF}
 	}
     }
 
     constructor {url _consumer args} {
+	set self [self]		;# for identifying responses
 	set closing 0		;# signals EOF to both reader and writer
 	set outstanding 0	;# counts outstanding packets
 	set reason "none given"	;# reason for closure
@@ -275,7 +297,7 @@ class create HTTP {
 		chan configure $socket -encoding binary -translation {crlf binary}
 
 		# hand consumer the result
-		variable consumer; after 1 [list $consumer [list RESPONSE $r]]
+		variable consumer; after 1 [list $consumer [list RESPONSE $self $r]]
 
 		# count the outstanding responses left
 		# close if there are none
@@ -360,7 +382,10 @@ class create HTTP {
 		}
 	    }
 	} [self]] socket $socket timeout $txtimeout ops $ops template $template host $host
-	objdefine [self] forward writer $writer	;# forward the method to the coro
+	objdefine [self] forward write $writer	;# forward the method to the coro
+	foreach v in {get put post delete close} {
+	    objdefine [self] forward $v $writer	$v	;# forward the method to the coro
+	}
 
 	return $writer
     }
