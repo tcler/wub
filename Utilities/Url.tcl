@@ -106,14 +106,12 @@ namespace eval Url {
 	}
 
 	Debug.url {Url parse post regexp: [array get x]}	
-	#puts stderr "Url parse post regexp: [array get x]"
 
 	if {[info exists x(-scheme)]} {
 	    set x(-url) [url [array get x]]
 	}
 
 	Debug.url {Url parse: $url -> [array get x]} 30
-	#puts stderr "Url parse: $url -> [array get x]"
 
 	return [array get x]
     }
