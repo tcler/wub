@@ -5,7 +5,7 @@
 if {[info exists argv0] && ($argv0 eq [info script])} {
     # test Httpd
     puts stderr "Httpd test"
-    lappend auto_path [pwd] ../Utilities/ ../extensions/ ../Utilities/zlib/
+    lappend auto_path [pwd] ../Utilities/ ../extensions/
     package require Http
 }
 
@@ -235,8 +235,14 @@ namespace eval Httpd {
 	# signature, deflate compression, no flags, mtime,
 	# xfl=0, os=3
 	set content [dict get $reply -content]
-	set gzip [binary format "H*iH*" "1f8b0800" [clock seconds] "0003"]
-	append gzip [zlib deflate $content]
+	if {0} {
+	    # this is how confused I was by the spec :)
+	    set gzip [binary format "H*iH*" "1f8b0800" [clock seconds] "0003"]
+	    append gzip [zlib deflate $content]
+	}
+
+	set gztype [expr {[string match text/* [dict get $reply content-type]]?"text":"binary"}]
+	set gzip [zlib gzip $content -header [list crc 0 time [clock seconds] type $gztype]]
 
 	# append CRC and ISIZE fields
 	append gzip [binary format i [zlib crc32 $content]]
@@ -1068,6 +1074,7 @@ namespace eval Httpd {
 		    set tel [string trim $tel]
 		    if {$tel ni $te_encodings} {
 			# can't handle a transfer encoded entity
+			Debug.log {Got a $tel transfer-encoding which we can't handle}
 			handle [Http NotImplemented $r "$tel transfer encoding"] "Unimplemented TE"
 			continue
 			# see 3.6 - 14.41 for transfer-encoding
