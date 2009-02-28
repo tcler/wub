@@ -190,7 +190,7 @@ class create HTTP {
 	}
     }
 
-    variable closing outstanding reader writer consumer socket reason self spawn
+    variable closing outstanding rqcount reader writer consumer socket reason self spawn
 
     destructor {
 	Debug.HTTP {[self]: $socket closed because: $reason}
@@ -198,13 +198,14 @@ class create HTTP {
 	catch {close $socket}
 
 	# alert consumer
-	catch {after 1 $consumer [list [list CLOSED [self] $reason]]}
+	catch {after 1 $consumer [list [list CLOSED [self] [incr rqcount] $reason]]}
     }
 
     constructor {url _consumer args} {
 	set self [self]		;# for identifying responses
 	set closing 0		;# signals EOF to both reader and writer
 	set outstanding 0	;# counts outstanding packets
+	set rqcount -1		;# counts received packets
 	set reason "none given"	;# reason for closure
 	set consumer $_consumer	;# who's consuming this?
 	set template {accept */*}	;# http template
@@ -253,7 +254,6 @@ class create HTTP {
 	    # condition the socket
 	    chan configure $socket -blocking 0 -buffering none -encoding binary -translation {crlf binary}
 	}]} {
-	    #catch {after 1 $consumer [list [list CLOSED [self] $socket]]}
 	    set reason $socket
 	    catch {after 1 [self] destroy}
 	    return
@@ -262,10 +262,12 @@ class create HTTP {
 	# reader proc - the functional base of the read coroutine
 	proc reader {args} {
 	    Debug.HTTP {reader: $args}
+
 	    # unpack all the passed-in args
 	    dict with args {}
 	    yield
 
+	    variable self; 
 	    # keep receiving input resulting from our requests
 	    while {![eof $socket]} {
 		set r {}	;# empty header
@@ -346,9 +348,12 @@ class create HTTP {
 		    }
 		}
 
+		# keep a count of the number of packets received
+		variable rqcount; incr rqcount
+
 		# hand consumer the result
-		variable self
-		variable consumer; after 1 [list $consumer [list RESPONSE $self $r]]
+		variable consumer
+		after 1 [list $consumer [list RESPONSE $self $rqcount $r]]
 
 		# count the outstanding responses left
 		# close if there are none
