@@ -190,30 +190,7 @@ class create HTTP {
 	}
     }
 
-    # gzip_content - gzip-encode the content
-    method gzip {r} {
-	if {[dict exists $r -gzip]} {
-	    return $r	;# it's already been gzipped
-	}
-
-	# prepend a minimal gzip file header:
-	# signature, deflate compression, no flags, mtime,
-	# xfl=0, os=3
-	set content [dict get $r -content]
-	set gzip [binary format "H*iH*" "1f8b0800" [clock seconds] "0003"]
-	append gzip [zlib deflate $content]
-
-	# append CRC and ISIZE fields
-	append gzip [binary format i [zlib crc32 $content]]
-	append gzip [binary format i [string length $content]]
-
-	dict set r -gzip $gzip
-	return $r
-    }
-
-
-
-    variable closing outstanding reader writer consumer socket reason self
+    variable closing outstanding reader writer consumer socket reason self spawn
 
     destructor {
 	Debug.HTTP {[self]: $socket closed because: $reason}
@@ -231,6 +208,7 @@ class create HTTP {
 	set reason "none given"	;# reason for closure
 	set consumer $_consumer	;# who's consuming this?
 	set template {accept */*}	;# http template
+	set spawn 1		;# create a new instance for changed hosts (NYI)
 
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
@@ -471,10 +449,24 @@ class create HTTP {
 
 	# forward some methods for writing
 	proc writethis {args} {
-	    set args [lassign $args op]
-	    variable writer
-	    if {$op ne ""} {
-		$writer [list $op {*}$args]
+	    variable self
+	    if {[llength $args]} {
+		set args [lassign $args op url]
+		set urld [Url parse $url]
+		dict with urld {
+		    if {![info exists ${-host}]} {
+			dict set urld -host $host
+		    } elseif {[dict get $urld -host] ne $host} {
+			error "$self is connected to host $host, not [dict get $urld -host]"
+		    }
+		    if {![info exists ${-port}]} {
+			dict set urld -host $port
+		    } elseif {[dict get $urld -port] ne $port} {
+			error "$self is connected to port $port, not [dict get $urld -port]"
+		    }
+		}
+		variable writer; $writer [list $op $url {*}$args]
+		return $self
 	    } else {
 		return $writer
 	    }
@@ -502,7 +494,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	}
     }
 
-    Debug on HTTP 10
+    #Debug on HTTP 10
     http://1023.1024.1025.0126:8080/ echo	;# a bad url
     http://localhost:8080/wub/ echo get /
     http://www.google.com.au/ echo
