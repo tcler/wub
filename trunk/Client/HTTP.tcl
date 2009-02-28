@@ -20,16 +20,50 @@ set MODULE(HTTP) {
 
 	Server responses are sent to the consumer in the form: [[list RESPONSE [[self]] $response]] where $response is a response dictionary.  The actual respone may be found in [[dict get $response -content]].  [[self]] is merely sent so consumers can handle multiple open connections.
 
-	== Termination ==
+	== Opening an HTTP Connection ==
+	[[HTTP new $url $consumer ...]] is the general form of connection construction.  An HTTP connection ''must'' be constructed with at least a URL (to get) and a Consumer (to send responses to.)  As soon as the HTTP object comes into being, it sends all the requests its constructor has been given.
+
+	Additional arguments to the constructor may be of the form:
+
+	;get/put/post/delete {$url ...}: which queues up a protocol request in the pipeline, to be sent to the host in order.  Additional arguments are treated as HTTP protocol elements, and added to the request dict as it's sent.  Careful now.
+	;var value: configuration variables (see Configuration, below)
+
+	== Sending Requests on an HTTP Connection ==
+
+	Requests may be sent in the form: [[$object ''op'' $url]] where ''op'' is one of [[get]], [[put]]. [[post]], [[delete]].  The url must have the same host and port as the HTTP connection was created with, and in fact can be shortened to omit the leading 'http://' and host information.
+
+	=== Request Queries ===
+	Queries are simply formed into the requested url.  [Wub]'s [Query] and [Url] packages may be of use in this, to construct properly formatted URLs and URL queries.
+
+	=== Request Entities ===
+	Entities, if any, can be sent as follows: [[$object post $url $entity]].  If you wish to indicate other information about the entity, it can be included thus: [[$object post $url $entity content-type text/html]] for example.
+
+	The request will be formatted and sent to the host server, and its response indicated to the consumer.
+	
+	== HTTP Connection Termination ==
 	Termination of the connection causes a CLOSED indication to the consumer in the form [[list CLOSED [[self]] $reason]].   A consumer managing multiple connections may use the [[self]] value to associate responses with connections.
 
 	The [[close]] method requests that the object destroy itself and close the connection after all outstanding responses are collected and have been forwarded as responses.
 
 	An eof on the socket destroys the object immediately after sending a CLOSED indication to the consumer.  By the time the consumer receives the CLOSED indication, the HTTP object has probably already been destroyed.
 
+	[[$object destroy]] will also immediately close HTTP connections.
+
 	== Examples ==
 	[[HTTP new $consumer get http://somewhere.com/something get http://somewhere.com/somethingelse ...]]
 	[[http://somewhere.com $consumer get http://somewhere.com/somethingelse]] -- equivalent
+
+	== Limitations ==
+
+	=== Redirections ===
+	Servers may response with redirection response codes, indicating that the requested resource is located elsewhere.  This may necessitate a new connection be opened, perhaps to a different host.  The HTTP package doesn't attempt to follow redirections, reasoning that the consumer is in a better position to know what it wants.
+
+	=== Cookies ===
+	Cookies are received, and may be parsed with the [Wub] [Cookies] module, but are not further processed by HTTP.
+
+	=== Caching ===
+	No attempt is made to cache or to understand caching instructions.
+
     }
     {consumer "A single-word command, or a constructor, to consume responses from the connection"}
 }
@@ -171,16 +205,12 @@ class create HTTP {
 	set outstanding 0	;# counts outstanding packets
 	set reason "none given"	;# reason for closure
 	set consumer $_consumer	;# who's consuming this?
+	set template {accept */*}	;# http template
 
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
  
-	# receiver and transmitter timeouts - by default none
-	set rxtimeout 0; dict unset args rxtimeout
-	set txtimeout 0; dict unset args txtimeout
-	set template {accept */*}	;# http template
-
 	set ops [list get $url]
 	foreach {n v} $args {
 	    if {$n in {get put post delete close}} {
@@ -297,7 +327,7 @@ class create HTTP {
 		chan configure $socket -encoding binary -translation {crlf binary}
 
 		# hand consumer the result
-		variable consumer; after 1 [list $consumer [list RESPONSE $self $r]]
+		variable consumer; variable self; after 1 [list $consumer [list RESPONSE $self $r]]
 
 		# count the outstanding responses left
 		# close if there are none
@@ -317,7 +347,7 @@ class create HTTP {
 		yield
 	    }
 	    [self] destroy
-	} [self]] socket $socket timeout $rxtimeout
+	} [self]] socket $socket
 	objdefine [self] forward reader $reader	;# forward the method to the coro
 
 	# create writer coroutine
@@ -381,10 +411,22 @@ class create HTTP {
 		    my send $op $url {*}$entity
 		}
 	    }
-	} [self]] socket $socket timeout $txtimeout ops $ops template $template host $host
-	objdefine [self] forward write $writer	;# forward the method to the coro
-	foreach v in {get put post delete close} {
-	    objdefine [self] forward $v $writer	$v	;# forward the method to the coro
+	} [self]] socket $socket ops $ops template $template host $host
+
+	# forward some methods for writing
+	proc writethis {args} {
+	    set args [lassign $args op]
+	    variable writer
+	    if {$op ne ""} {
+		$writer [list $op {*}$args]
+	    } else {
+		return $writer
+	    }
+	}
+
+	objdefine [self] forward write [self] writethis	;# forward the method to the coro
+	foreach v {get put post delete close} {
+	    objdefine [self] forward $v [self] writethis $v	;# forward the method to the coro
 	}
 
 	return $writer
@@ -398,7 +440,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     proc echo {arg} {
 	puts "ECHO: $arg"
     }
-    http://www.google.com.au/ echo get http://www.google.com.au/
+    http://www.google.com.au/ echo get http://www.google.com.au/ get /
 
     set done 0
     vwait done
