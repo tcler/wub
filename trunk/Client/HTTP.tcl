@@ -7,7 +7,8 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     set wubdir [file dirname [file dirname [file normalize [info script]]]]
     lappend ::auto_path [file join $wubdir Utilities] [file join $wubdir extensions]
 }
-# import the relevant commands
+
+# import the relevant commands from Wub
 package require Http
 package require Url
 
@@ -72,9 +73,10 @@ set MODULE(HTTP) {
 }
 
 # this enables urls to be commands.
-package require know
-know {[string match http://* [lindex $args 0]]} {
-    HTTP new {*}$args
+if {![catch {package require know}]} {
+    know {[string match http://* [lindex $args 0]]} {
+	HTTP new {*}$args
+    }
 }
 
 package provide HTTP 1.0
