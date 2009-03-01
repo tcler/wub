@@ -609,7 +609,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     set fd [open [info script]]; set source [read $fd]; close $fd
     if {![catch {zlib adler32 $source} crc]} {
 	if {![catch {package require fileutil}]} {
-	    http://wub.googlecode.com/svn/trunk/Client/HTTP.tcl	{set ::source}	;# fetch the latest HTTP.tcl
+	    http://wub.googlecode.com/svn/trunk/Client/HTTP.tcl	{set ::source} justcontent 1	;# fetch the latest HTTP.tcl
 	}
     }
     vwait ::source
@@ -617,6 +617,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     if {![catch {zlib adler32 $source} crc2]} {
 	if {$crc ne $crc2} {
 	    puts stderr "There seems to be a newer version of HTTP.tcl"
+	    puts stderr $source
 	}
     }
 }
