@@ -6,6 +6,8 @@ set MODULE(HTTP) {
 
 	Server responses are sent to the consumer in the form: [[list RESPONSE [[self]] request_count response]] where response is a response dictionary and record_count is a count of requests received by this object.  The actual respone may be found in [[dict get $response -content]].  [[self]] is merely sent so consumers can handle multiple open connections.
 
+	If the configuration variable ''justcontent'' is true, then server responses to the consumer consist of only the received entity, that is the content, of the response.  So a consumer will get the HTML of a page, for example.  This is ok if you know your request isn't going to fail.
+
 	== Opening an HTTP Connection ==
 	[[HTTP new $url $consumer ...]] is the general form of connection construction.  An HTTP connection ''must'' be constructed with at least a URL (to get) and a Consumer (to send responses to.)  As soon as the HTTP object comes into being, it sends all the requests its constructor has been given.
 
@@ -27,7 +29,7 @@ set MODULE(HTTP) {
 	The request will be formatted and sent to the host server, and its response indicated to the consumer.
 	
 	== HTTP Connection Termination ==
-	Termination of the connection causes a CLOSED indication to the consumer in the form [[list CLOSED [[self]] $request_count $reason]].   A consumer managing multiple connections may use the [[self]] value to associate responses with connections.
+	If the configuration variable ''notify'' is true, then termination of the connection calls that script with a CLOSED indication in the form [[list CLOSED [[self]] $request_count $reason]], otherwise the consumer receives it.   A consumer managing multiple connections may use the [[self]] value to associate responses with connections.
 
 	The [[close]] method requests that the object destroy itself and close the connection after all outstanding responses are collected and have been forwarded as responses.
 
@@ -55,6 +57,8 @@ set MODULE(HTTP) {
 
     }
     {consumer "A script prefix to consume responses from the connection"}
+    {notify "Script called with notification of completion (default: none)"}
+    {justcontent "boolean: the consumer just wants the content (default: no)"}
 }
 
 package require TclOO
@@ -282,7 +286,7 @@ class create HTTP {
 	}
     }
 
-    variable closing outstanding rqcount reader writer consumer socket reason self spawn
+    variable closing outstanding rqcount reader writer consumer socket reason self spawn notify justcontent
 
     destructor {
 	Debug.HTTP {[self]: $socket closed because: $reason}
@@ -290,7 +294,11 @@ class create HTTP {
 	catch {close $socket}
 
 	# alert consumer
-	catch {after 1 {*}$consumer [list [list CLOSED [self] [incr rqcount] $reason]]}
+	if {$notify ne ""} {
+	    catch {after 1 {*}$notify [list [list CLOSED [self] [incr rqcount] $reason]]}
+	} else {
+	    catch {after 1 {*}$consumer [list [list CLOSED [self] [incr rqcount] $reason]]}
+	}
     }
 
     constructor {url _consumer args} {
@@ -302,6 +310,8 @@ class create HTTP {
 	set consumer $_consumer	;# who's consuming this?
 	set template {accept */*}	;# http template
 	set spawn 1		;# create a new instance for changed hosts (NYI)
+	set notify ";#"		;# notify close to consumer?
+	set justcontent 0	;# the consumer only wants content
 
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
@@ -431,7 +441,12 @@ class create HTTP {
 
 		# hand consumer the result
 		variable consumer
-		after 1 [list {*}$consumer [list RESPONSE $self $rqcount $r]]
+		variable justcontent
+		if {$justcontent} {
+		    after 1 [list {*}$consumer [list [dict get $r -content]]]
+		} else {
+		    after 1 [list {*}$consumer [list RESPONSE $self $rqcount $r]]
+		}
 
 		# count the outstanding responses left
 		# close if there are none
@@ -587,11 +602,21 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     }
 
     #Debug on HTTP 10
-    http://wub.googlecode.com/svn/trunk/Client/HTTP.tcl	echo	;# fetch the latest HTTP.tcl
     http://1023.1024.1025.0126:8080/ echo	;# a bad url
     http://localhost:8080/wub/ echo get /	;# get a couple of URLs
-    http://www.google.com.au/ echo
+    http://www.google.com.au/ echo justcontent 1	;# just get the content, not the dict
 
-    set done 0
-    vwait done
+    set fd [open [info script]]; set source [read $fd]; close $fd
+    if {![catch {zlib adler32 $source} crc]} {
+	if {![catch {package require fileutil}]} {
+	    http://wub.googlecode.com/svn/trunk/Client/HTTP.tcl	{set ::source}	;# fetch the latest HTTP.tcl
+	}
+    }
+    vwait ::source
+    puts stderr "Fetched [string length $source] bytes of source for HTTP.tcl"
+    if {![catch {zlib adler32 $source} crc2]} {
+	if {$crc ne $crc2} {
+	    puts stderr "There seems to be a newer version of HTTP.tcl"
+	}
+    }
 }
