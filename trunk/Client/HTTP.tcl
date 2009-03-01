@@ -621,6 +621,8 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	if {$crc ne $crc2} {
 	    puts stderr "There seems to be a newer version of HTTP.tcl"
 	    #puts stderr $source
+	} else {
+	    puts stderr "You seem to have the most current version of HTTP.tcl"
 	}
     }
 }
