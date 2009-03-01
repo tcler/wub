@@ -443,7 +443,7 @@ class create HTTP {
 		variable consumer
 		variable justcontent
 		if {$justcontent} {
-		    after 1 [list {*}$consumer [list [dict get $r -content]]]
+		    after 1 [list {*}$consumer [dict get $r -content]]
 		} else {
 		    after 1 [list {*}$consumer [list RESPONSE $self $rqcount $r]]
 		}
@@ -607,11 +607,13 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     http://www.google.com.au/ echo justcontent 1	;# just get the content, not the dict
 
     set fd [open [info script]]; set source [read $fd]; close $fd
+    puts stderr $source
     if {![catch {zlib adler32 $source} crc]} {
 	if {![catch {package require fileutil}]} {
 	    http://wub.googlecode.com/svn/trunk/Client/HTTP.tcl	{set ::source} justcontent 1	;# fetch the latest HTTP.tcl
 	}
     }
+
     vwait ::source
     puts stderr "Fetched [string length $source] bytes of source for HTTP.tcl"
     if {![catch {zlib adler32 $source} crc2]} {
