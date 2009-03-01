@@ -601,6 +601,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     }
 
     #Debug on HTTP 10
+    http://wub.googlecode.com/svn/trunk/Client/HTTP.tcl	;# fetch the latest HTTP.tcl
     http://1023.1024.1025.0126:8080/ echo	;# a bad url
     http://localhost:8080/wub/ echo get /
     http://www.google.com.au/ echo
