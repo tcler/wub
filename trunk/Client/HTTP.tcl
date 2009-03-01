@@ -54,7 +54,7 @@ set MODULE(HTTP) {
 	No attempt is made to cache or to understand caching instructions.
 
     }
-    {consumer "A single-word command, or a constructor, to consume responses from the connection"}
+    {consumer "A script prefix to consume responses from the connection"}
 }
 
 package require TclOO
@@ -290,7 +290,7 @@ class create HTTP {
 	catch {close $socket}
 
 	# alert consumer
-	catch {after 1 $consumer [list [list CLOSED [self] [incr rqcount] $reason]]}
+	catch {after 1 {*}$consumer [list [list CLOSED [self] [incr rqcount] $reason]]}
     }
 
     constructor {url _consumer args} {
@@ -314,20 +314,6 @@ class create HTTP {
 	    } else {
 		set $n $v
 	    }
-	}
-
-	# construct consumer if necessary
-	if {[llength $consumer] > 1} {
-	    lassign $consumer argl function ns
-
-	    # make functional's ns relative to parent dir
-	    if {$ns eq ""} {
-		set ns [uplevel namespace current]
-	    } elseif {![string match :* $ns]} {
-		set ns [uplevel namespace current]::$ns
-	    }
-
-	    coroutine consumer ::apply [list $argl $function $ns]
 	}
 
 	# parse url
@@ -445,7 +431,7 @@ class create HTTP {
 
 		# hand consumer the result
 		variable consumer
-		after 1 [list $consumer [list RESPONSE $self $rqcount $r]]
+		after 1 [list {*}$consumer [list RESPONSE $self $rqcount $r]]
 
 		# count the outstanding responses left
 		# close if there are none
@@ -601,9 +587,9 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     }
 
     #Debug on HTTP 10
-    http://wub.googlecode.com/svn/trunk/Client/HTTP.tcl	;# fetch the latest HTTP.tcl
+    http://wub.googlecode.com/svn/trunk/Client/HTTP.tcl	echo	;# fetch the latest HTTP.tcl
     http://1023.1024.1025.0126:8080/ echo	;# a bad url
-    http://localhost:8080/wub/ echo get /
+    http://localhost:8080/wub/ echo get /	;# get a couple of URLs
     http://www.google.com.au/ echo
 
     set done 0
