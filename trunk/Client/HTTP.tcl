@@ -620,7 +620,16 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     if {![catch {zlib adler32 $source} crc2]} {
 	if {$crc ne $crc2} {
 	    puts stderr "There seems to be a newer version of HTTP.tcl"
-	    #puts stderr $source
+	    if {[lsearch $argv -autoupdate] != -1} {
+		puts stderr "Auto-updating HTTP.tcl in-place"
+		set this [info script]
+		if {![catch {fileutil::writeFile -- $this.new $source} e eo]} {
+		    file rename -force $this $this.bak
+		    file rename -force $this.new $this
+		} else {
+		    puts stderr "writing $this failed: $e ($eo)"
+		}
+	    }
 	} else {
 	    puts stderr "You seem to have the most current version of HTTP.tcl"
 	}
