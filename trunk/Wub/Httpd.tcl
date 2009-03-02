@@ -244,9 +244,11 @@ namespace eval Httpd {
 	set gztype [expr {[string match text/* [dict get $reply content-type]]?"text":"binary"}]
 	set gzip [zlib gzip $content -header [list crc 0 time [clock seconds] type $gztype]]
 
-	# append CRC and ISIZE fields
-	append gzip [binary format i [zlib crc32 $content]]
-	append gzip [binary format i [string length $content]]
+	if {0} {
+	    # append CRC and ISIZE fields
+	    append gzip [binary format i [zlib crc32 $content]]
+	    append gzip [binary format i [string length $content]]
+	}
 
 	dict set reply -gzip $gzip
 	return $reply
@@ -1238,6 +1240,14 @@ namespace eval Httpd {
 	}
     }
 
+    # handle responses from a client
+    proc client {op connection args} {
+	variable client
+	if {[info exists client($connection)]} {
+	    apply $client($connection) $op $connection {*}$args
+	}
+    }
+
     # the request consumer
     proc consumer {args} {
 	Debug.Httpd {consumer: $args}
@@ -1261,6 +1271,12 @@ namespace eval Httpd {
 		    # post-process the response
 		    set r [dict merge [lindex $args 0] {*}[lrange $args 1 end]]
 		    csend $reader [pprocess $r]
+		}
+
+		RESPONSE -
+		CLOSED {
+		    # HTTP client has responded or closed
+		    client $op {*}$args
 		}
 
 		REQUEST {
@@ -1439,6 +1455,12 @@ namespace eval Httpd {
 		}
 		TERMINATE {
 		    return
+		}
+		RESPONSE {
+		    # HTTP client has sent us a response
+		}
+		CLOSED {
+		    # HTTP client has closed.
 		}
 		default {
 		    error "[info coroutine] OP $op not understood by consumer"
