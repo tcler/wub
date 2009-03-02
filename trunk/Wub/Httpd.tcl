@@ -235,20 +235,8 @@ namespace eval Httpd {
 	# signature, deflate compression, no flags, mtime,
 	# xfl=0, os=3
 	set content [dict get $reply -content]
-	if {0} {
-	    # this is how confused I was by the spec :)
-	    set gzip [binary format "H*iH*" "1f8b0800" [clock seconds] "0003"]
-	    append gzip [zlib deflate $content]
-	}
-
 	set gztype [expr {[string match text/* [dict get $reply content-type]]?"text":"binary"}]
 	set gzip [zlib gzip $content -header [list crc 0 time [clock seconds] type $gztype]]
-
-	if {0} {
-	    # append CRC and ISIZE fields
-	    append gzip [binary format i [zlib crc32 $content]]
-	    append gzip [binary format i [string length $content]]
-	}
 
 	dict set reply -gzip $gzip
 	return $reply
