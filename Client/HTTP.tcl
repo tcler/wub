@@ -55,6 +55,8 @@ set MODULE(HTTP) {
 	=== Caching ===
 	No attempt is made to cache or to understand caching instructions.
 
+	== ToDo ==
+	Track [[rename]]s of the object command - this will impact on [[fileevent]] ... it's not safe to rename the object.
     }
     {consumer "A script prefix to consume responses from the connection"}
     {notify "Script called with notification of completion (default: none)"}
