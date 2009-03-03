@@ -204,22 +204,6 @@ namespace eval Html {
 	}]]
     }
 
-    # turn dict or alist into an option set.
-    proc optset {selector args} {
-	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
-	}
-	set optset ""
-	foreach {val text} $args {
-	    if {$val eq $selector} {
-		append optset \n "<option selected value='$val'>$text</option>"
-	    } else {
-		append optset \n "<option value='$val'>$text</option>"
-	    }
-	}
-	return $optset
-    }
-
     # turn dict into tables
     proc table {name args} {
 	if {[llength $args] == 1} {
