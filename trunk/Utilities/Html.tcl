@@ -210,7 +210,7 @@ namespace eval Html {
 	    set args [lindex $args 0]
 	}
 	set optset ""
-	for {val text} $args {
+	foreach {val text} $args {
 	    if {$val eq $selector} {
 		append optset \n "<option selected value='$val'>$text</option>"
 	    } else {
@@ -337,7 +337,7 @@ proc <span>? {args} {
     }
 }
 
-foreach tag {author description copyright generator} {
+foreach tag {author description copyright generator keywords} {
     eval [string map [list %T $tag] {
 	proc <%T> {content} {
 	    return [<meta> name %T content $content]
