@@ -317,7 +317,7 @@ proc <span>? {args} {
     if {$content eq {}} {
 	return ""
     } else {
-	return "<[Html::attr span {*}[lrange $args 0 end-1]] $content>"
+	return "<[Html::attr span {*}[lrange $args 0 end-1]]>$content</span>"
     }
 }
 
