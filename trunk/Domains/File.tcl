@@ -160,7 +160,7 @@ class create File {
     variable root indexfile mount hide redirdir expires dateformat dirparams nodir
 
     constructor {args} {
-	set index "index.*"
+	set indexfile "index.*"
 	set nodir 0
 	set mount /
 	set hide {^([.].*)|(.*~)|(\#.*)$}
