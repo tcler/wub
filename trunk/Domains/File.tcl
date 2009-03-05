@@ -157,7 +157,7 @@ class create File {
 	return [Http NotFound $req "<p>File '$suffix' doesn't resolve to a file.</p>"]
     }
 
-    variable root index mount hide redirdir expires dateformat dirparams nodir
+    variable root indexfile mount hide redirdir expires dateformat dirparams nodir
 
     constructor {args} {
 	set index "index.*"
