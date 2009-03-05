@@ -444,7 +444,7 @@ namespace eval Form {
     }
     
     proc <selectset> {args} {
-	return [uplevel 1 [list <selectlist> {*}$args]
+	return [uplevel 1 [list <selectlist> {*}$args]]
     }
     
     foreach type {radio check} sub {"" box} {
