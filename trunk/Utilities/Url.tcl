@@ -188,7 +188,7 @@ namespace eval Url {
 		append result "${pre}[dict get $x $part]${post}"
 	    }
 	}
-	#puts stderr "Url url $x -> $result"
+	Debug.url {Url http $x -> $result}
 	return $result
     }
 
