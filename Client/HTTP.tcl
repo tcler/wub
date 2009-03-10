@@ -63,6 +63,7 @@ set MODULE(HTTP) {
     {justcontent "boolean: the consumer just wants the content (default: no)"}
 }
 
+package require Tcl 8.6	;# minimum version of tcl required
 package require TclOO
 namespace import oo::*
 
