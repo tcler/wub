@@ -188,6 +188,7 @@ class create HTTP {
 	corovars socket sent host http
 	Debug.HTTP {send method:$method url:$url entity: [string length $entity] ($args)}
 
+	set requrl([incr txcount]) $url
 	set T [dict merge $http $args [::Url::parse $url]]
 	set T [dict merge $T [list -method $method date [::Http::Date] host $host]]
 
@@ -289,7 +290,7 @@ class create HTTP {
 	}
     }
 
-    variable closing outstanding rqcount reader writer consumer socket reason self spawn notify justcontent host port
+    variable closing outstanding rqcount txcount reader writer consumer socket reason self spawn notify justcontent host port requrl
 
     destructor {
 	Debug.HTTP {[self]: $socket closed because: $reason}
@@ -448,6 +449,9 @@ class create HTTP {
 		if {$justcontent} {
 		    after 1 [list {*}$consumer [list [dict get $r -content]]]
 		} else {
+		    variable requrl
+		    dict set r X-url $requrl($rqcount)
+		    dict set r X-count $rqcount
 		    after 1 [list {*}$consumer [list RESPONSE $self $rqcount $r]]
 		}
 
@@ -480,6 +484,7 @@ class create HTTP {
 	proc writer {args} {
 	    # writer - coro to send HTTP requests to a server
 	    Debug.HTTP {writer: $args}
+	    variable txcount -1
 
 	    # unpack all the passed-in args
 	    set ops {}
