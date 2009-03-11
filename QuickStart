@@ -11,6 +11,10 @@ Step 1:  Download the code (which you've probably done already)
 Step 2: Change into the Wub directory:
    cd wub/Wub/
 
-Step 3: Run the demo application:
+Step 3: configure the site.ini
+     cp example.ini site.ini
+     # edit to your taste
+
+Step 4: Run the demo application:
 
    tclsh8.5 Application.tcl
