@@ -17,4 +17,4 @@ Step 3: configure the site.ini
 
 Step 4: Run the demo application:
 
-   tclsh8.5 Application.tcl
+   tclsh8.6 Application.tcl
