@@ -549,7 +549,6 @@ class create HTTP {
 		    my send $op $url {*}$entity
 		}
 	    }
-	    puts stderr "Writer closing"
 	}
 
 	# create writer coroutine
