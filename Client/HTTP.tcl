@@ -188,9 +188,9 @@ class create HTTP {
 	corovars socket sent host http
 	Debug.HTTP {send method:$method url:$url entity: [string length $entity] ($args)}
 
-	set requrl([incr txcount]) $url
-	set T [dict merge $http $args [::Url::parse $url]]
+	set T [dict merge $http $args [list -scheme http -port $port -host $host] [::Url::parse $url]]
 	set T [dict merge $T [list -method $method date [::Http::Date] host $host]]
+	set requrl([incr txcount]) [::Url::url $T]
 
 	# format entity
 	if {$entity ne ""} {
