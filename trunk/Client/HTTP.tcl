@@ -565,22 +565,19 @@ class create HTTP {
 	    if {[llength $args]} {
 		set args [lassign $args op url]
 		set urld [::Url::parse $url]
-		dict with urld {
-		    if {![info exists ${-host}]} {
-			dict set urld -host $host
-		    } elseif {[dict get $urld -host] ne $host} {
-			error "$self is connected to host $host, not [dict get $urld -host]"
-			# note: could simply spawn a new HTTP object with the same args as [self]
-			# and return its name from here.
-		    }
-		    if {![info exists ${-port}]} {
-			dict set urld -host $port
-		    } elseif {[dict get $urld -port] ne $port} {
-			error "$self is connected to port $port, not [dict get $urld -port]"
-		    }
+		if {![dict exists $urld -host]} {
+		    dict set urld -host $host
+		} elseif {[dict get $urld -host] ne $host} {
+		    error "$self is connected to host $host, not [dict get $urld -host]"
+		    # note: could simply spawn a new HTTP object with the same args as [self]
+		    # and return its name from here.
 		}
-
-		$writer [list $op $url {*}$args]
+		if {![dict exists $urld -port]} {
+		    dict set urld -host $port
+		} elseif {[dict get $urld -port] ne $port} {
+		    error "$self is connected to port $port, not [dict get $urld -port]"
+		}
+		$writer [list $op [::Url::url $urld] {*}$args]
 		return $self
 	    } else {
 		return $writer
@@ -614,6 +611,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     http://www.google.com.au/ echo justcontent 1	;# just get the content, not the dict
     puts $obj
     $obj get http://localhost:8080/ echo
+    $obj get /wub/ echo
 
     set fd [open [info script]]; set source [read $fd]; close $fd
     #puts stderr $source
