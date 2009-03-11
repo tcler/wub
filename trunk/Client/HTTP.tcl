@@ -4,7 +4,7 @@ set MODULE(HTTP) {
     {
 	HTTP constructs a connection to a host and initiates a series of HTTP 1.1 requests, it supports HTTP methods [[get]] [[put]] [[post]] [[delete]], and a [[close]] method for terminating the connection.
 
-	Server responses are sent to the consumer in the form: [[list RESPONSE response]] where response is a response dictionary containing the originally requested url in X-url, and the object sending the response in X-object.  The actual response content may be found as [[dict get $response -content]].
+	Server responses are sent to the consumer in the form: [[list RESPONSE response]] where response is a response dictionary containing the originally requested url in X-url, and object sending the response in X-object, and an X-type of RESPONSE.  The actual response content may be found as [[dict get $response -content]].
 
 	If the configuration variable ''justcontent'' is true, then server responses to the consumer consist of only the received entity, that is the content, of the response.  So a consumer will get the HTML of a page, for example.  This is ok if you know your request isn't going to fail.
 
@@ -29,7 +29,7 @@ set MODULE(HTTP) {
 	The request will be formatted and sent to the host server, and its response indicated to the consumer.
 	
 	== HTTP Connection Termination ==
-	If the configuration variable ''notify'' is true, then termination of the connection calls that script with a CLOSED indication in the form [[list CLOSED [[self]] $request_count $reason]], otherwise the consumer receives it.   A consumer managing multiple connections may use the [[self]] value to associate responses with connections.
+	If the configuration variable ''notify'' is true, then termination of the connection calls that script with a response dict containing the X-type CLOSED indication and an X-reason containing the reason for closure, otherwise the consumer receives that dict.   A consumer managing multiple connections may use the X-object element to associate responses with connections.
 
 	The [[close]] method requests that the object destroy itself and close the connection after all outstanding responses are collected and have been forwarded as responses.
 
@@ -298,10 +298,11 @@ class create HTTP {
 	catch {close $socket}
 
 	# alert consumer
+	set close [list X-type CLOSED X-count [incr rqcount] X-reason $reason]
 	if {$notify ne ""} {
-	    catch {after 1 {*}$notify [list [list CLOSED [self] [incr rqcount] $reason]]}
+	    catch {after 1 {*}$notify $close}
 	} else {
-	    catch {after 1 {*}$consumer [list [list CLOSED [self] [incr rqcount] $reason]]}
+	    catch {after 1 {*}$consumer $close}
 	}
     }
 
@@ -453,7 +454,8 @@ class create HTTP {
 		    dict set r X-url $requrl($rqcount)
 		    dict set r X-count $rqcount
 		    dict set r X-object $self
-		    after 1 [list {*}$consumer [list RESPONSE $r]]
+		    dict set r X-type RESPONSE
+		    after 1 [list {*}$consumer $r]
 		}
 
 		# count the outstanding responses left
