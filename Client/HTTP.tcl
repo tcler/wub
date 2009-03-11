@@ -176,7 +176,7 @@ if {[catch {package require know}]} {
     } ;# RS
 }
 know {[string match http://* [lindex $args 0]]} {
-    HTTP new {*}$args close close
+    HTTP new {*}$args	;# close close
 }
 
 package provide HTTP 2.0
@@ -289,7 +289,7 @@ class create HTTP {
 	}
     }
 
-    variable closing outstanding rqcount reader writer consumer socket reason self spawn notify justcontent
+    variable closing outstanding rqcount reader writer consumer socket reason self spawn notify justcontent host port
 
     destructor {
 	Debug.HTTP {[self]: $socket closed because: $reason}
@@ -480,7 +480,7 @@ class create HTTP {
 	proc writer {args} {
 	    # writer - coro to send HTTP requests to a server
 	    Debug.HTTP {writer: $args}
-	    
+
 	    # unpack all the passed-in args
 	    set ops {}
 	    set http {}
@@ -549,16 +549,20 @@ class create HTTP {
 		    my send $op $url {*}$entity
 		}
 	    }
+	    puts stderr "Writer closing"
 	}
 
 	# create writer coroutine
 	set writer [self]::${socket}W 
 	coroutine $writer writer socket $socket ops $ops template $template host $host
-	objdefine [self] forward write [self] writethis	;# forward the method to the coro
+	objdefine [self] forward write [self]::writethis	;# forward the method to the coro
 
 	# forward some methods for writing
 	proc writethis {args} {
 	    variable self
+	    variable host
+	    variable port
+	    variable writer
 	    if {[llength $args]} {
 		set args [lassign $args op url]
 		set urld [::Url::parse $url]
@@ -576,7 +580,8 @@ class create HTTP {
 			error "$self is connected to port $port, not [dict get $urld -port]"
 		    }
 		}
-		variable writer; $writer [list $op $url {*}$args]
+
+		$writer [list $op $url {*}$args]
 		return $self
 	    } else {
 		return $writer
@@ -584,7 +589,7 @@ class create HTTP {
 	}
 
 	foreach v {get put post delete close} {
-	    objdefine [self] forward $v [self] writethis $v	;# forward the method to the coro
+	    objdefine [self] forward $v [self]::writethis $v	;# forward the method to the coro
 	}
 
 	return $writer
@@ -606,8 +611,10 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 
     #Debug on HTTP 10
     http://1023.1024.1025.0126:8080/ echo	;# a bad url
-    http://localhost:8080/wub/ echo get /	;# get a couple of URLs
+    set obj [http://localhost:8080/wub/ echo get /]	;# get a couple of URLs
     http://www.google.com.au/ echo justcontent 1	;# just get the content, not the dict
+    puts $obj
+    $obj get http://localhost:8080/ echo
 
     set fd [open [info script]]; set source [read $fd]; close $fd
     #puts stderr $source
