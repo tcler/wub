@@ -1,1 +1,1 @@
-package ifneeded HTTP 1.0 [list source [file join $dir HttpC.tcl]]
+package ifneeded HTTP 2.0 [list source [file join $dir HTTP.tcl]]
