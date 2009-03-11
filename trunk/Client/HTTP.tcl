@@ -4,7 +4,7 @@ set MODULE(HTTP) {
     {
 	HTTP constructs a connection to a host and initiates a series of HTTP 1.1 requests, it supports HTTP methods [[get]] [[put]] [[post]] [[delete]], and a [[close]] method for terminating the connection.
 
-	Server responses are sent to the consumer in the form: [[list RESPONSE [[self]] request_count response]] where response is a response dictionary and record_count is a count of requests received by this object.  The actual respone may be found in [[dict get $response -content]].  [[self]] is merely sent so consumers can handle multiple open connections.
+	Server responses are sent to the consumer in the form: [[list RESPONSE response]] where response is a response dictionary containing the originally requested url in X-url, and the object sending the response in X-object.  The actual response content may be found as [[dict get $response -content]].
 
 	If the configuration variable ''justcontent'' is true, then server responses to the consumer consist of only the received entity, that is the content, of the response.  So a consumer will get the HTML of a page, for example.  This is ok if you know your request isn't going to fail.
 
@@ -452,6 +452,7 @@ class create HTTP {
 		    variable requrl
 		    dict set r X-url $requrl($rqcount)
 		    dict set r X-count $rqcount
+		    dict set r X-object [self]
 		    after 1 [list {*}$consumer [list RESPONSE $self $rqcount $r]]
 		}
 
