@@ -452,7 +452,7 @@ class create HTTP {
 		    variable requrl
 		    dict set r X-url $requrl($rqcount)
 		    dict set r X-count $rqcount
-		    dict set r X-object [self]
+		    dict set r X-object $self
 		    after 1 [list {*}$consumer [list RESPONSE $self $rqcount $r]]
 		}
 
