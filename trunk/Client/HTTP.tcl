@@ -107,10 +107,22 @@ if {[catch {package require Url}]} {
 	    -host // ""
 	    -port : ""
 	    -path "" ""
-	    -query ? ""
 	} {
 	    if {[dict exists $args $part]} {
 		append result "${pre}[dict get $args $part]${post}"
+	    }
+	}
+	return $result
+    }
+    proc ::Url::uri {x args} {
+	set result [url $x]
+
+	foreach {part pre post} {
+	    -query ? ""
+	    -fragment \# ""
+	} {
+	    if {[dict exists $x $part]} {
+		append result "${pre}[dict get $x $part]${post}"
 	    }
 	}
 	return $result
@@ -191,7 +203,7 @@ class create HTTP {
 
 	set T [dict merge $http $args [list -scheme http -port $port -host $host] [::Url::parse $url]]
 	set T [dict merge $T [list -method $method date [::Http::Date] host $host]]
-	set requrl([incr txcount]) [::Url::url $T]
+	set requrl([incr txcount]) [::Url::uri $T]
 
 	# format entity
 	if {$entity ne ""} {
@@ -590,7 +602,7 @@ class create HTTP {
 		if {![dict exists $urld -scheme]} {
 		    dict set urld -scheme http
 		}
-		$writer [list $op [::Url::url $urld] {*}$args]
+		$writer [list $op [::Url::uri $urld] {*}$args]
 		return $self
 	    } else {
 		return $writer
