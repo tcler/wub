@@ -203,6 +203,7 @@ class create HTTP {
 
 	set T [dict merge $http $args [list -scheme http -port $port -host $host] [::Url::parse $url]]
 	set T [dict merge $T [list -method $method date [::Http::Date] host $host]]
+	Debug.HTTP {T: ($T) -> [::Url::http $T] -> [::Url::uri $T]}
 	set requrl([incr txcount]) [::Url::uri $T]
 
 	# format entity
