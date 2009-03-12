@@ -107,6 +107,7 @@ if {[catch {package require Url}]} {
 	    -host // ""
 	    -port : ""
 	    -path "" ""
+	    -query ? ""
 	} {
 	    if {[dict exists $args $part]} {
 		append result "${pre}[dict get $args $part]${post}"
