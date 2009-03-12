@@ -204,6 +204,7 @@ class create HTTP {
 	set T [dict merge $http $args [list -scheme http -port $port -host $host] [::Url::parse $url]]
 	set T [dict merge $T [list -method $method date [::Http::Date] host $host]]
 	Debug.HTTP {T: ($T) -> [::Url::http $T] -> [::Url::uri $T]}
+	puts stderr "T: ($T) -> [::Url::http $T] -> [::Url::uri $T]"
 	set requrl([incr txcount]) [::Url::uri $T]
 
 	# format entity
@@ -519,7 +520,7 @@ class create HTTP {
 	    }
 	    
 	    # construct a request template
-	    set http [dict merge $template $http]
+	    set http [dict merge $template $http]	;# http could have been passed in
 	    dict set http User-Agent "HTTP/[package present HTTP]"
 	    lappend http accept-encoding gzip
 	    
@@ -587,23 +588,7 @@ class create HTTP {
 	    variable writer
 	    if {[llength $args]} {
 		set args [lassign $args op url]
-		set urld [::Url::parse $url]
-		if {![dict exists $urld -host]} {
-		    dict set urld -host $host
-		} elseif {[dict get $urld -host] ne $host} {
-		    error "$self is connected to host $host, not [dict get $urld -host]"
-		    # note: could simply spawn a new HTTP object with the same args as [self]
-		    # and return its name from here.
-		}
-		if {![dict exists $urld -port]} {
-		    dict set urld -port $port
-		} elseif {[dict get $urld -port] ne $port} {
-		    error "$self is connected to port $port, not [dict get $urld -port]"
-		}
-		if {![dict exists $urld -scheme]} {
-		    dict set urld -scheme http
-		}
-		$writer [list $op [::Url::uri $urld] {*}$args]
+		$writer [list $op $url {*}$args]
 		return $self
 	    } else {
 		return $writer
@@ -631,12 +616,11 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	}
     }
 
-    #Debug on HTTP 10
     http://1023.1024.1025.0126:8080/ echo	;# a bad url
     set obj [http://localhost:8080/wub/ echo get /]	;# get a couple of URLs
     http://www.google.com.au/ echo justcontent 1	;# just get the content, not the dict
     puts $obj
-    $obj get /wub/ echo
+    $obj get /wub/?A=1&B=2 echo
     $obj get http://localhost:8080/ echo
 
     set fd [open [info script]]; set source [read $fd]; close $fd
