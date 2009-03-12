@@ -335,6 +335,7 @@ class create HTTP {
 	# parse url
 	set urld [::Url::parse $url]
 	set host [dict get $urld -host]
+
 	if {[dict exists $urld -port]} {
 	    set port [dict get $urld -port]
 	} else {
@@ -582,9 +583,12 @@ class create HTTP {
 		    # and return its name from here.
 		}
 		if {![dict exists $urld -port]} {
-		    dict set urld -host $port
+		    dict set urld -port $port
 		} elseif {[dict get $urld -port] ne $port} {
 		    error "$self is connected to port $port, not [dict get $urld -port]"
+		}
+		if {![dict exists $urld -scheme]} {
+		    dict set urld -scheme http
 		}
 		$writer [list $op [::Url::url $urld] {*}$args]
 		return $self
@@ -619,11 +623,10 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     set obj [http://localhost:8080/wub/ echo get /]	;# get a couple of URLs
     http://www.google.com.au/ echo justcontent 1	;# just get the content, not the dict
     puts $obj
-    $obj get http://localhost:8080/ echo
     $obj get /wub/ echo
+    $obj get http://localhost:8080/ echo
 
     set fd [open [info script]]; set source [read $fd]; close $fd
-    #puts stderr $source
     if {![catch {zlib adler32 $source} crc]} {
 	if {![catch {package require fileutil}]} {
 	    http://wub.googlecode.com/svn/trunk/Client/HTTP.tcl	{set ::source} justcontent 1	;# fetch the latest HTTP.tcl
