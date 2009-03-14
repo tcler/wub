@@ -483,6 +483,102 @@ namespace eval Httpd {
 	return [list $reply $header $content $empty $cache]
     }
 
+    # respond to client with as many consecutive responses as he can consume
+    proc respond {} {
+	corovars replies response sequence generation satisfied transaction closing unsatisfied socket
+	if {$closing && ![dict size $unsatisfied]} {
+	    # we have no more requests to satisfy and we want to close
+	    terminate "finally close"
+	}
+
+	variable activity
+
+	# send all responses in sequence from the next expected to the last available
+	Debug.Httpd {[info coroutine] pending to send: [dict keys $replies]}
+	foreach next [lsort -integer [dict keys $replies]] {
+	    set activity([info coroutine]) [clock milliseconds]
+	    
+	    if {[chan eof $socket]} {
+		# detect socket closure ASAP in sending
+		Debug.Httpd {[info coroutine] Lost connection on transmit}
+		terminate "eof on $socket"
+		return 1	;# socket's gone - terminate session
+	    }
+	    
+	    # ensure we don't send responses out of sequence
+	    if {$next != $response} {
+		# something's blocking the response pipeline
+		# so we don't have a response for the next transaction.
+		# we must therefore wait until all the preceding transactions
+		# have something to send
+		Debug.Httpd {[info coroutine] no pending or $next doesn't follow $response}
+		chan event $socket writable ""	;# no point in trying to write
+		
+		if {[chan pending output $socket]} {
+		    # the client hasn't consumed our output yet
+		    # stop reading input until he does
+		    chan event $socket readable ""
+		} else {
+		    # there's space for more output, so accept more input
+		    chan event $socket readable [list [info coroutine] READ]
+		}
+
+		return 0
+	    }
+	    set response [expr {1 + $next}]	;# move to next response
+	    
+	    # respond to the next transaction in trx order
+	    # unpack and consume the reply from replies queue
+	    # remove this response from the pending response structure
+	    lassign [dict get $replies $next] head content close empty
+	    dict unset replies $next		;# consume next response
+
+	    # connection close required?
+	    # NB: we only consider closing if all pending requests
+	    # have been satisfied.
+	    if {$close} {
+		# inform client of intention to close
+		Debug.HttpdLow {close requested on $socket - sending header}
+		append head "Connection: close" \r\n	;# send a close just in case
+		# Once this header's been sent, we're committed to closing
+	    }
+
+	    # send headers with terminating nl
+	    chan puts -nonewline $socket "$head\r\n"
+	    Debug.Httpd {[info coroutine] SENT HEADER: $socket '[lindex [split $head \r] 0]' [string length $head] bytes} 4
+	    chan flush $socket	;# try to flush as early as possible
+
+	    # send the content/entity (if any)
+	    # note: we must *not* send a trailing newline, as this
+	    # screws up the content-length and confuses the client
+	    # which doesn't then pick up the next response
+	    # in the pipeline
+	    if {!$empty} {
+		chan puts -nonewline $socket $content	;# send the content
+		Debug.Httpd {[info coroutine] SENT ENTITY: [string length $content] bytes} 8
+	    }
+	    chan flush $socket
+
+	    if {$close} {
+		return 1	;# terminate session on request
+	    }
+
+	    if {[chan pending output $socket]} {
+		# the client hasn't consumed our output yet - stop sending more
+		break
+	    }
+	}
+
+	if {[chan pending output $socket]} {
+	    # the client hasn't consumed our output yet
+	    # stop reading input until he does
+	    chan event $socket readable ""
+	} else {
+	    # there's space for more output, so accept more input
+	    chan event $socket readable [list [info coroutine] READ]
+	}
+    }
+
     # we have been told we can write a reply
     proc write {r cache} {
 	corovars replies response sequence generation satisfied transaction closing unsatisfied socket
@@ -515,6 +611,14 @@ namespace eval Httpd {
 	    return 0	;# duplicate response - just ignore
 	}
 
+	# only send for unsatisfied requests
+	if {[dict exists $unsatisfied $trx]} {
+	    dict unset unsatisfied $trx	;# forget the unsatisfied status
+	} else {
+	    Debug.error {Send discarded: duplicate ([rdump $r])}
+	    continue	;# duplicate response - just ignore
+	}
+
 	# wire-format the reply transaction - messy
 	variable ce_encodings	;# what encodings do we support?
 	lassign [format4send $r -cache $cache -encoding $ce_encodings] r header content empty cache
@@ -539,73 +643,11 @@ namespace eval Httpd {
 	# empty? - is there actually no content, as distinct from 0-length content?
 	Debug.Httpd {[info coroutine] ADD TRANS: ([dict keys $replies])}
 	dict set replies $trx [list $header $content [close? $r] $empty]
+	dict set satisfied $trx {}	;# record satisfaction of transaction
 
-	# send all responses in sequence from the next expected to the last available
-	Debug.Httpd {[info coroutine] pending to send: [dict keys $replies]}
-	foreach next [lsort -integer [dict keys $replies]] {
-	    if {[chan eof $socket]} {
-		# detect socket closure ASAP in sending
-		Debug.Httpd {[info coroutine] Lost connection on transmit}
-		return 1	;# socket's gone - terminate session
-	    }
-
-	    # ensure we don't send responses out of sequence
-	    if {$next != $response} {
-		# something's blocking the response pipeline
-		# so we don't have a response for the next transaction.
-		# we must therefore wait until all the preceding transactions
-		# have something to send
-		Debug.Httpd {[info coroutine] no pending or $next doesn't follow $response}
-		return 0
-	    }
-
-	    # only send for unsatisfied requests
-	    if {[dict exists $unsatisfied $trx]} {
-		dict unset unsatisfied $trx	;# forget the unsatisfied status
-	    } else {
-		Debug.error {Send discarded: duplicate ([rdump $r])}
-		continue	;# duplicate response - just ignore
-	    }
-
-	    # respond to the next transaction in trx order
-	    # unpack and consume the reply from replies queue
-	    # remove this response from the pending response structure
-	    lassign [dict get $replies $next] head content close empty
-	    dict unset replies $next		;# consume next response
-	    set response [expr {1 + $next}]	;# move to next response
-
-	    # connection close required?
-	    # NB: we only consider closing if all pending requests
-	    # have been satisfied.
-	    if {$close} {
-		# inform client of intention to close
-		Debug.HttpdLow {close requested on $socket - sending header}
-		append head "Connection: close" \r\n	;# send a close just in case
-		# Once this header's been sent, we're committed to closing
-	    }
-
-	    # send headers with terminating nl
-	    chan puts -nonewline $socket "$head\r\n"
-	    Debug.Httpd {[info coroutine] SENT HEADER: $socket '[lindex [split $head \r] 0]' [string length $head] bytes} 4
-	    chan flush $socket	;# try to flush as early as possible
-
-	    # send the content/entity (if any)
-	    # note: we must *not* send a trailing newline, as this
-	    # screws up the content-length and confuses the client
-	    # which doesn't then pick up the next response
-	    # in the pipeline
-	    if {!$empty} {
-		chan puts -nonewline $socket $content	;# send the content
-		Debug.Httpd {[info coroutine] SENT ENTITY: [string length $content] bytes} 8
-	    }
-	    chan flush $socket
-	    dict set satisfied $trx {}	;# record satisfaction of transaction
-
-	    if {$close} {
-		return 1	;# terminate session on request
-	    }
-	}
-
+	# having queued the response, we allow it to be sent on writable
+	chan event $socket writable [list [info coroutine] WRITABLE]
+	
 	return 0
     }
 
@@ -741,6 +783,12 @@ namespace eval Httpd {
 		    # send a response to client on behalf of consumer
 		    set activity([info coroutine]) [clock milliseconds]
 		    set retval [send {*}$args]
+		}
+
+		WRITABLE {
+		    # there is space available in the output queue
+		    set activity([info coroutine]) [clock milliseconds]
+		    set retval [respond {*}$args]
 		}
 
 		SUSPEND {
