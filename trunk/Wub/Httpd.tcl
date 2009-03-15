@@ -491,6 +491,11 @@ namespace eval Httpd {
 	    terminate "finally close"
 	}
 
+	# shut down responder if there's nothing to write
+	if {![dict size $replies]} {
+	    chan event $socket writable ""	;# no point in trying to write
+	}
+
 	variable activity
 
 	# send all responses in sequence from the next expected to the last available
