@@ -158,6 +158,8 @@ namespace eval Query {
 	return [list $query $count]
     }
 
+    variable encodings [encoding names]
+
     # cconvert - convert charset to appropriate encoding
     # - try to ensure the correctness of utf-8 input
     proc cconvert {query charset} {
@@ -167,7 +169,8 @@ namespace eval Query {
 	    set charset [string tolower $charset]
 	}
 	Debug.query {cconvert $charset} 6
-	if {$charset in [encoding names]} {
+	variable encodings
+	if {$charset in $encodings} {
 	    # tcl knows of this encoding - so make the conversion
 	    variable utf8
 	    dict for {k v} $query {
