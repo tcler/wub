@@ -647,7 +647,16 @@ namespace eval Httpd {
 
 	# having queued the response, we allow it to be sent on writable
 	chan event $socket writable [list [info coroutine] WRITABLE]
-	
+
+	if {[chan pending output $socket]} {
+	    # the client hasn't consumed our output yet
+	    # stop reading input until he does
+	    chan event $socket readable ""
+	} else {
+	    # there's space for more output, so accept more input
+	    chan event $socket readable [list [info coroutine] READ]
+	}
+
 	return 0
     }
 
