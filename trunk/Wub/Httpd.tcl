@@ -801,7 +801,6 @@ namespace eval Httpd {
 
 		WRITABLE {
 		    # there is space available in the output queue
-		    set activity([info coroutine]) [clock milliseconds]
 		    set retval [respond {*}$args]
 		}
 
