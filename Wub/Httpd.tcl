@@ -486,9 +486,14 @@ namespace eval Httpd {
     # respond to client with as many consecutive responses as he can consume
     proc respond {} {
 	corovars replies response sequence generation satisfied transaction closing unsatisfied socket
+	if {[string match DEAD* [info coroutine]]} {
+	    terminate "oops - we're dead"
+	    return
+	}
 	if {$closing && ![dict size $unsatisfied]} {
 	    # we have no more requests to satisfy and we want to close
 	    terminate "finally close"
+	    return
 	}
 
 	# shut down responder if there's nothing to write
@@ -750,6 +755,11 @@ namespace eval Httpd {
 	    } e eo]} {
 		terminate yieldcrash
 	    }
+	    if {[string match DEAD* [info coroutine]]} {
+		terminate "oops - we're dead"
+		return
+	    }
+
 	    lappend status $op
 	    Debug.HttpdLow {yield [info coroutine] -> $op}
 
@@ -1594,23 +1604,23 @@ namespace eval Httpd {
 
 	# create reader coroutine
 	variable reader
-	set R ::Httpd::${sock}
+	set R ::Httpd::${sock}_[uniq]
 	if {[info commands $R] ne {}} {
 	    # the old socket stuff hasn't yet been cleaned up.
 	    # this is potentially very bad.
 	    Debug.log {reader $R not dead yet, rename to ${R}_DEAD to kill it.}
-	    rename $R ${R}_DEAD
-	    after 1 [list ${R}_DEAD [list TERMINATE "socket's gone"]]	;# ensure the old reader's dead
+	    rename $R DEAD_$R
+	    DEAD_$R [list TERMINATE "socket's gone"]	;# ensure the old reader's dead
 	}
 
 	# construct consumer
-	set cr ::Httpd::CO_${sock}
+	set cr ::Httpd::CO_${sock}_[uniq]
 	if {[info commands $cr] ne {}} {
 	    # the consumer seems to be lingering - we have to tell it to die
-	    set cn ::Httpd::CO_DEAD_[uniq]
+	    set cn ::Httpd::DEAD_[uniq]
 	    Debug.log {consumer $cr not dead yet, rename to $cn to kill it.}
 	    rename $cr $cn	;# move it out of the way first
-	    after 1 [list $cn ""]	;# ensure the old consumer's dead
+	    $cn ""	;# ensure the old consumer's dead
 	}
 	coroutine $cr ::Httpd::consumer reader $R
 
