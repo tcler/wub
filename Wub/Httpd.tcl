@@ -1605,22 +1605,25 @@ namespace eval Httpd {
 	# create reader coroutine
 	variable reader
 	set R ::Httpd::${sock}_[uniq]
-	if {[info commands $R] ne {}} {
-	    # the old socket stuff hasn't yet been cleaned up.
-	    # this is potentially very bad.
+
+	# the old socket stuff hasn't yet been cleaned up.
+	# this is potentially very bad.
+	foreach n [info commands ::Httpd::${sock}_*] {
 	    Debug.log {reader $R not dead yet, rename to ${R}_DEAD to kill it.}
-	    rename $R DEAD_$R
-	    DEAD_$R [list TERMINATE "socket's gone"]	;# ensure the old reader's dead
+	    catch {rename $n DEAD_$n}
+	    catch {DEAD_$n [list TERMINATE "socket's gone"]}	;# ensure the old reader's dead
+	    catch {rename DEAD_$n ""}
 	}
 
 	# construct consumer
 	set cr ::Httpd::CO_${sock}_[uniq]
-	if {[info commands $cr] ne {}} {
+	
+	foreach n [info commands ::Httpd::CO_${sock}_*] {
 	    # the consumer seems to be lingering - we have to tell it to die
-	    set cn ::Httpd::DEAD_[uniq]
-	    Debug.log {consumer $cr not dead yet, rename to $cn to kill it.}
-	    rename $cr $cn	;# move it out of the way first
-	    $cn ""	;# ensure the old consumer's dead
+	    Debug.log {consumer $cr not dead yet, rename to kill it.}
+	    catch {rename $n DEAD_$n}
+	    catch {DEAD_$n ""}	;# ensure the old consumer's dead
+	    catch {rename DEAD_$n ""}	;# really kill it
 	}
 	coroutine $cr ::Httpd::consumer reader $R
 
