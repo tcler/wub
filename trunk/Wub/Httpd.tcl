@@ -755,7 +755,7 @@ namespace eval Httpd {
 	    } e eo]} {
 		terminate yieldcrash
 	    }
-	    if {[string match DEAD* [info coroutine]]} {
+	    if {[eof $socket] || [string match DEAD* [info coroutine]]} {
 		terminate "oops - we're dead"
 		return
 	    }
@@ -1425,18 +1425,23 @@ namespace eval Httpd {
 	    after cancel $everyIds($script)
 	    return
 	}
-	set everyIds($script) [after $interval [info level 0]]
-	set rc [catch {uplevel #0 $script} result]
+	set everyIds($script) [after $interval [info level 0]]	;# restart the timer
+	set rc [catch {
+	    uplevel #0 $script
+	} result eo]
 	if {$rc == [catch break]} {
 	    after cancel $everyIds($script)
 	    set rc 0
 	} elseif {$rc == [catch continue]} {
 	    # Ignore - just consume the return code
 	    set rc 0
+	} elseif {$rc == [catch error]} {
+	    Debug.error {every: $interval ($script) - ERROR: $result ($eo)}
 	}
 
 	# TODO: Need better handling of errorInfo etc...
-	return -code $rc $result
+	#return -code $rc $result
+	return $result
     }
 
     proc kill {args} {
@@ -1456,11 +1461,20 @@ namespace eval Httpd {
 	set now [clock milliseconds]
 	set then [expr {$now - $timeout}]
 	Debug.Watchdog {Reaper Running [Http Now]}
+
+	foreach s [chan names] {
+	    catch {
+		if {[eof $s]} {
+		    close $s
+		}
+	    }
+	}
+
 	variable reaper
 	foreach {n v} [array get reaper] {
 	    unset reaper($n)
 	    if {$v < $now} {
-		kill $n
+		catch {kill $n}
 	    }
 	}
 
