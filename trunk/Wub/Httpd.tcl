@@ -367,6 +367,7 @@ namespace eval Httpd {
 		    # 204 (no content),
 		    # and 304 (not modified)
 		    # responses MUST NOT include a message-body
+		    Debug.HttpdLow {format4write: code is $code, content is [llength $content] bytes}
 		    set reply [Http expunge $reply]
 		    set content ""
 		    set cache 0	;# can't cache these
@@ -379,13 +380,15 @@ namespace eval Httpd {
 			# correctly charset-encode content
 			set reply [charset $reply]
 
-			#Debug.http {pre-CE content length [string length [dict get $reply -content]]}
+			#Debug.HttpdLow {pre-CE content length [string length [dict get $reply -content]]}
 			# also gzip content so cache can store that.
 			lassign [CE $reply {*}$args] reply content
 
 			# ensure content-length is correct
 			dict set reply content-length [string length $content]
+			#Debug.HttpdLow {post-CE content length [string length $content]}
 		    } else {
+			Debug.HttpdLow {format4write: response empty - no content in reply}
 			set content ""	;# there is no content
 			set empty 1	;# it's empty
 			dict set reply content-length 0
@@ -407,7 +410,7 @@ namespace eval Httpd {
 
 	    # now attend to caching generated content.
 	    if {$empty || [dict get $reply content-length] == 0} {
-		set cache 0	;# can't cache no content
+		set cache 0	;# don't cache no content
 	    } elseif {$cache} {
 		# use -dynamic flag to avoid caching even if it was requested
 		set cache [expr {
@@ -460,6 +463,7 @@ namespace eval Httpd {
 	    }
 
 	    # strip http fields which don't have relevance in response
+	    set dh {}
 	    dict for {n v} $reply {
 		set nl [string tolower $n]
 		if {$nl ni {server date}
@@ -467,6 +471,7 @@ namespace eval Httpd {
 		    && $::Http::headers($nl) ne "rq"
 		} {
 		    append header "$n: $v" \r\n
+		    lappend dh $n $v	;# keep dict of what we're actually sending
 		}
 	    }
 	} r eo]} {
@@ -475,9 +480,9 @@ namespace eval Httpd {
 		set cache 0
 	    }
 
-	    Debug.error {Sending Error: '$r' ($eo)}
+	    Debug.error {Sending Error: '$r' ($eo) Sending Error}
 	} else {
-	    #Debug.log {Sent: ($header) ($content)}
+	    Debug.HttpdLow {format4server: ($dh)}
 	}
 
 	return [list $reply $header $content $empty $cache]
@@ -487,12 +492,14 @@ namespace eval Httpd {
     proc respond {} {
 	corovars replies response sequence generation satisfied transaction closing unsatisfied socket
 	if {[string match DEAD* [info coroutine]]} {
+	    Debug.Httpd {[info coroutine] appears to be dead}
 	    terminate "oops - we're dead"
 	    return
 	}
 	if {$closing && ![dict size $unsatisfied]} {
 	    # we have no more requests to satisfy and we want to close
-	    terminate "finally close"
+	    Debug.Httpd {[info coroutine] closing as there's nothing pending}
+	    terminate "finally close in responder"
 	    return
 	}
 
@@ -569,6 +576,9 @@ namespace eval Httpd {
 	    }
 	    chan flush $socket
 
+	    # only send for unsatisfied requests
+	    catch {dict unset unsatisfied $next}
+
 	    if {$close} {
 		return 1	;# terminate session on request
 	    }
@@ -595,7 +605,7 @@ namespace eval Httpd {
 
 	if {$closing && ![dict size $unsatisfied]} {
 	    # we have no more requests to satisfy and we want to close
-	    terminate "finally close"
+	    terminate "finally close in write"
 	}
 
 	if {[dict exists $r -suspend]} {
@@ -622,10 +632,8 @@ namespace eval Httpd {
 	}
 
 	# only send for unsatisfied requests
-	if {[dict exists $unsatisfied $trx]} {
-	    dict unset unsatisfied $trx	;# forget the unsatisfied status
-	} else {
-	    Debug.error {Send discarded: duplicate ([rdump $r])}
+	if {![dict exists $unsatisfied $trx]} {
+	    Debug.error {Send discarded: satisfied duplicate ([rdump $r])}
 	    continue	;# duplicate response - just ignore
 	}
 
