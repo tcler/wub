@@ -2,6 +2,16 @@
 
 package provide Dict 1.0
 
+# dict get? courtesy patthoyts
+proc ::tcl::dict::get? {dict args} {
+    if {[dict exists $dict {*}$args]} {
+	return [dict get $dict {*}$args]
+    } else {
+	return {}
+    }
+}
+namespace ensemble configure dict -map [linsert [namespace ensemble configure dict -map] end get? ::tcl::dict::get?]
+
 namespace eval Dict {
 
     # return a dict element, or {} if it doesn't exist
