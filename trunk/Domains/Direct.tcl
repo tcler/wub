@@ -23,7 +23,24 @@ Debug off direct 10
 package provide Direct 1.0
 
 set API(Direct) {
-    {direct domain handler, which dispatches URL requests to commands within a given namespace}
+    {
+	A domain which dispatches URL requests to commands within a namespace or methods within an object.
+
+	== Operation ==
+	A target URL is interpreted as a command/method invocation with its query arguments interpreted as actual parameters.
+
+	Argument defaults are honoured, as is the ''$args'' formal parameter - unspecified query arguments are passed into the target command as a dict.  Multiple query args with the same name are passed as a list of values.
+
+	Prefix invocation is supported, where a url like '''/fred/wilma''' will be matched by command /fred if /fred/wilma is not found.
+
+	Wildcard invocation is supported, with unmatched urls being handled by a nominated default command.
+
+	== TODO ==
+	As per [http://wiki.tcl.tk/22738], different varieties of command might be supported.  Specifically, interps should be considered as a valid command container.
+
+	== Homage ==
+	This concept is an extension of tclhttpd's domain of the same name.
+    }
     namespace {namespace in which to invoke commands}
     ctype {default content-type of returned values}
     wildcard {process to be used if a request doesn't match any proc in $namespace (default /default)}
@@ -32,11 +49,6 @@ set API(Direct) {
 
 class create Direct {
     variable namespace object class ctype mount wildcard trim methods
-
-    method prefix {path args} {
-	set path [file split $path]
-	
-    }
 
     method do_ns {rsp} {
 	Debug.direct {do direct $namespace $mount $ctype}
