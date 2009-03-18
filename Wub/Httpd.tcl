@@ -1,10 +1,8 @@
 # Httpd - near HTTP/1.1 protocol server.
 #
 
-# fast read starts a series of tasks to cope with each listener.
 if {[info exists argv0] && ($argv0 eq [info script])} {
     # test Httpd
-    puts stderr "Httpd test"
     lappend auto_path [pwd] ../Utilities/ ../extensions/
     package require Http
 }
@@ -147,17 +145,19 @@ namespace eval Httpd {
     proc terminate {{reason ""}} {
 	corovars consumer
 	if {![info exists consumer]} {
-	    # a consumer is trying to terminate directly
-	    # ask socket coro to terminate too
+	    # this is the consumer coro
+	    # the consumer is trying to terminate directly
+	    # so ask socket coro to terminate too
 	    corovars reader
 	    if {[catch {
 		$reader [list TERMINATE $reason]
 	    } e eo]} {
 		Debug.error {[info coroutine] direct termination via $reader: $e ($eo)} 1
 	    }
-	    return -level [info level] terminated	;# terminate consumer
+	    rename [info coroutine] ""; ::yield	;# terminate consumer
 	}
 
+	# this is the reader - trying to terminate
 	Debug.Httpd {[info coroutine] terminate: ($reason)}
 
 	# disable inactivity reaper for this coro
@@ -187,11 +187,13 @@ namespace eval Httpd {
 	variable connbyIP; catch {incr connbyIP($ipaddr) -1}
 
 	# clean up socket - the only point where we close
+	catch {chan fileevent $socket readable ""}	;# is this necessary?
+	catch {chan fileevent $socket writable ""}	;# is this necessary?
 	catch {chan close $socket}
 
 	# destroy reader - that's all she wrote
 	Debug.Httpd {reader [info coroutine]: terminated}
-	return -level [info level] terminated	;# terminate coro
+	rename [info coroutine] ""; ::yield	;# terminate coro
     }
 
     # close? - should we close this connection?
@@ -201,7 +203,7 @@ namespace eval Httpd {
 	Debug.HttpdLow {version [dict get $r -version] implies close=$close}
 
 	# handle 'connection: close' request from client
-	foreach ct [split [Dict get? $r connection] ,] {
+	foreach ct [split [dict get? $r connection] ,] {
 	    if {[string tolower [string trim $ct]] eq "close"} {
 		Debug.HttpdLow {Tagging close at connection:close request}
 		set close 1
@@ -246,10 +248,10 @@ namespace eval Httpd {
     proc CE {reply args} {
 	# default to identity encoding
 	set content [dict get $reply -content]
-	Debug.http {CE -encoding:[Dict get? $args -encoding]}
+	Debug.http {CE -encoding:[dict get? $args -encoding]}
 	if {![dict exists $reply -gzip]
-	    && ("gzip" in [Dict get? $args -encoding])
-	    && ![string match image/* [Dict get? $reply content-type]] 
+	    && ("gzip" in [dict get? $args -encoding])
+	    && ![string match image/* [dict get? $reply content-type]] 
 	} {
 	    set reply [gzip_content $reply]
 	}
@@ -257,14 +259,14 @@ namespace eval Httpd {
 	# choose content encoding - but not for MSIE
 	variable chunk_size
 	variable gzip_bugged
-	if {[Dict get? $reply -ua id] ni $gzip_bugged
+	if {[dict get? $reply -ua id] ni $gzip_bugged
 	    && [dict exists $reply accept-encoding]
 	    && ![dict exists $reply content-encoding]
 	} {
 	    foreach en [split [dict get $reply accept-encoding] ","] {
 		lassign [split $en ";"] en pref
 		set en [string trim $en]
-		if {$en in [Dict get? $args -encoding]} {
+		if {$en in [dict get? $args -encoding]} {
 		    switch $en {
 			"gzip" { # substitute the gzipped form
 			    if {[dict exists $reply -gzip]} {
@@ -294,7 +296,7 @@ namespace eval Httpd {
 	}
 
 	# handle charset for text/* types
-	lassign [split [Dict get? $reply content-type] {;}] ct
+	lassign [split [dict get? $reply content-type] {;}] ct
 	if {[string match text/* $ct] || [string match */*xml $ct]} {
 	    if {[dict exists $reply -charset]} {
 		set charset [dict get $reply -charset]
@@ -314,7 +316,7 @@ namespace eval Httpd {
     # format4send - format up a reply for sending.
     proc format4send {reply args} {
 	set sock [dict get $reply -sock]
-	set cache [expr {[Dict get? $args -cache] eq "1"}]
+	set cache [expr {[dict get? $args -cache] eq "1"}]
 	if {[catch {
 	    # unpack and consume the reply from replies queue
 	    if {![dict exists $reply -code]} {
@@ -341,7 +343,7 @@ namespace eval Httpd {
 	    # format up the headers
 	    if {$code != 100} {
 		append header "Date: [Http Now]" \r\n
-		set si [Dict get? $reply -server_id]
+		set si [dict get? $reply -server_id]
 		if {$si eq ""} {
 		    set si "The Wub"
 		}
@@ -438,7 +440,7 @@ namespace eval Httpd {
 	    }
 
 	    # add in Auth header elements - TODO
-	    foreach challenge [Dict get? $reply -auth] {
+	    foreach challenge [dict get? $reply -auth] {
 		append header "WWW-Authenticate: $challenge" \r\n
 	    }
 
@@ -685,7 +687,7 @@ namespace eval Httpd {
 	    $reader [list SEND $rsp]
 	} e eo] || $e in {EOF ERROR}} {
 	    Debug.error {[info coroutine] sending terminated via $reader: $e ($eo)} 1
-	    return -level [info level] terminated	;# terminate coro
+	    rename [info coroutine] ""; ::yield	terminated	;# terminate coror
 	} else {
 	    return $e
 	}
@@ -727,7 +729,7 @@ namespace eval Httpd {
 	    # send all pending responses, ensuring we don't send out of sequence
 	    write $r $cache
 	} close eo]} {
-	    Debug.error {FAILED write $close ($eo) IP [dict get $r -ipaddr] ([Dict get? $r user-agent]) wanted [dict get $r -uri]}
+	    Debug.error {FAILED write $close ($eo) IP [dict get $r -ipaddr] ([dict get? $r user-agent]) wanted [dict get $r -uri]}
 
 	    terminate closed
 	}
@@ -878,6 +880,7 @@ namespace eval Httpd {
 
 	Debug.error {'handle' closing}
 	return -level [expr {[info level] - 1}]	;# return to the top coro level
+	#rename [info coroutine] ""; ::yield	;# terminate coro
     }
 
     # coroutine-enabled gets
@@ -1053,26 +1056,26 @@ namespace eval Httpd {
 	     } {
 		dict set r -OC 1
 		# let's log this sucker and see what he's asking for
-		Debug.log {Overconnector [dict get $r -ipaddr] ([Dict get? $r user-agent]) wants [dict get $r -uri]}
+		Debug.log {Overconnector [dict get $r -ipaddr] ([dict get? $r user-agent]) wants [dict get $r -uri]}
 	    }
 
 	    # block spiders by UA
-	    if {[info exists ::spiders([Dict get? $r user-agent])]} {
-		Block block [dict get $r -ipaddr] "spider UA ([Dict get? $r user-agent])"
+	    if {[info exists ::spiders([dict get? $r user-agent])]} {
+		Block block [dict get $r -ipaddr] "spider UA ([dict get? $r user-agent])"
 		handle [Http NotImplemented $r "Spider Service"] "Spider"
 	    }
 
 	    # analyse the user agent strings.
-	    dict set r -ua [ua [Dict get? $r user-agent]]
+	    dict set r -ua [ua [dict get? $r user-agent]]
 
 	    # check the incoming ip for blockage
-	    if {[Block blocked? [Dict get? $r -ipaddr]]} {
+	    if {[Block blocked? [dict get? $r -ipaddr]]} {
 		handle [Http Forbidden $r] Forbidden
 	    } elseif {[Honeypot guard r]} {
 		# check the incoming ip for bot detection
 		# this is a bot - reply directly to it
 		send $r	0	;# queue up error response
-		Debug.log {Honeypot Sticks [dict get $r -ipaddr] ([Dict get? $r user-agent]) wants [dict get $r -uri]}
+		Debug.log {Honeypot Sticks [dict get $r -ipaddr] ([dict get? $r user-agent]) wants [dict get $r -uri]}
 		continue
 	    }
 
@@ -1183,7 +1186,7 @@ namespace eval Httpd {
 	    }
 
 	    # fetch the entity (if any)
-	    if {"chunked" in [Dict get? $r -te]} {
+	    if {"chunked" in [dict get? $r -te]} {
 		set chunksize 1
 		while {$chunksize} {
 		    chan configure $socket -translation {crlf binary}
@@ -1239,8 +1242,8 @@ namespace eval Httpd {
 	    chan configure $socket -encoding binary -translation {crlf binary}
 
 	    # now we postprocess/decode the entity
-	    Debug.entity {entity read complete - '[Dict get? $r -te]'}
-	    if {"gzip" in [Dict get? $r -te]} {
+	    Debug.entity {entity read complete - '[dict get? $r -te]'}
+	    if {"gzip" in [dict get? $r -te]} {
 		dict set r -entity [zlib deflate [dict get $r -entity]]
 	    }
 
@@ -1253,7 +1256,7 @@ namespace eval Httpd {
 	    # (presumably local ip forwarders are trustworthy)
 	    set forwards {}
 	    if {[dict exists $r x-forwarded-for]} {
-		foreach xff [split [Dict get? $r x-forwarded-for] ,] {
+		foreach xff [split [dict get? $r x-forwarded-for] ,] {
 		    set xff [string trim $xff]
 		    set xff [lindex [split $xff :] 0]
 		    if {$xff eq ""
@@ -1512,7 +1515,6 @@ namespace eval Httpd {
 
     proc post {req} {
 	package require Cookies
-	package require Session
 	package require Convert
 	proc post {req} {
 	    return [::Convert do $req]	;# got to do post-conversion
@@ -1566,6 +1568,7 @@ namespace eval Httpd {
 		if {[Block blocked? $ipaddr]} {
 		    Debug.log {Blocked attempt from $ipaddr}
 
+		    # dump this connection with a minimum of fuss.
 		    variable server_id
 		    puts $sock "HTTP/1.1 403 Forbidden\r"
 		    puts $sock "Date: [Http Now]\r"
@@ -1663,25 +1666,28 @@ namespace eval Httpd {
 	return $result
     }
 
+    # this is not used
     proc corogone {match from to op} {
 	if {$op eq "delete"} {
 	    catch {$match TERMINATE}
-	    puts stderr "CORO $op: $from"
+	    Debug.Httpd {CORO $op: $from}
 	} elseif {$op eq "rename"} {
-	    puts stderr "CORO $op: $from $to"
-	    catch {puts stderr "([trace info command $from]) ([trace info command $to])"}
+	    Debug.Httpd {CORO $op: $from $to ([trace info command $from]) ([trace info command $to])}
 	}
     }
+
+    # this is not used
     proc sockgone {match sock from to op} {
 	if {$op eq "delete"} {
+	    # clean up socket - the only point where we close
+	    catch {chan fileevent $socket readable ""}	;# is this necessary?
+	    catch {chan fileevent $socket writable ""}	;# is this necessary?
 	    catch {chan close $sock}
 	    catch {$match TERMINATE}
-	    puts stderr "SOCK $op: $from $to"
+	    Debug.Httpd {SOCK $op: $from $to}
 	} elseif {$op eq "rename"} {
-	    puts stderr "SOCK $op: $from $to"
-	    catch {puts stderr "([trace info command $from]) ([trace info command $to])"}
+	    Debug.Httpd {SOCK $op: $from $to -([trace info command $from]) ([trace info command $to])}
 	}
-
     }
 
     # common log format log - per request, for log analysis
