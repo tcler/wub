@@ -2,7 +2,6 @@ Dependencies:
 
   Must have tcllib (see http://wiki.tcl.tk/1246)
   Optionally:
-    zlib - for gzip transport encoding (code included, may need to be compiled.)
     tls (http://wiki.tcl.tk/2630) - for SSL
 
 Step 1:  Download the code (which you've probably done already)
