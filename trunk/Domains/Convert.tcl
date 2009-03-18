@@ -217,7 +217,7 @@ namespace eval Convert {
     proc Convert {rsp {to ""}} {
 	Debug.convert {Converting '[dict get $rsp content-type]' to '$to'}
 	if {$to ne ""} {
-	    if {[Dict get? $rsp content-type] eq $to} {
+	    if {[dict get? $rsp content-type] eq $to} {
 		Debug.convert {Identity Conversion}
 		return $rsp	;# don't need to process
 	    }

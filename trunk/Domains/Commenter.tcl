@@ -201,7 +201,7 @@ namespace eval Commenter {
     # return a formatted dict for given contexts
     proc munge {comments {contexts *}} {
 	set result {}
-	dict for {k v} [dict filter [Dict get? $comments contexts] key $contexts] {
+	dict for {k v} [dict filter [dict get? $comments contexts] key $contexts] {
 	    if {[dict get $v type] eq "global"} continue
 	    set src [dict get $comments contexts [dict get $v context]]
 	    set comment [dict get $v comment]

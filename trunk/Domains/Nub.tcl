@@ -74,7 +74,7 @@ namespace eval Nub {
 	set opts [lassign $API($domain) about]
 	if {[llength $opts]} {
 	    foreach {opt text} $opts {
-		set val [tclarmour [armour [Dict get? $body $opt]]]
+		set val [tclarmour [armour [dict get? $body $opt]]]
 		set text [tclarmour [armour $text]]
 		if {[string match +* $text]} {
 		    append extra [<textarea> ${opt}_$count cols 80 class autogrow label "[string totitle $opt]: " title $text $val] \n

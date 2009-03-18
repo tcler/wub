@@ -56,8 +56,8 @@ namespace eval Coco {
 	    # fetch and validate fields
 	    set _message {}
 	    foreach _var [dict keys $_vals] {
-		dict set _vals $_var [Dict get? $_Q $_var]
-		uplevel 1 set $_var [list [Dict get? $_Q $_var]]
+		dict set _vals $_var [dict get? $_Q $_var]
+		uplevel 1 set $_var [list [dict get? $_Q $_var]]
 	    }
 	    dict with _vals {}
 
@@ -102,7 +102,7 @@ namespace eval Coco {
 
     # process request helper
     proc process {mount lambda r} {
-	dict set r -rest [lassign [split [Dict get? $r -suffix] /] suffix]
+	dict set r -rest [lassign [split [dict get? $r -suffix] /] suffix]
 	Debug.coco {process '$suffix' over $mount with ($lambda)}
 	
 	if {$suffix eq "/" || $suffix eq ""} {
