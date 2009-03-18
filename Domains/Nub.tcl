@@ -668,17 +668,20 @@ namespace eval Nub {
 		switch -- [string tolower $domain] {
 		    literal {
 			append switch [string map [list %H $host %U $url %CT [dict get $body ctype] %C [list [dict get $body content]]] {
-			    "%H,%U" {Http Ok $r %C %CT}
+			    "%H,%U" {
+				Http Ok $r %C %CT
+				# TODO: handle if-modified-since etc depending on nub-date
+			    }
 			}]
 		    }
-		
+
 		    code {
 			append switch [string map [list %H $host %U $url %CT [dict get $body ctype] %C [dict get $body content]] {
 			    "%H,%U" {
-				dict set r -code 200
-				dict set r content-type %CT
+				dict set r -code 200	;# default return code
+				dict set r content-type %CT	;# default content-type
 				set content [%C]	;# permits mods to $r
-				Http Pass $r $content
+				Http Pass $r $content	;# pass the content back
 			    }
 			}]
 		    }
@@ -743,7 +746,6 @@ namespace eval Nub {
 
 		# this proc will replace the containing version after one run
 		proc ::Httpd::do {op r} {
-		    if {$op ne "REQUEST"} return
 		    Debug.nub {RX: [dict get $r -uri] - [dict get $r -url] - ([Url parse [dict get $r -url]]) }
 		    variable defs
 
