@@ -164,18 +164,18 @@ namespace eval Http {
 	lappend line \[[clock format [dict get $r -received_seconds] -format "%d/%b/%Y:%T %Z"]\]
 
 	# first line of request
-	lappend line \"[Dict get? $r -header]\"
+	lappend line \"[dict get? $r -header]\"
 
 	# status we returned to it
 	lappend line [dict get $r -code]
 
 	# content byte length
-	lappend line [string length [Dict get? $r -content]]
+	lappend line [string length [dict get? $r -content]]
 
 	# referer, useragent, cookie, if any
-	lappend line \"[Dict get? $r referer]\"
-	lappend line \"[Dict get? $r user-agent]\"
-	lappend line \"[Dict get? $r cookie]\"
+	lappend line \"[dict get? $r referer]\"
+	lappend line \"[dict get? $r user-agent]\"
+	lappend line \"[dict get? $r cookie]\"
 
 	return [join $line]
     }
@@ -244,7 +244,7 @@ namespace eval Http {
 
     # finally resume a suspended response
     proc Resume {rsp} {
-	Debug.log {Resume [dict merge $rsp [list -content "<elided>[string length [Dict get? $rsp -content]]"]]}
+	Debug.log {Resume [dict merge $rsp [list -content "<elided>[string length [dict get? $rsp -content]]"]]}
 	catch {dict unset rsp -suspend}
 	dict set rsp -resumed 1
 	if {[catch {Responder post $rsp} r eo]} { ;# postprocess response
@@ -404,7 +404,7 @@ namespace eval Http {
 	return [OkResponse $rsp $code Ok $content $ctype]
     }
 
-    # construct an HTTP Ok response
+    # construct an HTTP Ok response of dynamic type (turn off caching)
     proc Ok+ {rsp {content ""} {ctype "x-text/html-fragment"}} {
 	if {[dict exists $rsp -code]} {
 	    set code [dict get $rsp -code]
@@ -415,6 +415,8 @@ namespace eval Http {
     }
 
     # construct an HTTP passthrough response
+    # this is needed if we already have a completed response and just want to
+    # substitute content.  [Http Ok] does too much.
     proc Pass {rsp {content ""} {ctype ""}} {
 	if {![dict exists $rsp -code]} {
 	    dict set rsp -code 200
@@ -435,8 +437,6 @@ namespace eval Http {
 
 	dict set rsp -dynamic 1	;# prevent caching
 	dict set rsp -raw 1	;# prevent conversion
-
-	#Debug.log {Created: $rsp} 2
 
 	return $rsp
     }
@@ -469,10 +469,12 @@ namespace eval Http {
     }
 
     # construct an HTTP PartialContent response
+    # TODO - actually support this :)
     proc PartialContent {rsp {content ""} {ctype ""}} {
 	return [OkResponse $rsp 206 PartialContent $content $ctype]
     }
 
+    # set the title <meta> tag, assuming we're returning fragment content
     proc title {r title} {
 	if {[string length $title] > 80} {
 	    set title [string range $title 0 80]...
@@ -481,11 +483,11 @@ namespace eval Http {
 	return $r
     }
 
-    # sysPage - generate a system page
+    # sysPage - generate a 'system' page
     proc sysPage {rsp title content} {
 	dict set rsp content-type "x-text/system"
 	set rsp [title $rsp $title]
-	dict set rsp -content "<h1>$title</h1>\n$content"
+	dict set rsp -content "[<h1> $title]\n$content"
 	return $rsp
     }
 
@@ -495,19 +497,12 @@ namespace eval Http {
 	set content ""
 	if {[catch {
 	    if {$eo ne ""} {
-		append content "<table border='1' width='80%'>" \n
-		append content <tr> <th> Error Info </th> </tr> \n
+		append table [<tr> [<th> "Error Info"]] \n
 		dict for {n v} $eo {
-		    append content <tr> <td> $n </td> <td> [armour $v] </td> </tr> \n
+		    append table [<tr> "[<td> $n] [<td> [armour $v]]"] \n
 		}
-		append content </table> \n
+		append content [<table> border 1 width 80% $table] \n
 	    }
-	    
-	    #if {($eo ne "") && [dict exists $eo -errorinfo]} {
-	    #    catch {
-	    #	set message [string map {\n <br>} [armour [dict get $eo -errorinfo]]]
-	    #    }
-	    #}
 	    
 	    catch {append content [<p> "Caller: [armour [info level -1]]"]}
 	    set message [armour $message]
@@ -517,6 +512,8 @@ namespace eval Http {
 	    } else {
 		set tmessage $message
 	    }
+
+	    # make this an x-system type page
 	    set rsp [sysPage $rsp "Server Error: $tmessage" [subst {
 		[<p> [tclarmour $message]]
 		<hr>
@@ -524,7 +521,7 @@ namespace eval Http {
 		<hr>
 		[tclarmour [dump $rsp]]
 	    }]]
-		     
+ 
 	    dict set rsp -code 500
 	    dict set rsp -rtype Error
 	    dict set rsp -dynamic 1
@@ -553,6 +550,7 @@ namespace eval Http {
 	dict set rsp -code 501
 	dict set rsp -rtype NotImplemented
 	dict set rsp -error $message
+
 	return $rsp
     }
 
@@ -573,6 +571,7 @@ namespace eval Http {
 
 	dict set rsp -code 504
 	dict set rsp -rtype GatewayUnavailable
+
 	return $rsp
     }
 
@@ -583,14 +582,15 @@ namespace eval Http {
 	dict set rsp -code $code
 	dict set rsp -rtype Bad
 	dict set rsp -error $message
+
 	return $rsp
     }
 
     # construct an HTTP NotFound response
     proc NotFound {rsp {content ""} {ctype "x-text/system"}} {
 	if {$content ne ""} {
-	    dict set rsp content-type $ctype
 	    dict set rsp -content $content
+	    dict set rsp content-type $ctype
 	} elseif {![dict exists $rsp -content]} {
 	    set uri [dict get $rsp -uri]
 	    set rsp [sysPage $rsp "$uri Not Found" [<p> "The entity '$uri' doesn't exist."]]
@@ -598,20 +598,22 @@ namespace eval Http {
 
 	dict set rsp -code 404
 	dict set rsp -rtype NotFound
+
 	return $rsp
     }
 
     # construct an HTTP Forbidden response
     proc Forbidden {rsp {content ""} {ctype "x-text/html-fragment"}} {
 	if {$content ne ""} {
-	    dict set rsp content-type $ctype
 	    dict set rsp -content $content
+	    dict set rsp content-type $ctype
 	} elseif {![dict exists $rsp -content]} {
 	    set rsp [sysPage $rsp "Access Forbidden" [<p> "You are not permitted to access this page."]]
 	}
 
 	dict set rsp -code 403
 	dict set rsp -rtype Forbidden
+
 	return $rsp
     }
 
@@ -638,30 +640,28 @@ namespace eval Http {
     }
 
     # construct an HTTP Unauthorized response
-    proc Unauthorized {rsp
-		       {challenge ""}
-		       {content ""}
-		       {ctype "x-text/html-fragment"}} {
+    proc Unauthorized {rsp {challenge ""} {content ""} {ctype "x-text/html-fragment"}} {
 	if {$challenge ne ""} {
 	    dict set rsp WWW-Authenticate $challenge
 	}
 	if {$content ne ""} {
-	    dict set rsp content-type $ctype
 	    dict set rsp -content $content
+	    dict set rsp content-type $ctype
 	} elseif {![dict exists $rsp -content]} {
 	    set rsp [sysPage $rsp Unauthorized [<p> "You are not permitted to access this page."]]
 	}
 
 	dict set rsp -code 401
 	dict set rsp -rtype Unauthorized
+
 	return $rsp
     }
 
     # construct an HTTP Conflict response
     proc Conflict {rsp {content ""} {ctype "x-text/system"}} {
 	if {$content ne ""} {
-	    dict set rsp content-type $ctype
 	    dict set rsp -content $content
+	    dict set rsp content-type $ctype
 	} elseif {![dict exists $rsp -content]} {
 	    set rsp [sysPage $rsp Conflict [<p> "Conflicting Request"]]
 	}
@@ -674,8 +674,8 @@ namespace eval Http {
     # construct an HTTP PreconditionFailed response
     proc PreconditionFailed {rsp {content ""} {ctype "x-text/system"}} {
 	if {$content ne ""} {
-	    dict set rsp content-type $ctype
 	    dict set rsp -content $content
+	    dict set rsp content-type $ctype
 	}
 
 	dict set rsp -code 412
@@ -719,14 +719,13 @@ namespace eval Http {
     }
 
     # internal redirection generator
-    proc genRedirect {title
-		      code rsp to
-		      {content ""} {ctype "text/html"}
-		      args} {
+    proc genRedirect {title code rsp to {content ""} {ctype "text/html"} args} {
 	set to [Url redir $rsp $to {*}$args]
 
-	if {$content eq ""} {
-	    dict set rsp content-type "text/html"
+	if {$content ne ""} {
+	    dict set rsp -content $content
+	    dict set rsp content-type $ctype
+	} else {
 	    dict set rsp -content [<html> {
 		[<head> {[<title> $title]}]
 		[<body> {
@@ -734,9 +733,7 @@ namespace eval Http {
 		    [<p> "The page may be found here: <a href='[armour $to]'>[armour $to]"]
 		}]
 	    }]
-	} else {
-	    dict set rsp content-type $ctype
-	    dict set rsp -content $content
+	    dict set rsp content-type "text/html"
 	}
 
 	if {0} {
@@ -853,43 +850,27 @@ namespace eval Http {
     # dump the context
     proc dump {req {short 1}} {
 	catch {
-	    set c ""
-	    append c "<table border='1' width='80%'>" \n
-	    append c <tr> <th> Metadata </th> </tr> \n
-
+	    set table [<tr> [<th> Metadata]]\n
 	    foreach n [lsort [dict keys $req -*]] {
 		if {$short && ($n eq "-content")} continue
-		append c \n <tr>
-		append c <td> $n </td>
-		append c <td> [armour [dict get $req $n]] </td>
-		append c </tr> \n
+		append table [<tr> "[<td> $n] [<td> [armour [dict get $req $n]]]"] \n
 	    }
-	    append c </table> \n
-
-	    append c "<table border='1' width='80%'>" \n
-	    append c <tr> <th> HTTP </th> </tr> \n
+	    append c [<table> border 1 width 80% $table] \n
+	    
+	    set table [<tr> [<th> HTTP]]\n
 	    foreach n [lsort [dict keys $req {[a-zA-Z]*}]] {
-		append c <tr> <td> $n </td> <td> [armour [dict get $req $n]] </td> </tr> \n
+		append table [<tr> "[<td> $n] [<td> [armour [dict get $req $n]]]"] \n
 	    }
-	    append c </table> \n
+	    append c [<table> border 1 width 80% $table] \n
 
-	    append c "<table border='1' width='80%'>" \n
-	    append c <tr> <th> Query </th> </tr> \n
+	    set table [<tr> [<th> Query]]\n
 	    array set q [Query flatten [Query parse $req]]
 	    foreach {n} [lsort [array names q]] {
-		append c <tr> <td> [armour $n] </td> <td> [armour $q($n)] </td> </tr> \n
+		append table [<tr> "[<td> [armour $n]] [<td> [armour $q($n)]]"] \n
 	    }
-	    append c </table> \n
-
-	    append c "<table border='1' width='80%'>" \n
-	    append c <tr> <th> Session </th> </tr> \n
-	    set session [Dict get? $req -session]
-	    foreach key [lsort [dict keys $session]] {
-		append c <tr> <td> [armour $key] </td> <td> [armour [dict get $session $key]] </td> </tr> \n
-	    }
-	    append c </table> \n
+	    append c [<table> border 1 width 80% $table] \n
 	} r eo
-	#puts stderr "DUMP: $r ($eo)"
+
 	return $c
     }
 
@@ -926,21 +907,6 @@ namespace eval Http {
 		      || $ip eq "unknown"
 		      || [::ip::type $ip] ne "normal"
 		  }]
-
-	# this stuff is redundant now.
-	if {$ip eq "127.0.0.1"
-	    || [string match "192.168.*" $ip]
-	    || [string match "10.*" $ip]
-	} {
-	    return 1
-	}
-	if {[string match "172.*" $ip]} {
-	    set sip [lindex [split $ip .] 1]
-	    if {$sip >= 16 && $sip <= 31} {
-		return 1
-	    }
-	}
-	return 0
     }
 
     # expunge - remove metadata from reply dict
@@ -956,13 +922,4 @@ namespace eval Http {
 
     namespace export -clear *
     namespace ensemble create -subcommands {}
-}
-
-if {0} {
-    proc trace_pmod {args} {
-	puts stderr "MODIFIED!!!!  $args"
-	puts stderr "MODIFIED2!!! [info level -1]"
-    }
-
-    trace add command Http {rename delete} trace_pmod
 }

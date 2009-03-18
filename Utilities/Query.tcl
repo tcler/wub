@@ -243,7 +243,7 @@ namespace eval Query {
 
 	if {[dict exists $http content-type]} {
 	    set ct [dict get $http content-type]
-	    set entity [Dict get? $http -entity]
+	    set entity [dict get? $http -entity]
 	    lassign [qparse $entity $count $ct] query1 count
 	    set query1 [charset $query1]
 	    Debug.query {qparsed [string range $query1 0 80]...}

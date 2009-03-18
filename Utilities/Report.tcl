@@ -63,9 +63,9 @@ namespace eval Report {
 		set htext $t
 	    }
 	    
-	    lappend h [<th> {*}$params {*}[Dict get? $args hparam] [string totitle $htext]]
+	    lappend h [<th> {*}$params {*}[dict get? $args hparam] [string totitle $htext]]
 	}
-	dict append args _header [<thead> {*}[Dict get? $args thparam] \n[<tr> \n[join $h \n]\n]\n]
+	dict append args _header [<thead> {*}[dict get? $args thparam] \n[<tr> \n[join $h \n]\n]\n]
 	
 	# by default, headers and footers are the same
 	if {[dict exists $args footer] &&
@@ -112,7 +112,7 @@ namespace eval Report {
 
 		lappend f [<th> {*}$params [string totitle $t]]
 	    }
-	    dict append args _footer [<tfoot> {*}[Dict get? $args tfparam] \n[<tr> \n[join $f \n]\n]\n]
+	    dict append args _footer [<tfoot> {*}[dict get? $args tfparam] \n[<tr> \n[join $f \n]\n]\n]
 	    dict unset args footer
 	}
 	return $args
@@ -159,7 +159,7 @@ namespace eval Report {
 	    }
 
 	    # do column content string match for row parameters
-	    dict for {spec val} [Dict get? $args rowp] {
+	    dict for {spec val} [dict get? $args rowp] {
 		set match [lassign [split $spec ,] col]
 		if {[dict exists $v $col]
 		    && [string match $match [dict get $v $col]]
@@ -187,13 +187,13 @@ namespace eval Report {
 			set datum [dict get $v $th]
 		    }
 
-		    lappend row [<td> {*}$params {*}[Dict get? $args eparam] $datum]
+		    lappend row [<td> {*}$params {*}[dict get? $args eparam] $datum]
 		} else {
 		    # empty element
-		    lappend row [<td> {*}$params {*}[Dict get? $args eparam] {}]
+		    lappend row [<td> {*}$params {*}[dict get? $args eparam] {}]
 		}
 	    }
-	    dict append args body [<tr> {*}$rparams {*}[Dict get? $args rparam] \n[join $row \n]\n] \n
+	    dict append args body [<tr> {*}$rparams {*}[dict get? $args rparam] \n[join $row \n]\n] \n
 	}
 
 	Debug.report {body done: [dict get $args body]}
@@ -250,7 +250,7 @@ namespace eval Report {
 	    lappend classT summary ""
 	}
 
-	return [<table> {*}$classT {*}[Dict get? $args tparam] "\n[Dict get? $args _header]\n[Dict get? $args body]\n[Dict get? $args _footer]\n"]
+	return [<table> {*}$classT {*}[dict get? $args tparam] "\n[dict get? $args _header]\n[dict get? $args body]\n[dict get? $args _footer]\n"]
     }
 
     # convert a text formatted suitably for csv into a list containing:
