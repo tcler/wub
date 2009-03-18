@@ -1126,7 +1126,7 @@ namespace eval Httpd {
 	    Debug.Httpd {[info coroutine] reader complete: $header ([rdump $r])}
 
 	    # rename fields whose names are the same in request/response
-	    foreach n {cache-control} {
+	    foreach n {cache-control pragma} {
 		if {[dict exists $r $n]} {
 		    dict set r -$n [dict get $r $n]
 		    dict unset r $n
