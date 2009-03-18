@@ -1,19 +1,151 @@
 # Extra useful dict commands
+# code from patthoyts and nem (http://wiki.tcl.tk/17686)
 
 package provide Dict 1.0
 
-# dict get? courtesy patthoyts
-proc ::tcl::dict::get? {dict args} {
-    if {[dict exists $dict {*}$args]} {
-	return [dict get $dict {*}$args]
-    } else {
-	return {}
+namespace eval ::tcl::dict {
+    # dict witharray dictVar arrayVar script --
+    #
+    #       Unpacks the elements of the dictionary in dictVar into the array
+    #       variable arrayVar and then evaluates the script. If the script
+    #       completes with an ok, return or continue status, then the result is copied
+    #       back into the dictionary variable, otherwise it is discarded. A
+    #       [break] can be used to explicitly abort the transaction.
+    #
+    proc witharray {dictVar arrayVar script} {
+	upvar 1 $dictVar dict $arrayVar array
+	array set array $dict
+	try { uplevel 1 $script
+	} on break    {}     { # Discard the result
+	} on continue result - on ok result {
+	    set dict [array get array] ;# commit changes
+	    return $result
+	} on return   {result opts} {
+	    set dict [array get array] ;# commit changes
+	    dict incr opts -level ;# remove this proc from level
+	    return -options $opts $result
+	}
+	# All other cases will discard the changes and propagage
     }
+
+    # dict equal equalp d1 d2 --
+    #
+    #       Compare two dictionaries for equality. Two dictionaries are equal
+    #       if they (a) have the same keys, (b) the corresponding values for
+    #       each key in the two dictionaries are equal when compared using the
+    #       equality predicate, equalp (passed as an argument). The equality
+    #       predicate is invoked with the key and the two values from each
+    #       dictionary as arguments.
+    #
+    proc equal {equalp d1 d2} {
+	if {[dict size $d1] != [dict size $d2]} { return 0 }
+	dict for {k v} $d1 {
+	    if {![dict exists $d2 $k]} { return 0 }
+	    if {![invoke $equalp $k $v [dict get $d2 $k]]} { return 0 }
+	}
+	return 1
+    }
+
+    # apply dictVar lambdaExpr ?arg1 arg2 ...? --
+    #
+    #       A combination of *dict with* and *apply*, this procedure creates a
+    #       new procedure scope populated with the values in the dictionary
+    #       variable. It then applies the lambdaTerm (anonymous procedure) in
+    #       this new scope. If the procedure completes normally, then any
+    #       changes made to variables in the dictionary are reflected back to
+    #       the dictionary variable, otherwise they are ignored. This provides
+    #       a transaction-style semantics whereby atomic updates to a
+    #       dictionary can be performed. This procedure can also be useful for
+    #       implementing a variety of control constructs, such as mutable
+    #       closures.
+    #
+    proc apply {dictVar lambdaExpr args} {
+	upvar 1 $dictVar dict
+	set env $dict ;# copy
+	lassign $lambdaExpr params body ns
+	if {$ns eq ""} { set ns "::" }
+	set body [format {
+	    upvar 1 env __env__
+	    dict with __env__ %s
+	} [list $body]]
+	set lambdaExpr [list $params $body $ns]
+	set rc [catch { ::apply $lambdaExpr {*}$args } ret opts]
+	if {$rc == 0} {
+	    # Copy back any updates
+	    set dict $env
+	}
+	return -options $opts $ret
+    }
+
+    # capture ?level? ?exclude? ?include? --
+    #
+    #       Captures a snapshot of the current (scalar) variable bindings at
+    #       $level on the stack into a dictionary environment. This dictionary
+    #       can later be used with *dictutils apply* to partially restore the
+    #       scope, creating a first approximation of closures. The *level*
+    #       argument should be of the forms accepted by *uplevel* and
+    #       designates which level to capture. It defaults to 1 as in uplevel.
+    #       The *exclude* argument specifies an optional list of literal
+    #       variable names to avoid when performing the capture. No variables
+    #       matching any item in this list will be captured. The *include*
+    #       argument can be used to specify a list of glob patterns of
+    #       variables to capture. Only variables matching one of these
+    #       patterns are captured. The default is a single pattern "*", for
+    #       capturing all visible variables (as determined by *info vars*).
+    #
+    proc capture {{level 1} {exclude {}} {include {*}}} {
+	if {[string is integer $level]} { incr level }
+	set env [dict create]
+	foreach pattern $include {
+	    foreach name [uplevel $level [list info vars $pattern]] {
+		if {[lsearch -exact -index 0 $exclude $name] >= 0} { continue }
+		upvar $level $name value
+		catch { dict set env $name $value } ;# no arrays
+	    }
+	}
+	return $env
+    }
+
+    # nlappend dictVar keyList ?value ...?
+    #
+    #       Append zero or more elements to the list value stored in the given
+    #       dictionary at the path of keys specified in $keyList.  If $keyList
+    #       specifies a non-existent path of keys, nlappend will behave as if
+    #       the path mapped to an empty list.
+    #
+    proc nlappend {dictvar keylist args} {
+	upvar 1 $dictvar dict
+	if {[info exists dict] && [dict exists $dict {*}$keylist]} {
+	    set list [dict get $dict {*}$keylist]
+	}
+	lappend list {*}$args
+	dict set dict {*}$keylist $list
+    }
+    
+    # invoke cmd args... --
+    #
+    #       Helper procedure to invoke a callback command with arguments at
+    #       the global scope. The helper ensures that proper quotation is
+    #       used. The command is expected to be a list, e.g. {string equal}.
+    #
+    proc invoke {cmd args} { uplevel #0 $cmd $args }
+    
+    # dict get? courtesy patthoyts
+    proc get? {dict args} {
+	if {[dict exists $dict {*}$args]} {
+	    return [dict get $dict {*}$args]
+	} else {
+	    return {}
+	}
+    }
+
+    foreach x {get? witharray equal apply capture nlappend} {
+	namespace ensemble configure dict -map [linsert [namespace ensemble configure dict -map] end $x ::tcl::dict::$x]
+    }
+    unset x
 }
-namespace ensemble configure dict -map [linsert [namespace ensemble configure dict -map] end get? ::tcl::dict::get?]
 
 namespace eval Dict {
-
     # return a dict element, or {} if it doesn't exist
     proc get? {dict args} {
 	if {$args eq {}} {
