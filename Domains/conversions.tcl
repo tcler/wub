@@ -170,7 +170,7 @@ namespace eval ::conversions {
 
 	# grab the form
 	set form [dict get $rsp -content]
-	set form [string map [list %REFERER% [Dict get? $rsp referer]] $form] ;# subst REFERER
+	set form [string map [list %REFERER% [dict get? $rsp referer]] $form] ;# subst REFERER
 	dict set form -record [Query flatten [Query parse $rsp]] ;# reflect query in -record
 
 	# this file is dynamic - prevent caching

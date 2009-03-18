@@ -165,7 +165,7 @@ namespace eval Session {
 	    }
 	}
 
-	Debug.session {fetch -session ([Dict get? $req -session])} 10
+	Debug.session {fetch -session ([dict get? $req -session])} 10
 	return $req
     }
 
@@ -227,9 +227,9 @@ namespace eval Session {
 
     # store the session in the db if it's changed
     proc store {req args} {
-	Debug.session {store -session ([Dict get? $req -session]) --session ([Dict get? $req --session])} 10
-	if {[Dict get? $req -session] eq [Dict get? $req --session]} {
-	    Debug.session {no change to store / code [Dict get? $req -code] (C: [Dict get? $req -cookies])}
+	Debug.session {store -session ([dict get? $req -session]) --session ([dict get? $req --session])} 10
+	if {[dict get? $req -session] eq [dict get? $req --session]} {
+	    Debug.session {no change to store / code [dict get? $req -code] (C: [dict get? $req -cookies])}
 	    return $req	;# no change to session vars - just skip it
 	}
 
@@ -284,7 +284,7 @@ namespace eval Session {
 	variable cookie; variable cpath; variable expires
 	dict set req -cookies [Cookies add [dict get $req -cookies] -path $cpath -expires $expires {*}$args -name $cookie -value "$slot@$key"]
 
-	Debug.session {cookie added '[Dict get? $req -cookies]'}
+	Debug.session {cookie added '[dict get? $req -cookies]'}
 	return $req
     }
 
@@ -336,7 +336,7 @@ namespace eval Session {
     proc /_sshow {r} {
 	set content [<table> class session border 1 width 80% [subst {
 	    [<tr> [<th> "Session"]]
-	    [Foreach {n v} [Dict get? $r -session] {
+	    [Foreach {n v} [dict get? $r -session] {
 		[<tr> "[<td> $n] [<td> [armour $v]]"]
 	    }]
 	}]]

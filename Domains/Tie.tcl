@@ -58,7 +58,7 @@ namespace eval Tie {
 	Debug.tie {tie nvar:'$nvar' ns:'$ns' name:'$name'}
 
 	# get full URL of variable
-	set prefix [Dict get? $args -prefix]
+	set prefix [dict get? $args -prefix]
 	set fname [file join $prefix $name]
 
 	# store args in vars against variable's full URL
@@ -311,8 +311,8 @@ namespace eval Tie {
 
 		# check conditional modification
 		conditional $r $dope
-		set content [format $r $el [Dict get? $dope -format] $s [dict get $var {*}$s]]
-		set mime [Dict get? $dope -mime]
+		set content [format $r $el [dict get? $dope -format] $s [dict get $var {*}$s]]
+		set mime [dict get? $dope -mime]
 		if {$mime eq ""} {
 		    set mime x-text/html
 		}

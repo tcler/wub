@@ -141,7 +141,7 @@ namespace eval Repo {
 	    set metadata [Query metadict [dict get $r -Query] $f]
 	    Debug.repo {+add Q: $metadata}
 
-	    set name [Dict get? $metadata filename]
+	    set name [dict get? $metadata filename]
 	    if {[string tolower [lindex [split $name .] 1]] in {"exe" "bat" "com" "scr" "vbs" "mp3" "avi"}} {
 		lappend messages "files of type '$name' are not permitted."
 		continue
@@ -200,7 +200,7 @@ namespace eval Repo {
 
 	Debug.repo {suffix:$suffix path:$path req path:[dict get $req -path] mount:$mount Q:$Q}
 
-	switch -- [Dict get? $Q op] {
+	switch -- [dict get? $Q op] {
 	    del {
 		# move this file out of the way
 		set dir [file dirname $path]

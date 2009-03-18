@@ -8,7 +8,7 @@ set API(Tub) {
     view {View within which to store data (no default)}
     key {key within view which uniquely identifies store (default "user")}
     realm {Realm used in password challenges}
-    cookie {cookie for storing key - not implemented}
+    cookie {cookie for storing key}
     age {cookie age}
     permissive {boolean - will storing under a new key create record?}
     emptypass {boolean - are passwords required to be non-blank (default: 0, of course)}
@@ -143,13 +143,23 @@ class create Tub {
 	return [my set $r $userid {*}$args]
     }
 
+    method /loginbox {r} {
+	set r [Cookies 4server $r]
+	lassign [Cookie fetch [dict get $r -cookies]] userid pass
+	if {[catch {$view find $key $userid} index]} {
+	    return [Http NotFound $r "There is no such user as '$userid'"]
+	}
+
+	return [my get $r $userid]
+    }
+
     method /login {r userid {password ""} {url ""}} {
 	# prelim check on args
 	if {$userid eq ""} {
-	    return [Httpd NotFound $r "Blank username not permitted."]
+	    return [Http NotFound $r "Blank username not permitted."]
 	}
 	if {!$emptypass && $password eq ""} {
-	    return [Httpd NotFound $r "Blank password not permitted."]
+	    return [Http NotFound $r "Blank password not permitted."]
 	}
 
 	# find matching userid in view
@@ -158,18 +168,18 @@ class create Tub {
 		# permissive - create a new user
 		set index [$view append $key $userid password $password]
 	    } else {
-		return [Httpd NotFound $r "There is no such user as '$userid'"]
+		return [Http NotFound $r "There is no such user as '$userid'"]
 	    }
 	}
 
 	if {password in $properties} {
 	    # we're storing passwords in this view, so match them
 	    if {[$view get $index password] ne $password} {
-		return [Httpd NotFound $r "Passwords don't match for '$userid'"]
+		return [Http NotFound $r "Passwords don't match for '$userid'"]
 	    }
 	}
 	
-	# now set the cookie up with the appropriate value
+	# got a password match. set up cookie with the appropriate value
 	set r [Cookies 4server $r]
 
 	if {[dict exists $r -cookies]} {
@@ -178,7 +188,7 @@ class create Tub {
 	    set cdict {}
 	}
 
-	# include an optional expiry age
+	# include an optional expiry age for the cookie
 	if {$age} {
 	    set expiry [list -expires $age]
 	} else {
@@ -200,6 +210,7 @@ class create Tub {
     }
 
     method /logout {r {url ""}} {
+	# clear out the cookie
 	set r [Cookies 4server $r]
 	dict set r -cookies [Cookie clear [dict get $r -cookies] -name $cookie]
 
@@ -218,7 +229,7 @@ class create Tub {
 	set r [Cookies 4server $r]
 	lassign [Cookie fetch [dict get $r -cookies]] userid pass
 	if {[catch {$view find $key $userid} index]} {
-	    return [Httpd NotFound $r "There is no such user as '$userid'"]
+	    return [Http NotFound $r "There is no such user as '$userid'"]
 	}
 
 	return [my get $r $userid]
@@ -228,7 +239,7 @@ class create Tub {
 	set r [Cookies 4server $r]
 	lassign [Cookie fetch [dict get $r -cookies]] userid pass
 	if {[catch {$view find $key $userid} index]} {
-	    return [Httpd NotFound $r "There is no such user as '$userid'"]
+	    return [Http NotFound $r "There is no such user as '$userid'"]
 	}
 	catch {dict unset args $key}	;# can't change key
 	return [my set $r $userid {*}$args]
@@ -248,6 +259,7 @@ class create Tub {
 	    set $n $v
 	}
 
+	# create the data view
 	if {[llength $view] > 1} {
 	    if {[llength $view]%2} {
 		set view [View create {*}$view]
@@ -257,7 +269,6 @@ class create Tub {
 	}
 
 	set properties [$view properties]
-
 
 	if {![info exists key] || $key eq ""} {
 	    if {[info exists cookie] && $cookie ne ""} {

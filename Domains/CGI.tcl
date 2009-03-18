@@ -27,30 +27,30 @@ class create CGI {
 	# revision of the CGI specification to which this server complies.
 	# Format: CGI/revision
 
-	lappend env SERVER_NAME [Dict get? $r -host]
+	lappend env SERVER_NAME [dict get? $r -host]
 	# server's hostname, DNS alias, or IP address
 	# as it would appear in self-referencing URLs.
 
-	lappend env SERVER_PROTOCOL [Dict get? $r -scheme]
+	lappend env SERVER_PROTOCOL [dict get? $r -scheme]
 	# name and revision of the information protcol this request came in with.
 	# Format: protocol/revision
 
-	lappend env SERVER_PORT [Dict get? $r -port]
+	lappend env SERVER_PORT [dict get? $r -port]
 	# port number to which the request was sent.
 
-	set url [Url parse [Dict get? $r -uri]]
-	lappend env REQUEST_URI [Dict get? $r -uri]
-	lappend env REQUEST_METHOD [Dict get? $r -method]
+	set url [Url parse [dict get? $r -uri]]
+	lappend env REQUEST_URI [dict get? $r -uri]
+	lappend env REQUEST_METHOD [dict get? $r -method]
 	# method with which the request was made.
 	# For HTTP, this is "GET", "HEAD", "POST", etc.
 
-	lappend env QUERY_STRING [Dict get? $url -query]
+	lappend env QUERY_STRING [dict get? $url -query]
 	# information which follows the ? in the URL which referenced this script.
 	# This is the query information. It should not be decoded in any fashion.
 	# This variable should always be set when there is query information,
 	# regardless of command line decoding.
 
-	lappend env PATH_INFO [Dict get? $r -info]
+	lappend env PATH_INFO [dict get? $r -info]
 	# extra path information, as given by the client.
 	# Scripts can be accessed by their virtual pathname, followed by
 	# extra information at the end of this path.
@@ -58,22 +58,22 @@ class create CGI {
 	# This information should be decoded by the server if it comes
 	# from a URL before it is passed to the CGI script.
 
-	lappend env PATH_TRANSLATED [Dict get? $r -translated]
+	lappend env PATH_TRANSLATED [dict get? $r -translated]
 	# server provides a translated version of PATH_INFO,
 	# which takes the path and does any virtual-to-physical mapping to it.
 
-	lappend env SCRIPT_NAME [Dict get? $r -script]
+	lappend env SCRIPT_NAME [dict get? $r -script]
 	# A virtual path to the script being executed, used for self-referencing URLs.
 
-	lappend env REMOTE_ADDR [Dict get? $r -ipaddr]
+	lappend env REMOTE_ADDR [dict get? $r -ipaddr]
 	# IP address of the remote host making the request.
 
 	if {[dict exists $r -entity]} {
-	    lappend env CONTENT_TYPE [Dict get? $r content-type]
+	    lappend env CONTENT_TYPE [dict get? $r content-type]
 	    # For queries which have attached information, such as HTTP POST and PUT,
 	    # this is the content type of the data.
 
-	    lappend env CONTENT_LENGTH [Dict get? $r content-length]
+	    lappend env CONTENT_LENGTH [dict get? $r content-length]
 	    # The length of the said content as given by the client.
 	}
 
@@ -136,7 +136,7 @@ class create CGI {
     }
 
     method closed {r pipe} {
-	Debug.cgi {closed [string length [Dict get? $r -content]]}
+	Debug.cgi {closed [string length [dict get? $r -content]]}
 	if {[catch {
 	    incr cgi -1
 
@@ -346,7 +346,7 @@ class create CGI {
 	Debug.cgi {running: open "|$executor $script $arglist"}
 	if {[catch {
 	    # run the script under the executor
-	    open "|$executor $script $arglist <<[Dict get? $r -entity] 2>@1" r
+	    open "|$executor $script $arglist <<[dict get? $r -entity] 2>@1" r
 	} pipe eo]} {
 	    # execution failed
 	    cd $pwd

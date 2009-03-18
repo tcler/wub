@@ -686,7 +686,7 @@ namespace eval Dub {
 
     proc /display {r args} {
 	# set up 'display' frame
-	set display [Dict get? $args display]
+	set display [dict get? $args display]
 	Debug.dub {/display $display ($args)}
 	if {$display ne ""} {
 	    append content [<div> id dispFrame src displayframe?display=$display {}]
@@ -695,7 +695,7 @@ namespace eval Dub {
 	}
 
 	# set up 'view' frame
-	set view [Dict get? $args view]
+	set view [dict get? $args view]
 	if {$view ne ""} {
 	    append content [<div> id detail class src src viewframe?view=$view {}]
 	} else {

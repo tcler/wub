@@ -130,7 +130,7 @@ class create Mason {
 	    dict set response -content $result	;# fold subst result back into response
 	}
 
-	Debug.mason {Mason Template return code: $code dynamic: [Dict get? $response -dynamic] content: '$result'}
+	Debug.mason {Mason Template return code: $code dynamic: [dict get? $response -dynamic] content: '$result'}
 
 	return $response
     }
@@ -209,7 +209,7 @@ class create Mason {
 	dict set req -mason [self]
 	dict set req -urlroot $mount
 
-	set http [Dict get? $req -http]
+	set http [dict get? $req -http]
 	set suffix [string trimleft [dict get $req -suffix] /]
 	
 	set ext [file extension $suffix]	;# file extent
@@ -538,12 +538,12 @@ namespace eval ::MConvert {
 	    set thead [dict get $rsp -thead]
 	}
 
-	dict set rsp -content [Html dict2table [dict get $rsp -content] $thead [Dict get? $rsp -tfoot]]
+	dict set rsp -content [Html dict2table [dict get $rsp -content] $thead [dict get? $rsp -tfoot]]
 
 	if {[dict exists $rsp -title]} {
 	    dict lappend rsp -headers [<title> [string trim [dict get $rsp -title]]]
 	}
-	set uroot [Dict get? $rsp -urlroot]
+	set uroot [dict get? $rsp -urlroot]
 	foreach js {common css standardista-table-sorting} {
 	    dict set rsp -script $uroot/scripts/$js.js {}
 	}

@@ -80,7 +80,7 @@ set API(Login) {
 	   Nub code /login/test {
 	       set r [::L /form $r]
 	       set user [::L user $r]
-	       set cdict [Dict get? $r -cookies]
+	       set cdict [dict get? $r -cookies]
 	    
 	       set result [dict get $r -content]
 	       append result [<div> id message {}]
@@ -116,7 +116,7 @@ class create Login {
     # fetch account record of logged-in user
     method user {r {user ""}} {
 	if {$user eq ""} {
-	    set cdict [Dict get? $r -cookies]
+	    set cdict [dict get? $r -cookies]
 
 	    # determine the right domain/path for the cookie
 	    set cd [list -name $cookie]
@@ -206,7 +206,7 @@ class create Login {
 
 	# store surplus variables in args, if it exists
 	if {"args" in $properties} {
-	    dict set record args [dict merge [Dict get? $record args] $args]
+	    dict set record args [dict merge [dict get? $record args] $args]
 	}
 
 	set record [dict merge $record $args]
@@ -239,7 +239,7 @@ class create Login {
     }
 
     method clear {r} {
-	set cdict [Dict get? $r -cookies]
+	set cdict [dict get? $r -cookies]
 	Debug.login {logout $cookie from $cdict}
 
 	# determine the right domain/path for the cookie
@@ -381,8 +381,8 @@ class create Login {
 		set r [jQ form $r .login target '#message']
 		set r [jQ hint $r]	;# style up the form
 	    }
-	    set user [Dict get? $args $userF]
-	    set password [Dict get? $args $passF]
+	    set user [dict get? $args $userF]
+	    set password [dict get? $args $passF]
 	    return [Http Ok $r [string map [list %USER $user %PASSWORD $password] [dict get $forms new]]]
 	}
     }
@@ -439,9 +439,9 @@ class create Login {
 	}
 
 	# expect vars user and password, accept url
-	set user [Dict get? $args $userF]
-	set password [Dict get? $args $passF]
-	set url [Dict get? $args url]
+	set user [dict get? $args $userF]
+	set password [dict get? $args $passF]
+	set url [dict get? $args url]
 
 	Debug.login {/login: user:$user password:$password url:$url}
 
@@ -600,7 +600,7 @@ if {0} {
     Nub code /login/test {
 	set r [::L /form $r]
 	set user [::L user $r]
-	set cdict [Dict get? $r -cookies]
+	set cdict [dict get? $r -cookies]
 	
 	set result [dict get $r -content]
 	append result [<div> id message {}]
