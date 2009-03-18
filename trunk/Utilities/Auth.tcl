@@ -50,7 +50,7 @@ namespace eval Auth {
     }
 
     proc ok? {req} {
-	foreach auth [split [Dict get? $req authorization] ,] {
+	foreach auth [split [dict get? $req authorization] ,] {
 	    Debug.auth {authenticate: $auth}
 	    set cred [join [lassign [split $auth] kind]]
 	    if {![catch {

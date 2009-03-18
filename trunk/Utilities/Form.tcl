@@ -68,7 +68,7 @@ namespace eval Form {
     # default - set attribute defaults for a given tag
     proc default {type args} {
 	variable Fdefaults
-	set d [Dict get? $Fdefaults $type]
+	set d [dict get? $Fdefaults $type]
 	dict set Fdefaults $type [dict merge $d $args]
     }
 
@@ -93,7 +93,7 @@ namespace eval Form {
     proc fieldsetS {name args} {
 	variable fieldsetA
 	variable Fdefaults
-	set config [dict merge [Dict get? $Fdefaults fieldset] [lrange $args 0 end-1]]
+	set config [dict merge [dict get? $Fdefaults fieldset] [lrange $args 0 end-1]]
 	if {$name ne "" && ![dict exists $config id]} {
 	    dict set config id $name
 	}
@@ -107,7 +107,7 @@ namespace eval Form {
     proc formS {name args} {
 	variable formA
 	variable Fdefaults
-	set config [dict merge [Dict get? $Fdefaults form] [lrange $args 0 end-1]]
+	set config [dict merge [dict get? $Fdefaults form] [lrange $args 0 end-1]]
 	if {$name ne "" && ![dict exists $config id]} {
 	    dict set config id $name
 	}
@@ -137,7 +137,7 @@ namespace eval Form {
 		    set args [lassign $args name]
 		} 
 
-		set config [dict merge [Dict get? $Fdefaults @T] $args]
+		set config [dict merge [dict get? $Fdefaults @T] $args]
 		if {$name ne "" && ![dict exists $config id]} {
 		    dict set config id $name
 		}
@@ -166,7 +166,7 @@ namespace eval Form {
 	    proc <@T> {args} {
 		variable @TA
 		variable Fdefaults
-		set config [dict merge [Dict get? $Fdefaults @T] [lrange $args 0 end-1]]
+		set config [dict merge [dict get? $Fdefaults @T] [lrange $args 0 end-1]]
 		return "<[attr @T [Dict subset $config $@TA]]>[uplevel 1 [list subst [lindex $args end]]]</@T>"
 	    }
 	}]
@@ -178,7 +178,7 @@ namespace eval Form {
 	set content [lindex $args end]
 	set args [lrange $args 0 end-1]
 	Debug.form {<select> $name ($args) content:'$content'}
-	set config [dict merge [Dict get? $Fdefaults select] $args [list name $name]]
+	set config [dict merge [dict get? $Fdefaults select] $args [list name $name]]
 
 	if {![dict exists $config id]} {
 	    if {[dict exists $config label]} {
@@ -236,7 +236,7 @@ namespace eval Form {
 
 		set content [lindex $args end]
 		set args [lrange $args 0 end-1]
-		set config [dict merge [Dict get? $Fdefaults @T] $args]
+		set config [dict merge [dict get? $Fdefaults @T] $args]
 		if {$content eq ""} {
 		    set content [dict get $config value]
 		} else {
@@ -263,7 +263,7 @@ namespace eval Form {
 	} else {
 	    set content ""
 	}
-	set config [dict merge [Dict get? $Fdefaults textarea] $args [list name $name]]
+	set config [dict merge [dict get? $Fdefaults textarea] $args [list name $name]]
 
 	if {0 && ![dict exists $config tabindex]} {
 	    variable tabindex
@@ -334,7 +334,7 @@ namespace eval Form {
 		} else {
 		    set content ""
 		}
-		set config [dict merge [Dict get? $Fdefaults @T] [list alt @T] $args [list name $name type @T]]
+		set config [dict merge [dict get? $Fdefaults @T] [list alt @T] $args [list name $name type @T]]
 		
 		if {0 && ![dict exists $config tabindex]} {
 		    variable tabindex
@@ -359,7 +359,7 @@ namespace eval Form {
 
     proc <button> {name args} {
 	variable Fdefaults
-	set config [dict merge [Dict get? $Fdefaults button] [lrange $args 0 end-1] [list name $name]]
+	set config [dict merge [dict get? $Fdefaults button] [lrange $args 0 end-1] [list name $name]]
 
 	if {0 && ![dict exists $config tabindex]} {
 	    variable tabindex
@@ -388,7 +388,7 @@ namespace eval Form {
 		
 		variable @AA
 		variable Fdefaults
-		set config [dict merge [Dict get? $Fdefaults @T] $args [list name $name type @T @F [armour [uplevel 1 [list subst $value]]]]]
+		set config [dict merge [dict get? $Fdefaults @T] $args [list name $name type @T @F [armour [uplevel 1 [list subst $value]]]]]
 
 		if {0 && ![dict exists $config tabindex]} {
 		    variable tabindex
@@ -451,13 +451,13 @@ namespace eval Form {
 	eval [string map [list @T $type @S $sub] {
 	    proc <@Tset> {name args} {
 		variable Fdefaults
-		set rsconfig [dict merge [Dict get? $Fdefaults @T] [lrange $args 0 end-1] [list name $name type @T]]
+		set rsconfig [dict merge [dict get? $Fdefaults @T] [lrange $args 0 end-1] [list name $name type @T]]
 		set boxes [lindex $args end]
 		set result {}
 		
 		set accum ""
 		foreach {content value} $boxes {
-		    set config [dict merge [Dict get? $Fdefaults @T@S] $rsconfig]
+		    set config [dict merge [dict get? $Fdefaults @T@S] $rsconfig]
 		    if {[string match +* $content]} {
 			dict set config checked 1
 			set content [string trim $content +]
@@ -507,7 +507,7 @@ namespace eval Form {
 		}
 		variable boxA
 		variable Fdefaults
-		set config [dict merge $args [list name $name type @T] [Dict get? $Fdefaults @T]]
+		set config [dict merge $args [list name $name type @T] [dict get? $Fdefaults @T]]
 
 		set content [uplevel 1 [list subst $content]]
 		if {![dict exists $config label] && $content ne ""} {

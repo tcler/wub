@@ -339,7 +339,7 @@ namespace eval Cookies {
 	    # -name (the original name of the cookie)
 	    # -when (the absolute seconds when the cookie expires)
 	    set name [dict get $cdict -name]
-	    set val [Dict get? $cdict -value]
+	    set val [dict get? $cdict -value]
 	    if {$val eq ""} {
 		set val ""
 	    }
@@ -453,11 +453,11 @@ namespace eval Cookies {
 
     # decode cookie header into a request
     proc 4Server {req} {
-	Debug.cookies {4Server '[Dict get? $req cookie]'}
+	Debug.cookies {4Server '[dict get? $req cookie]'}
 	if {[dict exists $req -cookies]} {
 	    return $req
 	}
-	dict set req -cookies [parse4server [Dict get? $req cookie]]
+	dict set req -cookies [parse4server [dict get? $req cookie]]
 	return $req
     }
 

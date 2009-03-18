@@ -237,8 +237,8 @@ namespace eval Url {
 	    dict set todict -query [join $q &]
 	}
 
-	if {([Dict get? $todict -host] ne [Dict get? $dict -host])
-	    || ([Dict get? $todict -port] ne [Dict get? $dict -port])
+	if {([dict get? $todict -host] ne [dict get? $dict -host])
+	    || ([dict get? $todict -port] ne [dict get? $dict -port])
 	} {
 	    # this is a remote URL
 	    set to [uri $todict]
