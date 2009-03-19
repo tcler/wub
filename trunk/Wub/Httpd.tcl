@@ -1084,7 +1084,7 @@ namespace eval Httpd {
 		browser {}
 
 		unknown {
-		    Debug.log {unknown UA: [dict get $r user-agent]}
+		    #Debug.log {unknown UA: [dict get $r user-agent]}
 		}
 
 		default {
