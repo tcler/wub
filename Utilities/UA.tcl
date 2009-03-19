@@ -17,7 +17,9 @@ namespace eval UA {
 	}
 
 	set type [dict get $browsers $ua type]
-	if {"S" in $type} {
+	if {"B" in $type} {
+	    return browser
+	} elseif {"S" in $type} {
 	    return spammer
 	} elseif {"R" in $type} {
 	    return robot
