@@ -142,7 +142,7 @@ namespace eval ::tcl::dict {
     foreach x {get? witharray equal apply capture nlappend} {
 	namespace ensemble configure dict -map [linsert [namespace ensemble configure dict -map] end $x ::tcl::dict::$x]
     }
-    unset x
+    ::unset x
 }
 
 namespace eval Dict {
