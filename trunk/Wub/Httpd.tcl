@@ -1013,7 +1013,7 @@ namespace eval Httpd {
 		CONNECT -
 		LINK {
 		    # stop the bastard SMTP spammers
-		    Block block [dict get $r -ipaddr] "CONNECT method"
+		    Block block [dict get $r -ipaddr] "CONNECT method ([dict get? $r user-agent])"
 		    handle [Http NotImplemented $r "Connect Method"] "CONNECT method"
 		}
 
