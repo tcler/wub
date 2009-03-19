@@ -187,8 +187,8 @@ namespace eval Httpd {
 	variable connbyIP; catch {incr connbyIP($ipaddr) -1}
 
 	# clean up socket - the only point where we close
-	catch {chan fileevent $socket readable ""}	;# is this necessary?
-	catch {chan fileevent $socket writable ""}	;# is this necessary?
+	catch {chan event $socket readable ""}	;# is this necessary?
+	catch {chan event $socket writable ""}	;# is this necessary?
 	catch {chan close $socket}
 
 	# destroy reader - that's all she wrote
@@ -1680,8 +1680,8 @@ namespace eval Httpd {
     proc sockgone {match sock from to op} {
 	if {$op eq "delete"} {
 	    # clean up socket - the only point where we close
-	    catch {chan fileevent $socket readable ""}	;# is this necessary?
-	    catch {chan fileevent $socket writable ""}	;# is this necessary?
+	    catch {chan event $socket readable ""}	;# is this necessary?
+	    catch {chan event $socket writable ""}	;# is this necessary?
 	    catch {chan close $sock}
 	    catch {$match TERMINATE}
 	    Debug.Httpd {SOCK $op: $from $to}
