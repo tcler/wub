@@ -713,7 +713,7 @@ namespace eval Httpd {
 	Debug.Httpd {[info coroutine] send: ([rdump $r]) $cache}
 
 	# if this isn't a browser - do not cache!
-	if {[dict get? $r -ua_class] ne "browser"} {
+	if {[dict get? $r -ua_class] ni {browser unknown}} {
 	    set cache 0
 	}
 
@@ -1084,7 +1084,6 @@ namespace eval Httpd {
 		browser {}
 
 		unknown {
-		    dict set r -ua_class browser	;# benefit of the doubt
 		    Debug.log {unknown UA: [dict get $r user-agent]}
 		}
 
