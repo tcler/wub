@@ -28,7 +28,7 @@ namespace eval UA {
 	} elseif {"P" in $type} {
 	    return proxy
 	} else {
-	    return untyped
+	    return "untyped '$type'"
 	}
     }
 
