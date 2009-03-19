@@ -712,6 +712,11 @@ namespace eval Httpd {
 
 	Debug.Httpd {[info coroutine] send: ([rdump $r]) $cache}
 
+	# if this isn't a browser - do not cache!
+	if {[dict get? $r -ua_class] ne "browser"} {
+	    set cache 0
+	}
+
 	# check generation
 	corovars generation
 	if {![dict exists $r -generation]} {
@@ -1060,13 +1065,36 @@ namespace eval Httpd {
 	    }
 
 	    # block spiders by UA
-	    if {[info exists ::spiders([dict get? $r user-agent])]} {
+	    if {0 && [info exists ::spiders([dict get? $r user-agent])]} {
 		Block block [dict get $r -ipaddr] "spider UA ([dict get? $r user-agent])"
 		handle [Http NotImplemented $r "Spider Service"] "Spider"
 	    }
 
+	    # classify client by UA
+	    dict set r -ua_class [UA classify $r]
+	    switch -- [dict get $r -ua_class] {
+		blank {
+		    handle [Http NotImplemented $r "Possible Spider Service - set your User-Agent"] "Spider"
+		}
+		spammer {
+		    Block block [dict get $r -ipaddr] "spider UA ([dict get? $r user-agent])"
+		    handle [Http NotImplemented $r "Spider Service"] "Spider"
+		}
+
+		browser {}
+
+		unknown {
+		    dict set r -ua_class browser	;# benefit of the doubt
+		    Debug.log {unknown UA: [dict get $r user-agent]}
+		}
+
+		default {
+		    dict set r -dynamic 1
+		}
+	    }
+
 	    # analyse the user agent strings.
-	    dict set r -ua [ua [dict get? $r user-agent]]
+	    dict set r -ua [UA parse [dict get? $r user-agent]]
 
 	    # check the incoming ip for blockage
 	    if {[Block blocked? [dict get? $r -ipaddr]]} {
