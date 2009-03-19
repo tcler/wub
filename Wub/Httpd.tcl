@@ -636,7 +636,7 @@ namespace eval Httpd {
 	# only send for unsatisfied requests
 	if {![dict exists $unsatisfied $trx]} {
 	    Debug.error {Send discarded: satisfied duplicate ([rdump $r])}
-	    continue	;# duplicate response - just ignore
+	    return 0	;# duplicate response - just ignore
 	}
 
 	# wire-format the reply transaction - messy
