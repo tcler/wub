@@ -396,20 +396,10 @@ class create Mason {
     method do {req} {
 	dict set req -root $root
 
-	if {[dict exists $req -suffix]} {
-	    # caller has munged path already
-	    set suffix [dict get $req -suffix]
-	} else {
-	    # assume we've been parsed by package Url
-	    # remove the specified prefix from path, giving suffix
-	    set suffix [Url pstrip $mount [string trimleft [dict get $req -path] /]]
-	    Debug.mason {suffix:$suffix url:$mount}
-	    if {($suffix ne "/") && [string match "/*" $suffix]} {
-		# path isn't inside our domain suffix - error
-		Debug.mason {[dict get $req -path] is outside domain suffix $suffix}
-		return [Http NotFound $req]
-	    }
-	    dict set req -suffix $suffix
+	# calculate the suffix of the URL relative to $mount
+	lassign [Url urlsuffix $req $mount] result req suffix
+	if {!$result} {
+	    return $req	;# the URL isn't in our domain
 	}
 
 	Debug.mason {do $suffix}
