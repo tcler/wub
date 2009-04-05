@@ -16,7 +16,7 @@ package require Report
 
 package provide Metakit 1.0
 
-set API(Metakit) {
+set API(Domains/Metakit) {
     {
 	Domain to present metakit views
 
@@ -27,21 +27,11 @@ set API(Metakit) {
 class create Metakit {
     variable db views csv limit rparams limit
 
-    method do {req} {
-	if {[dict exists $req -suffix]} {
-	    # caller has munged path already
-	    set suffix [dict get $req -suffix]
-	} else {
-	    # assume we've been parsed by package Url
-	    # remove the specified prefix from path, giving suffix
-	    set suffix [Url pstrip $mount [string trimleft [dict get $req -path] /]]
-	    Debug.metakit {suffix:$suffix url:$mount}
-	    if {($suffix ne "/") && [string match "/*" $suffix]} {
-		# path isn't inside our domain suffix - error
-		Debug.metakit {[dict get $req -path] is outside domain suffix $suffix}
-		return [Http NotFound $req]
-	    }
-	    dict set req -suffix $suffix
+    method do {r} {
+	# calculate the suffix of the URL relative to $mount
+	lassign [Url urlsuffix $r $mount] result r suffix path
+	if {!$result} {
+	    return $r	;# the URL isn't in our domain
 	}
 
 	# use suffix to determine which view
@@ -49,7 +39,7 @@ class create Metakit {
 
 	# ensure the view is permitted
 	if {$view ni $views} {
-	    return [NotFound $req]
+	    return [NotFound $r]
 	}
 
 	# use query to determine fieldset
@@ -58,7 +48,7 @@ class create Metakit {
 	set flags {}
 
 	# get relevant field descriptors from the query
-	set q [Query parse $req]
+	set q [Query parse $r]
 	foreach {n v m} [Query nvmlist $q] {
 	    catch {unset meta}
 	    array set meta $m
@@ -106,7 +96,7 @@ class create Metakit {
 	switch -- [string tolower $ext] {
 	    html {
 		set result [Report html $dict {*}$rparams headers $d_fields]
-		return [Http Ok $req $result text/x-html-fragment]
+		return [Http Ok $r $result text/x-html-fragment]
 	    }
 
 	    default {
@@ -114,7 +104,7 @@ class create Metakit {
 		dict foreach {n v} $dict {
 		    append result [::csv::join [dict values $v]] \n
 		}
-		return [Http Ok $req $result text/csv]
+		return [Http Ok $r $result text/csv]
 	    }
 	}
     }
