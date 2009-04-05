@@ -9,7 +9,7 @@ package require Color
 package require fileutil
 
 package provide Simplicio 1.0
-set API(Simplicio) {
+set API(Domains/Simplicio) {
     {experimental SVG iconset}
 }
 
@@ -72,22 +72,11 @@ namespace eval ::Simplicio {
     }
 
     proc do {r} {
-	# compute suffix
+	# calculate the suffix of the URL relative to $mount
 	variable mount
-	if {[dict exists $r -suffix]} {
-	    # caller has munged path already
-	    set suffix [dict get $r -suffix]
-	    Debug.simplicio {-suffix given $suffix}
-	} else {
-	    # assume we've been parsed by package Url
-	    # remove the specified prefix from path, giving suffix
-	    set path [dict get $r -path]
-	    set suffix [Url pstrip $mount $path]
-	    Debug.simplicio {-suffix not given - calculated '$suffix' from '$mount' and '$path'}
-	    if {($suffix ne "/") && [string match "/*" $suffix]} {
-		# path isn't inside our domain suffix - error
-		return [Http NotFound $r]
-	    }
+	lassign [Url urlsuffix $r $mount] result r suffix path
+	if {!$result} {
+	    return $r	;# the URL isn't in our domain
 	}
 
 	# catalog
