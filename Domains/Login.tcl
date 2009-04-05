@@ -3,9 +3,9 @@
 package require TclOO
 namespace import oo::*
 
-set API(Login) {
+set API(Domains/Login) {
     {
-	Login is a domain for simple cookie-based login account management and a is simultaneously repository for user-specific field values.  It is intended to be constructed under a [Direct] domain, as illustrated in the example below.
+	Login is a domain for simple cookie-based login account management and is simultaneously a repository for field values keyed by user.  It is intended to be constructed under a [Direct] domain, as illustrated in the example below.
 
 	== Operation ==
 	Login provides a /login url to authenticate a user by password, and generate a cookie recording this authentication.  /logout removes the login cookies.
@@ -78,13 +78,13 @@ set API(Login) {
 	   # (invoking /new for collection of account information) and will display the user
 	   # account information recorded in the database for user.
 	   Nub code /login/test {
-	       set r [::L /form $r]
-	       set user [::L user $r]
-	       set cdict [dict get? $r -cookies]
-	    
+	       set r [::L /form $r]	;# the result of this nub will be a login or logout form
+	       set user [::L user $r]	;# get the account record of the user (if any)
+	
+	       # add some output to the field content
 	       set result [dict get $r -content]
-	       append result [<div> id message {}]
-	       append result [<p> "User: $user"]
+	       append result [<div> id message {}]	;# add a message div for feedback
+	       append result [<p> "User: $user"]	;# display the account data
 	   }
     }
     account {View for storing accounts (must have at least user and password fields)}
@@ -275,7 +275,7 @@ class create Login {
 	return [Http NoCache [Http SeeOther $r $url "Logged out"]]
     }
 
-    # return a login form
+    # return a login or logout form
     method /form {r} {
 	set r [Http NoCache $r]
 	set code [catch {Cookies fetch [dict get $r -cookies] -name $cookie} cl]
@@ -598,12 +598,12 @@ if {0} {
     Nub domain /login/ Direct object {Login ::L account {db accountdb file account.db layout {user:S password:S args:S}} cpath /cookie/ permissive 0 jQ 1 autocommit 1} ctype x-text/html-fragment
     
     Nub code /login/test {
-	set r [::L /form $r]
-	set user [::L user $r]
-	set cdict [dict get? $r -cookies]
+	set r [::L /form $r]	;# the result of this nub will be a login or logout form
+	set user [::L user $r]	;# get the account record of the user (if any)
 	
+	# add some output to the field content
 	set result [dict get $r -content]
-	append result [<div> id message {}]
-	append result [<p> "User: $user"]
+	append result [<div> id message {}]	;# add a message div for feedback
+	append result [<p> "User: $user"]	;# display the account data
     }
 }
