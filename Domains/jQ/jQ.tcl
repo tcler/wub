@@ -104,6 +104,13 @@ namespace eval jQ {
 		function() { $('.nav').css('display','block'); }
 	    }
 	}
+	containers {
+	}
+	container {
+	    buttons 'm,c,i'
+	    skin 'white'
+	    width '80%'
+	}
     }
 
     proc opts {type args} {
@@ -284,12 +291,68 @@ namespace eval jQ {
 	return [scripts $r jquery.js jquery.MultiFile.js]
     }
 
+    # http://plugins.jquery.com/project/mbContainerPlus
+    proc containers {r selector args} {
+	set r [style $r mbContainer.css]	;# ensure the css is loaded
+
+	variable mount
+	set args elements [file join $mount elements]
+
+	return [weave $r {
+	    jquery.js jquery.ui.js jquery.metadata.js
+	} %SEL $selector %OPTS [opts containers $args] {
+	    $('%SEL').buildContainers(%OPTS);
+	}]
+    }
+
+    proc container {r args} {
+	# grab content (if any)
+	if {[llength $args]%2} {
+	    set content [lindex $args end]
+	    set args [lrange $args 0 end-1]
+	} else {
+	    set content ""
+	}
+
+	# set up the funky <div> structure this thing needs
+	append C [<div> class ne [<div> class n [dict get? $args title]]]; catch {dict unset args title}
+	append C [<div> class o [<div> class e [<div> class c [<div> class content $content]]]]
+	append C [<div> class so [<div> class se [<div> class s {}]]]
+	set C [<div> class no $C]
+
+	# fetch style arg, if any
+	set style [dict get? $args style]; catch {dict unset args style}
+
+	# assemble the classes
+	set class containerPlus
+
+	# draggable?
+	set draggable [dict get? $args draggable]; catch {dict unset args draggable}
+	if {$draggable ne "" && $draggable} {
+	    lappend class draggable
+	}
+
+	# resizable?
+	set resizable [dict get? $args resizable]; catch {dict unset args resizable}
+	if {$resizable ne "" && $resizable} {
+	    lappend class resizable
+	}
+
+	# assemble the metadata in a 'class' element
+	set opts [opts container {*}$args]
+	if {$opts ne ""} {
+	    lappend class $opts
+	}
+
+	return [<div> class $class {*}[expr {$style ne "": [list style $style]:{}}] $C]
+    }
+
     # http://docs.jquery.com/UI/Tabs
     proc tabs {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.ui.js
 	} %SEL $selector %OPTS [opts tabs $args] {
-	    $('%SEL').tabs();
+	    $('%SEL').tabs(%OPTS);
 	}]
 	#loader -preload
     }
