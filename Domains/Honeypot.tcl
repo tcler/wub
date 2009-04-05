@@ -28,7 +28,7 @@ package require Direct
 
 package provide Honeypot 1.0
 
-set API(Honeypot) {
+set API(Domains/Honeypot) {
     {provide a honeypot to catch bad spiders and link harvesters.}
     variable cdir {directory to contain captcha images}
     variable length {length of captcha}
