@@ -66,7 +66,7 @@ package require md5
 package require View
 
 package provide Session 3.1
-set API(Session) {
+set API(Domains/Session) {
     {Session manipulation - note, may be redundant now coroutines are available.}
     dir {}
     file {session database (default session.db)}
