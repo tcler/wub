@@ -6,7 +6,7 @@ package require Report
 
 package provide Tie 1.0
 
-set API(Tie) {
+set API(Domains/Tie) {
     {Experimental mapping from namespace variables to Urls.  Each namespace needs to [add] itself to the Tie.}
     mime {default mime type of responses (default: x-text/html-fragment)}
 }
@@ -228,23 +228,11 @@ namespace eval Tie {
     }
 
     proc do {r} {
+	# calculate the suffix of the URL relative to $mount
 	variable mount
-
-	# compute suffix
-	if {[dict exists $r -suffix]} {
-	    # caller has munged path already
-	    set suffix [dict get $r -suffix]
-	    Debug.tie {-suffix given $suffix}
-	} else {
-	    # assume we've been parsed by package Url
-	    # remove the specified prefix from path, giving suffix
-	    set path [dict get $r -path]
-	    set suffix [Url pstrip $mount $path]
-	    Debug.tie {-suffix not given - calculated '$suffix' from '$mount' and '$path'}
-	    if {($suffix ne "/") && [string match "/*" $suffix]} {
-		# path isn't inside our domain suffix - error
-		return [Http NotFound $r]
-	    }
+	lassign [Url urlsuffix $r $mount] result r suffix path
+	if {!$result} {
+	    return $r	;# the URL isn't in our domain
 	}
 
 	variable vars
