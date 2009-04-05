@@ -253,21 +253,10 @@ class create CGI {
     }
 
     method do {r} {
-	# grab some useful file values from request's url
-	if {[dict exists $r -suffix]} {
-	    # caller has set suffix
-	    set suffix [dict get $r -suffix]	;# suffix of request
-	} else {
-	    # assume we've been parsed by package Url
-	    # remove the specified prefix from path, giving suffix
-	    set path [dict get $r -path]
-	    set suffix [Url pstrip $mount $path]
-	    Debug.cgi {-suffix not given - calculated '$suffix' from '$mount' and '$path'}
-	    if {($suffix ne "/") && [string match "/*" $suffix]} {
-		# path isn't inside our domain suffix - error
-		Debug.cgi {-suffix $suffix not in $mount domain}
-		return [Http NotFound $r]
-	    }
+	# calculate the suffix of the URL relative to $mount
+	lassign [Url urlsuffix $r $mount] result r suffix path
+	if {!$result} {
+	    return $r	;# the URL isn't in our domain
 	}
 
 	# parse suffix into semantically useful fields
