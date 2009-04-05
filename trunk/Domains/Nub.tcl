@@ -20,7 +20,7 @@ package require jQ
 package provide Nub 1.0
 package provide Rewrite 1.0	;# to satisfy synthetic requirement of codegen
 
-set API(Nub) {
+set API(Domains/Nub) {
     {Configuration domain for Wub.  Provides simple text and web-based website configuration.}
     nubdir {directory for user-defined nubs}
     theme {jQuery theme for Nub web interaction}
@@ -67,11 +67,11 @@ namespace eval Nub {
     proc options {domain body} {
 	upvar count count
 	global API
-	if {![info exists API($domain)]} {
+	if {![info exists API(Domains/$domain)]} {
 	    return ""
 	}
 
-	set opts [lassign $API($domain) about]
+	set opts [lassign $API(Domains/$domain) about]
 	if {[llength $opts]} {
 	    foreach {opt text} $opts {
 		set val [tclarmour [armour [dict get? $body $opt]]]
@@ -256,8 +256,8 @@ namespace eval Nub {
 			default {
 			    # this is a proper domain
 			    global API
-			    if {[info exists API($domain)]} {
-				set opts [lassign $API($domain) about]
+			    if {[info exists API(Domains/$domain)]} {
+				set opts [lassign $API(Domains/$domain) about]
 
 				foreach {opt text} $opts {
 				    if {[dict exists $args ${opt}_$el]} {
@@ -353,7 +353,11 @@ namespace eval Nub {
 	catch {unset keymap}
 
 	global API
-	set selection [lsort -dictionary [list Rewrite Block Redirect {*}[array names API] Literal Code]]
+	set domnames {}
+	foreach n [array names API Domains/*] {
+	    lappend domnames [file tail $n]
+	}
+	set selection [lsort -dictionary [list Rewrite Block Redirect {*}$domnames Literal Code]]
 	append content [<form> new style {float:left;} {
 	    [<fieldset> {
 		[<legend> "New Nub"]
@@ -404,8 +408,8 @@ namespace eval Nub {
 	append header [<a> id toggle href # "What's this? ..."]
 
 	set huh $whatsthis
-	foreach {n v} [array get ::API] {
-	    append huh ";\[[file join $docurl $n] $n\]: "
+	foreach {n v} [array get ::API Domains/*] {
+	    append huh ";\[[file join $docurl $n] [file tail $n]\]: "
 	    set v [lindex $v 0]
 
 	    if {[string index $v 0] eq "\n"} {
