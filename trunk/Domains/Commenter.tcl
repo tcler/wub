@@ -12,7 +12,7 @@ package require functional
 
 package provide Commenter 1.0
 
-set API(Commenter) {
+set API(Domains/Commenter) {
     {a utility to parse tcl source files and associate out-line comments with procs.}
     root {filesystem root containing source files to comment}
 }
