@@ -55,7 +55,7 @@ jQuery.fn.inc = function(url, transform, post) {
 };
 
 $(function() {
- $('[@class~=inc]').each(function() {
+ $('[class~=inc]').each(function() {
   var arg = unescape(this.className.replace(/.*inc:([^ ]+)( .*|$)/, '$1')).split('#');
 
   if (arg[1]) {
