@@ -12,7 +12,7 @@ Debug off mason 10
 
 package provide Mason 1.0
 
-set API(Mason) {
+set API(Domains/Mason) {
     {
 	A [File]-like domain mapping a URL domain onto a file-system hierarchy, providing templating and pre- and post- filtering of requests and responses (respectively)
 
