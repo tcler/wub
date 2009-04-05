@@ -16,7 +16,7 @@ package require jQ
 
 package provide Repo 1.0
 
-set API(Repo) {
+set API(Domains/Repo) {
     {A simple file repository providing uploads and tar'ed directory downloads}
     expires {a tcl clock expression indicating when contents expire (default:0 - no expiry)}
     tar {flag: are directories to be provided as tar files? (default: no)}
@@ -167,38 +167,28 @@ namespace eval Repo {
 	}
     }
 
-    proc _do {inst req} {
+    proc _do {inst r} {
 	dict with inst {}	;# instance vars
 
-	if {[dict exists $req -suffix]} {
-	    # caller has munged path already
-	    set suffix [dict get $req -suffix]
-	} else {
-	    # assume we've been parsed by package Url
-	    # remove the specified prefix from path, giving suffix
-	    set path [dict get $req -path]
-	    set suffix [Url pstrip $mount $path]
-	    if {($suffix ne "/") && [string match "/*" $suffix]} {
-		# path isn't inside our domain suffix - error
-		return [Http NotFound $req]
-	    }
-	    dict set req -suffix $suffix
+	lassign [Url urlsuffix $r $mount] result r suffix path
+	if {!$result} {
+	    return $r	;# the URL isn't in our domain
 	}
 
-	dict set req -title "$title - [string trimright $suffix /]"
+	dict set r -title "$title - [string trimright $suffix /]"
 	if {$titleURL ne ""} {
 	    set title [<a> href $titleURL $title]
 	}
 	set ext [file extension $suffix]
 	set path [file normalize [file join $root [string trimleft $suffix /]]]
-	#dict set req -path $path
+	#dict set r -path $path
 	
 	# unpack query response
-	set Q [Query parse $req]
-	dict set req -Query $Q
+	set Q [Query parse $r]
+	dict set r -Query $Q
 	set Q [Query flatten $Q]
 
-	Debug.repo {suffix:$suffix path:$path req path:[dict get $req -path] mount:$mount Q:$Q}
+	Debug.repo {suffix:$suffix path:$path r path:[dict get $r -path] mount:$mount Q:$Q}
 
 	switch -- [dict get? $Q op] {
 	    del {
@@ -208,7 +198,7 @@ namespace eval Repo {
 		set vers 0 ;while {[file exists [file join $dir .del-$fn.$vers]]} {incr vers}
 		Debug.repo {del: $path -> [file join $dir .del-$fn.$vers]}
 		file rename $path [file join $dir .del-$fn.$vers]
-		return [Http Redir $req .]
+		return [Http Redir $r .]
 	    }
 
 	    create {
@@ -217,57 +207,57 @@ namespace eval Repo {
 		set relpath [file join [lrange [file split [::fileutil::relativeUrl $path $subdir]] 1 end]]/
 		Debug.repo {create: $path $subdir - $relpath}
 		file mkdir $subdir
-		return [Http Redir $req $relpath]
+		return [Http Redir $r $relpath]
 	    }
 
 	    upload {
 		# upload some files
-		return [upload $req $Q path $path {*}$inst]
+		return [upload $r $Q path $path {*}$inst]
 	    }
 	}
 	
 	if {$ext ne "" && [file tail $suffix] eq $ext} {
 	    # this is a file name like '.tml'
-	    return [Http NotFound $req [<p> "File '$suffix' has illegal name."]]
+	    return [Http NotFound $r [<p> "File '$suffix' has illegal name."]]
 	}
 
 	if {![file exists $path]} {
-	    dict lappend req -depends $path	;# cache notfound
-	    return [Http NotFound $req [<p> "File '$suffix' doesn't exist."]]
+	    dict lappend r -depends $path	;# cache notfound
+	    return [Http NotFound $r [<p> "File '$suffix' doesn't exist."]]
 	}
 
 	# handle conditional request
-	if {[dict exists $req if-modified-since]
-	    && (![dict exists $req -dynamic] || ![dict get $req -dynamic])
+	if {[dict exists $r if-modified-since]
+	    && (![dict exists $r -dynamic] || ![dict get $r -dynamic])
 	} {
-	    set since [Http DateInSeconds [dict get $req if-modified-since]]
+	    set since [Http DateInSeconds [dict get $r if-modified-since]]
 	    if {[file mtime $path] <= $since} {
-		Debug.repo {NotModified: $path - [Http Date [file mtime $path]] < [dict get $req if-modified-since]}
+		Debug.repo {NotModified: $path - [Http Date [file mtime $path]] < [dict get $r if-modified-since]}
 		Debug.repo {if-modified-since: not modified}
-		return [Http NotModified $req]
+		return [Http NotModified $r]
 	    }
 	}
 	
-	Debug.repo {dispatch '$path' $req}
+	Debug.repo {dispatch '$path' $r}
 	
 	Debug.repo {Found file '$path' of type [file type $path]}
-	dict lappend req -depends $path	;# remember cache dependency on dir
+	dict lappend r -depends $path	;# remember cache dependency on dir
 	switch -- [file type $path] {
 	    link -
 	    file {
-		dict set req -raw 1	;# no transformations
+		dict set r -raw 1	;# no transformations
 		set mime [Mime type $path]
 		if {[dict exists $Q format]
 		    && ![string match image/* $mime]
 		} {
 		    set mime text/plain
 		}
-		return [Http Ok [Http NoCache $req] [::fileutil::cat -encoding binary -translation binary -- $path] $mime]
+		return [Http Ok [Http NoCache $r] [::fileutil::cat -encoding binary -translation binary -- $path] $mime]
 	    }
 	    
 	    directory {
 		# if a directory reference doesn't end in /, redirect.
-		set rpath [dict get $req -path]
+		set rpath [dict get $r -path]
 		if {[string index $rpath end] ne "/"} {
 		    if {$tar} {
 			# return the whole dir in one hit as a tar file
@@ -277,30 +267,30 @@ namespace eval Repo {
 			::tar::create $tname $suffix
 			set content [::fileutil::cat -encoding binary -translation binary -- $tname]
 			cd $dir
-			return [Http CacheableContent [Http Cache $req $expires] [file mtime $path] $content application/x-tar]
+			return [Http CacheableContent [Http Cache $r $expires] [file mtime $path] $content application/x-tar]
 		    } else {
 			# redirect to the proper name
-			dict set req -path "$rpath/"
-			return [Http Redirect $req [Url uri $req]]
+			dict set r -path "$rpath/"
+			return [Http Redirect $r [Url uri $r]]
 		    }
 		}
 
 		if {$index ne "" && [file exists [file join $path $index]]} {
 		    # return the specified index file
 		    set index [file join $path $index]
-		    return [Http Ok [Http NoCache $req] [::fileutil::cat -encoding binary -translation binary -- $index] x-text/html-fragment]
+		    return [Http Ok [Http NoCache $r] [::fileutil::cat -encoding binary -translation binary -- $index] x-text/html-fragment]
 		} else {
 		    # return a pretty table
-		    return [Http Ok [Http NoCache [dir $req $path {*}$inst]]]
+		    return [Http Ok [Http NoCache [dir $r $path {*}$inst]]]
 		}
 
-		dict set req -raw 1	;# no transformations
-		return [Http Ok [Http NoCache $req] [::fileutil::cat -encoding binary -translation binary -- $index] [Mime type $path]]
+		dict set r -raw 1	;# no transformations
+		return [Http Ok [Http NoCache $r] [::fileutil::cat -encoding binary -translation binary -- $index] [Mime type $path]]
 	    }
 	    
 	    default {
-		dict lappend req -depends $path	;# cache notfound
-		return [Http NotFound $req [<p> "File '$suffix' is of illegal type [file type $path]"]]
+		dict lappend r -depends $path	;# cache notfound
+		return [Http NotFound $r [<p> "File '$suffix' is of illegal type [file type $path]"]]
 	    }
 	}
     }
