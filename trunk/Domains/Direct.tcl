@@ -22,7 +22,7 @@ Debug off direct 10
 
 package provide Direct 1.0
 
-set API(Direct) {
+set API(Domains/Direct) {
     {
 	A domain which dispatches URL requests to commands within a namespace or methods within an object.
 
@@ -171,15 +171,8 @@ class create Direct {
 	    dict set rsp -extra [file join [lreverse $extra]]	;# record the extra parts of the domain
 	}
 
-	# get the formal parameters of the method
-	lassign [info class definition [info object class $object] $cmd] def
-	if {[lindex $def end] eq "args"} {
-	    set needargs 1
-	    set params [lrange $def 1 end-1]	;# remove args from params
-	} else {
-	    set needargs 0
-	    set params [lrange $def 1 end]
-	}
+	# get the formal parameters and args-status of the method
+	lassign [dict get $methods $cmd] needargs params
 
 	set qd [dict get $rsp -Query]
 	Debug.direct {cmd: '$cmd' params:$params [dict keys $qd]}
@@ -235,30 +228,12 @@ class create Direct {
 	dict set r -Query $qd
 	Debug.direct {Query: [Query dump $qd]}
 
-	# remember which mount we're using - this allows several
-	# domains to share the same namespace, differentiating by
-	# reference to -prefix value.
-	dict set r -prefix $mount
-
-	if {[dict exists $r -suffix]} {
-	    # caller has munged path already
-	    set suffix [dict get $r -suffix]
-	    Debug.direct {-suffix given $suffix}
-	} else {
-	    # assume we've been parsed by package Url
-	    # remove the specified mount from path, giving suffix
-	    set path [file rootname [dict get $r -path]]
-	    set suffix [Url pstrip $mount $path]
-	    Debug.direct {-suffix not given - calculated '$suffix' from '$mount' and '$path'}
-	    if {($suffix ne "/") && [string match "/*" $suffix]} {
-		# path isn't inside our domain suffix - error
-		return [Http NotFound $r]
-	    }
+	# calculate the suffix of the URL relative to $mount
+	lassign [Url urlsuffix $r $mount] result r suffix path
+	if {!$result} {
+	    return $r	;# the URL isn't in our domain
 	}
-	
-	# record the suffix's extension
-	dict set r -extension [file extension $suffix]
-	
+
 	# remove suffix's extension and trim /s
 	set fn [string trim [file rootname $suffix] /]
 	if {[info exists trim] && $trim ne ""} {
@@ -319,11 +294,23 @@ class create Direct {
 		set object [[lindex $object 0] create {*}[lrange $object 1 end] mount $mount]
 	    }
 
-	    foreach m [lreverse [lsort -dictionary [info object methods $object -private -all]]] {
+	    # construct a dict from method name to the formal parameters of the method
+	    set class [info object class $object]
+	    foreach m [lreverse [lsort -dictionary [info class methods $class -private -all]]] {
 		if {[string match /* $m]} {
-		    dict set methods $m {}
+		    set def [lindex [info class definition $class $m] 0]
+		    if {[lindex $def end] eq "args"} {
+			set needargs 1
+			set params [lrange $def 1 end-1]	;# remove 'r' and args from params
+		    } else {
+			set needargs 0
+			set params [lrange $def 2 end]	;# remove 'r' from params
+		    }
+
+		    dict set methods $m [list $needargs $params]
 		}
 	    }
+
 	    objdefine $object export {*}[info object methods $object -all] {*}[dict keys $methods]
 
 	} else {
