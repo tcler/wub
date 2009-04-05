@@ -5,7 +5,7 @@ Debug on about 10
 package require textutil
 package provide About 1.0
 
-set API(About) {
+set API(Domains/About) {
     {Domain for accessing API documentation of other domains.}
 }
 
@@ -18,37 +18,22 @@ namespace eval About {
 	foreach x $::APIDomains {
 	    package require $x
 	}
+
 	proc do {r} {
-	    # compute suffix
+	    # calculate the suffix of the URL relative to $mount
 	    variable mount
-	    if {[dict exists $r -suffix]} {
-		# caller has munged path already
-		set suffix [dict get $r -suffix]
-		Debug.about {-suffix given $suffix}
-	    } else {
-		# assume we've been parsed by package Url
-		# remove the specified prefix from path, giving suffix
-		set path [dict get $r -path]
-		set suffix [Url pstrip $mount $path]
-		Debug.about {-suffix not given - calculated '$suffix' from '$mount' and '$path'}
-		if {($suffix ne "/") && [string match "/*" $suffix]} {
-		    # path isn't inside our domain suffix - error
-		    return [Http NotFound $r]
-		}
-		dict set r -suffix $suffix
+	    lassign [Url urlsuffix $r $mount] result r suffix
+	    if {!$result} {
+		return $r	;# the URL isn't in our domain
 	    }
 	    
 	    global API
 	    if {![info exists API($suffix)]} {
 		Debug.about {$suffix domain not known}
-		if {$suffix ne "/"} {
-		    set result [<message> "$suffix domain not known"]
-		} else {
-		    set result [<h2> "All known Domains"]
-		}
+		set result [<h2> "All known $suffix documentation"]
 		set l {}
-		foreach n [lsort -dictionary [array names API]] {
-		    append l [<li> [<a> href $n $n]]
+		foreach n [lsort -dictionary [array names API [file join $suffix *]]] {
+		    append l [<li> [<a> href $n [file tail $n]]]
 		}
 		append result \n [<ul> [join $l]]
 		return [Http NotFound $r $result x-text/html-fragment]
