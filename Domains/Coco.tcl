@@ -12,7 +12,7 @@ package require md5
 
 package provide Coco 1.0
 
-set API(Coco) {
+set API(Domains/Coco) {
     {A domain built around Tcl8.6 Coroutines.  Calling the domain creates a subdomain running the corouting given by lambda}
     lambda {+a lambda or procname (taking a single argument) which is invoked as a coroutine to process client input.}
 }
@@ -137,22 +137,10 @@ namespace eval Coco {
 
     # process request wrapper
     proc _do {mount lambda r} {
-	# compute suffix
-	if {[dict exists $r -suffix]} {
-	    # caller has munged path already
-	    set suffix [dict get $r -suffix]
-	    Debug.coco {-suffix given $suffix}
-	} else {
-	    # assume we've been parsed by package Url
-	    # remove the specified prefix from path, giving suffix
-	    set path [dict get $r -path]
-	    set suffix [Url pstrip $mount $path]
-	    Debug.coco {-suffix not given - calculated '$suffix' from '$mount' and '$path'}
-	    if {($suffix ne "/") && [string match "/*" $suffix]} {
-		# path isn't inside our domain suffix - error
-		return [Http NotFound $r]
-	    }
-	    dict set r -suffix $suffix
+	# calculate the suffix of the URL relative to $mount
+	lassign [Url urlsuffix $r $mount] result r
+	if {!$result} {
+	    return $r	;# the URL isn't in our domain
 	}
 
 	set result [process $mount $lambda $r]
