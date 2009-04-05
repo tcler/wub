@@ -10,7 +10,7 @@ package require jQ
 package require Debug
 Debug off dub 10
 
-set API(Dub) {
+set API(Domains/Dub) {
     "A metakit database toy."
     db {metakit database to use}
 }
