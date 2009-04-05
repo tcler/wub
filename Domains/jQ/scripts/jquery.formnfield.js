@@ -94,7 +94,7 @@ jQuery.iField={
 				return value;
 			},
 			detect:function(field){
-				var ctl=jQuery('input[@type=radio][@name='+field.name+']');
+				var ctl=jQuery('input[type=radio][name='+field.name+']');
 				var bDetect=ctl.length>0;
 				if(bDetect)field.ctl=ctl;
 				return bDetect;
