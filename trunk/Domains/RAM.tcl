@@ -9,7 +9,7 @@ Debug off RAM 10
 
 package provide RAM 2.0
 
-set API(RAM) {
+set API(Domains/RAM) {
     {in-RAM store for page contents}
     content_type {default content-type (default: x-text/html-fragment)}
 }
@@ -58,29 +58,18 @@ class create RAM {
     }
 
     # called as "do $request" returns the value stored in this RAM to be returned.
-    method do {rsp} {
-	# compute suffix
-	if {[dict exists $rsp -suffix]} {
-	    # caller has munged path already
-	    set suffix [dict get $rsp -suffix]
-	    Debug.RAM {-suffix given $suffix}
-	} else {
-	    # assume we've been parsed by package Url
-	    # remove the specified prefix from path, giving suffix
-	    set path [dict get $rsp -path]
-	    set suffix [Url pstrip $mount $path]
-	    Debug.RAM {-suffix not given - calculated '$suffix' from '$mount' and '$path'}
-	    if {($suffix ne "/") && [string match "/*" $suffix]} {
-		# path isn't inside our domain suffix - error
-		return [Http NotFound $rsp]
-	    }
+    method do {r} {
+	# calculate the suffix of the URL relative to $mount
+	lassign [Url urlsuffix $r $mount] result r suffix path
+	if {!$result} {
+	    return $r	;# the URL isn't in our domain
 	}
 
 	variable ram
 	Debug.RAM {exists ram $suffix [info exists ram($suffix)]}
 	if {![info exists ram($suffix)]} {
 	    # path isn't inside our domain suffix - error
-	    return [Http NotFound $rsp]
+	    return [Http NotFound $r]
 	}
 
 	variable content_type
@@ -89,27 +78,27 @@ class create RAM {
 	set extra [lrange $ram($suffix) 1 end]
 
 	# check conditional
-	if {[dict exists $rsp if-modified-since]
+	if {[dict exists $r if-modified-since]
 	    && (![dict exists $extra -dynamic] || ![dict get $extra -dynamic])
 	} {
-	    set since [Http DateInSeconds [dict get $rsp if-modified-since]]
+	    set since [Http DateInSeconds [dict get $r if-modified-since]]
 	    if {[dict get $extra -modified] <= $since} {
 		Debug.RAM {NotModified: $path - [dict get $extra last-modified] < [dict get $extra if-modified-since]}
 		Debug.RAM {if-modified-since: not modified}
-		return [Http NotModified $rsp]
+		return [Http NotModified $r]
 	    }
 	}
 	
 	foreach {el val} $extra {
 	    if {$el eq "-header"} {
-		dict lappend rsp -headers $val
+		dict lappend r -headers $val
 	    } else {
 		dict set els $el $val
 	    }
 	}
-	set rsp [dict merge $rsp [list content-type $content_type {*}$els -content $content]]
+	set r [dict merge $r [list content-type $content_type {*}$els -content $content]]
 
-	return [Http Ok $rsp]
+	return [Http Ok $r]
     }
 
     # initialize view ensemble for RAM
