@@ -8,7 +8,7 @@ package require Color
 
 package provide Sinorca 1.0
 
-set API(Sinorca) {
+set API(Domains/Sinorca) {
     {experimental page-livery wrapper}
 }
 
