@@ -54,22 +54,29 @@ namespace eval Url {
 
     # find the suffix part of a URL-parsed request given a mount point
     proc urlsuffix {r mount} {
+	# remember which mount we're using - this allows several
+	# domains to share the same namespace, differentiating by
+	# reference to -prefix value.
+	dict set r -prefix $mount
+	set path [dict get $r -path]
+
 	if {[dict exists $r -suffix]} {
 	    # caller has munged path already
 	    set suffix [dict get $r -suffix]
 	} else {
 	    # assume we've been parsed by package Url
 	    # remove the specified prefix from path, giving suffix
-	    set suffix [Url pstrip $mount [string trimleft [dict get $r -path] /]]
-	    Debug.url {urltail - suffix:$suffix url:$mount}
+	    set suffix [Url pstrip $mount [string trimleft $path /]]
+	    Debug.url {urlsuffix - suffix:$suffix url:$mount}
 	    if {($suffix ne "/") && [string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
-		Debug.url {urltail - [dict get $r -path] is outside domain suffix $suffix}
+		Debug.url {urlsuffix - $path is outside domain suffix $suffix}
 		return [list 0 [Http NotFound $r]]
 	    }
 	    dict set r -suffix $suffix
 	}
-	return [list 1 $r $suffix]
+	dict set r -extension [file extension $suffix]
+	return [list 1 $r $suffix $path]
     }
 
     # normalize -- 
