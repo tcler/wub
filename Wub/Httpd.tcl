@@ -26,6 +26,72 @@ package require UA
 
 package provide Httpd 4.0
 
+set API(Wub/Httpd) {
+    {
+	Httpd is the low-level core Wub HTTP protocol module.  It parses HTTP traffic, dispatches on URL and handles pipelined responses.  It interfaces with [Utility] modules to provide blocking, caching, logging and other useful functionality.
+
+	Httpd is intended to be non-permissive in its handling of requests.  In general, legitimate browsers and bots are well-behaved and conform closely to the RFC.  In rejecting ill-formed requests, Httpd is expected to somewhat reduce the impact and load of spammers on the server.
+
+	While Httpd can be customised and used almost stand-alone in a minimal server system, it is designed as the protocol front-end to a series of modules known as [Domain]s which provide a wide range of semantics to the site-author.  The module [Nub] generates dispatch and interface code to link these [Domains] to Httpd for processing.  By analogy with Apache, [Nub] performs the dispatch functions of Apaches .htaccess files.
+
+	== Quickstart ==
+	Use [Nub] to define a URL mapping to instances of the various [Domains].  A complete site can be constructed using nothing but Nub over Domains.
+
+	== Interface ==
+	;Connect: Initializes an HTTP 1.1 connection and pipeline, may be called by some external connection handler (such as [Listener], by default) to initiate HTTP 1.1 protocol interaction and processing.
+
+	;RESUME: calling the consumer coroutine with [list RESUME $response ...] will resume a suspended request and pipeline the response out to the client.
+
+	All processing of requests (ie: transformation of requests into responses) is performed by ::Httpd::do, which can be defined directly by the user (see Customisation) or can be defined indirectly by [Nub].
+
+	== Customisation ==
+
+	To customise Httpd, the semantics of request processing need to be defined in a couple of plugged-in commands.  These commands have sensible minimally functional defaults, but are expected to be customised.
+
+	Httpd expects ''::Httpd::do'' to operate within the consumer to process a request and return a response (or error.)  The [Nub] module generates such a command, which dispatches on URL to Domains specified in the configuration.
+
+	Command ::Httpd::do will be called with REQUEST and a ''pre''-processed request expecting that the call will return a response.
+
+	Command ::Httpd::do will be called with TERMINATE when a connection has closed.  A custom consumer may use this notification to clean up before termination.  No socket or reader interaction is possible at this point.
+
+	Httpd expects ''::Httpd::pre'' to pre-process the request within the consumer's context before handing it to ::Httpd::do.  By default, ''pre'' unpacks [Cookies] in the request.
+
+	Httpd expects ''::Httpd::post'' to post-process the response from ::Httpd::do.  By default, the [Convert] module is invoked to perform content-negotiation.  Other useful functionality might be [Cookie] handling, Session management, etc.
+
+	Httpd defines an ''::Httpd::reader'' command for protocol interaction and an ''::Httpd::consumer'' command for dispatching via ::Httpd::do, post-processing via ::Httpd::post and sending pipelined responses back to the client via ::Httpd::reader.  It's not expected that these should be modified, but (in keeping with the goal of extensibility) it is possible.
+
+	== Architecture ==
+	Httpd constructs two coroutines for each open connection in response to a '''Connect''' call from a [Listener].  The first coroutine (whose semantics are contained in ::Httpd::reader) parses HTTP 1.1 from the socket into a request dict, which it then passes to the second coroutine (::Httpd::consumer.)  The two coroutines communicate by means of tcl [[after]] events containing coroutine invocations and arguments, according to an internal protocol.
+
+	=== Consumer Protocol ===
+	;REQUEST: a completely formed request and entity has been received.  The consumer should process it and [[send]] the response, or a [[Suspend]]ed response pending some external event.
+	;TERMINATE: the reader informs us that the connection has been terminated.  Cleanup and die.
+	;RESUME: an external agent may send this message to the consumer coroutine with a response.  This causes the associated request processing to resume (ie: the tendered response will be sent to the client.)
+
+	=== Reader Protocol ===
+	;READ: [[fileevent readable]] - there's input to be read and processed
+	;CLOSING: [[fileevent readable]] - there's input, but we're half-closed, not processing any more input, and merely waiting for all pending responses to drain.
+	;WRITABLE: [[fileevent writable]] - there's space on the output queue.  We'll send any responses queued for sending, and unblock the reader if this makes output buffer space available.
+	;SEND: ''consumer'' has a response for us to queue for delivery.
+	;SUSPEND: ''consumer'' indicates that current response processing is suspended.  New requests will be processed, but the pipeline stalls until the consumer is RESUMEd, and generates a response to the current request.
+	;REAPED: this connection has been reaped due to inactivity.
+	;TERMINATE: this connection is being closed due to unrecoverable error or ''consumer'' request.
+
+	=== Reaping ===
+	The time of each event processed by the reader and consumer coroutines is logged.  If a (configurable) period of idleness occurs, a per-connection timer causes the connection to be reaped.  A consumer which suspends is given a little grace time to produce its response.
+
+	== Ancillary Functionality ==
+	Httpd is not intended to be a minimal HTTP server, and so performs generally useful (but safe) optimisations and traffic management.
+
+	;[Cache]: Httpd (configurably) interacts with a server cache (also known as a reverse proxy) which automatically caches responses and serves them (as appropriate) to clients upon matching request.  The Cache is transparent to ''consumer'', which will not be invoked if cached content can be supplied.  Caching policy is determined entirely by response and request protocol elements - that is, if a response is publicly cacheable, the [Cache] module will capture and reproduce it, handling conditional fetches and such.
+	;Exhaustion: Httpd maintains a count of the current connections for each IP address, and may refuse service if they exceed a configured limit.  In practice, this has not been found to be very useful.
+	;[Block]ing: refuses service to blocked IP addresses
+	;[Honeypot]: attempts to ensnare non-conformant spiders and bots.
+	;[spider] detection: looks up User-Agent in a db of known bad-bots, to attempt to refuse them service.  In practice, this has not been found to be very useful.
+	;[UA] classification: parses and classifies User-Agent in an attempt to classify interactions as 'bot', 'broser', 'spider'. 'spammer'.  Limited success.
+    }
+}
+
 proc bgerror {args} {
     Debug.error {bgerror: $args}
 }
@@ -1541,7 +1607,6 @@ namespace eval Httpd {
     }
 
     proc post {req} {
-	package require Cookies
 	package require Convert
 	proc post {req} {
 	    return [::Convert do $req]	;# got to do post-conversion
@@ -1556,6 +1621,7 @@ namespace eval Httpd {
 	    package require Mason
 	    Mason create ::wub -url / -root $::Site::docroot -auth .before -wrapper .after
 	}
+
 	proc do {op req} {
 	    switch -- $op {
 		REQUEST {
