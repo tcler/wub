@@ -130,7 +130,7 @@ namespace eval stx2html {
 
 	lset toccnt $level [expr [lindex $toccnt $level] + 1]
 	set tag [lindex $lc 0]	;# ignore the tag, use the id
-	set toc([join [lrange $toccnt 1 $level] .]) [list $args $tag]
+	set toc([join [lrange $toccnt 1 $level] .]) [list [join $args] $tag]
 
 	set p [subst $args]
 	variable title
@@ -239,7 +239,7 @@ namespace eval stx2html {
 		set text [string trim [join [lassign [split $body] href]]]
 		set href [string trim $href]
 		if {$text eq ""} {
-		    set text $body
+		    set text http:$body
 		}
 		if {![string match /* $href]} {
 		    set what [<a> href $href $text]
@@ -402,15 +402,12 @@ namespace eval stx2html {
 	variable toc
 	set result "<table class='TOC'>\n"
 	append result "<thead><tr><td colspan='2'>Table Of Contents</td></tr></thead>"
-	append result "<tbody>"
 	foreach sect [lsort -dictionary [array names toc]] {
-	    append result "<tr>"
-	    append result "<td class='TOCnum'><a href='\#[lindex $toc($sect) 1]'>$sect</a></td> "
-	    append result "<td>[lindex $toc($sect) 0]</td>\n"
-	    append result "</tr>"
+	    append body [<tr> "[<td> class TOCnum [<a> href \#[lindex $toc($sect) 1] $sect]] [<td> [join [lindex $toc($sect) 0]]] \n"]
 	}
-	append result "</tbody>"
-	return "${result}</table>\n"
+	append result [<tbody> $body] \n
+	append result </table> \n
+	return $result
     }
     
     proc +scope {num} {

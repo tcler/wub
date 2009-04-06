@@ -303,7 +303,6 @@ Scope: [radioset: scope {site 0 +section 1}]
  |+ Sort | Scope | Send
  |[selectset: sort1 {title author date}] | [radio: scope site] | [submit: submit search]
  ||[radio: scope section]
-
  [/form]
 
 '''Produces:'''
