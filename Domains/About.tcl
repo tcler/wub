@@ -51,7 +51,7 @@ namespace eval About {
 		
 		set stxified 0
 		if {![catch {
-		    stx2html::translate "== $n Domain==\n$v"
+		    stx2html::translate "== $n ==\n$v"
 		} res eo]} {
 		    set v $res
 		    set stxified 1
