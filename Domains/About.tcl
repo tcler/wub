@@ -33,7 +33,8 @@ namespace eval About {
 		set result [<h2> "All known $suffix documentation"]
 		set l {}
 		foreach n [lsort -dictionary [array names API [file join $suffix *]]] {
-		    append l [<li> [<a> href $n [file tail $n]]]
+		    set n [file tail $n]
+		    append l [<li> [<a> href $n $n]]
 		}
 		append result \n [<ul> [join $l]]
 		return [Http NotFound $r $result x-text/html-fragment]
