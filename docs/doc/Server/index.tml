@@ -1,6 +1,0 @@
-<h1>Wub Server</h1>
-
-<p>The Wub server is composed of several components which can be interrelated in different ways when the site is built.</p>
-
-<h2>Component Documentation:</h2>
-[Html dict2table [Dict dir [file dirname $fpath] *.stx] {name size mtime}]
