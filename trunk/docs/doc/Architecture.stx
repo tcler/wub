@@ -8,6 +8,8 @@ A request/response dict resembles a whiteboard upon which Domains and Utilities 
 
 One convention which is rigorously enforced is that non-protocol fields in request/response dicts have names of the form '-*', distinguishing them from HTTP fields which will eventually be sent to the client.
 
+[image:Server/arch.png]
+
 == Workflow ==
 
 The Httpd package receives and parses data from a connected socket and generates a request dict from it.  After performing some analysis (such as Url and Query processing, User Agent processing and malicious client Blocking) Httpd (optionally) consults one of two Cache packages.  If the Cache can satisfy the request, it does so.  Otherwise, a configurable Incoming proc is called with the request.  A sample Incoming is provided in the supplied example Application.tcl, which acts through the Response module to dispatch incoming requests to an appropriate Domain by means of a switch over some fields in the request dict - specifically and primarily the -url field which contains the incoming request URL.  After Domain package handling, the returned response dict is queued up to be returned to the client via Httpd.
