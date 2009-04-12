@@ -31,11 +31,9 @@
 
 	<p>While this server works fine as a stand alone web server, the intent is to embed applications within it.</p>
 
-	<p>The <a href='doc/Architecture.stx'>Wub Architecture</a> page provides an architectural overview.
+	<p>The <a href='doc/Architecture.stx'>Wub Architecture</a> page provides an architectural overview.</p>
 
 	<p>The interpreted nature of Tcl allows <a href='/nub/nubs'>dynamic reconfiguration of the server</a>. Once the core interface between the web server and the hosted application is defined, it is possible to manage the web server, upload Safe-Tcl control scripts, download logging information, and otherwise debug the Tcl part of the application without restarting the application.</p>
-	
-	<p>The <a href='mailto:wub-users@lists.sourceforge.net'>wub-users@lists.sourceforge.net</a> mailing list is the best source of current information about Wub.</p>
 	
 	<h2>Related Articles</h2>
 	<p>Relating to this Wub distribution:</p>
@@ -93,7 +91,7 @@
     <address><a href='mailto:colin@chinix.com'>Colin McCormack</a></address>
     <!-- Created: Thu Jan  5 13:00:57 EST 2006 -->
     <!-- hhmts start -->
-Last modified: Sun Apr 12 15:57:05 EST 2009
+Last modified: Sun Apr 12 16:05:43 EST 2009
 <!-- hhmts end -->
   </body>
 </html>
