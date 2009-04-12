@@ -10,7 +10,13 @@ package require Report
 package require jQ
 
 set API(Domains/File) {
-    {provides a traditional Web view for filesystem hierarchies.}
+    {
+	provides a traditional Web view for filesystem hierarchies, maping a URL suffix to a file system path.
+
+	File domain correctly interacts with Cache domain, and does not itself interpret content (except directories, which it presents by generating HTML.)
+
+	File domain excludes certain files, matching the -hide regexp parameter.
+    }
     root {filesystem root directory of File domain}
     indexfile {name of the file which stands for a directory, such as index.html}
     hide {a regexp to hide temp and other uninteresting files (default hides .* *~ and #*)}
