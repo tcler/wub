@@ -1,8 +1,0 @@
-= Convert =
-
-Convert domain implements post-processing conversion of content relative to a set of functions.
-
-Convert attempts to convert content from the response content-type to something permitted by the
-accept request field by intercepting responses from -subdomains.
-
-To do this, Convert maintains a table of mappings from one mime-type to another, finds a minimal path between the content-type to some acceptable type, and calls each conversion function in turn.
