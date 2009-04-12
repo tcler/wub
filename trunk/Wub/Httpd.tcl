@@ -26,35 +26,35 @@ package require UA
 
 package provide Httpd 4.0
 
-set API(Wub/Httpd) {
+set API(Server/Httpd) {
     {
-	Httpd is the low-level core Wub HTTP protocol module.  It parses HTTP traffic, dispatches on URL and handles pipelined responses.  It interfaces with [Utility] modules to provide blocking, caching, logging and other useful functionality.
+	Httpd is the low-level core Wub HTTP protocol module.  It parses HTTP traffic, dispatches on URL and handles pipelined responses.  It interfaces with [../Utility] modules to provide blocking, caching, logging and other useful functionality.
 
 	Httpd is intended to be non-permissive in its handling of requests.  In general, legitimate browsers and bots are well-behaved and conform closely to the RFC.  In rejecting ill-formed requests, Httpd is expected to somewhat reduce the impact and load of spammers on the server.
 
-	While Httpd can be customised and used almost stand-alone in a minimal server system, it is designed as the protocol front-end to a series of modules known as [Domain]s which provide a wide range of semantics to the site-author.  The module [Nub] generates dispatch and interface code to link these [Domains] to Httpd for processing.  By analogy with Apache, [Nub] performs the dispatch functions of Apaches .htaccess files.
+	While Httpd can be customised and used almost stand-alone in a minimal server system, it is designed as the protocol front-end to a series of modules known as [../Domains] which provide a wide range of semantics to the site-author.  The module [../Domains/Nub] generates dispatch and interface code to link these [../Domains] to Httpd for processing.  By analogy with Apache, [../Domains/Nub] performs the dispatch functions of Apaches .htaccess files.
 
 	== Quickstart ==
-	Use [Nub] to define a URL mapping to instances of the various [Domains].  A complete site can be constructed using nothing but Nub over Domains.
+	Use [../Domains/Nub] to define a URL mapping to instances of the various [../Domains].  A complete site can be constructed using nothing but Nub over Domains.
 
 	== Interface ==
 	;Connect: Initializes an HTTP 1.1 connection and pipeline, may be called by some external connection handler (such as [Listener], by default) to initiate HTTP 1.1 protocol interaction and processing.
 
-	;RESUME: calling the consumer coroutine with [list RESUME $response ...] will resume a suspended request and pipeline the response out to the client.
+	;RESUME: calling the consumer coroutine with [[list RESUME $response ...]] will resume a suspended request and pipeline the response out to the client.
 
-	All processing of requests (ie: transformation of requests into responses) is performed by ::Httpd::do, which can be defined directly by the user (see Customisation) or can be defined indirectly by [Nub].
+	All processing of requests (ie: transformation of requests into responses) is performed by ::Httpd::do, which can be defined directly by the user (see Customisation) or can be defined indirectly by [../Domains/Nub].
 
 	== Customisation ==
 
 	To customise Httpd, the semantics of request processing need to be defined in a couple of plugged-in commands.  These commands have sensible minimally functional defaults, but are expected to be customised.
 
-	Httpd expects ''::Httpd::do'' to operate within the consumer to process a request and return a response (or error.)  The [Nub] module generates such a command, which dispatches on URL to Domains specified in the configuration.
+	Httpd expects ''::Httpd::do'' to operate within the consumer to process a request and return a response (or error.)  The [../Domains/Nub] module generates such a command, which dispatches on URL to Domains specified in the configuration.
 
 	Command ::Httpd::do will be called with REQUEST and a ''pre''-processed request expecting that the call will return a response.
 
 	Command ::Httpd::do will be called with TERMINATE when a connection has closed.  A custom consumer may use this notification to clean up before termination.  No socket or reader interaction is possible at this point.
 
-	Httpd expects ''::Httpd::pre'' to pre-process the request within the consumer's context before handing it to ::Httpd::do.  By default, ''pre'' unpacks [Cookies] in the request.
+	Httpd expects ''::Httpd::pre'' to pre-process the request within the consumer's context before handing it to ::Httpd::do.  By default, ''pre'' unpacks [../Utility/Cookies] in the request.
 
 	Httpd expects ''::Httpd::post'' to post-process the response from ::Httpd::do.  By default, the [Convert] module is invoked to perform content-negotiation.  Other useful functionality might be [Cookie] handling, Session management, etc.
 
@@ -86,7 +86,7 @@ set API(Wub/Httpd) {
 	;[Cache]: Httpd (configurably) interacts with a server cache (also known as a reverse proxy) which automatically caches responses and serves them (as appropriate) to clients upon matching request.  The Cache is transparent to ''consumer'', which will not be invoked if cached content can be supplied.  Caching policy is determined entirely by response and request protocol elements - that is, if a response is publicly cacheable, the [Cache] module will capture and reproduce it, handling conditional fetches and such.
 	;Exhaustion: Httpd maintains a count of the current connections for each IP address, and may refuse service if they exceed a configured limit.  In practice, this has not been found to be very useful.
 	;[Block]ing: refuses service to blocked IP addresses
-	;[Honeypot]: attempts to ensnare non-conformant spiders and bots.
+	;[../Domains/Honeypot]: attempts to ensnare non-conformant spiders and bots.
 	;[spider] detection: looks up User-Agent in a db of known bad-bots, to attempt to refuse them service.  In practice, this has not been found to be very useful.
 	;[UA] classification: parses and classifies User-Agent in an attempt to classify interactions as 'bot', 'broser', 'spider'. 'spammer'.  Limited success.
     }
