@@ -8,8 +8,10 @@ Debug on cgi 1000
 
 package provide CGI 1.0
 
-set API(CGI) {
-    {A traditional CGI interface}
+set API(Domains/CGI) {
+    {
+	A traditional CGI interface
+    }
     fields {+additional fields to pass to CGI in ::env variable}
     executors {+association list between extension and language processor (which should be somewhere on your exec path)}
     root {root of directory containing scripts}

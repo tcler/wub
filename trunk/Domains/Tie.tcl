@@ -6,8 +6,10 @@ package require Report
 
 package provide Tie 1.0
 
-set API(Domains/Tie) {
-    {Experimental mapping from namespace variables to Urls.  Each namespace needs to [add] itself to the Tie.}
+set API(Experimental/Tie) {
+    {
+	Experimental domain mapping from namespace variables to Urls.  Each namespace needs to [add] itself to the Tie.
+    }
     mime {default mime type of responses (default: x-text/html-fragment)}
 }
 

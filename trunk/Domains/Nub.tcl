@@ -21,7 +21,9 @@ package provide Nub 1.0
 package provide Rewrite 1.0	;# to satisfy synthetic requirement of codegen
 
 set API(Domains/Nub) {
-    {Configuration domain for Wub.  Provides simple text and web-based website configuration.}
+    {
+	Configuration domain for Wub.  Provides simple text and web-based website configuration.
+    }
     nubdir {directory for user-defined nubs}
     theme {jQuery theme for Nub web interaction}
     password {password for modifying nubs.}

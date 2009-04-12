@@ -10,7 +10,29 @@ Debug off RAM 10
 package provide RAM 2.0
 
 set API(Domains/RAM) {
-    {in-RAM store for page contents}
+    {
+	in-RAM page store presenting a tcl array to a client with elements named by URL.
+
+	RAM is useful for generated content for which you don't want to have to construct a containing file.  It is quite stupid about hierarchy, ignoring all but the prefix URL structure, so you can construct arbitrary URL hierarchies within a RAM instance, and they will be fetched without further inspection.
+
+	Conditional fetching is supported - the last update to an element is timestamped, and a client's conditional fetch request will be honoured.  You could use RAM as a kind of Cache.
+
+	== QuickStart ==
+	Nub: domain /ram/ RAM
+
+	RAM set fred "This is the content for fred" content-type text/plain
+
+	Now you have a store with a single element ''fred'' with the above content accessable from the URL /ram/fred
+
+	== Operation ==
+	From Tcl you call [[$ram set $key content args]] to store $content under the URL $mount/$key.
+
+	$args is a dict containing metadata such as 'content-type' and any other HTTP response dict metadata.  The fields 'last-modified' and 'content-length' are controlled by RAM, and setting them will have no effect.
+
+	You could go crazy with this, and set arbitrary HTTP response elements ... feel free to do so with caution.
+
+	$args may also contain a ''-headers'' element, whose content will be appended to the response's -headers element.
+    }
     content_type {default content-type (default: x-text/html-fragment)}
 }
 

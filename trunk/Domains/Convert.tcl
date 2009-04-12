@@ -14,6 +14,16 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     lappend auto_path [pwd]
 }
 
+set API(Domains/Convert) {
+    {
+	Pseudo-Domain for performing content negotiation.
+
+	Convert attempts to convert content from the response content-type to something permitted by the accept request field by intercepting responses from -subdomains.
+
+	To do this, Convert maintains a table of mappings from one mime-type to another, finds a minimal path between the content-type to some acceptable type, and calls each conversion function in turn.
+    }
+}
+
 namespace eval Convert {
     variable conversions 1	;# include some default conversions
     variable namespace

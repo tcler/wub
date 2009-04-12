@@ -17,7 +17,9 @@ package require jQ
 package provide Repo 1.0
 
 set API(Domains/Repo) {
-    {A simple file repository providing uploads and tar'ed directory downloads}
+    {
+	A simple file repository providing uploads and tar'ed directory downloads
+    }
     expires {a tcl clock expression indicating when contents expire (default:0 - no expiry)}
     tar {flag: are directories to be provided as tar files? (default: no)}
     index {a file which provides header text for a directory, (default: index.html)}
