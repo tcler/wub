@@ -6,7 +6,7 @@ Debug off jq 10
 package provide jQ 1.0
 package provide JQ 1.0
 
-set API(JQ) {
+set API(Domains/JQ) {
     {provides a tight integration to the jQuery web framework.  Also doubles as a File domain.}
     expires {when do these javascript files expire?}
     google {use the google versions of jQuery wherever possible}
