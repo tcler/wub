@@ -82,7 +82,7 @@ namespace eval About {
 		    append result [<h2> $n] \n [<p> [<a> href .. (Parent)]] [<p> $v] \n
 		}
 	    } else {
-		append result [<h2> "Domain [file tail $n]"] \n [<p> [<a> href .. (..)]] \n [<p> $v] \n
+		append result [<h2> "Domain [file tail $n]"] \n [<p> [<a> href .. (Parent)]] \n [<p> $v] \n
 	    }
 	    set r [Html style $r /css/style.css]
 	    return [Http Ok $r $result x-text/html-fragment]
