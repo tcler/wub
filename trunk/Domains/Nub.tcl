@@ -27,7 +27,7 @@ set API(Domains/Nub) {
     nubdir {directory for user-defined nubs}
     theme {jQuery theme for Nub web interaction}
     password {password for modifying nubs.}
-    docs {url prefix for domain docs. (default none)}
+    docurl {url prefix for domain docs. (default none)}
 }
 
 namespace eval Nub {
@@ -205,7 +205,7 @@ namespace eval Nub {
     variable loaded {}
     variable theme start
     variable keymap
-    variable docs "/docs/domains"
+
     proc /nubs {r {submit ""} args} {
 	Debug.nub {/nubs ($submit) $args}
 	variable theme
@@ -403,7 +403,7 @@ namespace eval Nub {
 	}]
 	append content [<br> clear both][<hr>]
 
-	variable loaded; variable docs
+	variable loaded
 	set header [<h3> "Nubs from $loaded"]
 
 	variable whatsthis; variable docurl
