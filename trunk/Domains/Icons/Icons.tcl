@@ -10,7 +10,7 @@ package require fileutil
 
 package provide Icons 1.0
 
-set API(Icons) {
+set API(Domains/Icons) {
     {provides a set of nice icons}
 }
 
