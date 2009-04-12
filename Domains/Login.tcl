@@ -5,7 +5,7 @@ namespace import oo::*
 
 set API(Domains/Login) {
     {
-	Login is a domain for simple cookie-based login account management and is simultaneously a repository for field values keyed by user.  It is intended to be constructed under a [Direct] domain, as illustrated in the example below.
+	Simple cookie-based login account management and is simultaneously a repository for field values keyed by user.  It is intended to be constructed under a [Direct] domain, as illustrated in the example below.
 
 	== Operation ==
 	Login provides a /login url to authenticate a user by password, and generate a cookie recording this authentication.  /logout removes the login cookies.

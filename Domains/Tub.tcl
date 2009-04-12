@@ -4,7 +4,9 @@ package require TclOO
 namespace import oo::*
 
 set API(Domains/Tub) {
-    {Tub is a domain for storage and retrieval of arbitrary form data}
+    {
+	Domain for storage and retrieval of arbitrary form data
+    }
     view {View within which to store data (no default)}
     key {key within view which uniquely identifies store (default "user")}
     realm {Realm used in password challenges}

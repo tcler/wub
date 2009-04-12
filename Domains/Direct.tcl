@@ -26,6 +26,13 @@ set API(Domains/Direct) {
     {
 	A domain which dispatches URL requests to commands within a namespace or methods within an object.
 
+	== QuickStart ==
+	Create a namespace NS containing commands of the form [[proc /name {r arg1 arg2 ...} {}]]
+
+	Nub: domain /prefix/ Direct namespace NS
+
+	Now any URL reference to /prefix/FRED will invoke the command ::NS::/FRED with any URL query args passed as actual parameters.
+
 	== Operation ==
 	A target URL is interpreted as a command/method invocation with its query arguments interpreted as actual parameters.
 
@@ -36,10 +43,10 @@ set API(Domains/Direct) {
 	Wildcard invocation is supported, with unmatched urls being handled by a nominated default command.
 
 	== TODO ==
-	As per [http://wiki.tcl.tk/22738], different varieties of command might be supported.  Specifically, interps should be considered as a valid command container.
+	Different varieties of command might be supported.  Specifically, interps should be considered as a valid command container.
 
 	== Homage ==
-	This concept is an extension of tclhttpd's domain of the same name.
+	This concept is an extension of TclHttpd's domain of the same name.
     }
     namespace {namespace in which to invoke commands}
     ctype {default content-type of returned values}

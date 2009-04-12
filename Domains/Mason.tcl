@@ -16,6 +16,13 @@ set API(Domains/Mason) {
     {
 	A [File]-like domain mapping a URL domain onto a file-system hierarchy, providing templating and pre- and post- filtering of requests and responses (respectively)
 
+	== Quick Start ==
+	Nub: domain /mason/ Mason root $docroot
+
+	Where docroot is the path of your file directory.  The directory can contain .tml files which will be [[subst]]ed under tcl, index files, .auth and .wrapper files.
+
+	Now any reference to /mason/path will return the content of the file at $docroot/path.  You can restrict access to the file using the .auth facility, transform the file contents using the .wrapper facility, and guard against non-existent files using the .notfound facility.
+	
 	== Operation ==
 	The target URL is interpreted relative to the Mason object's ''root'' directory, and its value returned.  A literal match is preferred, but if one can't be made, a templated file with the same file rootname will be evaluated and returned in its stead (allowing generated content to match a requested file-extension.)
 
