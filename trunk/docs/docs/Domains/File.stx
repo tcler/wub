@@ -1,9 +1,0 @@
-= File Domain =
-
-The file domain maps a URL suffix to a file system path.
-
-File domain correctly interacts with Cache domain, and does not itself interpret content
- (except directories, which it presents by generating HTML.)
-
-File domain looks for an exact match, and will search around for a near-match by using a glob
-pattern.  It also excludes certain files, matching the -hide regexp parameter.
