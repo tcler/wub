@@ -17,6 +17,7 @@ package require stx2html
 package require Html
 package require Form
 package require jQ
+package require About
 package provide Nub 1.0
 package provide Rewrite 1.0	;# to satisfy synthetic requirement of codegen
 
