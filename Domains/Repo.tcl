@@ -19,7 +19,16 @@ package provide Repo 1.0
 set API(Domains/Repo) {
     {
 	A simple file repository providing uploads and tar'ed directory downloads
+
+	Repo is essentially a [File] domain with a pretty front end enabling users to upload and download files and collections of files.
+
+	== QuickStart ==
+
+	[[[http:Nub Nub] domain /repo/ Repo tar 1 upload 1 root $::repobase]]
+
+	Now you've got a domain which responds to the URL /repo, looking for files and directories in filesystem path $::repobase, will tar up directories and allows uploads.
     }
+
     expires {a tcl clock expression indicating when contents expire (default:0 - no expiry)}
     tar {flag: are directories to be provided as tar files? (default: no)}
     index {a file which provides header text for a directory, (default: index.html)}
