@@ -90,7 +90,7 @@ set API(Domains/Coco) {
 	     }
 	 }}
 
-	=== References in Examples ===
+	=== Referenced in Examples ===
 	;[http:Nub domain]: a command which construct a nub, mapping a URL-glob onto a domain handler (in this case, Coco.)
 	;[http:../Utility/Http Http]: a module to transform request dicts into response dicts suitable for returning to the client.  In summary, [[Http Ok]] generates a normal HTTP Ok response, [[Http Redirect]] generates an HTTP Redirect response, and so on.
 	;[http:../Utility/Query Query]: a module to parse and manipulate the GET-query or POST-entity components of a request.

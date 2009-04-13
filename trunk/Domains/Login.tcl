@@ -105,6 +105,7 @@ set API(Domains/Login) {
     passF {field name for password (default: password)}
     permissive {boolean - completely anonymous accounts?}
     autocommit {boolean - commit on each write?}
+    jQ {boolean - use jQuery javascript for interactions? (default: yes.)  Depends on [http:JQ jQ module]}
 }
 
 package require Debug
