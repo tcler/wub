@@ -27,6 +27,9 @@ set API(Domains/Repo) {
 	[[[http:Nub Nub] domain /repo/ Repo tar 1 upload 1 root $::repobase]]
 
 	Now you've got a domain which responds to the URL /repo, looking for files and directories in filesystem path $::repobase, will tar up directories and allows uploads.
+
+	== ToDo ==
+	As Repo was developed for a Wiki, where the culture's fairly permissive, it doesn't provide ''any'' authentication.  It probably should.
     }
 
     expires {a tcl clock expression indicating when contents expire (default:0 - no expiry)}
