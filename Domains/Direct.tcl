@@ -29,7 +29,7 @@ set API(Domains/Direct) {
 	== QuickStart ==
 	Create a namespace NS containing commands of the form [[proc /name {r arg1 arg2 ...} {}]]
 
-	Nub: domain /prefix/ Direct namespace NS
+	[[[http:Nub Nub] domain /prefix/ Direct namespace NS]]
 
 	Now any URL reference to /prefix/FRED will invoke the command ::NS::/FRED with any URL query args passed as actual parameters.
 

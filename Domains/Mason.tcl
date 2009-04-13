@@ -17,7 +17,7 @@ set API(Domains/Mason) {
 	A [File]-like domain mapping a URL domain onto a file-system hierarchy, providing templating and pre- and post- filtering of requests and responses (respectively)
 
 	== Quick Start ==
-	Nub: domain /mason/ Mason root $docroot
+	[[[http:Nub Nub] domain /mason/ Mason root $docroot]]
 
 	Where docroot is the path of your file directory.  The directory can contain .tml files which will be [[subst]]ed under tcl, index files, .auth and .wrapper files.
 
