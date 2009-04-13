@@ -32,7 +32,7 @@ set API(Domains/Coco) {
 	=== Example: validating a form ===
 	[[Coco form]] provides a form validation facility.  Once called, it will return the supplied form until all validation predicates are true.
 
-	 domain /copf/ Coco lambda {r {
+	 Nub domain /copf/ Coco lambda {r {
 	     set referer [Http Referer $r]	;# remember referer
 	     set r [yield]	;# initially just redirect
 
@@ -70,7 +70,7 @@ set API(Domains/Coco) {
 	=== Simple interaction example ===
 	This Cocoroutine returns a simple form, collects its response, echoes it to the client, and terminates.
 
-	 domain /said/ Coco lambda {r {
+	 Nub domain /said/ Coco lambda {r {
 	     set r [yield [Http Ok+ [yield] [<form> said "[<text> stuff][<submit> ok]"]]]
 	     Query qvars [Query parse $r] stuff	;# fetch $stuff from the submitted form
 	     return [Http Ok+ [yield [Http Ok+ $r [<a> href . "click here"]]] [<p> "You said: $stuff"]]
@@ -80,7 +80,7 @@ set API(Domains/Coco) {
 	=== Example: Counting calls ===
 	The following just counts calls to the synthetic URL
 
-	 domain /coco/ Coco lambda {r {
+	 Nub domain /coco/ Coco lambda {r {
 	     set r [yield]	;# initially just redirect to this coroutine
 	     while {1} {
 		 # this coroutine loops around counting calls in $n
@@ -89,8 +89,14 @@ set API(Domains/Coco) {
 		 set r [yield [Http Ok [Http NoCache $r] $content]]
 	     }
 	 }}
+
+	=== References in Examples ===
+	;[http:Nub domain]: a command which construct a nub, mapping a URL-glob onto a domain handler (in this case, Coco.)
+	;[http:../Utility/Http Http]: a module to transform request dicts into response dicts suitable for returning to the client.  In summary, [[Http Ok]] generates a normal HTTP Ok response, [[Http Redirect]] generates an HTTP Redirect response, and so on.
+	;[http:../Utility/Query Query]: a module to parse and manipulate the GET-query or POST-entity components of a request.
+	;<*>: commands of this form are defined by the [http:../Utility/Html Html] generator package and the [http:../Utility/Form Form] generator package.
     }
-    lambda {+a lambda or procname (taking a single argument) which is invoked as a coroutine to process client input.}
+    lambda {+a lambda or procname (taking a single argument) which is invoked as a coroutine to process client input.  This lambda will be invoked in the context of the Coco-constructed coroutine.}
 }
 
 namespace eval Coco {
