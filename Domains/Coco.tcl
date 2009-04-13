@@ -23,7 +23,7 @@ set API(Domains/Coco) {
 	The Cocoroutine is called with the request dict.  [[yield]] may return a response to that request, which will subsequently be returned to the client.  If [[yield]] is called without an argument, it returns an HTTP redirect to the coroutine's URL.
 
 	== Coco Forms ==
-	Since Coco provides lightweight session persistence, keyed by synthetic URL, it can be used to validate forms.  The [[Coco form]] command is invoked as ''[[Coco form request form args]]''.  Where $request is the current HTTP request dict, $form is an HTML form (with an optional %MESSAGE string embedded), and args are a validation dict.
+	Since Coco provides lightweight session persistence, keyed by synthetic URL, it can be used to validate forms.  The [[Coco form]] command is invoked as ''[[Coco form $request $form [[list $fail_message $predicate]] ... ]]''.  Where $request is the current HTTP request dict, $form is an HTML form (with an optional %MESSAGE string embedded), and args are a validation dict.
 
 	Validation dicts associate the name of a field in the form with a list comprising a message to be displayed if the validation fails, and a tcl validation expression or predicate.  The predicate may be anything acceptable to Tcl's [[expr]], and is expected to return a boolean value.  All form fields are available to each predicate as tcl variables of the same name.
 
