@@ -53,7 +53,7 @@
       <div id='sidebar'>
 	<p class='list1'>Control/Status</p>
 	<p class='list2'><a href='/nub/nubs'>Server configuration</a></p>
-	<p class='list2'><a href='#'>Server stats</a></p>
+	<p class='list2'><a href='http:/_stats/'>Server stats</a></p>
 	<!-- <p class='list2last'><a href='#'>Control panel</a></p> -->
 	<p class='list1'><a href='docs/'>Documentation</a></p>
 	<p class='list2'><a href='docs/Server/'>Server</a></p>
@@ -94,7 +94,7 @@
     <address><a href='mailto:colin@chinix.com'>Colin McCormack</a></address>
     <!-- Created: Thu Jan  5 13:00:57 EST 2006 -->
     <!-- hhmts start -->
-Last modified: Mon Apr 13 00:45:26 EST 2009
+Last modified: Mon Apr 13 18:32:39 EST 2009
 <!-- hhmts end -->
   </body>
 </html>

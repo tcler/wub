@@ -4,8 +4,15 @@ package require fileutil
 package require Http
 
 package provide Block 2.0
-set API(Block} {
-    {blocks misbehaving clients by IP address}
+
+set ::API(Server/Block) {
+    {
+	Blocks misbehaving clients by IP address.  A blocked client will get an HTTP Forbidden response to any request.
+
+	The Wub server will automatically block IP addresses which attempt an illegal HTTP connection method, such as CONNECT or LINK.  It will also block known Spiders identified by User-Agent classification.
+
+	URL prefixes may be explicitly blocked by using the [../Domains/Nub Nub] pseudo-domain '''Block'''.
+    }
     logdir {directory in which to log blockages and store blocked db}
 }
 
