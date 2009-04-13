@@ -35,7 +35,7 @@ set API(Domains/Nub) {
 	Nubs may be defined by invoking the [[Nub domain]] command directly from tcl, but Nub loads a set of nub files when it is constructed, and also supports a Web interface for definition, saving and editing of nubs.
 
 	== Synthetic Nubs ==
-	The following synthetic nubs are available to pre-filter or manipulate the URL request, or to provide immedite content:
+	The following synthetic nubs are available to pre-filter or manipulate the URL request, or to provide immediate content:
 	
 	;[http:../Server/Block Block]: instructs the server to place an IP address which attempts to access the URL onto a block list, preventing it from accessing the server in future.
 	;Redirect: Sends the client a redirect which causes it to attempt to load the specified URL.
@@ -76,7 +76,7 @@ namespace eval Nub {
 	A nub is a mapping from a URL glob to content.  The content may be provided by domain handlers, listed below.
 	
 	== Synthetic Nubs ==
-	The following synthetic nubs are available to pre-filter or manipulate the URL request, or to provide immedite content:
+	The following synthetic nubs are available to pre-filter or manipulate the URL request, or to provide immediate content:
 	
 	;Block: Blocks an IP address which attempts to access the URL.
 	;Redirect: Sends the client a redirect.
