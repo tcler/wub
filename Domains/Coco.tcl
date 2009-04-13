@@ -32,7 +32,7 @@ set API(Domains/Coco) {
 	=== Example: validating a form ===
 	[[Coco form]] provides a form validation facility.  Once called, it will return the supplied form until all validation predicates are true.
 
-	 domain /copf/ {Coco copf} lambda {r {
+	 domain /copf/ Coco lambda {r {
 	     set referer [Http Referer $r]	;# remember referer
 	     set r [yield]	;# initially just redirect
 
@@ -70,7 +70,7 @@ set API(Domains/Coco) {
 	=== Simple interaction example ===
 	This Cocoroutine returns a simple form, collects its response, echoes it to the client, and terminates.
 
-	 domain /said/ {Coco said} lambda {r {
+	 domain /said/ Coco lambda {r {
 	     set r [yield [Http Ok+ [yield] [<form> said "[<text> stuff][<submit> ok]"]]]
 	     Query qvars [Query parse $r] stuff	;# fetch $stuff from the submitted form
 	     return [Http Ok+ [yield [Http Ok+ $r [<a> href . "click here"]]] [<p> "You said: $stuff"]]
@@ -80,7 +80,7 @@ set API(Domains/Coco) {
 	=== Example: Counting calls ===
 	The following just counts calls to the synthetic URL
 
-	 domain /coco/ {Coco coco} lambda {r {
+	 domain /coco/ Coco lambda {r {
 	     set r [yield]	;# initially just redirect to this coroutine
 	     while {1} {
 		 # this coroutine loops around counting calls in $n
