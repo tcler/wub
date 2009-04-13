@@ -19,6 +19,8 @@ set API(Domains/Login) {
 	Login also provides a /form url which either returns a form suitable to /login, or a button to /logout a user.
 
 	=== URLs ===
+	The Login domain provides the following URLs:
+
 	;/login args: logs in the current user, must specify user and password fields
 	;/logout {url ""}: logs out the current user, then redirects to specified url
 	;/form: returns a login form or a logout link, depending on current login status
@@ -38,7 +40,7 @@ set API(Domains/Login) {
 	;/set args: sets account information for logged-in user, suitable for use as the action in a <form>
 
 	== Database ==
-	Login requires an account [View] which contains at least ''user'' and ''password'' fields, these are the minimum to allow a user to log in.  In addition, a field password_old is available as a fallback password, useful in the case of incomplete password changes.  Any other fields in the View are available to be stored and fetched by /set and /get (respectively.)
+	Login requires an account [http:../Utility/View View] which contains at least ''user'' and ''password'' fields, these are the minimum to allow a user to log in.  In addition, a field password_old is available as a fallback password, useful in the case of incomplete password changes.  Any other fields in the View are available to be stored and fetched by /set and /get (respectively.)
 
 	== Methods ==
 	;user r {user ""}: fetches account record of the specified user, or the logged-in user if no user is specified.  If the data can't be fetched (if, for example, there's no user logged in) then this method returns an empty list.  This can be reliably used to determine the identity of a logged-in user.
@@ -86,6 +88,11 @@ set API(Domains/Login) {
 	       append result [<div> id message {}]	;# add a message div for feedback
 	       append result [<p> "User: $user"]	;# display the account data
 	   }
+
+	=== Referenced in Examples ===
+	;[http:Nub domain]: a command which construct a nub, mapping a URL-glob onto a domain handler (in this case, Coco.)
+	;<*>: commands of this form are defined by the [http:../Utility/Html Html] generator package and the [http:../Utility/Form Form] generator package.
+	
     }
     account {View for storing accounts (must have at least user and password fields)}
     cookie {cookie for storing tub key (default: tub)}
