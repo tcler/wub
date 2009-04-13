@@ -23,12 +23,33 @@ package provide Rewrite 1.0	;# to satisfy synthetic requirement of codegen
 
 set API(Domains/Nub) {
     {
-	Configuration domain for Wub.  Provides simple text and web-based website configuration.
+	The Nub module controls the dispatch function of Wub.  Nub allows you to configure server's response to requests by defining a mapping from request-URLs to [http:. Domain] handlers.
+
+	The dispatch mapping is defined by a collection of nubs, where a nub is a mapping from a URL glob to content or to a [http:. Domain] handler, listed below.  Nubs may be collected together in configuration files, or updated online via the Nub domain.
+
+	== Defining Nubs ==
+	Nubs may be defined with the [[Nub domain]] command in the following form:
+
+	;[[Nub domain ''url'' ''domain'' ''args...'']]: where ''url'' is the url prefix which will be handled by this nub, ''domain'' is the handler for this nub, and ''args'' are the constructor arguments for the domain.  [http:. Domains] are modules of code which transform a request dict into a response dict.
+
+	Nubs may be defined by invoking the [[Nub domain]] command directly from tcl, but Nub loads a set of nub files when it is constructed, and also supports a Web interface for definition, saving and editing of nubs.
+
+	== Synthetic Nubs ==
+	The following synthetic nubs are available to pre-filter or manipulate the URL request, or to provide immedite content:
+	
+	;[http:../Server/Block Block]: instructs the server to place an IP address which attempts to access the URL onto a block list, preventing it from accessing the server in future.
+	;Redirect: Sends the client a redirect which causes it to attempt to load the specified URL.
+	;Code: Returns the result of evaluating the supplied tcl script in the Nub namespace.
+	;Literal: Returns literal content to client.
+	;Rewrite: Transforms a URL (selected by regexp) into another (as calculate by the rewrite tcl script, which is evaluated in the Nub namespace).
+
+	== Nub as a Domain handler ==
+	Nub is itself a domain handler which presents a web interface through which a (suitably credentialed) user can create new nubs, edit or delete existing nubs, and apply nubs to the currently running server.  The Nub domain itself may be mapped into the URL space by: [[Nub domain /nub/ Nub]].
     }
     nubdir {directory for user-defined nubs}
     theme {jQuery theme for Nub web interaction}
     password {password for modifying nubs.}
-    docurl {url prefix for domain docs. (default none)}
+    docurl {url prefix for domain docs. (default /wub/docs/)}
 }
 
 namespace eval Nub {
