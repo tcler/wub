@@ -18,9 +18,9 @@ set API(Domains/RAM) {
 	Conditional fetching is supported - the last update to an element is timestamped, and a client's conditional fetch request will be honoured.  You could use RAM as a kind of Cache.
 
 	== QuickStart ==
-	Nub: domain /ram/ RAM
+	[[[http:Nub Nub] domain /ram/ RAM]]
 
-	RAM set fred "This is the content for fred" content-type text/plain
+	[[RAM set fred "This is the content for fred" content-type text/plain]]
 
 	Now you have a store with a single element ''fred'' with the above content accessable from the URL /ram/fred
 
