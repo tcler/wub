@@ -1600,7 +1600,6 @@ namespace eval Httpd {
 
     proc pre {req} {
 	package require Cookies
-	package require Session
 	proc pre {req} {
 	    return [::Cookies 4Server $req]	;# fetch the cookies
 	}
