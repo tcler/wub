@@ -894,7 +894,6 @@ namespace eval Nub {
 	domain /wub/ {Mason wub} auth .before wrapper .after root $::Site::docroot
 	domain /nub/ Nub
 	domain /jquery/ JQ
-	domain /session/ Session	;# session manipulation interface
 
 	# Useful static content directories
 	domain /icons/ Icons
