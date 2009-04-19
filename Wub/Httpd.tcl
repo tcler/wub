@@ -74,7 +74,7 @@ set API(Server/Httpd) {
 	;CLOSING: [[fileevent readable]] - there's input, but we're half-closed, not processing any more input, and merely waiting for all pending responses to drain.
 	;WRITABLE: [[fileevent writable]] - there's space on the output queue.  We'll send any responses queued for sending, and unblock the reader if this makes output buffer space available.
 	;SEND: ''consumer'' has a response for us to queue for delivery.
-	;SUSPEND: ''consumer'' indicates that current response processing is suspended.  New requests will be processed, but the pipeline stalls until the consumer is RESUMEd, and generates a response to the current request.
+	;SUSPEND: ''consumer'' indicates that current response processing is suspended.  New requests will be processed, but the pipeline stalls until the consumer is RESUMEd, and generates a response to the current request.  This indication has little effect, but to extent some grace to the connection to keep the reaper away from it.
 	;REAPED: this connection has been reaped due to inactivity.
 	;TERMINATE: this connection is being closed due to unrecoverable error or ''consumer'' request.
 
