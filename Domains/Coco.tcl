@@ -1,9 +1,5 @@
 # Coco.tcl - a domain built around coroutines from tcl8.6
 
-# import the relevant commands
-namespace eval ::tcl::unsupported {namespace export coroutine yield}
-namespace import ::tcl::unsupported::coroutine ::tcl::unsupported::yield
-
 package require Http
 package require Debug
 Debug off coco 10
