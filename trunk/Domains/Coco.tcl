@@ -10,7 +10,7 @@ package provide Coco 1.0
 
 set API(Domains/Coco) {
     {
-	Tcl8.6 Coroutine domain.  Invoking the domain URL creates a coroutine with semantics given by a lambda, and associates this running couroutine with an automatically-generated URL.
+	Tcl8.6 Coroutine domain.  Invoking the domain URL creates a coroutine with semantics given by a lambda (evaluated within the Coco namespace,) and associates this running coroutine with an automatically-generated URL.  The domain URL invocation, having generated its coroutine, redirects to it.
 
 	Coco is like a [Direct] domain except the functional element is a coroutine not a namespace or object instance.  The coroutine created by invoking a Coco domain has a unique name which will persist until the coroutine exits or until the server restarts.
 
