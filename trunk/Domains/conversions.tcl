@@ -114,8 +114,6 @@ namespace eval ::conversions {
     proc .x-text/stx.x-text/html-fragment {rsp} {
 	package require stx2html
 
-	#dict lappend rsp -headers {<link rel="stylesheet" type="text/css" href="/css/stx.css" media="screen" title="screen"><!--convert-->}
-
 	set code [catch {
 	    stx2html::translate [dict get $rsp -content]
 	} result eo]
