@@ -906,11 +906,14 @@ class create View {
 	    }
 	    set name [lindex [lassign [split $name .] dbi] 0]
 	    if {$name eq {}} {
-		set name $dbi
+		set name $dbi	;# no db component/composite name
 	    } else {
-		set db $dbi
+		set db $dbi	;# db component of composite name
 	    }
-	    
+	    if {![info exists db] || $db eq ""} {
+		error "View must specify a db arg or a composite name such as db.view"
+	    }
+
 	    # open the database if it's not already open
 	    if {![dict exists [mk::file open] $db]} {
 		if {[info exists file]} {
