@@ -338,13 +338,19 @@ namespace eval jQ {
 	    lappend class resizable
 	}
 
+	# id supplied?
+	set id [dict get? $args id]; catch {dict unset args id}
+	if {$id ne ""} {
+	    set id [list id $id]
+	}
+
 	# assemble the metadata in a 'class' element
 	set opts [opts container {*}$args]
 	if {$opts ne ""} {
 	    lappend class $opts
 	}
 
-	return [<div> class $class {*}[expr {$style ne "": [list style $style]:{}}] $C]
+	return [<div> {*}$id class $class {*}[expr {$style ne "": [list style $style]:{}}] $C]
     }
 
     # http://docs.jquery.com/UI/Tabs
