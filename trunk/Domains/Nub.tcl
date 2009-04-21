@@ -916,6 +916,7 @@ namespace eval Nub {
 
     variable nubdirSys [file join [file dirname [info script]] nubs]
     proc configF {file} {
+	if {$file eq ""} return
 	variable nubdirSys
 	variable nubdir
 	if {[file pathtype $file] eq "relative"} {
@@ -929,7 +930,7 @@ namespace eval Nub {
 	    } elseif {[file exists [file join $nubdirSys $file]]} {
 		set f [file join $nubdirSys $file]
 	    } else {
-		Debug.error {Can't locate $f in directories nubdir:$nubdir, pwd:[pwd] or $nubdirSys}
+		Debug.error {Can't locate $file in directories nubdir:$nubdir, pwd:[pwd] or $nubdirSys}
 		return
 	    }
 	} else {
