@@ -797,8 +797,7 @@ namespace eval Nub {
 		    switch -glob -- [dict get $r -host],[dict get $r -path] {
 			%S
 			default {
-			    set r [Http NotFound $r]
-			    <p> "[dict get $r -uri] Not Found."
+			    Http NotFound $r [<p> "page '[dict get $r -uri]' Not Found."]
 			}
 		    }
 		    # nothing should be put here
@@ -915,6 +914,7 @@ namespace eval Nub {
     }
 
     variable nubdirSys [file join [file dirname [info script]] nubs]
+    variable nubdir ""
     proc configF {file} {
 	if {$file eq ""} return
 	variable nubdirSys
