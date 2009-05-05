@@ -826,7 +826,9 @@ class create View {
     }
     
     method exists {args} {
-	return [$view exists {*}$args]
+	set exists [expr {[catch {$view find {*}$args}] == 0}]
+	Debug.view {$view exists $args -> $exists}
+	return $exists
     }
 
     # close this view
