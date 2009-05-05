@@ -214,9 +214,10 @@ descriptive text associated with the link.
 Anything within a paragraph which resembles a URL, (ie: that commences with ''http'':)
 will be turned into a Reference.
 
-Additionally, [[#: name some text]] will be turned into an anchor suitable for local references.
+;anchors: [[#: name some text]] will be turned into an anchor suitable for local references.
+;acronyms: [[acronym:''term'' | ''definition of term'']] will be turned into an html acronym.
+;images: [[image:''url'']] [[left:''url'']] [[right:''url'']] are interpreted as images
 
-Finally, [[acronym: ''term'' | ''definition of term'']] will be turned into an html acronym.
 ----
 === Images ===
 
