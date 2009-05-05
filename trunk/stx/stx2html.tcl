@@ -232,7 +232,7 @@ namespace eval stx2html {
 	set what [dict get $refs $num]
 	set body [string trim [join [lassign [split $what :] proto] :]]
 	set proto [string trim $proto]
-	Debug.STX {2HTML ref '$proto' '$body'}
+	Debug.STX {2HTML ref($num) '$proto' '$body'}
 
 	switch -glob -- $proto {
 	    http {
@@ -351,6 +351,7 @@ namespace eval stx2html {
 
 	    default {
 		variable local
+		Debug.STX {local resolution: $local ($what)}
 		set what [$local $what]
 	    }
 	}
@@ -424,6 +425,8 @@ namespace eval stx2html {
     
     # convert structured text to html
     proc trans {text args} {
+	Debug.STX {trans args: $args}
+
 	variable features
 	array unset features
 	set features(NOTOC) 1
@@ -443,6 +446,7 @@ namespace eval stx2html {
 	    set args [lindex $args 0]
 	}
 	set args [dict merge {class editable} $args]
+
 	dict with args {}
 	#{locallink ::stx2html::local} {offset 0}
 
@@ -486,6 +490,7 @@ namespace eval stx2html {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
+	Debug.STX {translate args: ($args)}
 	lassign [trans $text {*}$args] content
 	return $content
     }
