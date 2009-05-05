@@ -107,8 +107,9 @@ namespace eval jQ {
 	containers {
 	}
 	container {
-	    buttons 'm,c,i'
-	    skin 'white'
+	    buttons 'm'
+	    skin 'stiky'
+	    icon 'browser.png'
 	    width '80%'
 	}
     }
@@ -117,13 +118,14 @@ namespace eval jQ {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
+
 	set opts {}
 	variable defaults
-	if {[dict exists $defaults $type]} {
+	if {$type ne "" && [dict exists $defaults $type]} {
 	    set args [list {*}[dict get $defaults $type] {*}$args]
 	}
 	dict for {n v} $args {
-	    lappend opts "$n: $v"
+	    lappend opts "$n:$v"
 	}
 	if {$opts eq ""} {
 	    return ""
@@ -244,7 +246,7 @@ namespace eval jQ {
     proc datepicker {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.ui.js
-	} %SEL $selector %OPTS [opts datepicker $args] {
+	} %SEL $selector %OPTS [opts datepicker {*}$args] {
 	    $('%SEL').datepicker(%OPTS);
 	}]
     }
@@ -253,7 +255,7 @@ namespace eval jQ {
     proc timeentry {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.timeentry.js
-	}  css jquery.timeentry.css %SEL $selector %OPTS [opts timeentry $args] {
+	}  css jquery.timeentry.css %SEL $selector %OPTS [opts timeentry {*}$args] {
 	    $('%SEL').timeEntry(%OPTS);
 	}]
     }
@@ -262,7 +264,7 @@ namespace eval jQ {
     proc hint {r {selector input[title!=""]} args} {
 	return [weave $r {
 	    jquery.js jquery.hint.js
-	}  %SEL $selector %OPTS [opts hint $args] {
+	}  %SEL $selector %OPTS [opts hint {*}$args] {
 	    $('%SEL').hint(%OPTS);
 	}]
     }
@@ -271,7 +273,7 @@ namespace eval jQ {
     proc boxtoggle {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.boxtoggle.js
-	}  %SEL $selector %OPTS [opts boxtoggle $args] {
+	}  %SEL $selector %OPTS [opts boxtoggle {*}$args] {
 	    boxToggle('%SEL');
 	}]
     }
@@ -280,7 +282,7 @@ namespace eval jQ {
     proc tablesorter {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.metadata.js jquery.tablesorter.js
-	}  %SEL $selector %OPTS [opts tablesorter $args] {
+	}  %SEL $selector %OPTS [opts tablesorter {*}$args] {
 	    $('%SEL').tablesorter(%OPTS);
 	}]
     }
@@ -296,16 +298,18 @@ namespace eval jQ {
 	set r [style $r mbContainer.css]	;# ensure the css is loaded
 
 	variable mount
-	set args elements [file join $mount elements]
+	dict set args elementsPath '[file join $mount elements]/'
+	dict set args containment 'document'
 
 	return [weave $r {
-	    jquery.js jquery.ui.js jquery.metadata.js
-	} %SEL $selector %OPTS [opts containers $args] {
+	    jquery.js jquery.ui.js jquery.metadata.js jquery.container.js
+	} %SEL $selector %OPTS [opts containers {*}$args] {
 	    $('%SEL').buildContainers(%OPTS);
 	}]
     }
 
-    proc container {r args} {
+    # format up a container for the mbContainerPlus plugin
+    proc container {args} {
 	# grab content (if any)
 	if {[llength $args]%2} {
 	    set content [lindex $args end]
@@ -314,14 +318,23 @@ namespace eval jQ {
 	    set content ""
 	}
 
-	# set up the funky <div> structure this thing needs
-	append C [<div> class ne [<div> class n [dict get? $args title]]]; catch {dict unset args title}
-	append C [<div> class o [<div> class e [<div> class c [<div> class content $content]]]]
-	append C [<div> class so [<div> class se [<div> class s {}]]]
-	set C [<div> class no $C]
+	# class supplied?
+	set class [dict get? $args class]; catch {dict unset args class}
+	if {$class ne ""} {
+	    set class [list class $class]
+	}
 
-	# fetch style arg, if any
-	set style [dict get? $args style]; catch {dict unset args style}
+	# id supplied?
+	set id [dict get? $args id]; catch {dict unset args id}
+	if {$id ne ""} {
+	    set id [list id $id]
+	}
+
+	# set up the funky <div> structure this thing needs
+	append C [<div> class ne [<div> class n [dict get? $args title]]] \n; catch {dict unset args title}
+	append C [<div> class o [<div> class e [<div> class c [<div> {*}$id class mbcontainercontent {*}$class $content]]]] \n
+	append C [<div> class so [<div> class se [<div> class s {}]]] \n
+	set C [<div> class no $C]\n
 
 	# assemble the classes
 	set class containerPlus
@@ -338,26 +351,38 @@ namespace eval jQ {
 	    lappend class resizable
 	}
 
-	# id supplied?
-	set id [dict get? $args id]; catch {dict unset args id}
-	if {$id ne ""} {
-	    set id [list id $id]
+	set attrs ""
+	if {0} {
+	    # collapsed?
+	    set collapsed [dict get? $args collapsed]; catch {dict unset args collapsed}
+	    if {$collapsed ne "" && $collapsed} {
+		lappend attrs collapsed true
+	    }
+	    # iconized?
+	    set iconized [dict get? $args iconized]; catch {dict unset args iconized}
+	    if {$iconized ne "" && $iconized} {
+		lappend attrs iconized true
+	    }
 	}
+
+	# fetch style arg, if any
+	set style [dict get? $args style]; catch {dict unset args style}
 
 	# assemble the metadata in a 'class' element
-	set opts [opts container {*}$args]
+	set opts [string map {' \"} [opts container {*}$args]]
 	if {$opts ne ""} {
-	    lappend class $opts
+	    #lappend class $opts
+	    set opts [list class $opts]
 	}
 
-	return [<div> {*}$id class $class {*}[expr {$style ne "": [list style $style]:{}}] $C]
+	return [<div> class $class {*}$opts {*}[expr {[llength $style]?[list style [join $style ;]]:{}}] {*}$attrs $C\n]
     }
 
     # http://docs.jquery.com/UI/Tabs
     proc tabs {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.ui.js
-	} %SEL $selector %OPTS [opts tabs $args] {
+	} %SEL $selector %OPTS [opts tabs {*}$args] {
 	    $('%SEL').tabs(%OPTS);
 	}]
 	#loader -preload
@@ -402,7 +427,7 @@ namespace eval jQ {
     proc accordion {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.ui.js
-	} %SEL $selector %OPTS [opts accordion $args] {
+	} %SEL $selector %OPTS [opts accordion {*}$args] {
 	    $('%SEL').accordion(%OPTS);
 	}]
     }
@@ -411,7 +436,7 @@ namespace eval jQ {
     proc resizable {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.ui.js
-	} %SEL $selector %OPTS [opts resizable $args] {
+	} %SEL $selector %OPTS [opts resizable {*}$args] {
 	    $('%SEL').resizable(%OPTS);
 	}]
     }
@@ -420,7 +445,7 @@ namespace eval jQ {
     proc draggable {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.ui.js
-	} %SEL $selector %OPTS [opts draggable $args] {
+	} %SEL $selector %OPTS [opts draggable {*}$args] {
 	    $('%SEL').draggable(%OPTS);
 	}]
     }
@@ -429,7 +454,7 @@ namespace eval jQ {
     proc droppable {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.ui.js
-	} %SEL $selector %OPTS [opts droppable $args] {
+	} %SEL $selector %OPTS [opts droppable {*}$args] {
 	    $('%SEL').droppable(%OPTS);
 	}]
     }
@@ -438,7 +463,7 @@ namespace eval jQ {
     proc sortable {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.ui.js
-	} %SEL $selector %OPTS [opts sortable $args] {
+	} %SEL $selector %OPTS [opts sortable {*}$args] {
 	    $('%SEL').sortable(%OPTS);
 	}]
     }
@@ -447,7 +472,7 @@ namespace eval jQ {
     proc selectable {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.ui.js
-	} %SEL $selector %OPTS [opts selectable $args] {
+	} %SEL $selector %OPTS [opts selectable {*}$args] {
 	    $('%SEL').selectable(%OPTS);
 	}]
     }
@@ -455,7 +480,7 @@ namespace eval jQ {
     # http://www.aclevercookie.com/facebook-like-auto-growing-textarea/
     proc autogrow {r selector args} {
 	return [weave $r {jquery.js jquery.autogrow.js
-	} %SEL $selector %OPTS [opts autogrow $args] {
+	} %SEL $selector %OPTS [opts autogrow {*}$args] {
 	    $('%SEL').autogrow(%OPTS);
 	}]
     }
@@ -463,7 +488,7 @@ namespace eval jQ {
     # http://jquery.autoscale.js.googlepages.com/
     proc autoscale {r selector args} {
 	return [weave $r {jquery.js jquery.autoscale.js
-	} %SEL $selector %OPTS [opts autoscale $args] {
+	} %SEL $selector %OPTS [opts autoscale {*}$args] {
 	    $('%SEL').autoscale(%OPTS);
 	}]
     }
@@ -473,7 +498,7 @@ namespace eval jQ {
 	return [weave $r {
 	    jquery.js jquery.dimensions.js
 	    jquery.tooltip.js
-	} %SEL $selector %OPTS [opts tooltip $args] {
+	} %SEL $selector %OPTS [opts tooltip {*}$args] {
 	    $('%SEL').Tooltip(%OPTS);
 	}]
     }
@@ -482,7 +507,7 @@ namespace eval jQ {
     proc hoverimage {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.hoverimagetext.js
-	} %SEL $selector %OPTS [opts hoverimage $args] {
+	} %SEL $selector %OPTS [opts hoverimage {*}$args] {
 	    $('%SEL').HoverImageText(%OPTS);
 	}]
     }
@@ -490,7 +515,7 @@ namespace eval jQ {
     proc galleria {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.galleria.js
-	} %SEL $selector %OPTS [opts galleria $args] {
+	} %SEL $selector %OPTS [opts galleria {*}$args] {
 	    $('ul.%SEL').galleria(%OPTS)
 	}]
     }
@@ -499,7 +524,7 @@ namespace eval jQ {
     proc gallery {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.galview.js
-	} %SEL $selector %OPTS [opts gallery $args] {
+	} %SEL $selector %OPTS [opts gallery {*}$args] {
 	    $('%SEL').jqGalView(%OPTS);
 	}]
     }
@@ -507,7 +532,7 @@ namespace eval jQ {
     proc aaccordion {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.accordion.js
-	} %SEL $selector %OPTS [opts aaccordion $args] {
+	} %SEL $selector %OPTS [opts aaccordion {*}$args] {
 	    $('%SEL').Accordion(%OPTS);
 	}]
     }
@@ -521,15 +546,16 @@ namespace eval jQ {
 	}
 	return [weave $r {
 	    jquery.js jquery.autogrow.js jquery.jeditable.js
-	} %SEL $selector %OPTS [opts editable $args] {*}$pre %FN $fn {
+	} %SEL $selector %OPTS [opts editable {*}$args] {*}$pre %FN $fn {
 	    $('%SEL').editable(%FN,%OPTS);
 	}]
     }
 
-    proc form  {r selector args} {
+    # http://malsup.com/jquery/form/
+    proc form {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.form.js
-	} %SEL $selector %OPTS [opts validate $args] {
+	} %SEL $selector %OPTS [opts validate {*}$args] {
 	    $('%SEL').ajaxForm(%OPTS);
 	}]
     }
@@ -540,7 +566,7 @@ namespace eval jQ {
 	    jquery.js jquery.delegate.js
 	    jquery.maskedinput.js jquery.metadata.js
 	    jquery.validate.js jquery.validate-ext.js
-	} %SEL $selector %OPTS [opts validate $args] {
+	} %SEL $selector %OPTS [opts validate {*}$args] {
 	    $('%SEL').validate(%OPTS);
 	}]
     }
@@ -548,7 +574,7 @@ namespace eval jQ {
     proc autofill {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.autofill.js
-	} %SEL $selector %OPTS [opts autofill $args] {
+	} %SEL $selector %OPTS [opts autofill {*}$args] {
 	    $('%SEL').autofill(%OPTS);
 	}]
     }
@@ -556,7 +582,7 @@ namespace eval jQ {
     proc confirm {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.confirm.js
-	} %SEL $selector %OPTS [opts confirm $args] {
+	} %SEL $selector %OPTS [opts confirm {*}$args] {
 	    $('%SEL').confirm(%OPTS);
 	}]
     }
@@ -564,7 +590,7 @@ namespace eval jQ {
     proc ingrid {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.ingrid.js
-	} css ingrid.css %SEL $selector %OPTS [opts ingrid $args] {
+	} css ingrid.css %SEL $selector %OPTS [opts ingrid {*}$args] {
 	    $('%SEL').ingrid(%OPTS);
 	}]
     }
@@ -582,7 +608,7 @@ namespace eval jQ {
 
 	return [weave $r {
 	    jquery.js jquery.jmaps.js
-	} %SEL $selector %OPTS [opts map $args] %CALL $callback {
+	} %SEL $selector %OPTS [opts map {*}$args] %CALL $callback {
 	    $('%SEL').jmap('init', %OPTS, %CALL);
 	}]
     }
@@ -590,7 +616,7 @@ namespace eval jQ {
     proc sheet {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.clickmenu.js jquery.sheet.calc.js jquery.sheet.js
-	} css clickable.css %SEL $selector %OPTS [opts sheet $args] {
+	} css clickable.css %SEL $selector %OPTS [opts sheet {*}$args] {
 	    $('%SEL').sheet(%OPTS);
 	}]
     }
