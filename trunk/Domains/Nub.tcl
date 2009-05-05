@@ -719,7 +719,7 @@ namespace eval Nub {
 			}
 			append switch [string map [list %H $host %U $url %N $name] {
 			    "%H,%U*" {
-				Debug.nub {Dispatch [dict get $r -url] via %H,%U*}
+				Debug.nub {Dispatch [dict get $r -url] via %H,%U* to cmd '$defs(%N)'}
 				$defs(%N) do $r
 			    }}]
 		    }
@@ -774,7 +774,7 @@ namespace eval Nub {
 
 		# this proc will replace the containing version after one run
 		proc ::Httpd::do {op r} {
-		    Debug.nub {RX: [dict get $r -uri] - [dict get $r -url] - ([Url parse [dict get $r -url]]) }
+		    Debug.nub {RX: [dict get? $r -uri] - [dict get? $r -url] - ([Url parse [dict get? $r -url]]) }
 		    variable defs
 
 		    # get URL components
