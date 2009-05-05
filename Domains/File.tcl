@@ -21,7 +21,7 @@ set API(Domains/File) {
     indexfile {name of the file which stands for a directory, such as index.html}
     hide {a regexp to hide temp and other uninteresting files (default hides .* *~ and #*)}
     redirdir {flag: should references to directories be required to have a trailing /?}
-    expires {a tcl clock expression indicating when contents expire}
+    expires {a tcl clock expression indicating when contents expire from caches.}
     dateformat {a tcl clock format for displaying dates in directory listings}
     nodir {don't allow the browsing of directories (default: 0 - browsing allowed.)}
 }
