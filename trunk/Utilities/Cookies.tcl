@@ -8,19 +8,42 @@
 # Modification:
 # Wed, 31st Jan, 2007	Initial Release	Colin McCormack (colin at chinix dot com)
 
-#### = Cookie Dict Format =
-#
-# Cookies are stored and manipulated in dicts with the following
-# feature elements:
-#
-# ;-name: the cookie name
-# ;-path: the URL path prefix within which the cookie is active
-# ;-domain: the URL domain suffix within which the cookie is active
-# ;-value: the cookie's value
-# ;-comment: a comment - don't know if this is useful
-# ;-secure: completely useless
-# ;-when: the absolute seconds when the cookie expires
-# ;-changed: an indicator that this code has changed a cookie's values.  (Used by format4* procs to only send changed cookie values.)
+set API(Utilities/Cookies) {
+    {
+	Cookie handler utility.
+
+	== API ==
+
+	=== Cookie Accessor/Mutators ===
+	;Cookies match: return a list of unique cookie names within cookies dict which match the template given in $args
+	;Cookies clear: clear all cookies in cookie dict which match the template in args note: the cookies are modified to a state intended to cause a client to drop the cookie from their local cookie jar. YMMV.
+	;Cookies add: add a cookie to the cookie dict. Cookie must be unique (by -name, -domain, -path)
+	;Cookies remove: remove matching cookies from the cookie dict.
+	;Cookies modify: modify matching cookies in the cookie dict
+	;Cookies fetch: fetch a single matching cookie's value from the cookie dict
+	;Cookies fetchAll: fetch all matching cookies' values from the cookie dict
+
+	=== Cookie constructors/parsers ===
+	;Cookies expire: filter all expired cookies from a cookie dict
+	;Cookies format4client: format a cookie dict into a list of ''cookie:'' values suitable to be sent by an HTTP/1.1 client
+	;Cookies parse4client: decode a cookie header received from a server into a dict
+	;Cookies format4server: Save the cookie dict into fields ready to be sent by HTTP/1.1 server
+	;Cookies parse4server: decode a cookie header received from a server into a dict
+	;Cookies 4Server: decode cookie header into a request dict
+
+	== Cookie Dict Format ==
+	Cookies are stored and manipulated in dicts with the following feature elements:
+
+	;-name: the cookie name
+	;-path: the URL path prefix within which the cookie is active
+	;-domain: the URL domain suffix within which the cookie is active
+	;-value: the cookie's value
+	;-comment: a comment - don't know if this is useful
+	;-secure: completely useless
+	;-when: the absolute seconds when the cookie expires
+	;-changed: an indicator that this code has changed a cookie's values.  (Used by format4* procs to only send changed cookie values.)
+    }
+}
 
 package provide Cookies 1.0
 
