@@ -35,7 +35,7 @@ set API(Domains/Mason) {
 
 	Content derived from the resolution of URLs to files are considered to be static, and will be cached.  The modification time of these files will be considered in response to an HTTP if-modified-since request.  This caching behaviour may be changed if the response -dynamic field is set to true.
 
-	Static content should probably specify an ''expires'' configuration value, which prevents caches from soliciting change information before the stated expiry time.  Proper selection of caching options is a subtle and complex area, well beyond this document's scope.
+	Static content should probably specify an ''expires'' configuration value, which prevents caches from soliciting change information before the stated expiry time and which determines cache expiry.  Proper selection of caching options is a subtle and complex area, well beyond this document's scope.
 
 	== Standard Templates ==
 	Standard templates are sought in ancestor directories of the url-addressed file, and are evaluated in a context in which the current response dict is available in ''$rsp'' or the current request dict is available in a variable as ''$req'', respectively.  The scripts may use or modify ''req'' or ''rsp'', and are expected to return a new version.  If they modify the dict (by adding, changing or removing request fields) those changes will be propagated through the system and be returned to the client.  This gives Mason a great deal of power in interpreting client requests and transforming server responses.
@@ -52,8 +52,7 @@ set API(Domains/Mason) {
     ctype {default content-type of returned values}
     hide {a regexp to hide temp and other files (default hides .* *~ and #*)}
     indexfile {a file which stands for a directory (default index.html)}
-    expires {a tcl clock expression indicating when contents expire}
-
+    expires {a tcl clock expression indicating when contents expire from caches.  By setting a later value, one reduces server load at the risk of having the client see old content.}
     functional {file extension which marks tcl scripts to be evaluated for value (default .tml)}
     notfound {template sought and evaluated when a requested resource can't be located (default .notfound)}
     wrapper {template sought and evaluated with successful response (default .wrapper)}
