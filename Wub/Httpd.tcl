@@ -1800,6 +1800,20 @@ namespace eval Httpd {
 	}
     }
 
+    # called by logrotate to rotate log file
+    proc logrotate {} {
+	# open the web analysis log
+	variable logfile
+	variable log
+	if {$log ne ""} {
+	    close $log
+	}
+	if {$logfile ne ""} {
+	    set log [open $logfile a]		;# always add to the end
+	    fconfigure $log -buffering line	;# we want to try to make writes atomic
+	}
+    }
+
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
