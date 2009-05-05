@@ -290,7 +290,7 @@ namespace eval Http {
 
     # record a dependency in a response
     proc Depends {rsp args} {
-	catch {dict unset rsp -dynamic}
+	dict set rsp -dynamic 0
 	dict lappend rsp -depends {*}$args
 	return $rsp
     }
@@ -322,7 +322,7 @@ namespace eval Http {
 	    dict set rsp expires [Date [clock scan $age]]
 	    set age [expr {[clock scan $age] - [clock seconds]}]
 	}
-	catch {dict unset rsp -dynamic}
+	dict set rsp -dynamic 0
 	#dict set rsp cache-control "$realm, max-age=$age"
 	dict set rsp cache-control $realm
 	return $rsp
