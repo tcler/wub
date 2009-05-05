@@ -71,9 +71,9 @@ namespace eval ::conversions {
 	    if {[dict exists $rsp -postscript]} {
 		dict for {n v} [dict get $rsp -postscript] {
 		    if {[string match !* $n]} {
-			append content $v \n
+			append content \n $v \n
 		    } else {
-			append content [<script> src $n {*}$v] \n
+			append content \n [<script> src $n {*}$v] \n
 		    }
 		}
 	    }
@@ -88,7 +88,7 @@ namespace eval ::conversions {
 
 	    # add script postloads
 	    if {[dict exists $rsp -postload]} {
-		append content [join [dict get $rsp -postload] \n] \n
+		append content \n [join [dict get $rsp -postload] \n] \n
 	    }
 
 	    append content </body> \n
