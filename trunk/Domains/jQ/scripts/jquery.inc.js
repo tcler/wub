@@ -12,6 +12,14 @@ Johann Burkard
 <http://johannburkard.de>
 <mailto:jb@eaio.com>
 
+<ul>
+<li onclick="$(this).inc('/resources/Johann/inc-1.html');"><strong>Replace this text with a mildly amusing text.</strong></li>
+<li onclick="$(this).inc('/resources/Johann/inc-2.html', function(a) { return a.toUpperCase() });">Include another text snippet and uppercase it.</li>
+<li class="inc:/resources/Johann/inc-3%20la%20la%20la.html">This pseudo text will be replaced on load.</li>
+<li onclick="$(this).inc('/resources/Johann/inc-4.html', null, function() { alert('Check it.'); });">Test callback method.</li>
+</ul>
+
+
 */
 
 jQuery.fn.inc = function(url, transform, post) {
@@ -55,9 +63,8 @@ jQuery.fn.inc = function(url, transform, post) {
 };
 
 $(function() {
- $('[class~=inc]').each(function() {
+ $('[class*=inc]').each(function() {
   var arg = unescape(this.className.replace(/.*inc:([^ ]+)( .*|$)/, '$1')).split('#');
-
   if (arg[1]) {
       arg[1]=eval(arg[1].replace(/@/g,' '));
   }
