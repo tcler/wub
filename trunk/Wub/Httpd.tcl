@@ -382,6 +382,7 @@ namespace eval Httpd {
 
     # format4send - format up a reply for sending.
     proc format4send {reply args} {
+	Debug.Httpd {format4send $args}
 	set sock [dict get $reply -sock]
 	set cache [expr {[dict get? $args -cache] eq "1"}]
 	if {[catch {
@@ -441,6 +442,7 @@ namespace eval Httpd {
 		    set content ""
 		    set cache 0	;# can't cache these
 		    set empty 1
+		    #puts stderr "NOCACHE on code $code: $cache"
 		}
 
 		default {
@@ -461,6 +463,7 @@ namespace eval Httpd {
 			set content ""	;# there is no content
 			set empty 1	;# it's empty
 			dict set reply content-length 0
+			#puts stderr "NOCACHE empty $code: $cache"
 			set cache 0	;# can't cache no content
 		    }
 		}
@@ -479,6 +482,7 @@ namespace eval Httpd {
 
 	    # now attend to caching generated content.
 	    if {$empty || [dict get $reply content-length] == 0} {
+		#puts stderr "NOCACHE empty1 $code: $cache"
 		set cache 0	;# don't cache no content
 	    } elseif {$cache} {
 		# use -dynamic flag to avoid caching even if it was requested
@@ -487,6 +491,7 @@ namespace eval Httpd {
 				 || ![dict get $reply -dynamic]
 			     }]
 
+		#puts stderr "CACHE? -dynamic $code: $cache"
 		if {$cache && [dict exists $reply cache-control]} {
 		    set cacheable [split [dict get $reply cache-control] ,]
 		    foreach directive $cacheable {
@@ -528,6 +533,7 @@ namespace eval Httpd {
 
 	    if {$code >= 500} {
 		# Errors are completely dynamic - no caching!
+		#puts stderr "NOCACHE error $code: $cache"
 		set cache 0
 	    }
 
@@ -546,6 +552,7 @@ namespace eval Httpd {
 	} r eo]} {
 	    if {![info exists code] || $code >= 500} {
 		# Errors are completely dynamic - no caching!
+		#puts stderr "NOCACHE error1 $code: $cache"
 		set cache 0
 	    }
 
@@ -681,7 +688,7 @@ namespace eval Httpd {
 	    return 0	;# this reply has been suspended - we haven't got it yet
 	}
 
-	Debug.Httpd {write [info coroutine] ([rdump $r]) satisfied: ($satisfied) unsatisfied: ($unsatisfied)}
+	Debug.Httpd {write: [info coroutine] ([rdump $r]) satisfied: ($satisfied) unsatisfied: ($unsatisfied)}
 
 	# fetch transaction from the caller's identity
 	if {![dict exists $r -transaction]} {
@@ -714,8 +721,10 @@ namespace eval Httpd {
 	# global consequences - botting and caching
 	if {![Honeypot newbot? $r] && $cache} {
 	    # handle caching (under no circumstances cache bot replies)
-	    Debug.Httpd {Cache put: $header}
+	    Debug.Httpd {Cache put: ([rdump $r])}
 	    Cache put $r	;# cache it before it's sent
+	} else {
+	    Debug.Httpd {Do Not Cache put: ([rdump $r]) honey:[Honeypot newbot? $r] cache:$cache}
 	}
 
 	# record transaction reply and kick off the responder
@@ -777,7 +786,7 @@ namespace eval Httpd {
 	    return [csend $r $cache]
 	}
 
-	Debug.Httpd {[info coroutine] send: ([rdump $r]) $cache}
+	Debug.Httpd {[info coroutine] send: ([rdump $r]) $cache [expr {[dict get? $r -ua_class] ni {browser unknown}}]}
 
 	# if this isn't a browser - do not cache!
 	if {[dict get? $r -ua_class] ni {browser unknown}} {
