@@ -32,7 +32,7 @@ set API(Domains/Repo) {
 	As Repo was developed for a Wiki, where the culture's fairly permissive, it doesn't provide ''any'' authentication.  It probably should.
     }
 
-    expires {a tcl clock expression indicating when contents expire (default:0 - no expiry)}
+    expires {a tcl clock expression indicating when contents expire from caches (default:0 - no expiry)}
     tar {flag: are directories to be provided as tar files? (default: no)}
     index {a file which provides header text for a directory, (default: index.html)}
     max {maximum upload file size in bytes (default: 1 megabyte)}
