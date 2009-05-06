@@ -121,7 +121,7 @@ namespace eval Icons {
 	Debug.icons {dir $rsp}
 	variable icons; variable mount
 	set idict {}
-	foreach name [array names icons] {
+	foreach name [lsort -dictionary [array names icons]] {
 	    dict set idict $name [list name $name icon [<img> src [file join $mount $name]]]
 	}
 	variable dirparams
