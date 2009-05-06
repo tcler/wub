@@ -117,7 +117,7 @@ namespace eval Icons {
 	footer {}
     }
 
-    proc dir {rsp} {
+    proc all {rsp} {
 	Debug.icons {dir $rsp}
 	variable icons; variable mount
 	set idict {}
@@ -154,6 +154,11 @@ namespace eval Icons {
 		return [Http NotModified $rsp]
 	}
 	
+	# catalog
+	if {$suffix eq "/"} {
+	    return [all $rsp]
+	}
+
 	variable icons
 	Debug.icons {exists $suffix [info exists icons($suffix)]}
 	if {![info exists icons($suffix)]} {
