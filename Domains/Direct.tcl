@@ -96,7 +96,7 @@ class create Direct {
 	set argl {}
 	set qd [dict get $rsp -Query]
 
-	Debug.direct {cmd: '$cmd' params:$params [dict keys $qd]}
+	Debug.direct {cmd: '$cmd' params:$params qd:[dict keys $qd]}
 	foreach arg $params {
 	    if {[Query exists $qd $arg]} {
 		Debug.direct {param $arg exists} 2
@@ -182,7 +182,7 @@ class create Direct {
 	lassign [dict get $methods $cmd] needargs params
 
 	set qd [dict get $rsp -Query]
-	Debug.direct {cmd: '$cmd' params:$params [dict keys $qd]}
+	Debug.direct {cmd: '$cmd' needargs:$needargs params:$params qd:[dict keys $qd]}
 
 	set argl {}
 	array set used {}
@@ -297,27 +297,31 @@ class create Direct {
 		Debug.direct {[lindex $object 0] new {*}[lrange $object 1 end] mount $mount}
 		set object [[lindex $object 0] new {*}[lrange $object 1 end] mount $mount]
 	    } else {
-		Debug.direct {[lindex $object 0] new {*}[lrange $object 1 end] mount $mount}
+		Debug.direct {[lindex $object 0] create {*}[lrange $object 1 end] mount $mount}
 		set object [[lindex $object 0] create {*}[lrange $object 1 end] mount $mount]
 	    }
 
 	    # construct a dict from method name to the formal parameters of the method
 	    set class [info object class $object]
+	    set methods {}
 	    foreach m [lreverse [lsort -dictionary [info class methods $class -private -all]]] {
 		if {[string match /* $m]} {
 		    set def [lindex [info class definition $class $m] 0]
+		    Debug.direct {[lindex $object 0] method $m definition: $def}
 		    if {[lindex $def end] eq "args"} {
 			set needargs 1
 			set params [lrange $def 1 end-1]	;# remove 'r' and args from params
 		    } else {
 			set needargs 0
-			set params [lrange $def 2 end]	;# remove 'r' from params
+			set params [lrange $def 1 end]	;# remove 'r' from params
 		    }
-
+		    
+		    Debug.direct {[lindex $object 0] method $m record definition: [list $needargs $params]}
 		    dict set methods $m [list $needargs $params]
 		}
 	    }
 
+	    Debug.direct {[lindex $object 0] of class $class methods: ($methods) / ([info class methods $class -private -all])}
 	    objdefine $object export {*}[info object methods $object -all] {*}[dict keys $methods]
 
 	} else {
