@@ -12,6 +12,8 @@ set API(Domains/JQ) {
 
 	== Supported Plugins ==
 
+	General form of Plugin interfaces is [[jQ ''plugin'' selector args]] where ''selector'' is a jQuery selector expression, and args will be passed to the main entry point of the plugin.
+
 	;jframe: [http://garage.pimentech.net/scripts_doc_jquery_jframe/] jFrame provides an easy way to get an HTML frame-like behaviour on DIV Elements with AJAX.
 	;jtemplates: [http://jtemplates.tpython.com/] a template engine for JavaScript.
 	;history: [http://stilbuero.de/jquery/history/] plugin for enabling history support and bookmarking
