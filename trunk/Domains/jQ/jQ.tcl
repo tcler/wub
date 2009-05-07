@@ -59,13 +59,13 @@ set API(Domains/JQ) {
 
 	Running arbitrary javascript over jQuery
 
-	set r [jQ jquery $r]	;# load the jquery library
-	set r [jQ postscript $r {
-	    /* this is javascript */
-	}]
-	set r [jQ postscript $r [<ready> {
-	    /* this is javascript which will be run only when jQuery is ready */
-	}]
+	    set r [jQ jquery $r]	;# load the jquery library
+	    set r [jQ postscript $r {
+	        /* this is javascript */
+	    }]
+	    set r [jQ postscript $r [<ready> {
+	        /* this is javascript which will be run only when jQuery is ready */
+	    }]
     }
     expires {when do these javascript files expire?}
     google {use the google versions of jQuery wherever possible}
