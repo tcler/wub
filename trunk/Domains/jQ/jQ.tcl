@@ -10,6 +10,8 @@ set API(Domains/JQ) {
     {
 	jQ domain provides a tight integration to the jQuery web framework.  It enables the application to load jQuery plugins and modules (such as the jQuery UI module) in a convenient manner.
 
+	jQ provides an interface to jQuery and the plugins which ensures that dependencies are loaded, and invokes the plugin with an appropriate element selector and arguments.  jQ also provides some support for emitting javascript into an HTML page.
+
 	== Supported Plugins ==
 
 	General form of Plugin interfaces is [[jQ ''plugin'' selector args]] where ''selector'' is a jQuery selector expression, and args will be passed to the main entry point of the plugin.
