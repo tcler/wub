@@ -7,7 +7,51 @@ package provide jQ 1.0
 package provide JQ 1.0
 
 set API(Domains/JQ) {
-    {provides a tight integration to the jQuery web framework.  Also doubles as a File domain.}
+    {
+	jQ domain provides a tight integration to the jQuery web framework.  It enables the application to load jQuery plugins and modules (such as the jQuery UI module) in a convenient manner.
+
+	== Supported Plugins ==
+
+	;jframe: [http://garage.pimentech.net/scripts_doc_jquery_jframe/]
+	;jtemplates: [http://jtemplates.tpython.com/]
+	;history:
+	;<ready>:
+	;datepicker: [http://docs.jquery.com/UI/Datepicker]
+	;timeentry: [http://keith-wood.name/timeEntryRef.html]
+	;hint: [http://remysharp.com/2007/01/25/jquery-tutorial-text-box-hints/]
+	;boxtoggle: [http://www.stainlessvision.com/collapsible-box-jquery]
+	;tablesorter: [http://tablesorter.com/addons/pager/jquery.tablesorter.pager.js]
+	;multifile: [http://www.fyneworks.com/jquery/multiple-file-upload/]
+	;containers: [http://plugins.jquery.com/project/mbContainerPlus]
+	;container: format up a container for the mbContainerPlus plugin
+	;tabs: [http://docs.jquery.com/UI/Tabs]
+	;addtab:
+	;gentab:
+	;accordion: [http://docs.jquery.com/UI/Accordion]
+	;dict2accordion:
+	;resizable: [http://docs.jquery.com/UI/Resizeables]
+	;draggable: [http://docs.jquery.com/UI/Draggables]
+	;droppable: [http://docs.jquery.com/UI/Droppables]
+	;sortable: [http://docs.jquery.com/UI/Sortables]
+	;selectable: [http://docs.jquery.com/UI/Selectables]
+	;autogrow:[http://www.aclevercookie.com/facebook-like-auto-growing-textarea/]
+	;autoscale: [http://jquery.autoscale.js.googlepages.com/]
+	;tooltip: [http://bassistance.de/jquery-plugins/jquery-plugin-tooltip/]
+	;hoverimage: [http://plugins.jquery.com/project/HoverImageText]
+	;galleria:
+	;gallery: [http://benjaminsterling.com/jquery-jqgalview-photo-gallery/]
+	;editable:
+	;form: [http://malsup.com/jquery/form/]
+	;validate: [http://bassistance.de/jquery-plugins/jquery-plugin-validation/]
+	;autofill:
+	;confirm:
+	;ingrid:
+	;map:
+	;sheet:
+
+	== General API ==
+	jQ package exports functions to load and invoke jQ plugins
+    }
     expires {when do these javascript files expire?}
     google {use the google versions of jQuery wherever possible}
 }
