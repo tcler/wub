@@ -14,7 +14,7 @@ set API(Domains/JQ) {
 
 	;jframe: [http://garage.pimentech.net/scripts_doc_jquery_jframe/]
 	;jtemplates: [http://jtemplates.tpython.com/]
-	;history:
+	;history: [http://stilbuero.de/jquery/history/] plugin for enabling history support and bookmarking
 	;<ready>:
 	;datepicker: [http://docs.jquery.com/UI/Datepicker]
 	;timeentry: [http://keith-wood.name/timeEntryRef.html]
@@ -40,14 +40,13 @@ set API(Domains/JQ) {
 	;hoverimage: [http://plugins.jquery.com/project/HoverImageText]
 	;galleria:
 	;gallery: [http://benjaminsterling.com/jquery-jqgalview-photo-gallery/]
-	;editable:
+	;editable: [http://www.appelsiini.net/projects/jeditable]
 	;form: [http://malsup.com/jquery/form/]
 	;validate: [http://bassistance.de/jquery-plugins/jquery-plugin-validation/]
-	;autofill:
-	;confirm:
-	;ingrid:
-	;map:
-	;sheet:
+	;autofill: [http://plugins.jquery.com/project/Autofill]
+	;confirm: [http://nadiaspot.com/jquery/confirm]
+	;ingrid: [http://reconstrukt.com/ingrid/]
+	;map: [http://code.google.com/p/jmaps/]
 
 	== General API ==
 	jQ package exports functions to load and invoke jQ plugins
