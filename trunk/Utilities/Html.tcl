@@ -359,7 +359,18 @@ proc <stylesheet> {url {media screen}} {
     return [<link> rel StyleSheet type text/css media $media href $url]
 }
 
-foreach tag {script style} {
+proc <script> {args} {
+    if {[llength $args]%2} {
+	set script [lindex $args end]
+	set args [lrange $args 0 end-1]
+    } else {
+	set script ""
+    }
+
+    return "<[Html::attr script {*}$args]>$script</script>"
+}
+
+foreach tag {style} {
     eval [string map [list %T $tag] {
 	proc <%T> {args} {
 	    if {([llength $args] % 2) == 1} {
