@@ -288,7 +288,9 @@ class create Direct {
 		error "Direct domain: can only specify one of object or namespace"
 	    }
 
-	    if {[llength $object] == 1} {
+	    if {[llength $object] == 1
+		&& [info object class $object] ne "::oo::class"
+	    } {
 		# object name must be fully ns-qualified
 		if {![string match "::*" $object]} {
 		    set object ::$object
@@ -323,7 +325,6 @@ class create Direct {
 
 	    Debug.direct {[lindex $object 0] of class $class methods: ($methods) / ([info class methods $class -private -all])}
 	    objdefine $object export {*}[info object methods $object -all] {*}[dict keys $methods]
-
 	} else {
 	    # namespace must be fully qualified
 	    if {![string match "::*" $namespace]} {
