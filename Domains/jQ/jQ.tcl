@@ -45,7 +45,7 @@ set API(Domains/JQ) {
 	;[http://monc.se/kitchen galleria]: image gallery
 	;[http://benjaminsterling.com/jquery-jqgalview-photo-gallery/ gallery]: another image gallery
 	;[http://www.appelsiini.net/projects/jeditable editable]: in-place editing
-	;[http://malsup.com/jquery/form/ form]: easily and unobtrusively upgrade HTML forms to use AJAX - numerous options which allows you to have full control over how the data is submitted.
+	;[http://malsup.com/jquery/form/ form]: easily and unobtrusively upgrade HTML forms to use AJAX - numerous options which allows you to have full control over how the data is submitted.  Example: if [[<form> formid {...}]] [[<div> divid {...}]] is in the HTML body, then: set r [[jQ form $r "#formid" target \"#divid\"]] will apply the form plugin to that form.
 	;[http://bassistance.de/jquery-plugins/jquery-plugin-validation/ validate]: form validation
 	;[http://plugins.jquery.com/project/Autofill autofill]: auto-fill a form
 	;[http://nadiaspot.com/jquery/confirm confirm]: displays a confirmation message in place before doing an action.
