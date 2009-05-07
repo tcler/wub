@@ -20,7 +20,7 @@ set API(Domains/JQ) {
 	;<ready>:
 	;datepicker: [http://docs.jquery.com/UI/Datepicker] configurable plugin that adds datepicker functionality
 	;timeentry: [http://keith-wood.name/timeEntryRef.html] sets an input field up to accept a time value
-	;hint: [http://remysharp.com/2007/01/25/jquery-tutorial-text-box-hints/] Show a ‘hint’inside the input box when it is not in focus
+	;hint: [http://remysharp.com/2007/01/25/jquery-tutorial-text-box-hints/] Show a 'hint' inside the input box when it is not in focus
 	;boxtoggle: [http://www.stainlessvision.com/collapsible-box-jquery] takes a container and hides all of it's content apart from the heading
 	;tablesorter: [http://tablesorter.com/] Flexible client-side table sorting
 	;multifile: [http://www.fyneworks.com/jquery/multiple-file-upload/] non-obstrusive plugin that helps users easily select multiple files for upload quickly and easily
