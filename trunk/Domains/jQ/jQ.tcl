@@ -115,7 +115,7 @@ namespace eval jQ {
     }
 
     proc ready {r args} {
-	dict set r -postscript ![clock microseconds] [<ready> $script]
+	dict set r -postscript ![clock microseconds] [<ready> {*}$args]
 	return $r
     }
 
