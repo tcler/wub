@@ -12,41 +12,41 @@ set API(Domains/JQ) {
 
 	== Supported Plugins ==
 
-	;jframe: [http://garage.pimentech.net/scripts_doc_jquery_jframe/]
-	;jtemplates: [http://jtemplates.tpython.com/]
+	;jframe: [http://garage.pimentech.net/scripts_doc_jquery_jframe/] jFrame provides an easy way to get an HTML frame-like behaviour on DIV Elements with AJAX.
+	;jtemplates: [http://jtemplates.tpython.com/] a template engine for JavaScript.
 	;history: [http://stilbuero.de/jquery/history/] plugin for enabling history support and bookmarking
 	;<ready>:
-	;datepicker: [http://docs.jquery.com/UI/Datepicker]
-	;timeentry: [http://keith-wood.name/timeEntryRef.html]
-	;hint: [http://remysharp.com/2007/01/25/jquery-tutorial-text-box-hints/]
-	;boxtoggle: [http://www.stainlessvision.com/collapsible-box-jquery]
-	;tablesorter: [http://tablesorter.com/addons/pager/jquery.tablesorter.pager.js]
-	;multifile: [http://www.fyneworks.com/jquery/multiple-file-upload/]
-	;containers: [http://plugins.jquery.com/project/mbContainerPlus]
+	;datepicker: [http://docs.jquery.com/UI/Datepicker] configurable plugin that adds datepicker functionality
+	;timeentry: [http://keith-wood.name/timeEntryRef.html] sets an input field up to accept a time value
+	;hint: [http://remysharp.com/2007/01/25/jquery-tutorial-text-box-hints/] Show a ‘hint’inside the input box when it is not in focus
+	;boxtoggle: [http://www.stainlessvision.com/collapsible-box-jquery] takes a container and hides all of it's content apart from the heading
+	;tablesorter: [http://tablesorter.com/] Flexible client-side table sorting
+	;multifile: [http://www.fyneworks.com/jquery/multiple-file-upload/] non-obstrusive plugin that helps users easily select multiple files for upload quickly and easily
+	;containers: [http://plugins.jquery.com/project/mbContainerPlus] full featured and fully skinnable containers.
 	;container: format up a container for the mbContainerPlus plugin
-	;tabs: [http://docs.jquery.com/UI/Tabs]
+	;tabs: [http://docs.jquery.com/UI/Tabs] 
 	;addtab:
 	;gentab:
-	;accordion: [http://docs.jquery.com/UI/Accordion]
+	;accordion: [http://docs.jquery.com/UI/Accordion] Accordion widget
 	;dict2accordion:
-	;resizable: [http://docs.jquery.com/UI/Resizeables]
+	;resizable: [http://docs.jquery.com/UI/Resizeables] 
 	;draggable: [http://docs.jquery.com/UI/Draggables]
 	;droppable: [http://docs.jquery.com/UI/Droppables]
 	;sortable: [http://docs.jquery.com/UI/Sortables]
 	;selectable: [http://docs.jquery.com/UI/Selectables]
-	;autogrow:[http://www.aclevercookie.com/facebook-like-auto-growing-textarea/]
-	;autoscale: [http://jquery.autoscale.js.googlepages.com/]
-	;tooltip: [http://bassistance.de/jquery-plugins/jquery-plugin-tooltip/]
-	;hoverimage: [http://plugins.jquery.com/project/HoverImageText]
-	;galleria:
-	;gallery: [http://benjaminsterling.com/jquery-jqgalview-photo-gallery/]
-	;editable: [http://www.appelsiini.net/projects/jeditable]
-	;form: [http://malsup.com/jquery/form/]
-	;validate: [http://bassistance.de/jquery-plugins/jquery-plugin-validation/]
-	;autofill: [http://plugins.jquery.com/project/Autofill]
-	;confirm: [http://nadiaspot.com/jquery/confirm]
-	;ingrid: [http://reconstrukt.com/ingrid/]
-	;map: [http://code.google.com/p/jmaps/]
+	;autogrow:[http://www.aclevercookie.com/facebook-like-auto-growing-textarea/] autogrowing text area
+	;autoscale: [http://jquery.autoscale.js.googlepages.com/] Scale an element to browser window size
+	;tooltip: [http://bassistance.de/jquery-plugins/jquery-plugin-tooltip/] Display a customized tooltip instead of the default one for every selected element.
+	;hoverimage: [http://plugins.jquery.com/project/HoverImageText] create images along with descriptive text that is displayed on mouse over, similar to a tool hip, however the text is overlayed over the image.
+	;galleria: [http://monc.se/kitchen] image gallery
+	;gallery: [http://benjaminsterling.com/jquery-jqgalview-photo-gallery/] another image gallery
+	;editable: [http://www.appelsiini.net/projects/jeditable] in-place editing
+	;form: [http://malsup.com/jquery/form/] easily and unobtrusively upgrade HTML forms to use AJAX - numerous options which allows you to have full control over how the data is submitted.
+	;validate: [http://bassistance.de/jquery-plugins/jquery-plugin-validation/] form validation
+	;autofill: [http://plugins.jquery.com/project/Autofill] auto-fill a form
+	;confirm: [http://nadiaspot.com/jquery/confirm] displays a confirmation message in place before doing an action.
+	;ingrid: [http://reconstrukt.com/ingrid/] unobtrusively add datagrid behaviors (column resizing, paging, sorting, row and column styling, and more) to tables.
+	;map: [http://code.google.com/p/jmaps/] API to create and manage multiple google maps on any page. 
 
 	== General API ==
 	jQ package exports functions to load and invoke jQ plugins
