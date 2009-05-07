@@ -98,8 +98,8 @@ namespace eval jQ {
 	return $r
     }
 
-    proc postscript {r script args} {
-	dict set r -postscript ![clock microseconds] [<script> {*}$args $script]
+    proc postscript {r script} {
+	dict set r -postscript ![clock microseconds] [<script> $script]
 	return $r
     }
 
