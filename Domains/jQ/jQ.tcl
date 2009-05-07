@@ -103,6 +103,22 @@ namespace eval jQ {
 	return $r
     }
 
+    # generate a DOM ready function
+    proc ::<ready> {args} {
+	set script [lindex $args end]
+	set args [lrange $args 0 end-1]
+	return [<script> [string map [list %F [string map $args $script] ] {
+	    $(function() {
+		%F
+	    });
+	}]]
+    }
+
+    proc ready {r args} {
+	dict set r -postscript ![clock microseconds] [<ready> $script]
+	return $r
+    }
+
     proc scripts {r args} {
 	variable mount
 	Debug.jq {PRESCRIPT: [Dict get? $r -postscript]}
@@ -201,17 +217,6 @@ namespace eval jQ {
 	} else {
 	    return "\{[join $opts ,]\}"
 	}
-    }
-
-    # generate a DOM ready function
-    proc ::<ready> {args} {
-	set script [lindex $args end]
-	set args [lrange $args 0 end-1]
-	return [<script> [string map [list %F [string map $args $script] ] {
-	    $(function() {
-		%F
-	    });
-	}]]
     }
 
     # just load the jquery module
