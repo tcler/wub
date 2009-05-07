@@ -54,6 +54,18 @@ set API(Domains/JQ) {
 
 	== General API ==
 	jQ package exports functions to load and invoke jQ plugins
+
+	== Examples ==
+
+	Running arbitrary javascript over jQuery
+
+	set r [jQ jquery $r]	;# load the jquery library
+	set r [jQ postscript $r {
+	    /* this is javascript */
+	}]
+	set r [jQ postscript $r [<ready> {
+	    /* this is javascript which will be run only when jQuery is ready */
+	}]
     }
     expires {when do these javascript files expire?}
     google {use the google versions of jQuery wherever possible}
@@ -65,7 +77,7 @@ namespace eval jQ {
     variable expires 0
     variable google 0
 
-    proc postscript {script args} {
+    proc _postscript {script args} {
 	variable mount
 	return [list -postscript [file join $mount scripts $script] $args]
     }
