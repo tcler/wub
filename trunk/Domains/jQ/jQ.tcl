@@ -45,7 +45,7 @@ set API(Domains/JQ) {
 	;[http://monc.se/kitchen galleria]: image gallery
 	;[http://benjaminsterling.com/jquery-jqgalview-photo-gallery/ gallery]: another image gallery
 	;[http://www.appelsiini.net/projects/jeditable editable]: in-place editing
-	;[http://malsup.com/jquery/form/ form]: easily and unobtrusively upgrade HTML forms to use AJAX - numerous options which allows you to have full control over how the data is submitted.  Example: if [[<form> formid {...}]] [[<div> divid {...}]] is in the HTML body, then: set r [[jQ form $r "#formid" target \"#divid\"]] will apply the form plugin to that form.
+	;[http://malsup.com/jquery/form/ form]: easily and unobtrusively upgrade HTML forms to use AJAX - numerous options which allows you to have full control over how the data is submitted.
 	;[http://bassistance.de/jquery-plugins/jquery-plugin-validation/ validate]: form validation
 	;[http://plugins.jquery.com/project/Autofill autofill]: auto-fill a form
 	;[http://nadiaspot.com/jquery/confirm confirm]: displays a confirmation message in place before doing an action.
@@ -56,8 +56,9 @@ set API(Domains/JQ) {
 	jQ package exports functions to load and invoke jQ plugins
 
 	== Examples ==
+	The following assume that the response ''r'' contains x-text/html-fragment style html
 
-	Running arbitrary javascript over jQuery
+	=== Example: arbitrary javascript over jQuery ===
 
 	    set r [jQ jquery $r]	;# load the jquery library
 	    set r [jQ postscript $r {
@@ -65,7 +66,16 @@ set API(Domains/JQ) {
 	    }]
 	    set r [jQ postscript $r [<ready> {
 	        /* this is javascript which will be run only when jQuery is ready */
-	    }]
+	    }]]
+
+	=== Example: ajax form ===
+
+	    # apply form plugin to ''formid''
+	    set r [[jQ form $r "#formid" target \"#divid\"]]
+
+	    # emit a form with the id ''formid'' and a div with the id ''divid''
+	    # the returned result of submitting ''formid'' will replace the content of ''divid''
+	    return [Http Ok $r "[<form> formid {...}] [<div> divid {...}]" x-text/html-fragment]
     }
     expires {when do these javascript files expire?}
     google {use the google versions of jQuery wherever possible}
