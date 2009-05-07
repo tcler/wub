@@ -216,7 +216,7 @@ namespace eval jQ {
 
     # just load the jquery module
     proc jquery {r} {
-	retur [jQ script $r jquery.js]
+	return [jQ script $r jquery.js]
     }
 
     # http://garage.pimentech.net/scripts_doc_jquery_jframe/
