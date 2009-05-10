@@ -1404,7 +1404,7 @@ namespace eval Httpd {
 	}
     }
 
-    # run the postprocess
+    # run the postprocess - catch any errors
     proc pprocess {r} {
 	if {[catch {
 	    post $r
@@ -1475,6 +1475,10 @@ namespace eval Httpd {
 				    set duration [dict get $rsp -suspend]
 				}
 				$reader [list SUSPEND $duration]
+				continue
+			    } elseif {[dict exists $rsp -passthrough]} {
+				# the output is handled elsewhere (as for WOOF.)
+				# so we don't need to do anything more.
 				continue
 			    }
 
