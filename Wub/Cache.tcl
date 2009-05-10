@@ -93,10 +93,10 @@ namespace eval Cache {
 	    set ckey $keys($key) ;# key under which the cached value is stored
 	    variable cache
 	    if {[info exists cache($ckey)]} {
-		Debug.cache {found cache: etag:[dict get? $cache($ckey) etag] url:[dict get? $cache($ckey) -url]}
+		Debug.cache {found cache: etag:[dict get? $cache($ckey) etag] url:[dict get? $cache($ckey) -uri]}
 		set cached $cache($ckey)
 		invalidate [dict get? $cached etag]
-		invalidate [dict get? $cached -url]
+		invalidate [dict get? $cached -uri]
 	    }
 	    invalidate $key	;# remove offered key
 	}
@@ -122,8 +122,8 @@ namespace eval Cache {
 	variable cache
 	if {[exists? [dict get? $req etag]]} {
 	    set key $keys([string trim [dict get $req etag] \"])
-	} elseif {[exists? [dict get $req -url]]} {
-	    set key $keys([dict get $req -url])
+	} elseif {[exists? [dict get $req -uri]]} {
+	    set key $keys([dict get $req -uri])
 	} else {
 	    error "Cache Fetching $req, no match."
 	}
@@ -168,7 +168,7 @@ namespace eval Cache {
 	Debug.cache {put: ([dumpMsg $req])}
 
 	# whatever the eventual cache status, must remove old matches
-	invalidate [dict get $req -url]	;# invalidate by -url
+	invalidate [dict get $req -uri]	;# invalidate by -uri
 	invalidate [dict get? $req etag] ;# invalidate by etag
 
 	# we only cache 200s
@@ -211,7 +211,7 @@ namespace eval Cache {
 
 	# subset the cacheable request with just those fields needed
 	set cached [Dict subset $req {
-	    -content -gzip -code -url -charset -chconverted -modified
+	    -content -gzip -code -uri -charset -chconverted -modified
 	    -expiry
 	    content-language content-location content-md5 content-type
 	    expires last-modified cache-control
@@ -243,8 +243,8 @@ namespace eval Cache {
 		set ordered [lrange $ordered 1 end]
 
 		# remove the selected entry
-		catch { # invalidate by -url
-		    invalidate [dict get $cache($c) -url]
+		catch { # invalidate by -uri
+		    invalidate [dict get $cache($c) -uri]
 		}
 		catch { # invalidate by etag
 		    invalidate [dict get? $cache($c) etag]
@@ -257,12 +257,12 @@ namespace eval Cache {
 	# insert cacheable request into cache under modified etag
 	set cache($etag) $cached
 
-	# insert keys into key array - match by -url or etag
+	# insert keys into key array - match by -uri or etag
 	variable keys
 	set keys($etag) $etag
-	set keys([dict get $req -url]) $etag
+	set keys([dict get $req -uri]) $etag
 
-	Debug.cache {new: $etag == [dict get $req -url]}
+	Debug.cache {new: $etag == [dict get $req -uri]}
 
 	return $req
     }
@@ -308,8 +308,8 @@ namespace eval Cache {
 			# no etag key for cache
 			error {orphan cache by name '$name' / $cache($name)}
 		    }
-		    if {![exists? [dict get $val -url]]} {
-			error {orphan cache by url '[dict get? $val -url]' / $name - '$cache($name)'}
+		    if {![exists? [dict get $val -uri]]} {
+			error {orphan cache by url '[dict get? $val -uri]' / $name - '$cache($name)'}
 		    }
 		    if {![exists? [dict get $val etag]]} {
 			error {orphan cache by etag '[dict get? $val etag]' / $name - '$cache($name)'}
@@ -367,19 +367,19 @@ namespace eval Cache {
     # check - can request be satisfied from cache?
     # if so, return it.
     proc check {req} {
-	Debug.cache {check [dict get $req -url]: ([dumpMsg $req])}
+	Debug.cache {check [dict get $req -uri]: ([dumpMsg $req])}
 	variable attempts; incr attempts	;# count cache attempts
 
 	# first query cache to see if there's even a matching entry
 	set etag [dict get? $req etag]
-	set url [dict get? $req -url]
 	if {$etag ne "" && ![exists? $etag]} {
 	    Debug.cache {etag '$etag' given, but not in cache}
 	    return {}	;# we don't have a copy matching etag
 	}
+	set url [dict get? $req -uri]
 	if {$url ne "" && ![exists? $url]} {
 	    Debug.cache {url '$url' not in cache}
-	    return {}	;# we don't have a copy matching -url either
+	    return {}	;# we don't have a copy matching -uri either
 	}
 	dict set req etag $etag
 
