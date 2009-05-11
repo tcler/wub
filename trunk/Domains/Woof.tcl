@@ -1,6 +1,6 @@
 # Wub module for Woof
 package require Debug
-Debug on woof 10
+Debug off woof 10
 
 package provide Woof 1.0
 
