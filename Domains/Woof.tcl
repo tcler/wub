@@ -40,13 +40,18 @@ class create ::Woof {
 	    set [string trimleft $n -] $v
 	}
 	set mount /[string trim $mount /]/
-	
-	::woof::init wub_server	$root ;# start up woof
-	::woof::config set url_root [string trimright $mount /]
-
 	set file [File new mount $mount root [file join $root public]]	;# construct a File to handle real files
     }
 }
+
+proc woofLoad {woofdir root mount} {
+    lappend ::auto_path $woofdir
+    package require woof
+    ::woof::init wub_server	$root ;# start up woof
+    ::woof::config set url_root [string trimright $mount /]
+}
+
+
 
 if {0} {
     ::woof::init wub_server	;# start up woof
