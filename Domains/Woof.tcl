@@ -13,20 +13,34 @@ class create ::Woof {
 	if {!$result} {
 	    return $r	;# the URL isn't in our domain
 	}
-	Debug.woof {Woof do [self] $suffix $path}
+	dict set r -info /$suffix
+	dict set r -translated /$suffix
+	set fpath [file join $root public [string trimleft $suffix /]]
+	Debug.woof {Woof do [self] $suffix $path - fpath:$fpath}
 
-	::woof::handle_request $r
-	dict set r -passthrough 1	;# response is generated already
+	if {[file exists $fpath]} {
+	    set r [$file do $r]
+	} else {
+	    ::woof::handle_request $r
+	    dict set r -passthrough 1	;# response is generated already
+	}
+
 	return $r
     }
 
-    variable mount
+    destructor {
+	catch {$file destroy}
+    }
+
+    variable mount file root
     constructor {args} {
-	Debug.woof {Woof constructed [self] $args}
+	Debug.woof {Woof constructing [self] $args}
 	foreach {n v} $args {
 	    set [string trimleft $n -] $v
 	}
 	set mount /[string trim $mount /]/
+	
+	set file [File new mount $mount root [file join $root public]]	;# construct a File to handle real files
     }
 }
 
