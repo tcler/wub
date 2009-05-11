@@ -44,6 +44,7 @@ class create ::Woof {
     }
 }
 
+# load and initialize the woof system
 proc woofLoad {woofdir root mount} {
     lappend ::auto_path $woofdir
     package require woof
@@ -54,9 +55,12 @@ proc woofLoad {woofdir root mount} {
 
 
 if {0} {
-    ::woof::init wub_server	;# start up woof
+    package require Woof
+    Debug on woof 10
+
+    # load up and initialize woof
+    woofLoad [file normalize ~/Desktop/packages/woof/trunk/lib/woof/] /tmp/woof /woof
 
     # construct a nub for Woof
-    set wmp /[string trim [::woof::config get url_root] /]/
-    Nub domain $wmp Woof
+    Nub domain /woof/ Woof root /tmp/woof/
 }
