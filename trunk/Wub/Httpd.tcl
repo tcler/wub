@@ -418,6 +418,13 @@ namespace eval Httpd {
 		append header "Server: $si" \r\n
 	    }
 
+	    # add in cookies already formatted up
+	    foreach hdr {set-cookie} {
+		if {[dict exists $reply set-cookie]} {
+		    append header $hdr: " " [dict get $reply $hdr] \n
+		}
+	    }
+	    
 	    # format up and send each cookie
 	    if {[dict exists $reply -cookies]} {
 		Debug.cookies {Http processing: [dict get $reply -cookies]}
@@ -496,7 +503,7 @@ namespace eval Httpd {
 		    set cacheable [split [dict get $reply cache-control] ,]
 		    foreach directive $cacheable {
 			set body [string trim [join [lassign [split $directive =] d] =]]
-			set d [string trim $d]
+			set d [string tolower [string trim $d]]
 			if {$d in {no-cache private}} {
 			    set cache 0
 			    break
@@ -560,7 +567,7 @@ namespace eval Httpd {
 	} else {
 	    Debug.HttpdLow {format4server: ($dh)}
 	}
-
+	#puts stderr "HEADER: $header"
 	return [list $reply $header $content $empty $cache]
     }
 
