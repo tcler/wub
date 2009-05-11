@@ -35,11 +35,15 @@ class create ::Woof {
     variable mount file root
     constructor {args} {
 	Debug.woof {Woof constructing [self] $args}
+
 	foreach {n v} $args {
 	    set [string trimleft $n -] $v
 	}
 	set mount /[string trim $mount /]/
 	
+	::woof::init wub_server	$root ;# start up woof
+	::woof::config set url_root [string trimright $mount /]
+
 	set file [File new mount $mount root [file join $root public]]	;# construct a File to handle real files
     }
 }
