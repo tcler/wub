@@ -120,6 +120,7 @@ namespace eval Cache {
 
 	variable keys
 	variable cache
+	dict set req -uri [Url uri $req]
 	if {[exists? [dict get? $req etag]]} {
 	    set key $keys([string trim [dict get $req etag] \"])
 	} elseif {[exists? [dict get $req -uri]]} {
@@ -166,7 +167,7 @@ namespace eval Cache {
     # put - insert request into cache
     proc put {req} {
 	Debug.cache {put: ([dumpMsg $req])}
-
+	dict set req -uri [Url uri $req]
 	# whatever the eventual cache status, must remove old matches
 	invalidate [dict get $req -uri]	;# invalidate by -uri
 	invalidate [dict get? $req etag] ;# invalidate by etag
