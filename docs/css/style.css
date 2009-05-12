@@ -3,9 +3,14 @@
    Version: 1.0, March 29, 2006 */
 
 /******** General tags ********/
+html {
+       color:#000; background:#fff;
+}
+
 body {
   font:76% Verdana,Tahoma,Arial,sans-serif;
   color:#404040;
+  background:#fff;
   line-height:1.2em;
   margin:0 auto;
   padding:0;
