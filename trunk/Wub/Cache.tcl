@@ -377,7 +377,7 @@ namespace eval Cache {
 	    Debug.cache {etag '$etag' given, but not in cache}
 	    return {}	;# we don't have a copy matching etag
 	}
-	set url [dict get? $req -uri]
+	set url [Url url $req]; #dict get? $req -uri
 	if {$url ne "" && ![exists? $url]} {
 	    Debug.cache {url '$url' not in cache}
 	    return {}	;# we don't have a copy matching -uri either
