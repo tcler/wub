@@ -242,19 +242,6 @@ namespace eval Http {
 	return $rsp
     }
 
-    # finally resume a suspended response
-    proc Resume {rsp} {
-	Debug.log {Resume [dict merge $rsp [list -content "<elided>[string length [dict get? $rsp -content]]"]]}
-	catch {dict unset rsp -suspend}
-	dict set rsp -resumed 1
-	if {[catch {Responder post $rsp} r eo]} { ;# postprocess response
-	    set rsp [Http ServerError $rsp $r $eo]
-	} else {
-	    set rsp $r
-	}
-	::Send $rsp
-    }
-
     # modify response to indicate that the content is a cacheable file
     proc CacheableFile {rsp path {ctype ""}} {
 	set path [file normalize $path]
