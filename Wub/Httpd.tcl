@@ -869,6 +869,7 @@ namespace eval Httpd {
 		}
 
 		SUSPEND {
+		    #puts stderr "SUSPEND: ($args)"
 		    grace [lindex $args 0]	;# a response has been suspended
 		}
 
@@ -1367,9 +1368,9 @@ namespace eval Httpd {
 			} else {
 			    set duration [dict get $rsp -suspend]
 			}
-			#puts stderr "CHAN SUSP"
 			
-			grace [lindex $args 0]	;# response has been suspended
+			#puts stderr "SUSPEND: $duration"
+			grace $duration	;# response has been suspended
 			continue
 		    } elseif {[dict exists $rsp -passthrough]} {
 			# the output is handled elsewhere (as for WOOF.)
@@ -1447,8 +1448,9 @@ namespace eval Httpd {
     }
 
     # format something to suspend this packet
-    proc Suspend {{grace -1}} {
-	return [list -suspend $grace]
+    proc Suspend {r {grace -1}} {
+	dict set r -suspend $grace
+	return $r
     }
 
     # resume this request
