@@ -1454,7 +1454,7 @@ namespace eval Httpd {
     # resume this request
     proc Resume {r {cache 1}} {
         # ask socket coro to send the response for us
-	{*}[dict get $rsp -send] [list SEND $rsp]
+	{*}[dict get $r -send] [list SEND $r]
     }
 
     # every script
