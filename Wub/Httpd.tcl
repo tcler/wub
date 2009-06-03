@@ -1351,6 +1351,7 @@ namespace eval Httpd {
 	    dict set unsatisfied [dict get $r -transaction] {}
 	    lappend status PROCESS
 
+	    dict set r -send [info coroutine]	;# remember the coroutine
 	    catch {
 		do REQUEST [pre $r]
 	    } rsp eo	;# process the request
@@ -1452,9 +1453,8 @@ namespace eval Httpd {
 
     # resume this request
     proc Resume {r {cache 1}} {
-	# send a response to client on behalf of consumer
-	set activity([info coroutine]) [clock milliseconds]
-	set retval [send [pprocess $r] $cache]
+        # ask socket coro to send the response for us
+	{*}[dict get $rsp -send] [list SEND $rsp]
     }
 
     # every script
