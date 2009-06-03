@@ -1104,32 +1104,31 @@ namespace eval Httpd {
 		GET - PUT - POST - HEAD {}
 
 		default {
-		    # Could check for and service FTP requestuests, etc, here...
+		    # Could check for and service FTP requests, etc, here...
 		    dict set r -error_line $line
 		    handle [Http Bad $r "Method unsupported '[lindex $header 0]'" 405] "Method Unsupported"
 		}
 	    }
 
-	    dict set r -version [lindex $header end]
-	    dict set r -uri [join [lrange $header 1 end-1]]
+	    # get and test HTTP version
+	    dict set r -version [lindex $header end]		;# HTTP version
+	    if {[string match HTTP/* [dict get $r -version]]} {
+		dict set r -version [lindex [split [dict get $r -version] /] 1]
+	    }
+	    # Send 505 for protocol != HTTP/1.0 or HTTP/1.1
+	    if {[dict get $r -version] ni {1.1 1.0}} {
+		handle [Http Bad $r "HTTP Version '[dict get $r -version]' not supported" 505] "Unsupported HTTP Version"
+	    }
 
+	    # get request URL
 	    # check URI length (per rfc2616 3.2.1
 	    # A server SHOULD return 414 (Requestuest-URI Too Long) status
 	    # if a URI is longer than the server can handle (see section 10.4.15).)
 	    variable maxurilen
+	    dict set r -uri [join [lrange $header 1 end-1]]	;# requested URL
 	    if {$maxurilen && [string length [dict get $r -uri]] > $maxurilen} {
 		# send a 414 back
 		handle [Http Bad $r "URI too long '[dict get $r -uri]'" 414] "URI too long"
-	    }
-
-	    if {[string match HTTP/* [dict get $r -version]]} {
-		dict set r -version [lindex [split [dict get $r -version] /] 1]
-	    }
-
-	    # Send 505 for protocol != HTTP/1.0 or HTTP/1.1
-	    if {([dict get $r -version] != 1.1)
-		&& ([dict get $r -version] != 1.0)} {
-		handle [Http Bad $r "HTTP Version '[dict get $r -version]' not supported" 505] "Unsupported HTTP Version"
 	    }
 
 	    Debug.Httpd {[info coroutine] reader got request: ($r)}
@@ -1154,8 +1153,9 @@ namespace eval Httpd {
 		handle [Http NotImplemented $r "Spider Service"] "Spider"
 	    }
 
-	    # classify client by UA
-	    dict set r -ua_class [UA classify $r]
+	    # analyse the user agent strings.
+	    dict set r -ua [UA parse [dict get? $r user-agent]]
+	    dict set r -ua_class [UA classify $r]	;# classify client by UA
 	    switch -- [dict get $r -ua_class] {
 		blank {
 		    handle [Http NotImplemented $r "Possible Spider Service - set your User-Agent"] "Spider"
@@ -1172,12 +1172,9 @@ namespace eval Httpd {
 		}
 
 		default {
-		    dict set r -dynamic 1
+		    dict set r -dynamic 1	;# make this dynamic
 		}
 	    }
-
-	    # analyse the user agent strings.
-	    dict set r -ua [UA parse [dict get? $r user-agent]]
 
 	    # check the incoming ip for blockage
 	    if {[Block blocked? [dict get? $r -ipaddr]]} {
@@ -1380,7 +1377,7 @@ namespace eval Httpd {
 	    lappend forwards [dict get $r -ipaddr]
 	    dict set r -forwards $forwards
 	    dict set r -ipaddr [lindex $forwards 0]
-	    
+
 	    # check Cache for match
 	    if {[dict size [set cached [Cache check $r]]] > 0} {
 		# reply from cache
@@ -1391,7 +1388,7 @@ namespace eval Httpd {
 		Debug.Httpd {[info coroutine] sending cached ([rdump $cached])}
 		lappend status CACHED
 		send $cached 0	;# send cached response directly
-		continue
+		continue	;# go get the next request
 	    }
 
 	    # deliver request to consumer
@@ -1400,8 +1397,49 @@ namespace eval Httpd {
 		dict set unsatisfied [dict get $r -transaction] {}
 		dict set r -send [info coroutine]	;# let consumer know how to reply
 		lappend status PROCESS
-		after 1 [list catch [list $consumer [list REQUEST $r]]]
-		Debug.Httpd {reader [info coroutine]: sent to consumer, waiting for next}
+		#after 1 [list catch [list $consumer [list REQUEST $r]]]
+		#Debug.Httpd {reader [info coroutine]: sent to consumer, waiting for next}
+
+		# process the request
+		catch {
+		    do REQUEST [pre $r]
+		} rsp eo	;# process the request
+
+		# handle response code from processing request
+		switch [dict get $eo -code] {
+		    0 -
+		    2 {
+			# does application want to suspend?
+			if {[dict size $rsp] == 0 || [dict exists $rsp -suspend]} {
+			    if {[dict size $rsp] == 0} {
+				set duration 0
+			    } else {
+				set duration [dict get $rsp -suspend]
+			    }
+			    #puts stderr "CHAN SUSP"
+
+			    grace [lindex $args 0]	;# response has been suspended
+			    continue
+			} elseif {[dict exists $rsp -passthrough]} {
+			    # the output is handled elsewhere (as for WOOF.)
+			    # so we don't need to do anything more.
+			    continue
+			}
+
+			# ok - return
+			if {![dict exists $rsp -code]} {
+			    set rsp [Http Ok $rsp]	;# default to OK
+			}
+		    }
+		
+		    1 { # error - return the details
+			set rsp [Http ServerError $r $rsp $eo]
+		    }
+		}
+
+		# send the response to client
+		set activity([info coroutine]) [clock milliseconds]
+		send [pprocess $rsp]
 	    } else {
 		# the consumer has gone away
 		Debug.Httpd {reader [info coroutine]: consumer gone $consumer}
