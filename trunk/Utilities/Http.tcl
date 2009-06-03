@@ -167,7 +167,11 @@ namespace eval Http {
 	lappend line \"[dict get? $r -header]\"
 
 	# status we returned to it
-	lappend line [dict get $r -code]
+	if {[dict exists $r -code]} {
+	    lappend line [dict get $r -code]
+	} else {
+	    lappend line 200
+	}
 
 	# content byte length
 	lappend line [string length [dict get? $r -content]]
