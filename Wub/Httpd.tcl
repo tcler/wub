@@ -1021,6 +1021,7 @@ namespace eval Httpd {
 	    if {[string index $line 0] in {" " "\t"}} {
 		# continuation line
 		dict append r $last " [string trim $line]"
+		set key $last	;# remember key for length checking
 	    } else {
 		set value [join [lassign [split $line ":"] key] ":"]
 		set key [string tolower [string trim $key "- \t"]]
@@ -1030,14 +1031,14 @@ namespace eval Httpd {
 		} else {
 		    dict set r $key [string trim $value]
 		}
+	    }
 
-		# limit size of each field
-		variable maxfield
-		if {$maxfield
-		    && [string length [dict get $r $key]] > $maxfield
-		} {
-		    handle [Http Bad $request "Illegal header: '$line'"] "Illegal Header"
-		}
+	    # limit size of each field
+	    variable maxfield
+	    if {$maxfield
+		&& [string length [dict get $r $key]] > $maxfield
+	    } {
+		handle [Http Bad $request "Illegal header: '$line'"] "Illegal Header"
 	    }
 	}
 
@@ -1481,6 +1482,8 @@ namespace eval Httpd {
 				} else {
 				    set duration [dict get $rsp -suspend]
 				}
+				#puts stderr "CHAN SUSP"
+
 				$reader [list SUSPEND $duration]
 				continue
 			    } elseif {[dict exists $rsp -passthrough]} {
@@ -1517,8 +1520,7 @@ namespace eval Httpd {
 
     # return a bunch of data about all the channels in use by Httpd
     proc chans {} {
-	foreach cchan [info commands ::Httpd::sock*] {
-	    set chan [namespace tail $cchan]
+	foreach chan [chan names] {
 	    catch {
 		list eof [chan eof $chan] input [chan pending input $chan] output [chan pending output $chan] blocked [chan blocked $chan] readable [chan event $chan readable] writable [chan event $chan writable] {*}[chan configure $chan]
 	    } el
