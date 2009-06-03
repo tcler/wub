@@ -41,7 +41,7 @@ set API(Server/Httpd) {
 	== Interface ==
 	;Connect: Initializes an HTTP 1.1 connection and pipeline, may be called by some external connection handler (such as [Listener], by default) to initiate HTTP 1.1 protocol interaction and processing.
 
-	;RESUME: calling the consumer coroutine with [[list RESUME $response ...]] will resume a suspended request and pipeline the response out to the client.
+	;[[Http Resume $response]]: will resume a suspended request and pipeline the response out to the client.
 
 	All processing of requests (ie: transformation of requests into responses) is performed by ::Httpd::do, which can be defined directly by the user (see Customisation) or can be defined indirectly by [../Domains/Nub Nub].
 
@@ -49,37 +49,32 @@ set API(Server/Httpd) {
 
 	To customise Httpd, the semantics of request processing need to be defined in a couple of plugged-in commands.  These commands have sensible minimally functional defaults, but are expected to be customised.
 
-	Httpd expects ''::Httpd::do'' to operate within the consumer to process a request and return a response (or error.)  The [../Domains/Nub Nub] module generates such a command, which dispatches on URL to Domains specified in the configuration.
+	Httpd expects ''::Httpd::do'' to operate within the coroutine to process a request and return a response (or error.)  The [../Domains/Nub Nub] module generates such a command, which dispatches on URL to Domains specified in the configuration.
 
 	Command ::Httpd::do will be called with REQUEST and a ''pre''-processed request expecting that the call will return a response.
 
 	Command ::Httpd::do will be called with TERMINATE when a connection has closed.  A custom consumer may use this notification to clean up before termination.  No socket or reader interaction is possible at this point.
 
-	Httpd expects ''::Httpd::pre'' to pre-process the request within the consumer's context before handing it to ::Httpd::do.  By default, ''pre'' unpacks [../Utility/Cookies Cookies] in the request.
+	Httpd expects ''::Httpd::pre'' to pre-process the request within the coroutine's context before handing it to ::Httpd::do.  By default, ''pre'' unpacks [../Utility/Cookies Cookies] in the request.
 
 	Httpd expects ''::Httpd::post'' to post-process the response from ::Httpd::do.  By default, the [Convert] module is invoked to perform content-negotiation.  Other useful functionality might be [Cookie] handling, Session management, etc.
 
-	Httpd defines an ''::Httpd::reader'' command for protocol interaction and an ''::Httpd::consumer'' command for dispatching via ::Httpd::do, post-processing via ::Httpd::post and sending pipelined responses back to the client via ::Httpd::reader.  It's not expected that these should be modified, but (in keeping with the goal of extensibility) it is possible.
+	Httpd defines an ''::Httpd::reader'' command for protocol interaction and an ::Httpd::do for dispatching on URL, post-processing via ::Httpd::post and sending pipelined responses back to the client via ::Httpd::reader.  It's not expected that these should be modified, but (in keeping with the goal of extensibility) it is possible.
 
 	== Architecture ==
-	Httpd constructs two coroutines for each open connection in response to a '''Connect''' call from a [Listener].  The first coroutine (whose semantics are contained in ::Httpd::reader) parses HTTP 1.1 from the socket into a request dict, which it then passes to the second coroutine (::Httpd::consumer.)  The two coroutines communicate by means of tcl [[after]] events containing coroutine invocations and arguments, according to an internal protocol.
-
-	=== Consumer Protocol ===
-	;REQUEST: a completely formed request and entity has been received.  The consumer should process it and [[send]] the response, or a [[Suspend]]ed response pending some external event.
-	;TERMINATE: the reader informs us that the connection has been terminated.  Cleanup and die.
-	;RESUME: an external agent may send this message to the consumer coroutine with a response.  This causes the associated request processing to resume (ie: the tendered response will be sent to the client.)
+	Httpd constructs one coroutine for each open connection in response to a '''Connect''' call from a [Listener].  The coroutine (whose semantics are contained in ::Httpd::reader) parses HTTP 1.1 from the socket into a request dict, which it then dispatches via [[::Httpd::do]].
 
 	=== Reader Protocol ===
 	;READ: [[fileevent readable]] - there's input to be read and processed
 	;CLOSING: [[fileevent readable]] - there's input, but we're half-closed, not processing any more input, and merely waiting for all pending responses to drain.
 	;WRITABLE: [[fileevent writable]] - there's space on the output queue.  We'll send any responses queued for sending, and unblock the reader if this makes output buffer space available.
-	;SEND: ''consumer'' has a response for us to queue for delivery.
-	;SUSPEND: ''consumer'' indicates that current response processing is suspended.  New requests will be processed, but the pipeline stalls until the consumer is RESUMEd, and generates a response to the current request.  This indication has little effect, but to extent some grace to the connection to keep the reaper away from it.
+	;SEND: a ''consumer'' has a response for us to queue for delivery.
+	;SUSPEND: a ''consumer'' indicates that current response processing is suspended.  New requests will be processed, but the pipeline stalls until the consumer is RESUMEd, and generates a response to the current request.  This indication has little effect, but to extend some grace time to the connection which keeps the reaper away from it.
 	;REAPED: this connection has been reaped due to inactivity.
-	;TERMINATE: this connection is being closed due to unrecoverable error or ''consumer'' request.
+	;TERMINATE: this connection is being closed due to unrecoverable error or a ''consumer'' request.
 
 	=== Reaping ===
-	The time of each event processed by the reader and consumer coroutines is logged.  If a (configurable) period of idleness occurs, a per-connection timer causes the connection to be reaped.  A consumer which suspends is given a little grace time to produce its response.
+	The time of each event processed by the reader and consumer coroutines is logged.  If a (configurable) period of idleness occurs, a per-connection timer causes the connection to be reaped.  A consumer which suspends is given a little (configurable) grace time to produce its response.
 
 	== Ancillary Functionality ==
 	Httpd is not intended to be a minimal HTTP server, and so performs generally useful (but safe) optimisations and traffic management.
@@ -210,20 +205,6 @@ namespace eval Httpd {
 
     # shut down socket and reader
     proc terminate {{reason ""}} {
-	corovars consumer
-	if {![info exists consumer]} {
-	    # this is the consumer coro
-	    # the consumer is trying to terminate directly
-	    # so ask socket coro to terminate too
-	    corovars reader
-	    if {[catch {
-		$reader [list TERMINATE $reason]
-	    } e eo]} {
-		Debug.error {[info coroutine] direct termination via $reader: $e ($eo)} 1
-	    }
-	    rename [info coroutine] ""; ::yield	;# terminate consumer
-	}
-
 	# this is the reader - trying to terminate
 	Debug.Httpd {[info coroutine] terminate: ($reason)}
 
@@ -240,15 +221,6 @@ namespace eval Httpd {
 
 	# forget whatever higher level connection info
 	corovars cid socket ipaddr
-
-	# terminate consumer if it's still alive
-	if {[info commands $consumer] ne {}} {
-	    catch {
-		set cn ${consumer}_DEAD_[uniq]
-		rename $consumer $cn
-		after 1 [list catch [list $cn TERMINATE]]
-	    }
-	}
 
 	# clean up on disconnect
 	variable connbyIP; catch {incr connbyIP($ipaddr) -1}
@@ -693,6 +665,11 @@ namespace eval Httpd {
 
 	if {[dict exists $r -suspend]} {
 	    return 0	;# this reply has been suspended - we haven't got it yet
+	    # so we simply return.  The lack of a response for the corresponding
+	    # pipelined request has the effect of suspending the pipeline until
+	    # the response has been delivered.
+	    # requests will still be processed while the pipeline's suspended,
+	    # but their responses will only be returned in strict and close order.
 	}
 
 	Debug.Httpd {write: [info coroutine] ([rdump $r]) satisfied: ($satisfied) unsatisfied: ($unsatisfied)}
@@ -748,7 +725,7 @@ namespace eval Httpd {
 	dict set replies $trx [list $header $content [close? $r] $empty]
 	dict set satisfied $trx {}	;# record satisfaction of transaction
 
-	# having queued the response, we allow it to be sent on writable
+	# having queued the response, we allow it to be sent on 'socket writable' event
 	chan event $socket writable [list [info coroutine] WRITABLE]
 
 	if {[chan pending output $socket]} {
@@ -763,19 +740,6 @@ namespace eval Httpd {
 	return 0
     }
 
-    # send from consumer via associated reader
-    proc csend {reader rsp {cache 1}} {
-	# ask socket coro to send the response for us
-	if {[catch {
-	    $reader [list SEND $rsp]
-	} e eo] || $e in {EOF ERROR}} {
-	    Debug.error {[info coroutine] sending terminated via $reader: $e ($eo)} 1
-	    rename [info coroutine] ""; ::yield	terminated	;# terminate coror
-	} else {
-	    return $e
-	}
-    }
-
     # send --
     #	deliver in-sequence transaction responses
     #
@@ -785,19 +749,11 @@ namespace eval Httpd {
     #	Send transaction responses to client
     #	Possibly close socket
     proc send {r {cache 1}} {
-	corovars consumer
-	if {![info exists consumer]} {
-	    # a consumer is trying to send directly
-	    # ask socket coro to send the response for it
-	    corovars reader
-	    return [csend $r $cache]
-	}
-
 	Debug.Httpd {[info coroutine] send: ([rdump $r]) $cache [expr {[dict get? $r -ua_class] ni {browser unknown}}]}
 
 	# if this isn't a browser - do not cache!
 	if {[dict get? $r -ua_class] ni {browser unknown}} {
-	    set cache 0
+	    set cache 0	;# ??? TODO
 	}
 
 	# check generation
@@ -838,7 +794,7 @@ namespace eval Httpd {
 
     # yield wrapper with command dispatcher
     proc yield {{retval ""}} {
-	corovars cmd consumer status unsatisfied socket
+	corovars cmd status unsatisfied socket
 
 	while {1} {
 	    Debug.HttpdLow {coro [info coroutine] yielding}
@@ -902,7 +858,7 @@ namespace eval Httpd {
 		}
 
 		SEND {
-		    # send a response to client on behalf of consumer
+		    # send a response to client
 		    set activity([info coroutine]) [clock milliseconds]
 		    set retval [send {*}$args]
 		}
@@ -1391,62 +1347,49 @@ namespace eval Httpd {
 		continue	;# go get the next request
 	    }
 
-	    # deliver request to consumer
-	    if {[info commands $consumer] ne {}} {
-		# deliver the assembled request to the consumer
-		dict set unsatisfied [dict get $r -transaction] {}
-		dict set r -send [info coroutine]	;# let consumer know how to reply
-		lappend status PROCESS
-		#after 1 [list catch [list $consumer [list REQUEST $r]]]
-		#Debug.Httpd {reader [info coroutine]: sent to consumer, waiting for next}
+	    # process the request
+	    dict set unsatisfied [dict get $r -transaction] {}
+	    lappend status PROCESS
 
-		# process the request
-		catch {
-		    do REQUEST [pre $r]
-		} rsp eo	;# process the request
+	    catch {
+		do REQUEST [pre $r]
+	    } rsp eo	;# process the request
 
-		# handle response code from processing request
-		switch [dict get $eo -code] {
-		    0 -
-		    2 {
-			# does application want to suspend?
-			if {[dict size $rsp] == 0 || [dict exists $rsp -suspend]} {
-			    if {[dict size $rsp] == 0} {
-				set duration 0
-			    } else {
-				set duration [dict get $rsp -suspend]
-			    }
-			    #puts stderr "CHAN SUSP"
-
-			    grace [lindex $args 0]	;# response has been suspended
-			    continue
-			} elseif {[dict exists $rsp -passthrough]} {
-			    # the output is handled elsewhere (as for WOOF.)
-			    # so we don't need to do anything more.
-			    continue
+	    # handle response code from processing request
+	    switch [dict get $eo -code] {
+		0 -
+		2 {
+		    # does application want to suspend?
+		    if {[dict size $rsp] == 0 || [dict exists $rsp -suspend]} {
+			if {[dict size $rsp] == 0} {
+			    set duration 0
+			} else {
+			    set duration [dict get $rsp -suspend]
 			}
-
-			# ok - return
-			if {![dict exists $rsp -code]} {
-			    set rsp [Http Ok $rsp]	;# default to OK
-			}
+			#puts stderr "CHAN SUSP"
+			
+			grace [lindex $args 0]	;# response has been suspended
+			continue
+		    } elseif {[dict exists $rsp -passthrough]} {
+			# the output is handled elsewhere (as for WOOF.)
+			# so we don't need to do anything more.
+			continue
 		    }
-		
-		    1 { # error - return the details
-			set rsp [Http ServerError $r $rsp $eo]
+		    
+		    # ok - return
+		    if {![dict exists $rsp -code]} {
+			set rsp [Http Ok $rsp]	;# default to OK
 		    }
 		}
-
-		# send the response to client
-		set activity([info coroutine]) [clock milliseconds]
-		send [pprocess $rsp]
-	    } else {
-		# the consumer has gone away
-		Debug.Httpd {reader [info coroutine]: consumer gone $consumer}
-		lappend status DOA
-		set closing 1
-		chan event $socket readable [list [info coroutine] CLOSING]
+		
+		1 { # error - return the details
+		    set rsp [Http ServerError $r $rsp $eo]
+		}
 	    }
+	    
+	    # send the response to client
+	    set activity([info coroutine]) [clock milliseconds]
+	    send [pprocess $rsp]
 	}
     }
 
@@ -1468,82 +1411,6 @@ namespace eval Httpd {
 	variable client
 	if {[info exists client($connection)]} {
 	    apply $client($connection) $op $connection {*}$args
-	}
-    }
-
-    # the request consumer
-    proc consumer {args} {
-	Debug.Httpd {consumer: $args}
-	dict with args {}
-
-	set retval ""
-	while {1} {
-	    # unpack event
-	    set args [lassign [::yield $retval] op]; set retval ""
-
-	    switch -- $op {
-		TERMINATE {
-		    Debug.Httpd {consumer [info coroutine] terminating because "$op $args"}
-		    catch {
-			do TERMINATE $args
-		    } e eo	;# process the termination
-		    return -level [info level] terminated	;# terminate coro
-		}
-
-		RESUME {
-		    # post-process the response
-		    set r [dict merge [lindex $args 0] {*}[lrange $args 1 end]]
-		    csend $reader [pprocess $r]
-		}
-
-		RESPONSE -
-		CLOSED {
-		    # HTTP client has responded or closed
-		    client $op {*}$args
-		}
-
-		REQUEST {
-		    Debug.Httpd {consumer [info coroutine] got: $op ($args)}
-		    set r [dict merge [lindex $args 0] {*}[lrange $args 1 end]]
-		    catch {
-			do REQUEST [pre $r]
-		    } rsp eo	;# process the request
-		    # handle response code
-		    
-		    switch [dict get $eo -code] {
-			0 -
-			2 {
-			    # does application want to suspend?
-			    if {[dict size $rsp] == 0 || [dict exists $rsp -suspend]} {
-				if {[dict size $rsp] == 0} {
-				    set duration 0
-				} else {
-				    set duration [dict get $rsp -suspend]
-				}
-				#puts stderr "CHAN SUSP"
-
-				$reader [list SUSPEND $duration]
-				continue
-			    } elseif {[dict exists $rsp -passthrough]} {
-				# the output is handled elsewhere (as for WOOF.)
-				# so we don't need to do anything more.
-				continue
-			    }
-
-			    # ok - return
-			    if {![dict exists $rsp -code]} {
-				set rsp [Http Ok $rsp]
-			    }
-			}
-		
-			1 { # error
-			    set rsp [Http ServerError $r $rsp $eo]
-			}
-		    }
-
-		    csend $reader [pprocess $rsp]
-		}
-	    }
 	}
     }
 
@@ -1578,9 +1445,16 @@ namespace eval Httpd {
 	}
     }
 
-    # format something to suspend the consumer coro
+    # format something to suspend this packet
     proc Suspend {{grace -1}} {
 	return [list -suspend $grace]
+    }
+
+    # resume this request
+    proc Resume {r {cache 1}} {
+	# send a response to client on behalf of consumer
+	set activity([info coroutine]) [clock milliseconds]
+	set retval [send [pprocess $r] $cache]
     }
 
     # every script
@@ -1793,22 +1667,10 @@ namespace eval Httpd {
 	    catch {rename DEAD_$n ""}
 	}
 
-	# construct consumer
-	set cr ::Httpd::CO_${sock}_[uniq]
-	
-	foreach n [info commands ::Httpd::CO_${sock}_*] {
-	    # the consumer seems to be lingering - we have to tell it to die
-	    Debug.log {consumer $cr not dead yet, rename to kill it.}
-	    catch {rename $n DEAD_$n}
-	    catch {DEAD_$n ""}	;# ensure the old consumer's dead
-	    catch {rename DEAD_$n ""}	;# really kill it
-	}
-	coroutine $cr ::Httpd::consumer reader $R
-
 	# construct the reader
 	variable timeout
 	variable log
-	set result [coroutine $R ::Httpd::reader socket $sock consumer $cr prototype $args generation $gen cid $cid log $log]
+	set result [coroutine $R ::Httpd::reader socket $sock prototype $args generation $gen cid $cid log $log]
 
 	#trace add command $cr {rename delete} [list ::Httpd::corogone $R]
 	#trace add command $R {rename delete} [list ::Httpd::sockgone $cr $sock]
