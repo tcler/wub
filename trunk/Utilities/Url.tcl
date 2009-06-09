@@ -7,6 +7,41 @@ package provide Url 1.0
 
 namespace eval Url {
 
+    # Support for x-www-urlencoded character mapping
+    # The spec says: "non-alphanumeric characters are replaced by '%HH'"
+    variable dmap
+
+    set dmap {+ " " %0D%0A \n %0d%0a \n %% %}
+
+    # set up non-alpha map
+    for {set i 1} {$i <= 256} {incr i} {
+	set c [format %c $i]
+	if {![string match {[a-zA-Z0-9]} $c]} {
+	    lappend dmap %[format %.2X $i] [binary format c $i]
+	    lappend dmap %[format %.2x $i] [binary format c $i]
+	}
+    }
+
+    # decode
+    #
+    #	This decodes data in www-url-encoded format.
+    #
+    # Arguments:
+    #	An encoded value
+    #
+    # Results:
+    #	The decoded value
+    
+    proc decode {str} {
+	Debug.url {decode '$str'} 10
+	variable dmap
+	set str [string map $dmap $str]
+	Debug.url {decoded '$str'} 10
+
+	return $str
+    }
+
+
     # flatten the -path into a -suffix
     proc flatten {req} {
 	dict set req -suffix [file tail [dict get $req -path]]
@@ -95,6 +130,7 @@ namespace eval Url {
     #	none
 
     proc normalize {url} {
+	set url [decode $url]
 	while {[set new [regsub -all {(/+)|(^[.][.]/)|(^/[.][.])|(/[^/]+/[.][.]$)|(/[^/]+/[.][.]/)|(^[.]/)|(/[.]$)|(/[.]/)|(^[.][.]$)|(^[.]$)} $url /]] ne $url} {
 	    set url $new
 	}
