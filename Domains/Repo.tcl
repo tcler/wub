@@ -119,7 +119,7 @@ namespace eval Repo {
 
 	if {[dict exists $args upload]} {
 	    append content [<form> create action . {
-		[<text> subdir label [<submit> submit "Create"] size 20 ""]
+		[<text> subdir label [<submit> submit "Create"] title "subdirectory to create" size 20 ""]
 		[<hidden> op create]
 	    }] \n
 
@@ -133,6 +133,7 @@ namespace eval Repo {
 	dict set req -content $content
 	dict set req content-type x-text/html-fragment
 	set req [jQ tablesorter $req .sortable]
+	set req [jQ hint $req]
 
 	return $req
     }
