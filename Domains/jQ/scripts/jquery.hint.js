@@ -6,53 +6,39 @@
 (function ($) {
 
 $.fn.hint = function (blurClass) {
-    if (!blurClass) blurClass = 'blur';
+  if (!blurClass) { 
+    blurClass = 'blur';
+  }
+    
+  return this.each(function () {
+    // get jQuery version of 'this'
+    var $input = $(this),
+    
+    // capture the rest of the variable to allow for reuse
+      title = $input.attr('title'),
+      $form = $(this.form),
+      $win = $(window);
 
-    return this.each(function () {
-        // get jQuery instance of 'this'
-        var $$ = $(this); 
+    function remove() {
+      if ($input.val() === title && $input.hasClass(blurClass)) {
+        $input.val('').removeClass(blurClass);
+      }
+    }
 
-        // get it once since it won't change
-        var title = $$.attr('title'); 
-
-        // only apply logic if the element has the attribute
-        if (title) { 
-
-            // Note this is a one liner
-
-            // on blur, set value to title attr if text is blank
-            $$.blur(function () {
-                if ($$.val() == '') {
-                    $$.val(title).addClass(blurClass);
-                }
-            })
-
-            // on focus, set value to blank if current value matches title attr
-            .focus(function () {
-                if ($$.val() == title) {
-                    $$.val('').removeClass(blurClass);
-                }
-            })
-
-            // clear the pre-defined text when form is submitted
-            .parents('form:first').submit(function () {
-                if ($$.val() == title) {
-                    $$.val('').removeClass(blurClass);
-                }
-            }).end()
-
-            // now change all inputs to title
-            .blur();
-
-            // counteracts the effect of Firefox's autocomplete stripping the blur effect
-            if ($.browser.mozilla && !$$.attr('autocomplete')) {
-                setTimeout(function () {
-                    if ($$.val() == title) $$.val('');
-                    $$.blur();
-                }, 10);
-            }
+    // only apply logic if the element has the attribute
+    if (title) { 
+      // on blur, set value to title attr if text is blank
+      $input.blur(function () {
+        if (this.value === '') {
+          $input.val(title).addClass(blurClass);
         }
-    });
+      }).focus(remove).blur(); // now change all inputs to title
+      
+      // clear the pre-defined text when form is submitted
+      $form.submit(remove);
+      $win.unload(remove); // handles Firefox's autocomplete
+    }
+  });
 };
 
 })(jQuery);
