@@ -547,6 +547,15 @@ namespace eval jQ {
 	}]
     }
 
+    # http://docs.jquery.com/
+    proc datatables {r selector args} {
+	return [weave $r {
+	    jquery.js jquery.dataTables.js
+	} %SEL $selector %OPTS [opts datatables {*}$args] {
+	    $('%SEL').dataTable(%OPTS);
+	}]
+    }
+
     # http://docs.jquery.com/UI/Selectables
     proc selectable {r selector args} {
 	return [weave $r {
