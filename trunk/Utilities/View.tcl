@@ -271,7 +271,13 @@ class create View {
 	Debug.view {dselect $view $args}
 	set result {}
 	foreach index [my lselect {*}$args] {
-	    dict set result [my get $index]
+	    dict set result $index [my get $index]
+
+	    # create subdicts for subviews
+	    foreach {n v} [my subviews $index] {
+		$v local
+		dict set result $index $n [$v dselect]
+	    }
 	}
 	return $result
     }
@@ -584,6 +590,9 @@ class create View {
     # search - return index of element containing the property with the given value
     method find {args} {
 	Debug.view {[self] find $args}
+	if {[llength $args]%2} {
+	    error "$view find: requires name,value pairs"
+	}
 	return [$view find {*}$args]
     }
 
@@ -826,6 +835,10 @@ class create View {
     }
     
     method exists {args} {
+	Debug.view {$view exists $args}
+	if {[llength $args]%2} {
+	    error "$view exists: requires name,value pairs"
+	}
 	set exists [expr {[catch {$view find {*}$args}] == 0}]
 	Debug.view {$view exists $args -> $exists}
 	return $exists
