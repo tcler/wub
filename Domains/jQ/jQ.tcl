@@ -547,7 +547,7 @@ namespace eval jQ {
 	}]
     }
 
-    # http://docs.jquery.com/
+    # http://sprymedia.co.uk/article/DataTables
     proc datatables {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.dataTables.js
