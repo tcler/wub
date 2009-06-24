@@ -54,7 +54,7 @@ class create ViewSyn {
 
     # set a field's value
     method set {index args} {
-	if {[llength $args] eq 1} {
+	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
 	Debug.view {MIXIN [my view] set $index keys: '[dict keys $args]'}
@@ -153,7 +153,7 @@ class create View {
 
     # set a field's value
     method set {index args} {
-	if {[llength $args] eq 1} {
+	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
 	Debug.view {$view set $index keys: '[dict keys $args]'}
@@ -175,7 +175,7 @@ class create View {
     }
 
     # return a view's content as a nested dict
-    method dict {key args} {
+    method dict {{key {}} args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
@@ -221,6 +221,16 @@ class create View {
 	return $result
     }
 
+    method fields {} {
+	set result {}
+	dict for {n v} [my info2dict] {
+	    if {$v ne "V"} {
+		dict set result $n $v
+	    }
+	}
+	return $result
+    }
+
     # open all the subviews of the index
     method subviews {{index -1}} {
 	set result {}
@@ -242,7 +252,7 @@ class create View {
 
     # lselect - perform a select over view yielding a list of indices
     method lselect {args} {
-	if {[llength $args] eq 1} {
+	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
 
@@ -265,7 +275,7 @@ class create View {
 
     # dselect - return a select as a dict of records
     method dselect {args} {
-	if {[llength $args] eq 1} {
+	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
 	Debug.view {dselect $view $args}
@@ -284,7 +294,7 @@ class create View {
 
     # select - return a view which is a result of the select criteria
     method select {args} {
-	if {[llength $args] eq 1} {
+	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
 
@@ -354,7 +364,7 @@ class create View {
 
     # subst - run subst over fields from selected records
     method subst {text args} {
-	if {[llength $args] eq 1} {
+	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
 	set vn __with__[namespace tail [self]]
@@ -396,7 +406,7 @@ class create View {
     }
 
     method foreach {script args} {
-	if {[llength $args] eq 1} {
+	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
 	Debug.view {[self] foreach over ($args)}
@@ -468,7 +478,7 @@ class create View {
  
     # with - perform script over selected records
     method with {script args} {
-	if {[llength $args] eq 1} {
+	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
 
