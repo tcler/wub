@@ -130,7 +130,7 @@ namespace eval Url {
     #	none
 
     proc normalize {url} {
-	set url [decode $url]
+	#set url [decode $url]
 	while {[set new [regsub -all {(/+)|(^[.][.]/)|(^/[.][.])|(/[^/]+/[.][.]$)|(/[^/]+/[.][.]/)|(^[.]/)|(/[.]$)|(/[.]/)|(^[.][.]$)|(^[.]$)} $url /]] ne $url} {
 	    set url $new
 	}
