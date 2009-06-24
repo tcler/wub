@@ -1,11 +1,14 @@
+fieldset { 
+           background-color: #F5F5F5;
+           border: 1px solid #CCCCCC;
+}
+
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * DataTables features
  */
 
 .dataTables_wrapper {
 	position: relative;
-	min-height: 302px;
-	_height: 302px;
 	clear: both;
 }
 
@@ -13,8 +16,6 @@
 	position: absolute;
 	top: 0px;
 	left: 50%;
-	width: 250px;
-	margin-left: -125px;
 	border: 1px solid #ddd;
 	text-align: center;
 	color: #999;
@@ -22,27 +23,23 @@
 	padding: 2px 0;
 }
 
-.dataTables_length {
-	width: 40%;
+.dataTables_paginate {
 	float: left;
 }
 
 .dataTables_filter {
-	width: 50%;
+	float: left;
+	margin-top: 5px;
+                     
+        clear: left;
+}
+.dataTables_length {
+
 	float: right;
-	text-align: right;
 }
 
 .dataTables_info {
-	width: 60%;
-	float: left;
-}
-
-.dataTables_paginate {
-	width: 44px;
-	* width: 50px;
 	float: right;
-	text-align: right;
 }
 
 /* Pagination nested */
@@ -69,6 +66,14 @@
 	background-image: url('../images/forward_enabled.jpg');
 }
 
+table caption { 
+                font-weight: bold;
+                font-size: 1.5em;
+                width: 80%;
+                padding: 15px;
+                background-color: #F5F5F5;
+                border: 1px solid #CCCCCC;
+}
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -85,7 +90,6 @@ table.display thead th {
 	border-bottom: 1px solid black;
 	font-weight: bold;
 	cursor: pointer;
-	* cursor: hand;
 }
 
 table.display tfoot th {
@@ -189,11 +193,19 @@ tr.even {
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * Misc
  */
-.top, .bottom {
-	padding: 15px;
-	background-color: #F5F5F5;
-	border: 1px solid #CCCCCC;
+.top {
+       width: 80%;
+       padding: 15px;
+       background-color: #F5F5F5;
+       border: 1px solid #CCCCCC;
 }
+
+.bottom {
+          width: 80%;
+          padding: 15px;
+          background-color: #F5F5F5;
+          border: 1px solid #CCCCCC;
+          }
 
 .top .dataTables_info {
 	float: none;
@@ -229,36 +241,35 @@ td.details {
 }
 
 
-.example_alt_pagination div.dataTables_info {
-	width: 40%;
+.alt_pagination div.dataTables_info {
 }
 
-.example_alt_pagination .dataTables_paginate {
-	width: 400px;
-	height: 22px;
+.alt_pagination .dataTables_paginate {
 	line-height: 22px;
 }
 
-.example_alt_pagination div.dataTables_paginate span.paginate_button,
- 	.example_alt_pagination div.dataTables_paginate span.paginate_active {
+.alt_pagination div.dataTables_paginate span.paginate_button,
+.alt_pagination div.dataTables_paginate span.paginate_active,
+a.paginate_button {
 	border: 1px solid #aaa;
 	-webkit-border-radius: 5px;
 	-moz-border-radius: 5px;
 	padding: 2px 5px;
 	margin: 0 3px;
 	cursor: pointer;
-	*cursor: hand;
 }
 
-.example_alt_pagination div.dataTables_paginate span.paginate_button {
+.alt_pagination div.dataTables_paginate span.paginate_button,
+a.paginate_button {
 	background-color: #ddd;
 }
 
-.example_alt_pagination div.dataTables_paginate span.paginate_button:hover {
+.alt_pagination div.dataTables_paginate span.paginate_button:hover,
+a.paginate_button:hover {
 	background-color: #ccc;
 }
 
-.example_alt_pagination div.dataTables_paginate span.paginate_active {
+.alt_pagination div.dataTables_paginate span.paginate_active {
 	background-color: #99B3FF;
 }
 
