@@ -127,6 +127,7 @@ namespace eval Report {
     # even - CSS class for even rows
     # odd - CSS class for odd rows
     # rowp - dict map of "columnheader,glob" to parameters for matching elements
+    # lambda - lambda to apply to each body element
     # 
     proc body {data args} {
 	if {[llength $args] == 1} {
@@ -180,6 +181,29 @@ namespace eval Report {
 		    lappend params {*}[dict get $args datap $th]
 		}
 
+		# call a lambda on each element given its table header and row
+		set ep {}
+		if {[dict exists $args lambda]} {
+		    switch -- [catch {{*}[dict get $args lambda] $th $v} lres eo] {
+			0 { # TCL_OK
+			}
+			1 { # TCL_ERROR
+			    set lres [list $lres]
+			}
+			2 { # TCL_RETURN
+			    break
+			}
+			3 { # TCL_BREAK
+			    break
+			}
+			4 { # TCL_CONTINUE
+			    continue
+			}
+		    }
+		    set ep [lassign $lres el]
+		    dict set v $th $el
+		}
+
 		if {[dict exists $v $th]} {
 		    if {[dict exists $args armour] && [dict get $args armour]} {
 			set datum [armour [dict get $v $th]]	;# armour elements
@@ -187,10 +211,10 @@ namespace eval Report {
 			set datum [dict get $v $th]
 		    }
 
-		    lappend row [<td> {*}$params {*}[dict get? $args eparam] $datum]
+		    lappend row [<td> {*}$params {*}[dict get? $args eparam] {*}$ep $datum]
 		} else {
 		    # empty element
-		    lappend row [<td> {*}$params {*}[dict get? $args eparam] {}]
+		    lappend row [<td> {*}$params {*}[dict get? $args eparam] {*}$ep {}]
 		}
 	    }
 	    dict append args body [<tr> {*}$rparams {*}[dict get? $args rparam] \n[join $row \n]\n] \n
@@ -249,8 +273,17 @@ namespace eval Report {
 	} else {
 	    lappend classT summary ""
 	}
+	set caption [dict get? $args caption]
+	if {$caption ne ""} {
+	    set caption [<caption> class adorn $caption]
+	}
 
-	return [<table> {*}$classT {*}[dict get? $args tparam] "\n[dict get? $args _header]\n[dict get? $args body]\n[dict get? $args _footer]\n"]
+	return [<table> {*}$classT {*}[dict get? $args tparam] "
+		$caption
+		[dict get? $args _header]
+		[dict get? $args body]
+		[dict get? $args _footer]
+	"]
     }
 
     # convert a text formatted suitably for csv into a list containing:
