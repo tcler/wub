@@ -159,11 +159,11 @@ namespace eval jQ {
 	    select false
 	    autogrow {{lineHeight:16, minHeight:32}}
 	    submit 'OK'
-	    onblur 'ignore'
 	    cancel 'cancel'
+	    onblur 'cancel'
 	    cssclass 'autogrow'
 	    event 'dblclick'
-	    tooltip {'Click to edit'}
+	    tooltip {'Double click to edit'}
 	    style 'inherit'
 	}
 
@@ -197,6 +197,10 @@ namespace eval jQ {
 	    icon 'browser.png'
 	    width '80%'
 	}
+	datatables {
+	    sPaginationType 'full_numbers'
+	    sDom 'tr<"bottom"pifl<"clear">'
+	}
     }
 
     proc opts {type args} {
@@ -210,6 +214,9 @@ namespace eval jQ {
 	    set args [list {*}[dict get $defaults $type] {*}$args]
 	}
 	dict for {n v} $args {
+	    if {$v eq ""} {
+		set v "''"	;# ensure we don't send naked names
+	    }
 	    lappend opts "$n:$v"
 	}
 	if {$opts eq ""} {
