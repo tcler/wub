@@ -953,7 +953,6 @@ namespace eval Nub {
 	}
 	set do [Nub generate $urls]
 	Debug.nub {DO: $do}
-	#puts stderr "DO: $do"
 	eval $do
     }
 
