@@ -19,6 +19,87 @@ set API(Domains/Dub) {
 }
 
 class create Dub {
+    method view {view} {
+	if {![info exists names($view)]} {
+	    puts stderr "view creating '$view' as $db.$view"
+	    if {[catch {
+		set names($view) [View create $db.$view]
+		set v2n($names($view)) $view
+	    } e eo]} {
+		error "creating $db.$view - got this error '$e'"
+	    }
+	}
+	return $names($view)
+    }
+
+    method open {view rec field} {
+	set view [my {*}$view]
+	if {[llength $view] > 1} {
+	    error "Asked to open a non-view"
+	}
+	if {$field in [$view fields]} {
+	    # we've actually been asked to fetch a field, not a view
+	    return [list $field [$view get $rec $field]]
+	}
+
+	set key /$v2n($view)/$rec/$field
+	if {![info exists names($key)]} {
+	    puts stderr "open: $key"
+	    set names($key) [$view open $rec $field]
+	    Debug.dub {open: $names($key)}
+	    set v2n($names($key)) "SubView $v2n($view)!$rec.$field"
+	}
+	return $names($key)
+    }
+
+    foreach n {join union concat different intersect minus map pair product hash indexed} {
+	{*}[string map [list %M $n] {
+	    method %M {lhs rhs args} {
+		set key [list $lhs %M $rhs $args]
+		Debug.dub {'$lhs' %M '$rhs' with '$args'}
+		if {![info exists names($key)]} {
+		    set vlhs [my {*}$lhs]
+		    set vrhs [my {*}$rhs]
+		    set names($key) [$vlhs %M $vrhs {*}$args]
+		    set v2n($names($key)) "%M of $v2n($vlhs) and $v2n($vrhs)"
+		}
+		return $names($key)
+	    }
+	}]
+    }
+
+    foreach n {flatten groupby ordered range} {
+	{*}[string map [list %M $n] {
+	    method %M {view args} {
+		set key [list %M $view {*}$args]
+		if {![info exists names($key)]} {
+		    set names($key) [[my {*}$view] %M {*}$args]
+		    set v2n($names($key)) "%M of $v2n($names($view))"
+		}
+		return $names($key)
+	    }
+	}]
+    }
+
+    method select {view} {
+	corovars query
+	set q {}
+	dict for {n v} $query {
+	    if {$v ne ""} {
+		lappend q $n $v
+	    }
+	}
+	set key [list select $view {*}$q]
+	Debug.dub {select looking for 'select $view $q' over view:'$view'}
+	if {![info exists names($key)]} {
+	    set v [my {*}$view]
+	    set names($key) [$v select {*}$q]
+	    set v2n($names($key)) "select $v2n($v) with '$q'"
+	}
+	Debug.dub {select over '$view' ($v size [$v size]) with ($q) -> $names($key) of size [$names($key) size]}
+	return $names($key)
+    }
+
     method toplevel {r} {
 	foreach v [::mk::file views $db] {
 	    lappend result [<li> [<a> href $v/ $v]]
@@ -85,27 +166,26 @@ class create Dub {
 	return [Http Ok [Http NoCache $r] $result x-text/html-fragment]
     }
 
-    method / {r cmd {rec ""}} {
-	set view [my {*}$cmd]
-	set range [split $rec -]
-	if {[string is integer -strict $rec]} {
-	    # single record
-	    return [my record $r $view [$view get $rec] $rec]
-	} elseif {[llength $range]} {
-	    # subrange
-	    lassign $range start end
-	    for {set r $start} {$r < $end} {incr r} {
-		dict set result $r [$view get $r]
+    method /find {r view} {
+	corovars query
+	set q {}
+	dict for {n v} $query {
+	    if {$v ne ""} {
+		lappend q $n $v
 	    }
-	} else {
-	    # whole view
-	    set result [$view dict]
-	    #puts stderr "/ RESULT '$result'"
 	}
 
-	foreach key [dict keys $result] {
-	    dict set result $key @@view $v2n($view)
-	    dict set result $key @@types [dict get? $types $v2n($view)]
+	Debug.dub {find '$q' over '$view'}
+	set v [my {*}$view]
+	set rec [$v find {*}$q]
+	return [Http Redirect $r $rec]
+    }
+
+    # range - construct a display for a dict representing a range of records
+    method range {r view range} {
+	foreach key [dict keys $range] {
+	    dict set range $key @@view $v2n($view)
+	    dict set range $key @@types [dict get? $types $v2n($view)]
 	}
 
 	set did DUB[incr idCnt]
@@ -152,10 +232,35 @@ class create Dub {
 	    dict set params headers [dict keys [$view fields]]
 	}
 
-	set result [<div> class alt_pagination [Report html $result {*}$params class dubtable id $did]]
+	set result [<div> class alt_pagination [Report html $range {*}$params class dubtable id $did]]
 	set result [jQ container id record title $v2n($view) resizable true draggable $drag collapsed false iconized false {*}$style $result]
 
 	return [Http Ok [Http NoCache $r] $result x-text/html-fragment]
+    }
+
+    method / {r cmd {rec ""}} {
+	set view [my {*}$cmd]
+	if {[llength $view] > 1} {
+	    # got a field, not a view.
+	    return [Http Ok [Http NoCache $r] [lindex $view 1] text/plain]
+	}
+	set rrange [split $rec -]
+	if {[string is integer -strict $rec]} {
+	    # single record
+	    return [my record $r $view [$view get $rec] $rec]
+	} elseif {[llength $rrange]} {
+	    # subrange
+	    lassign $rrange start end
+	    for {set r $start} {$r < $end} {incr r} {
+		dict set range $r [$view get $r]
+	    }
+	} else {
+	    # whole view
+	    Debug.dub {whole view: $view ($v2n($view)) [$view info]}
+	    set range [$view dict]
+	}
+
+	return [my range $r $view $range]
     }
 
     method parse_referer {r} {
@@ -202,6 +307,14 @@ class create Dub {
     method /append {r cmd {rec ""}} {
 	corovars query
 	set view [my {*}$cmd]
+	if {[llength $view] > 1} {
+	    # asked to append to a field, not a view
+	    lassign $cmd surview rec field
+	    set surview [my {*}$surview]
+	    set value "[$surview get $rec $field][dict get $query value]"
+	    $surview set $rec $field $value
+	    return [Http Ok [Http NoCache $r] $value text/plain]
+	}
 	if {[string is integer -strict $rec]} {
 	    $view insert $rec {*}$query
 	} else {
@@ -214,6 +327,15 @@ class create Dub {
     method /set {r cmd {rec ""}} {
 	corovars query
 	set view [my {*}$cmd]
+	if {[llength $view] > 1} {
+	    # asked to set a field, not a view
+	    lassign $cmd surview rec field
+	    set surview [my {*}$surview]
+	    set value [dict get $query value]
+	    $surview set $rec $field $value
+	    return [Http Ok [Http NoCache $r] $value text/plain]
+	}
+
 	if {[string is integer -strict $rec]} {
 	    $view set $rec {*}$query
 	} else {
@@ -236,80 +358,6 @@ class create Dub {
 	}
 	return [my / $r $cmd $rec]
     }
-
-    method view {view} {
-	if {![info exists names($view)]} {
-	    puts stderr "view creating '$view' as $db.$view"
-	    if {[catch {
-		set names($view) [View create $db.$view]
-		set v2n($names($view)) $view
-	    } e eo]} {
-		error "creating $db.$view - got this error '$e'"
-	    }
-	}
-	return $names($view)
-    }
-
-    method open {view rec field} {
-	set view [my {*}$view]
-	set key /$v2n($view)/$rec/$field
-	if {![info exists names($key)]} {
-	    puts stderr "open: $key"
-	    set names($key) [$view open $rec $field]
-	    puts stderr "open: $names($key)"
-	    set v2n($names($key)) "SubView $v2n($view)!$rec.$field"
-	}
-	return $names($key)
-    }
-
-    foreach n {join union concat different intersect minus map pair product hash indexed} {
-	{*}[string map [list %M $n] {
-	    method %M {lhs rhs} {
-		set key [list $lhs %M $rhs]
-		if {![info exists names()]} {
-		    set names($key) [[my {*}$lhs] %M [my {*}$rhs]]
-		    set v2n($names($key)) "%M of $v2n($names($lhs)) and $v2n($names($rhs))"
-		}
-		return $names($key)
-	    }
-	}]
-    }
-
-    foreach n {flatten groupby ordered range} {
-	{*}[string map [list %M $n] {
-	    method %M {view args} {
-		set key [list %M $view {*}$args]
-		if {![info exists names($key)]} {
-		    set names($key) [[my {*}$view] %M {*}$args]
-		    set v2n($names($key)) "%M of $v2n($names($view))"
-		}
-		return $names($key)
-	    }
-	}]
-    }
-
-    foreach n {select find} {
-	{*}[string map [list %M $n] {
-	    method %M {view} {
-		corovars query
-		set q {}
-		dict for {n v} $query {
-		    if {$v ne ""} {
-			lappend q $n $v
-		    }
-		}
-		set key [list %M $view {*}$q]
-		if {![info exists names($key)]} {
-		    set v [my {*}$view]
-		    set names($key) [$v %M {*}$q]
-		    set v2n($names($key)) "%M over $v2n($v)"
-		}
-		Debug.dub {%M over '$view' ($v size [$v size]) with ($q) -> $names($key) of size [$names($key) size]}
-		return $names($key)
-	    }
-	}]
-    }
-
 
     # V == /$rec/$field+
     # FR == (/$field/$frec)*
@@ -349,32 +397,43 @@ class create Dub {
 	# collect a run of record,fieldname
 	set path [lassign $path view]
 	set parsed [list view $view]
-	puts stderr "parse1: path:$path parsed:$parsed"
+	Debug.dub {parser: path:$path parsed:$parsed}
 	while {[llength $path]} {
-	    puts stderr "parse1: '$path' ($parsed)"
+	    Debug.dub {parser1: '$path' ($parsed)}
 	    catch {unset field}
 	    catch {unset rec}
 	    if {[string is integer -strict [lindex $path 0]]} {
 		set path [lassign $path rec field]
 		if {$field eq ""} {
 		    # field eq "" ... so we have a trailing rec
+		    Debug.dub {trailing rec: '$path' ($parsed)}
 		    lappend path $rec
 		    return [list $path $parsed]
 		} else {
 		    # accumulate VIEW
+		    Debug.dub {accumulate view: '$path' ($parsed)}
 		    set parsed [list open $parsed $rec $field]
 		}
 	    } elseif {[llength [split [lindex $path 0] -]] == 2} {
 		# range of results
+		Debug.dub {range: '$path' ($parsed)}
 		set path [lassign $path rec]
 		lappend path $rec
 		return [list $path $parsed]
 	    } else {
 		set path [lassign $path op]
+		Debug.dub {op $op: path:'$path' ($parsed)}
 		switch -glob -- [string tolower $op] {
-		    join - union - concat - different -
+		    join* - indexed*  {
+			set args [lassign [split [string tolower $op] ,] op]
+			set lhs $parsed
+			lassign [my parse1 $path] path rhs
+			set parsed [list $op $lhs $rhs {*}$args]
+		    }
+
+		    union - concat - different -
 		    intersect - minus - map - pair -
-		    product - hash - indexed {
+		    product - hash {
 			set lhs $parsed
 			lassign [my parse1 $path] path rhs
 			set parsed [list $op $lhs $rhs]
@@ -408,7 +467,7 @@ class create Dub {
 		}
 	    }
 	}
-
+	Debug.dub {parser done: path:'$path' parsed:'$parsed'}
 	return [list $path $parsed]
     }
 
@@ -416,14 +475,14 @@ class create Dub {
 	set fop /[string trim [file extension $suffix] .]
 	set path [file split [file rootname $suffix]]
 	set parsed {}
-	puts stderr "parse: fop:$fop path:$path suffix:$suffix"
+	Debug.dub {parse: fop:'$fop' path:'$path' suffix:'$suffix'}
 	while {[llength $path]} {
 	    lassign [my parse1 $path] path parsed
 	    if {[llength $path] == 1
 		&& [string is integer -strict [lindex $path 0]]
 	    } break
 	}
-	puts stderr "parsed: parsed:$parsed path:$path"
+	Debug.dub {parsed:'$parsed' path:'$path'}
 	return [list $fop $parsed {*}$path]
     }
 
@@ -444,7 +503,7 @@ class create Dub {
 	}
 
 	lassign [my parse $suffix] cmd parsed rec
-	Debug.dub {doing suffix:$suffix query: ($query) cmd:$cmd parsed:$parsed rec:$rec}
+	Debug.dub {doing cmd:$cmd parsed:$parsed rec:$rec suffix:$suffix query: ($query)}
 	return [my $cmd $r $parsed {*}$rec]
     }
 
