@@ -316,7 +316,7 @@ class create View {
     # return view info as a dict
     method info2dict {args} {
 	set result {}
-	foreach el [split [$view info {*}$args]] {
+	foreach el [split [my info {*}$args]] {
 	    set v S
 	    lassign [split $el :] n v
 	    dict set result $n $v
