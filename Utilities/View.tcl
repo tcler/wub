@@ -201,7 +201,7 @@ class create View {
 	set size [my size]
 	for {set i 0} {$i < $size} {incr i} {
 	    set r [my get $i]
-	    set record {}
+	    set record [list {} $i]
 	    dict for {n v} $r {
 		if {$n ni $subv} {
 		    dict set record $n $v	;# collect this property's value
@@ -396,6 +396,7 @@ class create View {
 	#puts stderr "LOCAL $varname"
 	upvar $varname lifetime
 	trace add variable lifetime unset "catch {[self] destroy};#"
+	return [self]
     }
 
     method as {varname} {
