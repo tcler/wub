@@ -19,6 +19,8 @@ namespace eval Report {
 	odd odd
 	even even
 	rowp {}
+	htitle 1
+	ftitle 1
     }
 
     # header: process header args in report dict into HTML within report dict
@@ -26,6 +28,7 @@ namespace eval Report {
     # hclass - report header CSS class
     # headerp - dict mapping header to parameters for that element,
     #	including optonal title to display for that header
+    # htitle - string totitle headers
     proc header {args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
@@ -62,8 +65,11 @@ namespace eval Report {
 	    } else {
 		set htext $t
 	    }
-	    
-	    lappend h [<th> {*}$params {*}[dict get? $args hparam] [string totitle $htext]]
+
+	    if {[dict get? $args htitle] ne ""} {
+		set htext [string totitle [string trim $htext _]]
+	    }
+	    lappend h [<th> {*}$params {*}[dict get? $args hparam] $htext]
 	}
 	dict append args _header [<thead> {*}[dict get? $args thparam] \n[<tr> \n[join $h \n]\n]\n]
 	
@@ -81,6 +87,7 @@ namespace eval Report {
     # footer: process footer args in report dict into HTML within report dict
     # footer - list of report column footers
     # fclass - report footer CSS class
+    # ftitle - [string totitle] each footer?
     # footerp - dict mapping footer to parameters for that element,
     #	including optonal title to display for that footer
     proc footer {args} {
@@ -110,11 +117,16 @@ namespace eval Report {
 		    lappend params {*}$tfoot
 		}
 
-		lappend f [<th> {*}$params [string totitle $t]]
+		if {[dict get? $args ftitle] ne ""} {
+		    set t [string totitle $t]
+		}
+		lappend f [<th> {*}$params $t]
 	    }
+
 	    dict append args _footer [<tfoot> {*}[dict get? $args tfparam] \n[<tr> \n[join $f \n]\n]\n]
 	    dict unset args footer
 	}
+
 	return $args
     }
 
@@ -281,7 +293,7 @@ namespace eval Report {
 	return [<table> {*}$classT {*}[dict get? $args tparam] "
 		$caption
 		[dict get? $args _header]
-		[dict get? $args body]
+		[<tbody> [dict get? $args body]]
 		[dict get? $args _footer]
 	"]
     }
