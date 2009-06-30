@@ -19,6 +19,7 @@ set API(Domains/Dub) {
 }
 
 class create Dub {
+    method literal {view} {return $view}
     method view {view} {
 	if {![info exists names($view)]} {
 	    puts stderr "view creating '$view' as $db.$view"
@@ -61,7 +62,12 @@ class create Dub {
 		    set vlhs [my {*}$lhs]
 		    set vrhs [my {*}$rhs]
 		    set names($key) [$vlhs %M $vrhs {*}$args]
-		    set v2n($names($key)) "%M of $v2n($vlhs) and $v2n($vrhs)"
+		    if {$args ne ""} {
+			set a " on [join $args ,]"
+		    } else {
+			set a ""
+		    }
+		    set v2n($names($key)) "%M of $v2n($vlhs) and $v2n($vrhs)$a"
 		}
 		return $names($key)
 	    }
@@ -101,10 +107,23 @@ class create Dub {
     }
 
     method toplevel {r} {
+	set vi {}
 	foreach v [::mk::file views $db] {
-	    lappend result [<li> [<a> href $v/ $v]]
+	    lappend vi [<li> [<a> href $v/ $v]]
 	}
-	return [Http Ok $r [<ul> [join $result \n]] x-text/html-fragment]
+	append result [<h2> "Native Views"]
+	append result [<ul> [join $vi \n]] \n
+
+	if {$canned ne ""} {
+	    set c {}
+	    foreach v [$canned list name] {
+		lappend c [<li> [<a> href $v/ $v]]
+	    }
+	    append result [<h2> "Canned Views"]
+	    append result [<ul> [join $c \n]] \n
+	}
+
+	return [Http Ok $r $result x-text/html-fragment]
     }
 
     method /info {r cmd {rec ""}} {
@@ -159,6 +178,7 @@ class create Dub {
 	if {$script ne ""} {
 	    append script {
 		$.datepicker.setDefaults({dateFormat: 'dd/mm/yy'});
+		$('input[title!=""]').hint();
 	    }
 
 	    set r [jQ ready $r $script]
@@ -181,11 +201,66 @@ class create Dub {
 	return [Http Redirect $r $rec]
     }
 
+    method /form {r cmd {rec ""}} {
+	corovars query
+	Debug.dub {PRE /form ($query)}
+
+	# filter out the dels
+	set dels {} 
+	foreach n [dict keys $query *.delete] {
+	    lappend dels [lindex [split [dict get $query $n] .] end]
+	    dict unset query $n
+	}
+	foreach n [dict keys $query *.delete,*] {
+	    lappend dels [lindex [split [dict get $query $n] .] end]
+	    dict unset query $n
+	}
+
+	# filter out the ops
+	set ops {}
+	foreach n [dict keys $query *._*] {
+	    lappend ops [lindex [split $n .] end] [lindex [split [dict get $query $n] .] end]
+	    dict unset query $n
+	}
+
+	# what remains is the record
+	set record {}
+	set external {}
+	dict for {n v} $query {
+	    lassign [split $n .] did name
+	    if {$name eq ""} {
+		dict set external $n $v
+	    } elseif {$v ne ""} {
+		dict set record $name $v
+	    }
+	    dict unset query $n
+	}
+
+	Debug.dub {/form '$cmd' DELETES $dels - $ops - ($record) - ($external)}
+
+	set view [my {*}$cmd]
+
+	foreach el [lsort -integer -decreasing $dels] {
+	    $view delete $el
+	}
+
+	if {[join [dict values $record] ""] ne ""} {
+	    $view append {*}$record
+	}
+
+	return [my / $r $cmd]
+    }
+
     # range - construct a display for a dict representing a range of records
     method range {r view range} {
-	foreach key [dict keys $range] {
-	    dict set range $key @@view $v2n($view)
-	    dict set range $key @@types [dict get? $types $v2n($view)]
+	set vn $v2n($view)
+
+	if {$types ne ""} {
+	    set ts [[[$types select view $vn] local] dict]
+	    foreach key [dict keys $range] {
+		dict set range $key @@view $vn
+		dict set range $key @@types [dict get? $ts $vn]
+	    }
 	}
 
 	set did DUB[incr idCnt]
@@ -197,7 +272,7 @@ class create Dub {
 	    # load up datatables
 	    set r [jQ style $r jquery.datatables.css]
 	    set r [jQ style $r mbContainer.css]
-	    
+	    set r [jQ hint $r]
 	    set r [jQ datatables $r #$did]
 	    set r [jQ datepicker $r .date]
 	    set r [jQ containers $r .containerPlus]
@@ -214,9 +289,14 @@ class create Dub {
 	dict set params lambda [lambda {header record} {
 	    set id ID_[lindex $record 0].[lindex $record 1]
 	    append id _[string map {" " _} $header]
-	    set class [list class tedit]
 	    set value [dict get? $record $header]
+	    if {$header eq "op_"} {
+		return [list $value]
+	    }
+
+	    set class [list class tedit]
 	    set type [dict get? [dict get? $record @@types] $header]
+
 	    switch -- $type {
 		date {
 		    set value [clock format $value -format {%Y/%m/%d}]
@@ -228,14 +308,69 @@ class create Dub {
 
 	dict set params tparam id $did
 
+	# calc header
 	if {![dict exists $params headers]} {
-	    dict set params headers [dict keys [$view fields]]
+	    set headers {}
+	    foreach h [dict keys [$view fields]] {
+		if {[dict get? $ts $h hide] ni {"" 0}} continue
+		lappend headers $h
+	    }
+	} else {
+	    set headers [dict get $params headers]
 	}
 
-	set result [<div> class alt_pagination [Report html $range {*}$params class dubtable id $did]]
+	# calc footer
+	set footer {}
+	foreach h $headers {
+	    lappend footer [<text> $did.$h title [string toupper $h] ""]
+	}
+
+	# add footer
+	lappend footer [<submit> $did._submit DO]
+	Debug.dub {FOOTER: $footer}
+	dict set params footer $footer
+
+	# add header
+	lappend headers op_
+	dict set params headers $headers
+
+	# add 'op' element
+	dict for {n v} $range {
+	    #Debug.dub {op: $n ($v)}
+	    dict set range $n op_ [<checkbox> $did.delete title Delete? value [dict get $v ""] checked 0]
+	}
+
+	set report [Report html $range {*}$params class dubtable id $did]
+	set report [<form> $did._form action .form \n$report\n]
+	set result [<div> class alt_pagination \n$report]
+
 	set result [jQ container id record title $v2n($view) resizable true draggable $drag collapsed false iconized false {*}$style $result]
 
 	return [Http Ok [Http NoCache $r] $result x-text/html-fragment]
+    }
+
+    method /layout {r cmd {rec ""}} {
+	corovars query
+	set view [my {*}$cmd]
+
+	# set the view (layout)
+	if {$view in [::mk::file views $db]} {
+	    error "View $view already exists"
+	}
+
+	set layout {}
+	dict for {n v} $query {
+	    if {$v ne ""} {
+		lappend layout $n:$v
+	    } else {
+		lappend layout $n
+	    }
+	}
+	set layout [join $layout]
+	
+	set names($view) [View create $db.$view layout $layout]
+	set v2n($names($view)) $view
+	return [my / $r [list view $view] $rec]
     }
 
     method / {r cmd {rec ""}} {
@@ -343,7 +478,7 @@ class create Dub {
 		set field [join [lassign [split [dict get $query id] _] -> id] _]
 		lassign [split $id .] keyf keyv
 		if {[catch {$view find $keyf $keyv} rec eo]} {
-		    error "Can't find $keyf with value $keyv to set $field"
+		    error "Can't find '$keyf' with value $keyv in view '$v2n($view)' to set field '$field'"
 		} else {
 		    set value [dict get $query value]
 		    Debug.dub {Setting: view:$view rec:$rec field:$field to value:'$value'}
@@ -352,8 +487,6 @@ class create Dub {
 		}
 	    } else {
 		error "Can't set an entire view (yet)"
-		set rec [$view append]
-		$view set $rec {*}$query
 	    }
 	}
 	return [my / $r $cmd $rec]
@@ -396,7 +529,21 @@ class create Dub {
     method parse1 {path {parsed {}}} {
 	# collect a run of record,fieldname
 	set path [lassign $path view]
-	set parsed [list view $view]
+	if {$view in [::mk::file views $db]} {
+	    Debug.dub {found '$view' in native views}
+	    set parsed [list view $view]
+	} elseif {$canned ne ""
+		  && [$canned exists name $view]
+	      } {
+	    # is it a canned search?
+	    Debug.dub {found canned search '$view' in native views}
+	    lassign [my parse1 [$canned get [$canned find name $view] script]] path parsed
+	} else {
+	    Debug.dub {decided '$view' is literal}
+	    set parsed [list literal $view]
+	    #error "$view is not a known native or canned view"
+	}
+
 	Debug.dub {parser: path:$path parsed:$parsed}
 	while {[llength $path]} {
 	    Debug.dub {parser1: '$path' ($parsed)}
@@ -439,7 +586,7 @@ class create Dub {
 			set parsed [list $op $lhs $rhs]
 		    }
 
-		    pop {
+		    do {
 			return [list $path $parsed]
 		    }
 
@@ -496,27 +643,47 @@ class create Dub {
 	corovars query
 	dict set r -Query [Query parse $r]
 	set query [Query flatten [dict get $r -Query]]
-	puts stderr "Query $query"
+	Debug.dub {Query $query ([dict get $r -Query])}
 
 	if {$suffix eq "/"} {
 	    return [my toplevel $r]	;# special case for top level
 	}
 
 	lassign [my parse $suffix] cmd parsed rec
-	Debug.dub {doing cmd:$cmd parsed:$parsed rec:$rec suffix:$suffix query: ($query)}
+	Debug.dub {doing cmd:'$cmd' parsed:'$parsed' rec:$rec suffix:$suffix query: ($query)}
 	return [my $cmd $r $parsed {*}$rec]
     }
 
-    variable file mount flags db names v2n types idCnt
+    variable file mount flags db names v2n types idCnt canned
 
     constructor {args} {
 	set flags {}
+	set canned ""
+	set types ""
 	set db [namespace tail [self]]
 	foreach {n v} $args {
 	    set [string trimleft $n -] $v
 	}
-	dict set types person dob date	;# testing
+
 	::mk::file open $db $file {*}$flags
+
+	if {$canned eq ""} {
+	    if {[catch {View create $db.canned layout {name script}} canned]} {
+		set canned ""
+	    } else {
+		set names(canned) $canned
+		set v2n($canned) canned
+	    }
+	}
+
+	if {$types eq ""} {
+	    if {[catch {View create $db.types layout {view field info}} types]} {
+		set types ""
+	    } else {
+		set names(types) $types
+		set v2n($types) types
+	    }
+	}
 	puts stderr "DUB [self] db:$db mount:$mount open:([::mk::file open])"
     }
 
