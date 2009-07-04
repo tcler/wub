@@ -1,5 +1,6 @@
 package require Html
 package require File
+
 package require Debug
 Debug off jq 10
 
@@ -120,7 +121,6 @@ namespace eval jQ {
     }
 
     proc scripts {r args} {
-	variable mount
 	Debug.jq {PRESCRIPT: [Dict get? $r -postscript]}
 
 	variable google
@@ -130,6 +130,7 @@ namespace eval jQ {
 	    dict set r -postscript !google [<script> {google.load("jquery", "1.2.6");}]
 	}
 	# load each script
+	variable mount
 	foreach script $args {
 	    if {$google
 		&& $script eq "jquery.js"
@@ -630,6 +631,13 @@ namespace eval jQ {
 	} %SEL $selector %OPTS [opts aaccordion {*}$args] {
 	    $('%SEL').Accordion(%OPTS);
 	}]
+    }
+
+
+    # http://github.com/janv/rest_in_place/tree/master
+    proc rest_in_place {r} {
+	set r [scripts $r jquery.js jquery.rest_in_place.js]
+	return $r
     }
 
     proc editable {r selector fn args} {
