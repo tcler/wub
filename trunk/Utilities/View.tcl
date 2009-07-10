@@ -3,7 +3,8 @@ package require TclOO
 namespace import oo::*
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
-    lappend auto_path /usr/lib/${tcl_version}/Mk4tcl ../extensions/
+    lappend auto_path /usr/lib/${tcl_version}/Mk4tcl
+    #../extensions/
 }
 
 package require Mk4tcl
@@ -15,7 +16,7 @@ if {[info commands ::Debug] eq {}} {
 
 package provide View 3.0
 
-class create ViewSyn {
+class create ViewIndexed {
     method incr {index field {qty 1}} {
 	Debug.view {mixin incr}
 	return [[my parent] incr [[my view] get $index index] $field $qty]
@@ -114,6 +115,17 @@ class create ViewLogger {
 }
 
 class create View {
+    # provide static variables
+    method static {args} {
+        if {![llength $args]} return
+        set callclass [lindex [self caller] 0]
+        define $callclass self export varname
+        foreach vname $args {
+            lappend pairs [$callclass varname $vname] $vname
+        }
+        uplevel 1 upvar {*}$pairs
+    }
+
     # incr a field
     method incr {index field {qty 1}} {
 	set val [expr {[my get $index $field] + $qty}]
@@ -157,7 +169,11 @@ class create View {
 	    set args [lindex $args 0]
 	}
 	Debug.view {$view set $index keys: '[dict keys $args]'}
-	return [$view set $index {*}$args]
+	set result [$view set $index {*}$args]
+	if {$commit} {
+	    my db commit
+	}
+	return $result
     }
 
     # return a view's contents as a list
@@ -190,7 +206,7 @@ class create View {
 	set subv [dict keys [dict filter $pd value V]]	;# get the subviews
 
 	# if key's unspecified, just use the first property
-	if {$key eq {}} {
+	if {0 && $key eq {}} {
 	    set key [lindex [dict keys $pd] 0]
 	}
 
@@ -216,7 +232,11 @@ class create View {
 		    $sv close
 		}
 	    }
-	    dict set result [dict get $r $key] $record
+	    if {$key eq ""} {
+		dict set result $i $record
+	    } else {
+		dict set result [dict get $r $key] $record
+	    }
 	}
 	return $result
     }
@@ -246,10 +266,6 @@ class create View {
 	}
     }
 
-    method "loop" {args} {
-	
-    }
-
     # lselect - perform a select over view yielding a list of indices
     method lselect {args} {
 	if {[llength $args] == 1} {
@@ -264,7 +280,6 @@ class create View {
 	    for {set i 0} {$i < $vs} {incr i} {
 		lappend r [[$v view] get $i index]
 	    }
-	    #$v destroy
 	} else {
 	    set r [::mk::select $db.$name {*}$args]
 	}
@@ -301,9 +316,9 @@ class create View {
 	if {[lsearch $args -sort] > -1 || [lsearch $args -rsort] > -1} {
 	    set type {}	;# a select with a sort is conformant with the parent
 	} else {
-	    set type {type index}
+	    set type {type indexed}
 	}
-	set result [View new [$view select {*}$args] parents [self] {*}$type]
+	set result [View new [$view select {*}$args] parents [self] name "select [self] $args" {*}$type]
 	Debug.view {[self]: $view select ($args) -> $result/[$result size] ([$result info]) }
 	return $result
     }
@@ -344,7 +359,7 @@ class create View {
 	foreach index [my lselect {*}$select] {
 	    set uv [my get $index]
 	    switch [catch {
-		uplevel 1 dict update __update__ $kv [list $script]
+		uplevel 1 dict update __update__[namespace tail [self]] $kv [list $script]
 	    } result eo] {
 		1 {# error - re-raise the error
 		    return -options $eo $result
@@ -393,16 +408,17 @@ class create View {
 
     method local {} {
 	set varname [string map {: _} [self]]
-	#puts stderr "LOCAL $varname"
 	upvar $varname lifetime
-	trace add variable lifetime unset "catch {[self] destroy};#"
+	my incref
+	trace add variable lifetime unset "catch {[self] decref};#"
 	return [self]
     }
 
     method as {varname} {
 	upvar $varname lifetime
 	set lifetime [self]
-	trace add variable lifetime {write unset} "catch {[self] destroy};#"
+	my incref
+	trace add variable lifetime {write unset} "catch {[self] decref};#"
 	return [self]
     }
 
@@ -560,7 +576,8 @@ class create View {
 		
 		# this is a subview declaration
 		set fname $accum
-		lappend pretty [lindex $accum 0]
+		set sv [lassign [lindex $accum 0] svn]
+		lappend pretty [list $svn $sv]
 		set accum ""
 	    }
 	}
@@ -574,6 +591,68 @@ class create View {
 	return [$view properties]
     }
 
+    method metaview {args} {
+	my static _uV
+	set v [expr {[dict exists $_uV $db]?[dict get $_uV $db]:""}]
+	if {$v eq ""} {
+	    return {}
+	}
+	set args [lassign $args cmd]
+	
+	switch -- $cmd {
+	    set {
+		# set the metaview for a given field
+		set args [lassign $args field]
+		set record {}
+		dict for {n v} $args {
+		    switch -- $n {
+			view - field - type -
+			in - out - valid {
+			    dict set record $n $v
+			}
+			args {
+			    dict lappend record args {*}$v
+			}
+			default {
+			    dict lappend record args $v
+			}
+		    }
+		}
+		if {![dict size $record]} {
+		    return {}
+		}
+		if {[$v exists view $name field $field]} {
+		    set rec [$v find view $name field $field]
+		} else {
+		    set rec [$v append view $name field $field]
+		}
+		$v set $rec {*}$record
+		return $record
+	    }
+	    get {
+		set result {}
+		set args [lassign $args field]
+		if {$field ne ""} {
+		    if {![$v exists view $name field $field]} {
+			return {}
+		    }
+		    set record [$v get [$v find view $name field $field]]
+		    if {![llength $args]} {
+			return $record
+		    }
+		    foreach n $args {
+			if {[dict exists $record $n]} {
+			    lappend result $v
+			}
+		    }
+		}
+		return $result
+	    }
+	    default {
+	    }
+	}
+    }
+
     # insert - insert a row after the given index
     method insert {index args} {
 	set result [$view insert $index {*}$args]
@@ -583,13 +662,15 @@ class create View {
 
     # append - append a record to the view
     method append {args} {
-	return [my insert end {*}$args]
+	set result [my insert end {*}$args]
+	my db commit
+	return $result
     }
 
     # open - open a subview of this record as a new view
     method open {index prop args} {
 	Debug.view {[self] open $index $prop $args}
-	return [View new [$view open $index $prop] parents [self] {*}$args]
+	return [View new [$view open $index $prop] parents [self] name "subview [self] $prop" {*}$args]
     }
 
     # search - return index of element containing the property with the given value
@@ -607,6 +688,17 @@ class create View {
 	return [$view find {*}$args]
     }
 
+    method fetch {args} {
+	set result {}
+	if {[my exists {*}$args]} {
+	    #puts stderr "fetch exists $args"
+	    set result [my get [lindex [my find {*}$args] 0]]
+	}
+	Debug.view {[self] fetch $args -> $result}
+	#puts stderr "fetch result $args -> $result"
+	return $result
+    }
+
     # size - return the size of the view
     method size {args} {
 	return [$view size {*}$args]
@@ -620,7 +712,7 @@ class create View {
     # The underlying view must be defined with a single view property,
     # with the structure of the subview being as needed.
     method blocked {} {
-	return [View new [$view view blocked] parents [self]]
+	return [View new [$view view blocked] parents [self] name "blocked [self]"]
     }
 
     # clone - construct a new view with the same structure but no data.
@@ -628,33 +720,33 @@ class create View {
     # Structural information can only be maintain for the top level, 
     # subviews will be included but without any properties themselves.
     method clone {} {
-	return [View new [$view view clone] parents [self]]
+	return [View new [$view view clone] parents [self] name "clone [self]"]
     }
 
     # copy - construct a new view with a copy of the data.
     method copy {} {
-	return [View new [$view view copy] parents [self]]
+	return [View new [$view view copy] parents [self] name "copy [self]"]
     }
 
     # dup - construct a new view with a copy of the data.
     # The copy is a deep copy, because subviews are always copied in full.
     method dup {} {
-	return [View new [$view view dup] parents [self]]
+	return [View new [$view view dup] parents [self] name "dup [self]"]
     }
 
     # readonly - create an identity view which only allows reading
     method readonly {} {
-	return [View new [$view view readonly] parents [self]]
+	return [View new [$view view readonly] parents [self] name "readonly [self]"]
     }
 
     # unique - create view with all duplicate rows omitted.
     method unique {} {
-	return [View new [$view view unique] parents [self]]
+	return [View new [$view view unique] parents [self] name "unique [self]"]
     }
 
     # flatten - create view with a specific subview expanded, like a join.    
     method flatten {prop} {
-	return [View new [$view view flatten $prop] parents [self]]
+	return [View new [$view view flatten $prop] parents [self] name "flatten [self] $prop"]
     }
 
     # Create view with rows from another view appended.
@@ -664,7 +756,7 @@ class create View {
     # This operation is a bit similar to appending all rows from the second view,
     # but it does not actually store the result anywhere, it just looks like it.
     method concat {view2} {
-	return [View new [$view view concat [$view2 view]] parents [list [self] $view2]]
+	return [View new [$view view concat [$view2 view]] parents [list [self] $view2] name "concat [self] $view2"]
     }
 
     # different - Create view with all rows not in both views (no dups).
@@ -672,7 +764,7 @@ class create View {
     # Calculates the "XOR" of two sets. This will only work if both input views are sets,
     # i.e. they have no duplicate rows in them.
     method different {view2} {
-	return [View new [$view view different [$view2 view]] parents [list [self] $view2]]
+	return [View new [$view view different [$view2 view]] parents [list [self] $view2] name "different [self] $view2"]
     }
 
     # intersect - Create view with all rows also in the given view (no dups)
@@ -680,12 +772,17 @@ class create View {
     # Calculates the set intersection. This will only work if both input views are sets,
     # i.e. they have no duplicate rows in them.
     method intersect {view2} {
-	return [View new [$view view intersect [$view2 view]] parents [list [self] $view2]]
+	return [View new [$view view intersect [$view2 view]] parents [list [self] $view2] name "intersect [self] $view2"]
     }
 
     # minus - Create view with all rows not in the given view (no dups).
     method minus {view2} {
-	return [View new [$view view minus [$view2 view]] parents [list [self] $view2]]
+	return [View new [$view view minus [$view2 view]] parents [list [self] $view2] name "minus [self] $view2"]
+    }
+
+    # union - create view which is the set union (assumes no duplicate rows).
+    method union {view2} {
+	return [View new [$view view union [$view2 view]] parents [list [self] $view2] name "union [self] $view2"]
     }
 
     # map - create mapped view which maintains an index permutation
@@ -697,12 +794,12 @@ class create View {
     # on the keys specified. When the "unique" parameter is true, insertions which would
     # create a duplicate key are ignored.
     method map {view2} {
-	return [View new [$view view map [$view2 view]] parents [list [self] $view2]]
+	return [View new [$view view map [$view2 view]] parents [list [self] $view2] name "map [self] $view2"]
     }
 
     # pair - create view which pairs each row with corresponding row.
     method pair {view2} {
-	return [View new [$view view pair [$view2 view]] parents [list [self] $view2]]
+	return [View new [$view view pair [$view2 view]] parents [list [self] $view2] name "pair [self] $view2"]
     }
 
     # product - create view which is the cartesian product with given view.
@@ -711,17 +808,12 @@ class create View {
     # The number of entries is the product of the number of entries in the two views,
     # properties which are present in both views will use the values defined in this view.
     method product {view2} {
-	return [View new [$view view product [$view2 view]] parents [list [self] $view2]]
-    }
-
-    # union - create view which is the set union (assumes no duplicate rows).
-    method union {view2} {
-	return [View new [$view view union [$view2 view]] parents [list [self] $view2]]
+	return [View new [$view view product [$view2 view]] parents [list [self] $view2] name "product [self] $view2"]
     }
 
     # join - create view which is the relational join on the given keys.
     method join {view2 args} {
-	set r [View new [$view view join [$view2 view] {*}$args] parents [list [self] $view2]]
+	set r [View new [$view view join [$view2 view] {*}$args] parents [list [self] $view2] name "join [self] $view2 over $args"]
 	Debug.view {[self] join $view2 $args -> $r}
 	return $r
     }
@@ -742,7 +834,7 @@ class create View {
     # Careful: when a row is changed in such a way that its key is the same as in another row,
     # that other row will be deleted from the view.
     method hash {view2 args} {
-	return [View new [$view view hash [$view2 view] {*}$args] parents [list [self] $view2]]
+	return [View new [$view view hash [$view2 view] {*}$args] parents [list [self] $view2] name "hash [self] $view2 $args"]
     }
 
     # indexed - create mapped view which maintains an index permutation
@@ -755,7 +847,7 @@ class create View {
     # When the "unique" parameter is true, insertions which would create a duplicate key
     # are ignored.
     method indexed {view2 args} {
-	return [View new [$view view indexed [$view2 view] {*}$args] parents [list [self] $view2]]
+	return [View new [$view view indexed [$view2 view] {*}$args] parents [list [self] $view2] name "indexed [self] $view2 $args"]
     }
 
     # groupby - create view with a subview, grouped by the specified properties.
@@ -767,10 +859,11 @@ class create View {
     # If there are N rows in the original view matching key X, then the result is
     # a row for key X, with a subview of N rows.
     #
-    # unfortunately, the subject view must have a subview defined on it for this to work
+    # The subview name *must* either be a subview element of the subject view or have a
+    # name like moop:V (in which case it will be created in the resultant view)
     # The properties of the subview in the result are all the properties not in the key.
     method groupby {subview args} {
-	return [View new [$view view groupby $subview {*}$args] parents [list [self]]]
+	return [View new [$view view groupby $subview {*}$args] parents [list [self]] name "groupby [self] $subview $args"]
     }
 
     # project - create view with the specified property arrangement.
@@ -780,7 +873,7 @@ class create View {
     # but this only works when based on views which properly generate change notifications 
     # (.e. raw views, selections, and other projections).
     method project {args} {
-	return [View new [$view view project {*}$args] parents [list [self]]]
+	return [View new [$view view project {*}$args] parents [list [self]] name "project [self] $args"]
     }
 
     # range - create view which is a segment/slice (default is up to end).
@@ -790,17 +883,17 @@ class create View {
     # If the step is negative, the same entries are returned, but in reverse order
     # (start_ is still lower index, it'll then be returned last).
     method range {args} {
-	return [View new [$view view range {*}$args] parents [list [self]]]
+	return [View new [$view view range {*}$args] parents [list [self]] name "range [self] $args"]
     }
 
     # rename - create view with one property renamed (must be of same type).
     method rename {args} {
-	return [View new [$view view rename {*}$args] parents [list [self]]]
+	return [View new [$view view rename {*}$args] parents [list [self]] name "rename [self] $args"]
     }
 
     # restrict the search range for rows.
     method restrict {args} {
-	return [View new [$view view rename {*}$args] parents [list [self]]]
+	return [View new [$view view rename {*}$args] parents [list [self]] name "restrict [self] $args"]
     }
 
     # ordered - create mapped view which keeps its rows ordered.
@@ -816,7 +909,7 @@ class create View {
     # a way that its key is the same as in another row, that other row will be deleted from 
     # the view.
     method ordered {args} {
-	return [View new [$view view ordered {*}$args] parents [list [self]]]
+	return [View new [$view view ordered {*}$args] parents [list [self]] name "ordered [self] $args"]
     }
 
     # return field names within view
@@ -839,10 +932,15 @@ class create View {
 
     # our first parent
     method parent {} {return [lindex $parents 0]}
+    method parents {} {return $parents}
 
     # delete the indicated rows
     method delete {args} {
-	return [$view delete {*}$args]
+	set result [$view delete {*}$args]
+	if {$commit} {
+	    my db commit
+	}
+	return $result
     }
     
     method exists {args} {
@@ -872,16 +970,16 @@ class create View {
 	if {![llength $args]} {
 	    return $db
 	} else {
-	    return [::mk::file {*}$args $db]
+	    set result [::mk::file {*}$args $db]
+	    Debug.view {db operation: ::mk::file $args $db -> $result}
+	    return $result
 	}
     }
 
+    # child - track the children of this object
     method child {args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
-	}
-	if {![llength $args]} {
-	    return [dict keys $children]
 	}
 	set args [lassign $args cmd]
 	switch -- $cmd {
@@ -891,30 +989,59 @@ class create View {
 	    rm {
 		catch {dict unset children [lindex $args 0]}
 	    }
+	    "" {
+		return [dict keys $children]
+	    }
+	    get {
+		# get all descendants
+		set result {}
+		dict for {n v} $children {
+		    lappend result $n [$n children get]
+		}
+		return $result
+	    }
+	    default {
+		error "Usage: [self] child {add rm get} ?child?"
+	    }
 	}
     }
 
-    variable db view name parents children type logger
+    variable db view name parents children type logger commit refcount
+
+    method incref {} {incr refcount}
+    method decref {} {
+	incr refcount -1
+	if {$refcount < 0} {
+	    error "[self] refcount is $refcount."
+	} elseif {!$refcount} {
+	    my destroy
+	}
+    }
 
     # construct or open a view
     constructor {args} {
 	set mixins {}
 	set children {}
 	set parents {}
+	set commit 0
+	set refcount 0
 	if {[llength $args]%2} {
 	    # we're wrapping an existing view
 	    # (could be from one of the mk view builtins.)
 	    set args [lassign $args view]
 	    catch {dict unset args view}
 	    Debug.view {View [self] synthetic constructor over $view ([$view info]): $args}
+	    set name ""
 	    foreach {n v} $args {
 		set $n $v
 	    }
 	    if {[info exists parents] && $parents ne ""} {
 		set db [[lindex $parents 0] db]	;# our db is our parents' db
 	    }
-	    if {[dict exists $args type] && [dict get $args type] eq "index"} {
-		lappend mixins ViewSyn
+
+	    # decide if this is a synthetic view
+	    if {[dict exists $args type] && [dict get $args type] eq "indexed"} {
+		lappend mixins ViewIndexed
 	    }
 	} else {
 	    Debug.view {View constructor: $args}
@@ -997,17 +1124,43 @@ class create View {
 	    my logger $logger	;# initialize the logging functional
 	}
 
+	# maintain the view hierarchy
 	foreach p $parents {
 	    $p child add [self]
+	    $p incref
 	}
+
+	my static _uV _refs
+
+	# maintain the metaview
+	if {$name ne "_uV" && (![info exists _uV] || ![dict exists $_uV $db])} {
+	    # we haven't got a metaview yet - open it
+	    if {[catch {
+		View create $db._uV layout {view field type in out valid args}
+	    } v]} {
+		dict set _uV $db ""
+	    } else {
+		dict set _uV $db $v
+		incr _refs($db) -1
+	    }
+	}
+
+	# maintain a db refcount
+	incr _refs($db)
     }
 
     destructor {
 	Debug.view {destroy [self]}
 	foreach p $parents {
 	    $p child rm [self]
+	    catch {$p decref}
 	}
 	$view close
+
+	# close the metaview
+	if {![incr _refs($db) -1]} {
+	    $_uV($db) destroy
+	}
     }
 }
 
@@ -1033,5 +1186,31 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	set result "time:$time value:$value date:$date"
     } -min date "!"]
     puts stderr [sdb.v subst {value:$value time:$time} date ""]
+
+    # play with Join
+    View create sdb.v1 file sdb.mk layout {id:I value}
+    View create sdb.v2 file sdb.mk layout {id:I value2}
+    for {set i 0} {$i < 10} {incr i} {
+	sdb.v1 append id $i value $i
+	sdb.v2 append id $i value2 [expr {$i * 10}]
+    }
+    set j [sdb.v1 join sdb.v2 id]
+    puts stderr "JOIN meta: $j '[$j name]' [$j parents] - info:'[$j info]' props:'[$j properties]'"
+    $j set 0 value2 2000
+    $j set 0 value 200
+    #$j append id 99 value -1 value2 -10
+    set x [$j dict]
+    #puts stderr "99: [$j exists id 99]"
+    #sdb.v1 append id 10 value 100
+    #sdb.v2 append id 10 value2 1000
+    puts stderr "JOIN data: ([$j dict]) [expr {$x eq [$j dict]}]"
+    foreach n {union product pair} {
+	set x [sdb.v1 $n sdb.v2]
+	puts stderr "$n data [$x dict]"
+    }
+    set x [sdb.v1 groupby moop:V id]
+    puts stderr "groupby data [$x dict]"
+
+    puts stderr "ALL VIEWS: [sdb.v db views]"
     sdb.v close
 }
