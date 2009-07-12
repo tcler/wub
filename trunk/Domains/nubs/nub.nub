@@ -1,7 +1,5 @@
 code default {set r [Http NotFound $r]; <p> "[dict get $r -uri] Not Found"}
-rewrite /moop {
-    return /wub
-}
+
 redirect / /wub/	;# site default is Wub
 redirect /favico.ico /images/favico.ico	;# find the icon in /images
 
