@@ -1,11 +1,11 @@
 package require Html
-package require File
 
 package require Debug
 Debug off jq 10
 
 package provide jQ 1.0
 package provide JQ 1.0
+package require File
 
 set API(Domains/JQ) {
     {
@@ -202,6 +202,13 @@ namespace eval jQ {
 	    sPaginationType 'full_numbers'
 	    sDom 'tr<"bottom"pifl<"clear">'
 	}
+	track {
+	    changeListVisible false
+	}
+	rte {
+	    media_url '/icons/'
+	    content_css_url 'rte.css'
+	}
     }
 
     proc opts {type args} {
@@ -385,7 +392,9 @@ namespace eval jQ {
 	set r [style $r mbContainer.css]	;# ensure the css is loaded
 
 	variable mount
-	dict set args elementsPath '[file join $mount elements]/'
+	if {![dict exists $args elementsPath]} {
+	    dict set args elementsPath '[file join $mount elements]/'
+	}
 	dict set args containment 'document'
 
 	return [weave $r {
@@ -415,6 +424,12 @@ namespace eval jQ {
 	set id [dict get? $args id]; catch {dict unset args id}
 	if {$id ne ""} {
 	    set id [list id $id]
+	}
+
+	# cid supplied?
+	set cid [dict get? $args cid]; catch {dict unset args cid}
+	if {$cid ne ""} {
+	    set cid [list id $cid]
 	}
 
 	# set up the funky <div> structure this thing needs
@@ -462,7 +477,7 @@ namespace eval jQ {
 	    set opts [list class $opts]
 	}
 
-	return [<div> class $class {*}$opts {*}[expr {[llength $style]?[list style [join $style ;]]:{}}] {*}$attrs $C\n]
+	return [<div> {*}$cid class $class {*}$opts {*}[expr {[llength $style]?[list style [join $style ;]]:{}}] {*}$attrs $C\n]
     }
 
     # http://docs.jquery.com/UI/Tabs
@@ -556,12 +571,24 @@ namespace eval jQ {
     }
 
     # http://sprymedia.co.uk/article/DataTables
-    proc datatables {r selector args} {
+    proc datatable {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.dataTables.js
 	} %SEL $selector %OPTS [opts datatables {*}$args] {
 	    $('%SEL').dataTable(%OPTS);
 	}]
+    }
+
+    # http://nicedit.com/
+    proc nicedit {r selector args} {
+	return [weave $r {
+	    jquery.js jquery.nicedit.js
+	} %SEL $selector %OPTS [opts rte {*}$args] {
+	    new nicEditor({fullPanel : true}).panelInstance(%SEL);
+	}]
+
+	# area2 = new nicEditor({fullPanel : true}).panelInstance('myArea2');
+	# area2.removeInstance('myArea2');
     }
 
     # http://docs.jquery.com/UI/Selectables
@@ -633,7 +660,6 @@ namespace eval jQ {
 	}]
     }
 
-
     # http://github.com/janv/rest_in_place/tree/master
     proc rest_in_place {r} {
 	set r [scripts $r jquery.js jquery.rest_in_place.js]
@@ -658,11 +684,47 @@ namespace eval jQ {
     proc form {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.form.js
-	} %SEL $selector %OPTS [opts validate {*}$args] {
+	} %SEL $selector %OPTS [opts form {*}$args] {
 	    $('%SEL').ajaxForm(%OPTS);
 	}]
     }
-    
+
+    # http://code.google.com/p/jglycy/
+    proc jiggle {r} {
+	return [jQ script $r jquery.jglycy.js]
+    }
+
+    # http://code.zhandwa.com/jquery/
+    proc track {r selector args} {
+	return [weave $r {
+	    jquery.js jquery.track.js
+	} %SEL $selector %OPTS [opts form {*}$args] {
+	    $('%SEL').trackChanges(%OPTS);
+	}]
+
+	#var oldvals3 = $('#form3').trackChanges({
+	#    changeListName: "form3List",  // changed field names will be in this list (if not given, defaults to {formname}TrackList)
+	#    events: "change blur keypress keydown click",  // events on which the tracking should occur
+	#    changeListVisible: true, // should the change list be visible
+	#    changeListClass: "custom" // css class applied to the change list
+	#});
+    }
+
+    # http://code.google.com/p/jquery-form-observe/
+    proc observer {r selector args} {
+	return [weave $r {
+	    jquery.js jquery.formobserver.js
+	} %SEL $selector %OPTS [opts formobserver {*}$args] {
+	    $('%SEL').FormObserve(%OPTS);
+	}]
+	# $('#MyForm').submit(function(){
+	# if(validation=='ok'){
+	# $(this).FormObserve_save();
+	#}
+});
+
+    }
+
     # http://bassistance.de/jquery-plugins/jquery-plugin-validation/
     proc validate {r selector args} {
 	return [weave $r {
