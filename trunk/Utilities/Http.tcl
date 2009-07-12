@@ -5,6 +5,7 @@
 package require ip
 package require Html
 package require Url
+package require Mime
 
 package provide Http 2.1
 
