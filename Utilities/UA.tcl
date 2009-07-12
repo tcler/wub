@@ -6,9 +6,8 @@ package provide UA 1.0
 namespace eval UA {
     source [file join [file dirname [info script]] browserL.tcl]
 
-    proc classify {r} {
+    proc classify {ua} {
 	variable browsers
-	set ua [dict get? $r user-agent]
 
 	if {$ua eq ""} {
 	    return blank
