@@ -3,6 +3,9 @@
 package require struct::list
 package require Html
 
+Debug off jsloader 10
+Debug off cssloader 10
+
 package provide conversions 1.0
 
 namespace eval ::conversions {
@@ -41,6 +44,7 @@ namespace eval ::conversions {
 			lappend preloads $v
 		    } else {
 			lappend preloads [<script> src $n {*}$v]
+			Debug.jsloader {$n $v}
 		    }
 		}
 	    }
@@ -50,6 +54,7 @@ namespace eval ::conversions {
 			lappend preloads $v
 		    } else {
 			lappend preloads [<stylesheet> $n {*}$v]
+			Debug.cssloader {$n $v}
 		    }
 		}
 	    }
@@ -74,6 +79,7 @@ namespace eval ::conversions {
 			append content \n $v \n
 		    } else {
 			append content \n [<script> src $n {*}$v] \n
+			Debug.jsloader {$n $v}
 		    }
 		}
 	    }
