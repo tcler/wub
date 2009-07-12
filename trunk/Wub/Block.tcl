@@ -4,6 +4,7 @@ package require fileutil
 package require Http
 
 package provide Block 2.0
+catch {rename Block {}}	;# remove Block placeholder
 
 set ::API(Server/Block) {
     {
