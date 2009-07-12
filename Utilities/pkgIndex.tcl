@@ -35,7 +35,7 @@ package ifneeded scgi 1.0 [list source [file join $dir scgi.tcl]]
 package ifneeded stx 1.1 [list source [file join $dir stx stx.tcl]]
 package ifneeded stx2html 1.1 [list source [file join $dir stx stx2html.tcl]]
 
-package ifneeded Mime 1.0 [list source [file join $dir Mime.tcl]]
+package ifneeded Mime 1.0 [list source [file join $dir Mime Mime.tcl]]
 package ifneeded magiclib 1.0 [list source [file join $dir Mime magiclib.tcl]]
 package ifneeded mime-magic 1.0 [list source [file join $dir Mime magic.mime.tcl]]
 
