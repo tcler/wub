@@ -27,6 +27,7 @@ package require fileutil
 package require Direct
 
 package provide Honeypot 1.0
+catch {rename Honeypot {}}	;# remove Honeypot placeholder
 
 set API(Domains/Honeypot) {
     {
