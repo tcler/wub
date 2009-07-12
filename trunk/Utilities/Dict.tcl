@@ -139,7 +139,28 @@ namespace eval ::tcl::dict {
 	}
     }
 
-    foreach x {get? witharray equal apply capture nlappend} {
+    # return the dict subset specified by args
+    proc in {dict args} {
+	if {[llength $args] == 1} {
+	    ::set args [lindex $args 0]
+	}
+	return [dict filter $dict script {k v} {
+	    expr {$k in $args}
+	}]
+    }
+
+    # return the dict subset specified by args
+    proc ni {dict args} {
+	if {[llength $args] == 1} {
+	    ::set args [lindex $args 0]
+	}
+	return [dict filter $dict script {k v} {
+	    expr {$k ni $args}
+	}]
+    }
+
+
+    foreach x {get? witharray equal apply capture nlappend in ni} {
 	namespace ensemble configure dict -map [linsert [namespace ensemble configure dict -map] end $x ::tcl::dict::$x]
     }
     ::unset x
