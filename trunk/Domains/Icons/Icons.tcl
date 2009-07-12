@@ -21,6 +21,8 @@ namespace eval Icons {
 
     # map symbolic name to icon in array
     foreach {name icon} {
+	oend oend.gif
+	ostart ostart.gif
 	plus 001_01.gif
 	minus 001_02.gif
 	bplus 001_03.gif
