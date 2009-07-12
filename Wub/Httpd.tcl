@@ -13,17 +13,11 @@ Debug off HttpdLow 10
 Debug off Watchdog 10
 
 package require Listener
+
 package require Query
-package require Block
-
-package require Cache 2.0
-package require Honeypot
 package require Html
-
 package require Url
 package require Http
-package require UA
-package require Block
 
 package provide Httpd 4.0
 
@@ -1104,7 +1098,13 @@ namespace eval Httpd {
 		Debug.log {Overconnector [dict get $r -ipaddr] ([dict get? $r user-agent]) wants [dict get $r -uri]}
 	    }
 
-	    # block spiders by UA
+	    # check the incoming ip for blockage
+	    if {[Block blocked? [dict get? $r -ipaddr]]} {
+		handle [Http Forbidden $r] Forbidden
+		continue
+	    }
+
+	    # block spiders by UA - superceded
 	    if {0 && [info exists ::spiders([dict get? $r user-agent])]} {
 		Block block [dict get $r -ipaddr] "spider UA ([dict get? $r user-agent])"
 		handle [Http NotImplemented $r "Spider Service"] "Spider"
@@ -1112,7 +1112,7 @@ namespace eval Httpd {
 
 	    # analyse the user agent strings.
 	    dict set r -ua [UA parse [dict get? $r user-agent]]
-	    dict set r -ua_class [UA classify $r]	;# classify client by UA
+	    dict set r -ua_class [UA classify [dict get? $r user-agent]]	;# classify client by UA
 	    switch -- [dict get $r -ua_class] {
 		blank {
 		    handle [Http NotImplemented $r "Possible Spider Service - set your User-Agent"] "Spider"
@@ -1122,21 +1122,20 @@ namespace eval Httpd {
 		    handle [Http NotImplemented $r "Spider Service"] "Spider"
 		}
 
-		browser {}
+		browser {
+		    # let the known browsers through
+		}
 
 		unknown {
 		    #Debug.log {unknown UA: [dict get $r user-agent]}
 		}
 
 		default {
-		    dict set r -dynamic 1	;# make this dynamic
+		    # dict set r -dynamic 1	;# make this dynamic
 		}
 	    }
 
-	    # check the incoming ip for blockage
-	    if {[Block blocked? [dict get? $r -ipaddr]]} {
-		handle [Http Forbidden $r] Forbidden
-	    } elseif {[Honeypot guard r]} {
+	    if {[Honeypot guard r]} {
 		# check the incoming ip for bot detection
 		# this is a bot - reply directly to it
 		send $r	0	;# queue up error response
@@ -1537,6 +1536,7 @@ namespace eval Httpd {
     proc pre {req} {
 	package require Cookies
 	proc pre {req} {
+	    # default request pre-process
 	    return [::Cookies 4Server $req]	;# fetch the cookies
 	}
 	return [pre $req]
@@ -1595,8 +1595,6 @@ namespace eval Httpd {
 	    "normal" {
 		# check list of blocked ip addresses
 		if {[Block blocked? $ipaddr]} {
-		    Debug.log {Blocked attempt from $ipaddr}
-
 		    # dump this connection with a minimum of fuss.
 		    variable server_id
 		    puts $sock "HTTP/1.1 403 Forbidden\r"
