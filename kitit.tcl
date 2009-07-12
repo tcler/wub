@@ -41,8 +41,7 @@ if {0} {
 }
 
 foreach wub {Client CWub docs
-    Domains extensions Utilities Wub
-    Mime stx} {
+    Domains extensions Utilities Wub} {
     dict lappend ::pkgdirs [file normalize $wub] {}
 }
 
