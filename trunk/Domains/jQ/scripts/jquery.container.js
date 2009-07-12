@@ -158,7 +158,11 @@
 
   jQuery.fn.containerSetIcon = function (icon,path){
     if (icon && icon!="" ){
-      $(this).find(".ne:first").prepend("<img class='icon' src='"+path+"icons/"+icon+"' style='position:absolute'>");
+	if (icon[0] != "/") {
+	    $(this).find(".ne:first").prepend("<img class='icon' src='"+path+"icons/"+icon+"' style='position:absolute'>");
+	} else {
+	    $(this).find(".ne:first").prepend("<img class='icon' src='"+icon+"' style='position:absolute'>");
+	}
       $(this).find(".n:first").css({paddingLeft:25});
     }else{
       $(this).find(".n:first").css({paddingLeft:0});
