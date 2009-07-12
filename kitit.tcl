@@ -29,7 +29,7 @@ proc require {what} {
 }
 
 foreach tcllib {cmdline csv inifile
-    dns fileutil snit struct
+    dns fileutil struct
     tar textutil tie} {
     require $tcllib
 }
