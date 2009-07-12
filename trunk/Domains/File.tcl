@@ -6,6 +6,7 @@ Debug off file 10
 
 package provide File 2.0
 
+package require Mime
 package require Report
 package require jQ
 
