@@ -71,7 +71,7 @@ namespace eval Report {
 	    }
 	    lappend h [<th> {*}$params {*}[dict get? $args hparam] $htext]
 	}
-	dict append args _header [<thead> {*}[dict get? $args thparam] \n[<tr> \n[join $h \n]\n]\n]
+	dict append args _header [<thead> {*}[dict get? $args thparam] \n[<tr> {*}[dict get? $args thrparam] \n[join $h \n]\n]\n]
 	
 	# by default, headers and footers are the same
 	if {[dict exists $args footer] &&
@@ -123,7 +123,7 @@ namespace eval Report {
 		lappend f [<th> {*}$params $t]
 	    }
 
-	    dict append args _footer [<tfoot> {*}[dict get? $args tfparam] \n[<tr> \n[join $f \n]\n]\n]
+	    dict append args _footer [<tfoot> {*}[dict get? $args tfparam] \n[<tr> {*}[dict get? $args tfrparam] \n[join $f \n]\n]\n]
 	    dict unset args footer
 	}
 
@@ -150,6 +150,28 @@ namespace eval Report {
 
 	# traverse the data an element at a time
 	dict for {k v} $data {
+	    # call a lambda on each row
+	    set rp {}
+	    if {[dict exists $args rlambda]} {
+		switch -- [catch {{*}[dict get $args rlambda] $k $v} lres eo] {
+		    0 { # TCL_OK
+		    }
+		    1 { # TCL_ERROR
+			set lres [list $lres]
+		    }
+		    2 { # TCL_RETURN
+			break
+		    }
+		    3 { # TCL_BREAK
+			break
+		    }
+		    4 { # TCL_CONTINUE
+			continue
+		    }
+		}
+		set rp [lassign $lres v]
+	    }
+
 	    if {![dict exists $v ""]} {
 		# add in a special element to represent the item key
 		dict set v "" $k
@@ -157,9 +179,9 @@ namespace eval Report {
 	    
 	    set row {}
 	    if {[dict exists $args rclass]} {
-		set rparams [list class [dict get $args rclass]]
+		set rparams [list class [dict get $args rclass] {*}$rp]
 	    } else {
-		set rparams {}
+		set rparams $rp
 	    }
 	    
 	    if {[dict exists $args evenodd] && [dict get $args evenodd]} {
@@ -229,6 +251,7 @@ namespace eval Report {
 		    lappend row [<td> {*}$params {*}[dict get? $args eparam] {*}$ep {}]
 		}
 	    }
+
 	    dict append args body [<tr> {*}$rparams {*}[dict get? $args rparam] \n[join $row \n]\n] \n
 	}
 
@@ -374,7 +397,6 @@ if {[info exists argv0] && ([info script] eq $argv0)} {
 	barney, 13 stone drive, 345
     }
     set r [Report csv2dict $csv]
-    #puts stderr $r
     set params {
 	sortable 1
 	evenodd 1
@@ -385,8 +407,10 @@ if {[info exists argv0] && ([info script] eq $argv0)} {
 	hclass header
 	hparam {title column}
 	thparam {class thead}
+	thrparam {class thead}
 	fclass footer
 	tfparam {class tfoot}
+	tfrparam {class tfoot}
 	rclass row
 	rparam {}
 	eclass el
