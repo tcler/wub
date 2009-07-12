@@ -17,7 +17,6 @@ package require stx2html
 package require Html
 package require Form
 package require jQ
-package require About
 package provide Nub 1.0
 package provide Rewrite 1.0	;# to satisfy synthetic requirement of codegen
 
@@ -68,7 +67,7 @@ namespace eval Nub {
 	}
     }
 
-    variable docurl /wub/docs/Domains/	;# this interfaces to the Mason domain /wub, if it's there
+    variable docurl /wub/docs/	;# this interfaces to the Mason domain /wub, if it's there
 
     variable whatsthis [::textutil::undent [::textutil::untabify {
 	Nub allows you to change the URLs the server responds to, and to create new nubs, edit or delete existing nubs, and apply them to the currently running server.
