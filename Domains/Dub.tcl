@@ -171,7 +171,7 @@ class create Dub {
 	if {[dict get? $query IN_] eq ""} {
 	    set r [jQ style $r jquery.datatables.css]
 	    set r [jQ style $r mbContainer.css]
-	    set r [jQ datatables $r .dubtable]
+	    set r [jQ datatable $r .dubtable]
 	    set r [jQ containers $r .containerPlus]
 	}
 
@@ -273,7 +273,7 @@ class create Dub {
 	    set r [jQ style $r jquery.datatables.css]
 	    set r [jQ style $r mbContainer.css]
 	    set r [jQ hint $r]
-	    set r [jQ datatables $r #$did]
+	    set r [jQ datatable $r #$did]
 	    set r [jQ datepicker $r .date]
 	    set r [jQ containers $r .containerPlus]
 	    set style {}
