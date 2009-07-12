@@ -13,20 +13,15 @@ jQuery.fn.rest_in_place = function(url, objectName, attributeName) {
       var value = e.find("input").val();
       e.html("saving...");
       jQuery.ajax({
-        "url" : url,
-        "type" : "post",
-        "data" : "_method=put&"+objectName+'['+attributeName+']='+encodeURIComponent(value)+(window.rails_authenticity_token ? "&authenticity_token="+encodeURIComponent(window.rails_authenticity_token) : ''),
-        "success" : function(){
-          jQuery.ajax({
-            "url" : url,
-            "beforeSend"  : function(xhr){ xhr.setRequestHeader("Accept", "application/javascript"); },
-            "success" : function(json){
-              e.html(eval('(' + json + ')' )[objectName][attributeName]);
-              e.click(clickFunction);
-            }
-          });
-        }
-      });
+	      "url" : url,
+		  "type" : "post",
+		  "data" : "_method=put&"+objectName+'['+attributeName+']='+encodeURIComponent(value)+(window.rails_authenticity_token ? "&authenticity_token="+encodeURIComponent(window.rails_authenticity_token) : ''),
+		  "success" : function(json){
+		  //e.html(eval('(' + json + ')' )[objectName][attributeName]);
+		  e.html(json);
+		  e.click(clickFunction);
+	      }
+	  });
       return false;
     })
   }
