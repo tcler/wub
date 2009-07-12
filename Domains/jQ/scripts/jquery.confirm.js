@@ -1,16 +1,16 @@
 /**
- * Confirm plugin 1.0
+ * Confirm plugin 1.2
  *
- * Copyright (c) 2007 Nadia Alramli (http://nadiaspot.com/)
+ * Copyright (c) 2007 Nadia Alramli (http://nadiana.com/)
  * Dual licensed under the MIT (MIT-LICENSE.txt)
  * and GPL (GPL-LICENSE.txt) licenses.
  */
 
 /**
  * For more docs and examples visit:
- * http://nadiaspot.com/jquery/confirm
+ * http://nadiana.com/jquery-confirm-plugin
  * For comments, suggestions or bug reporting,
- * email me at: jquery@nadiaspot.com
+ * email me at: http://nadiana.com/contact/
  */
 
 jQuery.fn.confirm = function(options) {
@@ -20,7 +20,7 @@ jQuery.fn.confirm = function(options) {
     wrapper: '<span></span>',
     eventType: 'click',
     dialogShow: 'show',
-    dialogSpeed: 'fast',
+    dialogSpeed: '',
     timeout: 0
   }, options);
   options.stopAfter = options.stopAfter.toLowerCase();
@@ -63,10 +63,12 @@ jQuery.fn.confirm = function(options) {
       }
       $target.unbind(type, handler);
       $target.show();
-      $dialog.remove();
+      $dialog.hide();
       // Rebind the saved handlers.
-      for (i in target._handlers) {
-        $target.click(target._handlers[i]);
+      if (target._handlers != undefined) {
+        jQuery.each(target._handlers, function() {
+          $target.click(this);
+        });
       }
       // Trigger click event.
       $target.click();
@@ -87,7 +89,7 @@ jQuery.fn.confirm = function(options) {
         $target.one(type, handler);
       }
       $target.show();
-      $dialog.remove();
+      $dialog.hide();
       return false;
     });
 
@@ -106,7 +108,7 @@ jQuery.fn.confirm = function(options) {
       jQuery(this).hide();
 
       // Do this check because of a jQuery bug
-      if (options.dialogShow!='show') {
+      if (options.dialogShow != 'show') {
         $dialog.hide();
       }
 
@@ -123,6 +125,8 @@ jQuery.fn.confirm = function(options) {
 
     saveHandlers();
     $target.unbind(type);
+    target._confirm = handler
+    target._confirmEvent = type;
     $target.one(type, handler);
   });
 }
