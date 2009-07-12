@@ -446,7 +446,8 @@ namespace eval Form {
     proc <selectset> {args} {
 	return [uplevel 1 [list <selectlist> {*}$args]]
     }
-    
+
+    # <radioset> <checkset> <radio> <checkbox>
     foreach type {radio check} sub {"" box} {
 	eval [string map [list @T $type @S $sub] {
 	    proc <@Tset> {name args} {
@@ -520,13 +521,14 @@ namespace eval Form {
 		    dict set config tabindex [incr tabindex]
 		}
 
+		set id {}
 		if {![dict exists $config id]} {
-		    if {[dict exists $config label]} {
+		    if {0 && [dict exists $config label]} {
 			dict set config id $name
-			set id $name
+			set id [list for $name]
 		    }
 		} else {
-		    set id [dict get $config id]
+		    set id [list for [dict get $config id]]
 		}
 		set result "<[attr input [Dict subset $config $boxA]]>$content"
 		if {[dict exists $config label]
@@ -534,9 +536,9 @@ namespace eval Form {
 		} {
 		    set label [dict get $config label]
 		    if {[dict exists $config title]} {
-			return [<label> for $id title [dict get $config title] "$label $result"]
+			return [<label> {*}$id title [dict get $config title] "$label $result"]
 		    } else {
-			return [<label> for $id "$label $result"]
+			return [<label> {*}$id "$label $result"]
 		    }
 		} else {
 		    return $result
