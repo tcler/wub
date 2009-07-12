@@ -56,4 +56,4 @@ file mkdir wub.vfs/lib
 foreach file [dict keys $pkgdirs] {
     file link -symbolic wub.vfs/lib/[file tail $file] $file
 }
-file copy -force main.tcl wub.vfs
+file copy main.tcl wub.vfs
