@@ -30,7 +30,7 @@ package ifneeded captcha 1.0 [list source [file join $dir captcha.tcl]]
 package ifneeded spiders 1.0 [list source [file join $dir spiders.tcl]]
 package ifneeded Sitemap 1.0 [list source [file join $dir Sitemap.tcl]]
 package ifneeded Sylk 1.0 [list source [file join $dir Sylk.tcl]]
-package ifneeded scgi 1.0 [list source [file join $dir scgi.tcl]
+package ifneeded scgi 1.0 [list source [file join $dir scgi.tcl]]
 
 package ifneeded stx 1.1 [list source [file join $dir stx stx.tcl]]
 package ifneeded stx2html 1.1 [list source [file join $dir stx stx2html.tcl]]
