@@ -50,7 +50,7 @@ set API(Domains/Direct) {
     }
     namespace {namespace in which to invoke commands}
     ctype {default content-type of returned values}
-    wildcard {process to be used if a request doesn't match any proc in $namespace (default /default)}
+    wildcard {process to be used if a request doesn't match any proc in $namespace (default /)}
     trim {a prefix which must be found at the beginning of, and will be removed from, the in-domain path component of any URL (default: none) not terribly useful.}
 }
 
@@ -271,9 +271,9 @@ class create Direct {
     # parameters of matching proc, procs are matched from the -path or -suffix
     # components of the passed request
     constructor {args} {
-	set ctype "text/html"
+	set ctype "x-text/html-fragment"
 	set mount "/"
-	set wildcard /default
+	set wildcard /
 
 	foreach {n v} $args {
 	    set [string trimleft $n -] $v
@@ -282,8 +282,12 @@ class create Direct {
 
 	# one or the other of namespace or object must exist
 	if {![info exist namespace] && ![info exists object]} {
-	    error "Direct domain must specify namespace or object"
-	} elseif {[info exists object]} {
+	    # no namespace or object - must be a mixin
+	    next {*}$args mount $mount
+	    set object [self]
+	    #error "Direct domain must specify namespace or object"
+	}
+	if {[info exists object]} {
 	    if {[info exists namespace]} {
 		error "Direct domain: can only specify one of object or namespace"
 	    }
