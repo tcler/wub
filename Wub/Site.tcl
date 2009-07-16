@@ -36,7 +36,7 @@ proc findpaths {} {
 
 	# find Wub stuff
 	set top [file dirname $home]
-	foreach lib {Mime extensions stx Wub Domains Utilities} {
+	foreach lib {extensions Wub Domains Utilities} {
 	    dict set apath [file join $top $lib] {}
 	}
     } else {
