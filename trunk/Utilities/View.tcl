@@ -692,7 +692,9 @@ class create View {
 	set result {}
 	if {[my exists {*}$args]} {
 	    #puts stderr "fetch exists $args"
-	    set result [my get [lindex [my find {*}$args] 0]]
+	    set index [my find {*}$args]
+	    set result [my get $index]
+	    lappend result "" $index	;# add the index field
 	}
 	Debug.view {[self] fetch $args -> $result}
 	#puts stderr "fetch result $args -> $result"
