@@ -12,7 +12,7 @@ package require Coroonet
 package require mime
 
 package require Debug
-Debug on smtp 10
+Debug off smtp 10
 
 package provide SMTP 3.0
 
