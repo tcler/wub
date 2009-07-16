@@ -39,3 +39,5 @@ package ifneeded Mime 1.0 [list source [file join $dir Mime Mime.tcl]]
 package ifneeded magiclib 1.0 [list source [file join $dir Mime magiclib.tcl]]
 package ifneeded mime-magic 1.0 [list source [file join $dir Mime magic.mime.tcl]]
 
+package ifneeded Coroonet 2.0 [list source [file join $dir Coroonet.tcl]]
+package ifneeded SMTP 3.0 [list source [file join $dir SMTP.tcl]]
