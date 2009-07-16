@@ -154,7 +154,7 @@ namespace eval Coco {
 	return $_r
     }
 
-    variable uniq "[pid][clock seconds]"	;# seed for unique coroutine names
+    variable uniq "[pid][clock microseconds]"	;# seed for unique coroutine names
 
     # give a uniq looking name
     proc uniq {} {
@@ -188,20 +188,27 @@ namespace eval Coco {
 	    set cmd [uniq]
 	    dict set r -cmd $cmd
 	    dict set r -csuffix [file join $mount $cmd]
+
 	    set result [coroutine @$cmd ::apply [list {*}$lambda ::Coco] $r]
+
 	    if {$result ne ""} {
 		Debug.coco {coroutine initialised - ($r) reply}
 		return $result	;# allow coroutine lambda to reply
 	    } else {
 		# otherwise redirect to coroutine lambda
 		Debug.coco {coroutine initialised - redirect to [file join $mount $cmd]}
-		return [Http Redirect $r [file join $mount $cmd]]
+		return [Http Redirect $r [file join $mount $cmd]/]
 	    }
-	} elseif {[llength [info command ::Coco::@$suffix]]} {
+	}
+
+	set extra [lassign [file split $suffix] cmd]
+	dict set r -extra $extra
+	
+	if {[llength [info command ::Coco::@$cmd]]} {
 	    # this is an existing coroutine - call it and return result
-	    Debug.coco {calling coroutine $suffix}
+	    Debug.coco {calling coroutine $cmx with $extra}
 	    if {[catch {
-		@$suffix [list call $r]
+		@$cmd [list call $r]
 	    } result eo]} {
 		Debug.error {coroutine error: $result ($eo)}
 		return [Http ServerError $r $result $eo]
