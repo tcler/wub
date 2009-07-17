@@ -203,9 +203,8 @@ class create HTTP {
 
 	set T [dict merge $http $args [list -scheme http -port $port -host $host] [::Url::parse $url]]
 	set T [dict merge $T [list -method $method date [::Http::Date] host $host]]
-	Debug.HTTP {T: ($T) -> [::Url::http $T] -> [::Url::uri $T]}
-	#puts stderr "T: ($T) -> [::Url::http $T] -> [::Url::uri $T]"
 	set requrl([incr txcount]) [::Url::uri $T]
+	Debug.HTTP {T: ($T) #$txcount -> [::Url::http $T] -> [::Url::uri $T]}
 
 	# format entity
 	if {$entity ne ""} {
@@ -216,7 +215,8 @@ class create HTTP {
 	}
 
 	# format up header
-	set request "$method [::Url::http $T] HTTP/1.1\r\n"
+	set request "[string toupper $method] [::Url::http $T] HTTP/1.1\r\n"
+
 	dict for {n v} [dict filter $T key {[a-zA-Z]*}] {
 	    if {[string length $v] > 100} {
 		# break long lines into partial lines
@@ -231,7 +231,8 @@ class create HTTP {
 	}
 	append request "\r\n"	;# signal end of header
 	chan puts -nonewline $socket $request
-	Debug.HTTPdetail {Sent header: $request}
+	Debug.HTTPdetail {Sent header: [string map {\r \\r \n \\n} $request]}
+
 	if {[info exists entity]} {
 	    # send the entity
 	    chan puts -nonewline $socket $entity
@@ -268,7 +269,7 @@ class create HTTP {
 	corovars socket
 
 	set line ""
-	while {![eof $socket]
+	while {![chan eof $socket]
 	       && [chan gets $socket line] != -1
 	       && [chan blocked $socket]
 	   } {
@@ -277,6 +278,7 @@ class create HTTP {
 
 	if {[chan eof $socket]} {
 	    set reason "EOF reading HEADER"
+	    Debug.HTTPdetail {gets: EOF reading HEADER}
 	    [self] destroy
 	} else {
 	    Debug.HTTPdetail {gets: '$line' [chan blocked $socket] [chan eof $socket]}
@@ -310,8 +312,6 @@ class create HTTP {
     destructor {
 	Debug.HTTP {[self]: $socket closed because: $reason}
 
-	catch {close $socket}
-
 	# alert consumer
 	set close [list X-type CLOSED X-count [incr rqcount] X-reason $reason]
 	if {$notify ne ""} {
@@ -337,7 +337,7 @@ class create HTTP {
 	    set args [lindex $args 0]
 	}
  
-	set ops [list get $url]
+	set ops {}
 	foreach {n v} $args {
 	    if {$n in {get put post delete close}} {
 		lappend ops $n $v
@@ -346,7 +346,7 @@ class create HTTP {
 	    }
 	}
 
-	# parse url
+	# parse url of host
 	set urld [::Url::parse $url]
 	set host [dict get $urld -host]
 
@@ -356,6 +356,7 @@ class create HTTP {
 	    set port 80 
 	}
 
+	# connect socket to host
 	set socket ""
 	if {[catch {
 	    set socket [socket -async $host $port]	;# create the socket
@@ -376,75 +377,96 @@ class create HTTP {
 	    dict with args {}
 	    yield
 
-	    variable self; 
+	    variable self;
 	    # keep receiving input resulting from our requests
-	    while {![eof $socket]} {
+	    while {![chan eof $socket]} {
 		set r {}	;# empty header
 		# get whole header
-		set headering 1
+		# keep a count of the number of packets received
+		variable rqcount; set reqcount [incr rqcount]
+
+		set headering 1; set bogus 0
 		while {$headering} {
 		    set lines {}
+		    set line [my gets]
 		    while {$headering} {
 			set line [my gets]
 			Debug.HTTP {reader got line: ($line)}
 			if {[string trim $line] eq ""} {
 			    set headering 0
+			} elseif {[string match <* [string trim $line]]} {
+			    set headering 0
+			    set bogus 1
 			} else {
 			    lappend lines $line
 			}
 		    }
 		}
-		
-		# got the header
-		set header [lindex $lines 0]
-		set r [my parse [lrange $lines 1 end]]	;# parse the header
 
-		# split out some interesting parts of the first header line
-		dict set r -message [join [lassign [split $header] version code]]
-		dict set r -version $version
-		dict set r -code $code
-		Debug.HTTP {reader header: $header ($r)}
-		
-		# now we have to fetch the entity (if any)
-		if {[dict exists $r content-length]} {
-		    set left [dict get $r content-length]
-		    set entity ""
-		    chan configure $socket -translation {binary binary}
-		    Debug.HTTP {reader getting entity of length ($left)}
-		    while {$left > 0} {
-			set chunk [my read $left]
-			incr left -[string length $chunk]
-			Debug.HTTP {reader getting remainder of entity of length ($left)}
-			dict append r -content $chunk
+		if {$bogus} {
+		    # some sites (yes, ReCAPTCHA, you) don't even send headers
+		    Debug.HTTP {This site is bogus, no header sent, just content}
+		    set entity $line
+		    while {![eof $socket]} {
+			append entity \n [my gets]
 		    }
-		    Debug.HTTP {reader got whole entity}
-		} elseif {[dict exists $r transfer-encoding]} {
-		    switch -- [dict get $r transfer-encoding] {
-			chunked {
-			    set chunksize 1
-			    while {$chunksize} {
-				chan configure $socket -translation {crlf binary}
-				set chunksize 0x[my gets]
-				chan configure $socket -translation {binary binary}
-				if {!$chunksize} {
-				    my gets
-				    Debug.HTTP {Chunks all done}
-				    break
-				}
-				set chunk [my read $chunksize]
-				my gets	;# get the closing \n
-				Debug.HTTP {Chunk: $chunksize ($chunk)}
-				dict append r -content $chunk
-			    }
+		    dict set r -content $entity
+		} else {
+		    # got the header
+		    set header [lindex $lines 0]
+		    set r [my parse [lrange $lines 1 end]]	;# parse the header
+
+		    # split out some interesting parts of the first header line
+		    dict set r -message [join [lassign [split $header] version code]]
+		    dict set r -version $version
+		    dict set r -code $code
+		    Debug.HTTP {reader header: $header ($r)}
+		    
+		    # now we have to fetch the entity (if any)
+		    if {[dict exists $r content-length]} {
+			set left [dict get $r content-length]
+			set entity ""
+			if {![chan eof $socket]} {
+			    chan configure $socket -translation {binary binary}
 			}
-			default {
-			    error "Unknown transfer encoding"
+			Debug.HTTP {reader getting entity of length ($left)}
+			while {$left > 0} {
+			    set chunk [my read $left]
+			    incr left -[string length $chunk]
+			    Debug.HTTP {reader getting remainder of entity of length ($left)}
+			    dict append r -content $chunk
+			}
+			Debug.HTTP {reader got whole entity}
+		    } elseif {[dict exists $r transfer-encoding]} {
+			switch -- [dict get $r transfer-encoding] {
+			    chunked {
+				set chunksize 1
+				while {$chunksize} {
+				    chan configure $socket -translation {crlf binary}
+				    set chunksize 0x[my gets]
+				    chan configure $socket -translation {binary binary}
+				    if {!$chunksize} {
+					my gets
+					Debug.HTTP {Chunks all done}
+					break
+				    }
+				    set chunk [my read $chunksize]
+				    my gets	;# get the closing \n
+				    Debug.HTTP {Chunk: $chunksize ($chunk)}
+				    dict append r -content $chunk
+				}
+			    }
+			    default {
+				error "Unknown transfer encoding"
+			    }
 			}
 		    }
 		}
-		
+
 		# reset to header config
-		chan configure $socket -encoding binary -translation {crlf binary}
+		if {![chan eof $socket]} {
+		    chan configure $socket -encoding binary -translation {crlf binary}
+		}
 
 		# check content-encoding and gunzip content if necessary
 		if {[dict exists $r content-encoding]} {
@@ -457,9 +479,6 @@ class create HTTP {
 		    }
 		}
 
-		# keep a count of the number of packets received
-		variable rqcount; incr rqcount
-
 		# hand consumer the result
 		variable consumer
 		variable justcontent
@@ -467,7 +486,8 @@ class create HTTP {
 		    after 1 [list {*}$consumer [list [dict get $r -content]]]
 		} else {
 		    variable requrl
-		    dict set r X-url $requrl($rqcount)
+		    Debug.HTTPdetail {formatting up consumer message $reqcount}
+		    dict set r X-url $requrl($reqcount)
 		    dict set r X-count $rqcount
 		    dict set r X-object $self
 		    dict set r X-type RESPONSE
@@ -491,6 +511,7 @@ class create HTTP {
 		Debug.HTTP {reader: sent response, waiting for next}
 		yield
 	    }
+	    catch {chan close $socket}
 	    $self destroy
 	}
 
@@ -508,6 +529,7 @@ class create HTTP {
 	    # unpack all the passed-in args
 	    set ops {}
 	    set http {}
+
 	    foreach {var val} $args {
 		if {[string tolower $var] in {get put post delete close}} {
 		    # collect protocol operations
@@ -521,7 +543,7 @@ class create HTTP {
 	    
 	    # construct a request template
 	    set http [dict merge $template $http]	;# http could have been passed in
-	    dict set http User-Agent "HTTP/[package present HTTP]"
+	    dict set http User-Agent "TclHTTP/[package present HTTP]"
 	    lappend http accept-encoding gzip
 	    
 	    variable closing; variable self
@@ -601,9 +623,6 @@ class create HTTP {
 
 	return $writer
     }
-    
-    namespace export -clear *
-    namespace ensemble create -subcommands {}
 }
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
