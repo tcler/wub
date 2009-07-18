@@ -94,13 +94,8 @@ class create ViewLogger {
 
     method set {index args} {
 	set result [next $index {*}$args]
-	if {[dict exists $args ""]} {
-	    dict unset args ""	;# remove the index pseudo-element
-	}
-	if {[dict size $args]} {
-	    {*}$logger set [my name] $index $args [my get $index]
-	}
-	return [[my parent] set $index {*}$args
+	{*}$logger set [my name] $index $args [my get $index]
+	return $result
     }
 
     method insert {index args} {
