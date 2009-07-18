@@ -94,8 +94,13 @@ class create ViewLogger {
 
     method set {index args} {
 	set result [next $index {*}$args]
-	{*}$logger set [my name] $index $args [my get $index]
-	return $result
+	if {[dict exists $args ""]} {
+	    dict unset args ""	;# remove the index pseudo-element
+	}
+	if {[dict size $args]} {
+	    {*}$logger set [my name] $index $args [my get $index]
+	}
+	return [[my parent] set $index {*}$args
     }
 
     method insert {index args} {
@@ -168,11 +173,20 @@ class create View {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
-	Debug.view {$view set $index keys: '[dict keys $args]'}
-	set result [$view set $index {*}$args]
-	if {$commit} {
-	    my db commit
+	if {[dict exists $args ""]} {
+	    dict unset args ""	;# remove the index pseudo-element
 	}
+
+	Debug.view {$view set $index keys: '[dict keys $args]'}
+	if {[dict size $args]} {
+	    set result [$view set $index {*}$args]
+	    if {$commit} {
+		my db commit
+	    }
+	} else {
+	    set result {}
+	}
+
 	return $result
     }
 
