@@ -23,10 +23,7 @@ class create ReCAPTCHA {
 	lassign [dict get $resumption $id] pass fail
 	dict unset resumption $id
 
-	set entity "privatekey=$private&remoteip=[dict get $r -ipaddr]&challenge=$recaptcha_challenge_field&response=$recaptcha_response_field"
-
-	Debug on HTTP 10
-	Debug on HTTPdetail 10
+	set entity [Query encodeL privatekey $private remoteip [dict get $r -ipaddr] challenge $recaptcha_challenge_field response $recaptcha_response_field]
 
 	set V [HTTP new http://api-verify.recaptcha.net/ [lambda {v} [string map [list %PASS $pass %FAIL $fail %R $r] {
 	    set r [list %R]	;# our response
@@ -53,6 +50,7 @@ class create ReCAPTCHA {
     }
 
     method form {args} {
+	set theme white
 	set class {}
 	set pass {
 	    set r [Http Ok $r "Passed ReCAPTCHA" text/plain]
@@ -73,6 +71,7 @@ class create ReCAPTCHA {
 
 	return [<form> recapture {*}$class action [file join $mount validate]/ [subst {
 	    [<hidden> id $id]
+	    [<script> type text/javascript "var RecaptchaOptions = \{theme : '$theme'\};"]
 	    [<script> type text/javascript src http://api.recaptcha.net/challenge?k=$public> {}]
 	    [<noscript> [subst {
 		[<iframe> src http://api.recaptcha.net/noscript?k=$public height 300 width 500 frameborder 0 {}]
