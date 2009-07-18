@@ -18,13 +18,15 @@ namespace eval Query {
 	variable dmap
 
 	set dmap {+ " " %0D%0A \n %0d%0a \n %% %}
-	set map {% %%}
+	set map {% %% = = & & - -}
 
 	# set up non-alpha map
 	for {set i 1} {$i <= 256} {incr i} {
 	    set c [format %c $i]
 	    if {![string match {[a-zA-Z0-9]} $c]} {
-		lappend map $c %[format %.2X $i]
+		if {![dict exists $map $c]} {
+		    lappend map $c %[format %.2X $i]
+		}
 		lappend dmap %[format %.2X $i] [binary format c $i]
 		lappend dmap %[format %.2x $i] [binary format c $i]
 	    }
@@ -79,6 +81,18 @@ namespace eval Query {
 	set string [string map $map $string]
 	Debug.query {encode post '$string'}
 	return $string
+    }
+
+    # encode args as a www-url-encoded entity
+    proc encodeL {args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	set entity {}
+	foreach {n v} $args {
+	    lappend entity "$n=[Query encode $v]"
+	}
+	return [join $entity &]
     }
 
     # build
