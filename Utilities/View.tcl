@@ -59,7 +59,7 @@ class create ViewIndexed {
 	    set args [lindex $args 0]
 	}
 	Debug.view {MIXIN [my view] set $index keys: '[dict keys $args]'}
-	return [[my parent] get [[my view] get $index] {*}$args]
+	return [[my parent] set [[my view] get $index] {*}$args]
     }
 
     method all {script} {
