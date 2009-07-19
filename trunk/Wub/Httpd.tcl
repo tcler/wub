@@ -746,6 +746,8 @@ namespace eval Httpd {
 	Debug.Httpd {[info coroutine] send: ([rdump $r]) $cache [expr {[dict get? $r -ua_class] ni {browser unknown}}]}
 	dict set r -sent [clock microseconds]
 
+	# precheck generation
+	corovars generation
 	if {[dict exists $r -generation] && [dict get $r -generation] != $generation} {
 	    dict set r -code 599	;# signal a really bad packet
 	}
@@ -764,7 +766,6 @@ namespace eval Httpd {
 	}
 
 	# check generation
-	corovars generation
 	if {![dict exists $r -generation]} {
 	    # there's no generation here - hope it's a low-level auto response
 	    # like Block etc.
