@@ -746,6 +746,18 @@ namespace eval Httpd {
 	Debug.Httpd {[info coroutine] send: ([rdump $r]) $cache [expr {[dict get? $r -ua_class] ni {browser unknown}}]}
 	dict set r -sent [clock microseconds]
 
+	if {[dict exists $r -generation] && [dict get $r -generation] != $generation} {
+	    dict set r -code 599	;# signal a really bad packet
+	}
+
+	# generate a log line
+	variable log
+	if {$log ne "" && [catch {
+	    puts $log [Http clf $r]	;# generate a log line
+	} le leo]} {
+	    Debug.error {log error: $le ($leo)}
+	}
+
 	# if this isn't a browser - do not cache!
 	if {[dict get? $r -ua_class] ni {browser unknown}} {
 	    set cache 0	;# ??? TODO
@@ -771,14 +783,6 @@ namespace eval Httpd {
 	    Debug.error {FAILED write $close ($eo) IP [dict get $r -ipaddr] ([dict get? $r user-agent]) wanted [dict get $r -uri]}
 
 	    terminate closed
-	}
-
-	# generate a log line
-	variable log
-	if {$log ne "" && [catch {
-	    puts $log [Http clf $r]	;# generate a log line
-	} le leo]} {
-	    Debug.error {log error: $le ($leo)}
 	}
 
 	# deal with socket
