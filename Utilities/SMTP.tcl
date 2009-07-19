@@ -224,8 +224,8 @@ class create ::SMTP {
 		    set bad {}; set good {}	;# accumulate success and failure
 		    foreach recipient [dict get? $smtp recipients] {
 			lassign [my send $socket 3600 RCPT "TO:<$recipient>"] code response
-			dict set status "RCPT $recipient" [list $code $response]
-			
+			dict set status RCPT $recipient [list $code $response]
+
 			set ex [dict get? $::SMTP_status $code]
 			switch -glob -- $code {
 			    250 -
