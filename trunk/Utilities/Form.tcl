@@ -604,7 +604,7 @@ namespace eval Form {
 }
 Form init
 
-namespace import ::Form::<*>
+catch {namespace import ::Form::<*>}
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
     #Debug on form 10
