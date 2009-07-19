@@ -186,7 +186,7 @@ namespace eval Http {
 	    lappend line \"[dict get? $r cookie]\"
 	}
 
-	if {[dict exists $r -received] && [dict exists $r -sent]|} {
+	if {[dict exists $r -received] && [dict exists $r -sent]} {
 	    lappend line \"[expr {[dict get $r -sent] - [dict get $r -received]}]\"
 	}
 
