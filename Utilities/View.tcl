@@ -672,7 +672,9 @@ class create View {
     # append - append a record to the view
     method append {args} {
 	set result [my insert end {*}$args]
-	my db commit
+	if {$commit} {
+	    my db commit
+	}
 	return $result
     }
 
