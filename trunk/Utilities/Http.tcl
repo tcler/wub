@@ -180,7 +180,11 @@ namespace eval Http {
 	# referer, useragent, cookie, if any
 	lappend line \"[dict get? $r referer]\"
 	lappend line \"[dict get? $r user-agent] ([dict get? $r -ua_class])\"
-	lappend line \"[dict get? $r cookie]\"
+	if {[dict exists $r -user]} {
+	    lappend line \"[dict get? $r -user]\"
+	} else {
+	    lappend line \"[dict get? $r cookie]\"
+	}
 
 	return [join $line]
     }
