@@ -744,6 +744,7 @@ namespace eval Httpd {
     #	Possibly close socket
     proc send {r {cache 1}} {
 	Debug.Httpd {[info coroutine] send: ([rdump $r]) $cache [expr {[dict get? $r -ua_class] ni {browser unknown}}]}
+	dict set r -sent [clock microseconds]
 
 	# if this isn't a browser - do not cache!
 	if {[dict get? $r -ua_class] ni {browser unknown}} {
