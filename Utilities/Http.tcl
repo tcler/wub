@@ -187,7 +187,11 @@ namespace eval Http {
 	}
 
 	if {[dict exists $r -received] && [dict exists $r -sent]} {
-	    lappend line \"[expr {[dict get $r -sent] - [dict get $r -received]}]\"
+	    set diff [expr {[dict get $r -sent] - [dict get $r -received]}]
+	    if {$diff > 200000} {
+		Debug.error {SLOW: [dumpMsg $r]}
+	    }
+	    lappend line \"$diff\"
 	}
 
 	return [join $line]
