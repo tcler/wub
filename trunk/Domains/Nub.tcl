@@ -710,6 +710,8 @@ namespace eval Nub {
 				set c [%C]
 				if {$c eq "" && [dict get? $r -content] eq ""} {
 				    set content $c	;# permits mods to $r
+				} else {
+				    set content [dict get? $r -content]
 				}
 				Http Pass $r $content	;# pass the content back
 			    }
