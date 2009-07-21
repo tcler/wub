@@ -707,7 +707,10 @@ namespace eval Nub {
 			    "%H,%U" {
 				dict set r -code 200	;# default return code
 				dict set r content-type %CT	;# default content-type
-				set content [%C]	;# permits mods to $r
+				set c [%C]
+				if {$c eq "" && [dict get? $r -content] eq ""} {
+				    set content $c	;# permits mods to $r
+				}
 				Http Pass $r $content	;# pass the content back
 			    }
 			}]
