@@ -182,6 +182,8 @@ namespace eval Http {
 	lappend line \"[dict get? $r user-agent] ([dict get? $r -ua_class])\"
 	if {[dict exists $r -user]} {
 	    lappend line \"[dict get? $r -user]\"
+	} elseif {[dict exists $r -human]} {
+	    lappend line \"[dict get? $r -human]\"
 	} else {
 	    lappend line \"[dict get? $r cookie]\"
 	}
