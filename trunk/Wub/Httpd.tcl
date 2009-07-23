@@ -1336,9 +1336,9 @@ namespace eval Httpd {
 		    lappend forwards $xff
 		}
 	    }
-	    lappend forwards [dict get $r -ipaddr]
+	    #lappend forwards [dict get $r -ipaddr]
 	    dict set r -forwards $forwards
-	    dict set r -ipaddr [lindex $forwards 0]
+	    #dict set r -ipaddr [lindex $forwards 0]
 
 	    # check Cache for match
 	    if {[dict size [set cached [Cache check $r]]] > 0} {
