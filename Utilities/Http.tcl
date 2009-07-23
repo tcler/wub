@@ -196,7 +196,7 @@ namespace eval Http {
 	    lappend line \"$diff\"
 	}
 
-	lappend line \"[dict exists $r -forwards]\"
+	lappend line \"[dict get? $r -forwards]\"
 
 	return [join $line]
     }
