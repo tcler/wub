@@ -1099,9 +1099,9 @@ namespace eval Httpd {
 	    if {[info exists connbyIP([dict get $r -ipaddr])]
 		 && $connbyIP([dict get $r -ipaddr]) > $max_conn
 	     } {
-		dict set r -OC 1
+		#dict set r -OC 1
 		# let's log this sucker and see what he's asking for
-		Debug.log {Overconnector [dict get $r -ipaddr] ([dict get? $r user-agent]) wants [dict get $r -uri]}
+		#Debug.log {Overconnector [dict get $r -ipaddr] ([dict get? $r user-agent]) wants [dict get $r -uri]}
 	    }
 
 	    # check the incoming ip for blockage
