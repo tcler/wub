@@ -337,7 +337,11 @@ namespace eval Http {
 	}
 
 	if {$age} {
-	    dict append rsp cache-control ",max-age=$age"
+	    if {[dict exists $rsp cache-control]} {
+		dict append rsp cache-control ",max-age=$age"
+	    } else {
+		dict set rsp cache-control "max-age=$age"
+	    }
 	}
 
 	return $rsp
