@@ -1543,6 +1543,7 @@ namespace eval Httpd {
 	package require Cookies
 	proc pre {req} {
 	    # default request pre-process
+	    catch {::pest $req}
 	    return [::Cookies 4Server $req]	;# fetch the cookies
 	}
 	return [pre $req]
