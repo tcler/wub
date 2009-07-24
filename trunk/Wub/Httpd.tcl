@@ -1534,8 +1534,8 @@ namespace eval Httpd {
 	proc pre {r} {
 	    # default request pre-process
 	    catch {::pest $r}
-	    set r [Human track $r]	;# track humans by cookie
 	    set r [::Cookies 4Server $r]	;# fetch the cookies
+	    set r [Human track $r]	;# track humans by cookie
 	    return $r
 	}
 	return [pre $r]
