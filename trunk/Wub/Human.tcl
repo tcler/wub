@@ -38,9 +38,16 @@ namespace eval Human {
 		set tracker($human) $ipaddr
 		::fileutil::appendToFile [file join $logdir human] "$human [list $ipaddr]\n"
 	    }
-	    
-	    lappend tracker($ipaddr) $human	;# set tracker to human's id
-	    ::fileutil::appendToFile [file join $logdir human] "$ipaddr [list $tracker($ipaddr)]\n"
+
+	    if {[info exists tracker($ipaddr)] && [lindex $tracker($ipaddr) 0]} {
+		if {[lsearch exact $tracker($ipaddr) $human] < 0} {
+		    lappend tracker($ipaddr) $human	;# only add new ipaddrs
+		    ::fileutil::appendToFile [file join $logdir human] "$ipaddr [list $tracker($ipaddr)]\n"
+		}
+	    } else {
+		set tracker($ipaddr) $human
+		::fileutil::appendToFile [file join $logdir human] "$ipaddr [list $tracker($ipaddr)]\n"
+	    }
 
 	    dict set r -ua_class browser	;# classify the agent
 
