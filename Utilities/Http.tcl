@@ -308,6 +308,7 @@ namespace eval Http {
 	dict set rsp cache-control "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0"; # HTTP/1.1
 	dict set rsp expires "Sun, 01 Jul 2005 00:00:00 GMT"	;# deep past
 	dict set rsp pragma "no-cache"	;# HTTP/1.0
+	dict set rsp x-wub-no-cache 1
 	dict set rsp -dynamic 1
 	catch {dict unset rsp -modified}
 	catch {dict unset rsp -depends}
