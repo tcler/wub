@@ -20,7 +20,7 @@ namespace eval Human {
 
 	# try to find the human cookie
 	set cdict [dict get $r -cookies]
-	set cl [Cookies match $cdict -name cookie]
+	set cl [Cookies match $cdict -name $cookie]
 	if {[llength $cl]} {
 	    # we know they're human - they return cookies (?)
 	    set human [dict get [Cookies fetch $cdict -name $cookie] -value]
