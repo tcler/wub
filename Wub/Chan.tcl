@@ -2,12 +2,8 @@
 package require TclOO
 namespace import oo::*
 
-if {[catch {package require Debug}]} {
-    proc Debug.chan {args} {puts stderr [uplevel subst [list $args]]}
-} else {
-    package require Debug
-    Debug on chan 10
-}
+package require Debug
+Debug off chan 10
 
 package provide Chan 1.0
 
