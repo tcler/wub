@@ -216,8 +216,8 @@ namespace eval Site {
 	    load 1		;# want block by default
 	}]
 
-	@honeypot [rc {
-	    load 1		;# want honeypot by default
+	@human [rc {
+	    load 1		;# want human by default
 	}]
 
 	@ua [rc {
@@ -402,22 +402,21 @@ namespace eval Site {
 	    }
 	}
 
-	#### Load Honeypot Module - redirects bad bots
-	variable honeypot
-	if {[info exists honeypot]
-	    && [dict get? $honeypot load] ne ""
-	    && [dict get? $honeypot load]
+	#### Load Human Module - redirects bad bots
+	variable human
+	if {[info exists human]
+	    && [dict get? $human load] ne ""
+	    && [dict get? $human load]
 	} {
-	    #### initialize Honeypot
-	    package require Honeypot
-	    Debug.site {Module Honeypot: YES}
-	    Honeypot new logdir $docroot
+	    #### initialize Human
+	    package require Human
+	    Debug.site {Module Human: YES}
+	    Human new logdir $docroot
 	} else {
-	    # NULL Honeypot
-	    Debug.site {Module Honeypot: NO}
-	    namespace eval ::Honeypot {
-		proc newbot? {args} {return 0}
-		proc guard {args} {return 0}
+	    # NULL Human
+	    Debug.site {Module Human: NO}
+	    namespace eval ::Human {
+		proc track {r args} {return $r}
 		namespace export -clear *
 		namespace ensemble create -subcommands {}
 	    }
