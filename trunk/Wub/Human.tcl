@@ -40,7 +40,7 @@ namespace eval Human {
 	    }
 
 	    if {[info exists tracker($ipaddr)] && [lindex $tracker($ipaddr) 0]} {
-		if {[lsearch exact $tracker($ipaddr) $human] < 0} {
+		if {[lsearch -exact $tracker($ipaddr) $human] < 0} {
 		    lappend tracker($ipaddr) $human	;# only add new ipaddrs
 		    ::fileutil::appendToFile [file join $logdir human] "$ipaddr [list $tracker($ipaddr)]\n"
 		}
