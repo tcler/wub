@@ -16,6 +16,7 @@ namespace eval Human {
     proc track {r} {
 	variable cookie
 	variable tracker
+	variable logdir
 	set ipaddr [dict get $r -ipaddr]
 
 	# try to find the human cookie
