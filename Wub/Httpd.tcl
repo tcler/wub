@@ -76,7 +76,6 @@ set API(Server/Httpd) {
 	;[Cache]: Httpd (configurably) interacts with a server cache (also known as a reverse proxy) which automatically caches responses and serves them (as appropriate) to clients upon matching request.  The Cache is transparent to ''consumer'', which will not be invoked if cached content can be supplied.  Caching policy is determined entirely by response and request protocol elements - that is, if a response is publicly cacheable, the [Cache] module will capture and reproduce it, handling conditional fetches and such.
 	;Exhaustion: Httpd maintains a count of the current connections for each IP address, and may refuse service if they exceed a configured limit.  In practice, this has not been found to be very useful.
 	;[Block]ing: refuses service to blocked IP addresses
-	;[../Domains/Honeypot Honeypot]: attempts to ensnare non-conformant spiders and bots.
 	;[../Utility/spider Spider] detection: looks up User-Agent in a db of known bad-bots, to attempt to refuse them service.  In practice, this has not been found to be very useful.
 	;[../Utility/UA UA] classification: parses and classifies User-Agent in an attempt to classify interactions as 'bot', 'broser', 'spider'. 'spammer'.  Limited success.
     }
@@ -697,12 +696,11 @@ namespace eval Httpd {
 	set header "HTTP/1.1 $header" ;# add the HTTP signifier
 
 	# global consequences - botting and caching
-	if {![Honeypot newbot? $r] && $cache} {
+	if {$cache} {
 	    # handle caching (under no circumstances cache bot replies)
-	    Debug.Httpd {Cache put: ([rdump $r])}
 	    Cache put $r	;# cache it before it's sent
 	} else {
-	    Debug.Httpd {Do Not Cache put: ([rdump $r]) honey:[Honeypot newbot? $r] cache:$cache}
+	    Debug.Httpd {Do Not Cache put: ([rdump $r]) cache:$cache}
 	}
 
 	# record transaction reply and kick off the responder
@@ -1139,14 +1137,6 @@ namespace eval Httpd {
 		default {
 		    # dict set r -dynamic 1	;# make this dynamic
 		}
-	    }
-
-	    if {[Honeypot guard r]} {
-		# check the incoming ip for bot detection
-		# this is a bot - reply directly to it
-		send $r	0	;# queue up error response
-		Debug.log {Honeypot Sticks [dict get $r -ipaddr] ([dict get? $r user-agent]) wants [dict get $r -uri]}
-		continue
 	    }
 
 	    # ensure that the client sent a Host: if protocol requires it
