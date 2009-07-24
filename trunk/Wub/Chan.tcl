@@ -98,6 +98,7 @@ class create Chan {
 	# Initialize the buffer, current read location, and limit
 	set chan ""
 	foreach {n v} $args {
+	    if {$n ni [info class variables Chan]} {error "$n is not a valid parameter. ([info class variables Chan])"}
 	    set $n $v
 	}
 	if {$chan eq [self]} {
