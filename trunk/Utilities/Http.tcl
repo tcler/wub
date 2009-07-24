@@ -193,7 +193,7 @@ namespace eval Http {
 	    if {$diff > 100000} {
 		Debug.error {SLOW ($diff uS): [dumpMsg $r]}
 	    }
-	    lappend line \"$diff\"
+	    lappend line \"$diff [dict get? $r -headering]\"
 	}
 
 	lappend line \"[dict get? $r -forwards]\"
