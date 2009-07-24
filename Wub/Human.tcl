@@ -26,7 +26,6 @@ namespace eval Human {
 	    # we know they're human - they return cookies (?)
 	    set human [dict get [Cookies fetch $cdict -name $cookie] -value]
 	    set human [lindex [split $human =] end]
-	    dict set r -human $human	;# record supposition that they're human
 
 	    # record human's ip addresses
 	    if {[info exists tracker($human)]} {
@@ -49,6 +48,7 @@ namespace eval Human {
 		::fileutil::appendToFile [file join $logdir human] "$ipaddr [list $tracker($ipaddr)]\n"
 	    }
 
+	    dict set r -human $human		;# record supposition that they're human
 	    dict set r -ua_class browser	;# classify the agent
 
 	    return $r
@@ -67,6 +67,7 @@ namespace eval Human {
 	    }
 	} else {
 	    set tracker($ipaddr) 0	;# remember that we've seen them once
+	    ::fileutil::appendToFile [file join $logdir human] "$ipaddr 0\n"
 	}
 
 	# add a cookie to reply
