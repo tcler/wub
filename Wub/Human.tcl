@@ -1,4 +1,10 @@
 # Human - try to detect robots by cookie behaviour
+if {[catch {package require Debug}]} {
+    proc Debug.chan {args} {puts stderr [uplevel subst [list $args]]}
+} else {
+    package require Debug
+    Debug on human 10
+}
 
 package require Cookies
 package require fileutil
@@ -89,7 +95,7 @@ namespace eval Human {
 	# add the human cookie
 	variable path
 	set value [clock microseconds]
-	Debug.wikit {created human cookie $value}
+	Debug.human {created human cookie $value}
 	set cdict [Cookies add $cdict -path $path -name $cookie -value $value {*}$age]
 
 	dict set r -cookies $cdict
