@@ -1024,9 +1024,12 @@ namespace eval Httpd {
 	    # get whole header
 	    set headering 1
 	    set lines {}
-	    set hstart [clock microseconds]
+	    set hstart 0
 	    while {$headering} {
 		set line [get $socket HEADER]
+		if {!$hstart} {
+		    set hstart [clock microseconds]
+		}
 		Debug.HttpdLow {reader [info coroutine] got line: ($line)}
 		if {[string trim $line] eq ""} {
 		    # rfc2616 4.1: In the interest of robustness,
