@@ -11,6 +11,7 @@ package require Debug
 Debug off Httpd 10
 Debug off HttpdLow 10
 Debug off Watchdog 10
+Debug on slow 10
 
 package require Listener
 
@@ -1023,6 +1024,7 @@ namespace eval Httpd {
 	    # get whole header
 	    set headering 1
 	    set lines {}
+	    set hstart [clock microseconds]
 	    while {$headering} {
 		set line [get $socket HEADER]
 		Debug.HttpdLow {reader [info coroutine] got line: ($line)}
@@ -1041,6 +1043,7 @@ namespace eval Httpd {
 	    # parse the header into a request
 	    set r [dict merge $prototype [parse [lrange $lines 1 end]]]	;# parse the header
 	    set start [clock microseconds]
+	    dict set r -htime [expr {$start - $hstart}]
 	    dict set r -received $start
 	    dict set r -transaction [incr transaction]
 	    dict set r -sock $socket
