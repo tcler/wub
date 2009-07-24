@@ -308,7 +308,6 @@ namespace eval Http {
 	dict set rsp cache-control "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0"; # HTTP/1.1
 	dict set rsp expires "Sun, 01 Jul 2005 00:00:00 GMT"	;# deep past
 	dict set rsp pragma "no-cache"	;# HTTP/1.0
-	dict set rsp x-wub-no-cache 1
 	dict set rsp -dynamic 1
 	catch {dict unset rsp -modified}
 	catch {dict unset rsp -depends}
@@ -317,7 +316,7 @@ namespace eval Http {
     }
 
     # modify an HTTP response to indicate that its contents may be Cached
-    proc Cache {rsp {age 0} {realm "public"}} {
+    proc Cache {rsp {age 0} {realm ""}} {
 	if {[string is integer -strict $age]} {
 	    # it's an age
 	    if {$age != 0} {
@@ -331,16 +330,24 @@ namespace eval Http {
 	    dict set rsp expires [Date [clock scan $age]]
 	    set age [expr {[clock scan $age] - [clock seconds]}]
 	}
-	dict set rsp -dynamic 0
-	#dict set rsp cache-control "$realm, max-age=$age"
-	dict set rsp cache-control $realm
+	dict set rsp -dynamic 0	;# signal that we can cache this
+
+	if {$realm ne ""} {
+	    dict set rsp cache-control $realm
+	}
+
+	if {$age} {
+	    dict append rsp cache-control ",max-age=$age"
+	}
+
 	return $rsp
     }
 
-    # modify an HTTP response to indicate that its contents must be revalidated
-    proc DCache {rsp {age 0} {realm "public"}} {
+    # Dynamic cache -modify an HTTP response to indicate
+    # that its contents, while cacheable, must be revalidated
+    proc DCache {rsp {age 0} {realm ""}} {
 	set rsp [Cache $rsp $age $realm]
-	dict append rsp cache-control ", must-revalidate"
+	dict append rsp cache-control ",must-revalidate"
 	return $rsp
     }
 
@@ -363,9 +370,9 @@ namespace eval Http {
 	}
 	dict set rsp -modified $mtime
 
-	if {![dict exists $rsp cache-control]} {
-	    dict set rsp cache-control public
-	}
+	#if {![dict exists $rsp cache-control]} {
+	#    dict set rsp cache-control public
+	#}
 
 	# Cacheable Content may have an -expiry clause
 	if {[dict exists $rsp -expiry]} {
