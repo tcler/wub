@@ -1529,14 +1529,16 @@ namespace eval Httpd {
 	}
     }
 
-    proc pre {req} {
+    proc pre {r} {
 	package require Cookies
-	proc pre {req} {
+	proc pre {r} {
 	    # default request pre-process
-	    catch {::pest $req}
-	    return [::Cookies 4Server $req]	;# fetch the cookies
+	    catch {::pest $r}
+	    set r [Human track $r]	;# track humans by cookie
+	    set r [::Cookies 4Server $r]	;# fetch the cookies
+	    return $r
 	}
-	return [pre $req]
+	return [pre $r]
     }
 
     proc post {req} {
