@@ -351,7 +351,11 @@ namespace eval Http {
     # that its contents, while cacheable, must be revalidated
     proc DCache {rsp {age 0} {realm ""}} {
 	set rsp [Cache $rsp $age $realm]
-	dict append rsp cache-control ",must-revalidate"
+	if {[dict exists $rsp cache-control]} {
+	    dict append rsp cache-control ",must-revalidate"
+	} else {
+	    dict set rsp cache-control "must-revalidate"
+	}
 	return $rsp
     }
 
