@@ -14,6 +14,7 @@ Debug off Watchdog 10
 Debug on slow 10
 
 package require Listener
+package require Chan
 
 package require Query
 package require Html
@@ -806,15 +807,18 @@ namespace eval Httpd {
 	    if {[catch {
 		set args [lassign [::yield $retval] op]; set retval ""
 	    } e eo]} {
+		Debug.HttpdLow {yield crashed $e ($eo)}
 		terminate yieldcrash
 	    }
+
 	    if {[eof $socket] || [string match DEAD* [info coroutine]]} {
+		Debug.HttpdLow {[info coroutine] yield - eof $socket}
 		terminate "oops - we're dead"
 		return
 	    }
 
 	    lappend status $op
-	    Debug.HttpdLow {yield [info coroutine] -> $op}
+	    Debug.HttpdLow {back from yield [info coroutine] -> $op}
 
 	    # record a log of our activity to fend off the reaper
 	    variable activity
@@ -929,17 +933,21 @@ namespace eval Httpd {
 
     # coroutine-enabled gets
     proc get {socket {reason ""}} {
+	Debug.HttpdLow {[info coroutine] get started}
 	variable maxline
 	set result [yield]
 	set line ""
-	while {[chan gets $socket line] == -1 && ![chan eof $socket]} {
+	while {[set status [chan gets $socket line]] == -1 && ![chan eof $socket]} {
+	    Debug.HttpdLow {[info coroutine] gets $socket - status:$status '$line'}
 	    set result [yield]
 	    if {$maxline && [chan pending input $socket] > $maxline} {
 		handle [Http Bad $request "Line too long"] "Line too long"
 	    }
 	}
+	Debug.HttpdLow {[info coroutine] get - success:$status}
 
 	if {[chan eof $socket]} {
+	    Debug.HttpdLow {[info coroutine] eof in get}
 	    terminate $reason	;# check the socket for closure
 	}
 
@@ -951,6 +959,7 @@ namespace eval Httpd {
     # coroutine-enabled read
     proc read {socket size} {
 	# read a chunk of $size bytes
+	Debug.HttpdLow {[info coroutine] reading}
 	set chunk ""
 	while {$size && ![chan eof $socket]} {
 	    set result [yield]
@@ -960,6 +969,7 @@ namespace eval Httpd {
 	}
 	
 	if {[chan eof $socket]} {
+	    Debug.HttpdLow {[info coroutine] eof in read}
 	    terminate entity	;# check the socket for closure
 	}
 	
@@ -1113,12 +1123,6 @@ namespace eval Httpd {
 	    if {[Block blocked? [dict get? $r -ipaddr]]} {
 		handle [Http Forbidden $r] Forbidden
 		continue
-	    }
-
-	    # block spiders by UA - superceded
-	    if {0 && [info exists ::spiders([dict get? $r user-agent])]} {
-		Block block [dict get $r -ipaddr] "spider UA ([dict get? $r user-agent])"
-		handle [Http NotImplemented $r "Spider Service"] "Spider"
 	    }
 
 	    # analyse the user agent strings.
@@ -1594,6 +1598,9 @@ namespace eval Httpd {
 
     # connect - process a connection request
     proc Connect {sock ipaddr rport args} {
+	set sock0 [Chan new chan $sock]
+	set sock [chan create {read write} $sock0]
+	Debug.chan {New rchan: [configure $sock]}
 	# the socket must stay in non-block binary binary-encoding mode
 	chan configure $sock -blocking 0 -translation {binary binary} -encoding binary
 
