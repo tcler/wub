@@ -1021,6 +1021,7 @@ namespace eval Httpd {
 	# keep receiving input requests
 	while {1} {
 	    # get whole header
+	    set start [clock microseconds]
 	    set headering 1
 	    set lines {}
 	    while {$headering} {
@@ -1040,7 +1041,7 @@ namespace eval Httpd {
 
 	    # parse the header into a request
 	    set r [dict merge $prototype [parse [lrange $lines 1 end]]]	;# parse the header
-	    dict set r -received [clock microseconds]
+	    dict set r -received $start
 	    dict set r -transaction [incr transaction]
 	    dict set r -sock $socket
 
