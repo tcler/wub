@@ -98,9 +98,10 @@ class create Chan {
 	# Initialize the buffer, current read location, and limit
 	set chan ""
 	foreach {n v} $args {
-	    if {$n ni [info class variables Chan]} {error "$n is not a valid parameter. ([info class variables Chan])"}
+	    if {$n ni [info class variables [info object class [self]]]} {error "$n is not a valid parameter. ([info class variables [info object class [self]]] are)"}
 	    set $n $v
 	}
+
 	if {$chan eq [self]} {
 	    error "recursive Chan!  No good."
 	} elseif {$chan eq ""} {
