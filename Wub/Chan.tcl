@@ -84,6 +84,14 @@ class create Chan {
 
     method finalize {mychan} {
 	Debug.chan {$mychan finalize $chan}
+
+	# remove connection record for connected ip
+	my static connections
+	set ep [dict get $endpoints peer]
+	dict with ep {
+	    dict unset connections $ip $port
+	}
+
 	catch {chan close $chan}
 	catch {my destroy}
     }
@@ -93,19 +101,98 @@ class create Chan {
 	catch {chan close $chan}
     }
 
-    variable chan
+    method socket {} {return $chan}
+    method endpoints {} {return $endpoints}
+
+    # provide static variables
+    method static {args} {
+        if {![llength $args]} return
+        set callclass [lindex [self caller] 0]
+        define $callclass self export varname
+        foreach vname $args {
+            lappend pairs [$callclass varname $vname] $vname
+        }
+        uplevel 1 upvar {*}$pairs
+    }
+
+    method maxconnections {args} {
+	my static maxconnections	;# allow setting of max connections
+	lassign $args ip value
+	if {$value eq "" && [string is integer -strict $value]} {
+	    dict set maxconnections "" $value
+	} else {
+	    dict set maxconnections $ip $value
+	}
+    }
+
+    variable chan endpoints
     constructor {args} {
 	# Initialize the buffer, current read location, and limit
 	set chan ""
-	foreach {n v} $args {
-	    if {$n ni [info class variables [info object class [self]]]} {error "$n is not a valid parameter. ([info class variables [info object class [self]]] are)"}
+
+	# process object args
+	set objargs [dict filter $args key {[a-zA-Z]*}]
+	foreach {n v} $objargs {
+	    if {$n ni [info class variables [info object class [self]]]} {
+		error "$n is not a valid parameter. ([info class variables [info object class [self]]] are)"
+	    }
 	    set $n $v
 	}
+    
+	# process class parameters
+	set classargs [dict filter $args key {-*}]
+	foreach {n v} $classargs {
+	    switch -- [string trim $n -] {
+		maxconnections {
+		    my static maxconnections	;# allow setting of max connections
+		    if {$class ne ""} {
+			dict set maxconnections $ip $v
+		    }
+		}
+	    }
+	}
 
+	if {![llength $objargs]} {
+	    my destroy	;# this wasn't really a connected socket, just set classvars
+	    return
+	}
+
+	# validate args
 	if {$chan eq [self]} {
 	    error "recursive Chan!  No good."
 	} elseif {$chan eq ""} {
 	    error "Needs a chan argument"
+	}
+
+	# get the endpoints for this connected socket
+	foreach {n cn} {sock -sockname peer -peername} {
+	    set ep [chan configure $chan $cn]
+	    lassign [split $ep] ip name port
+	    foreach pn {ip name port} {
+		dict set endpoints $n $pn [set $pn]
+	    }
+	}
+
+	# keep tally of connections from a given peer
+	my static connections
+	dict set connections $ip $port [self]
+
+	# determine maxconnections for this ip
+	my static maxconnections
+	if {![info exists maxconnections]} {
+	    dict set maxconnections "" 20	;# an arbitrary maximum
+	}
+	if {[dict get? $maxconnections $ip] ne ""} {
+	    set mc [dict get $maxconnections $ip]
+	} else {
+	    # default maxconnections
+	    set mc [dict get $maxconnections ""]
+	}
+
+	# check overconnections
+	set x [dict get $connections $ip]
+	if {[dict size $x] > $mc} {
+	    error "Too Many Connections from $name $ip"
 	}
     }
 }
