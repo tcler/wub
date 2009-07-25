@@ -38,6 +38,19 @@ class create Chan {
 	}
     }
 
+    # Internals. Methods. Event generation.
+    method readable {mychan} {
+	Debug.chan {$mychan readable $chan}
+	::chan postevent $mychan read
+	return
+    }
+
+    method writable {mychan} {
+	Debug.chan {$mychan writable $chan}
+	::chan postevent $mychan write
+	return
+    }
+
     # Basic I/O
     method read {mychan n} {
 	if {[catch {::chan read $chan $n} result eo]} {
@@ -54,33 +67,11 @@ class create Chan {
 	return [string length $data]
     }
 
-    # Internals. Methods. Event generation.
-    method readable {mychan} {
-	Debug.chan {$mychan readable $chan}
-	::chan postevent $mychan read
-	return
-    }
-
-    method writable {mychan} {
-	Debug.chan {$mychan writable $chan}
-	::chan postevent $mychan write
-	return
-    }
-
-    method configure {mychan args} {
-	if {[catch {::chan configure $chan} r eo]} {
-	    Debug.chan {$mychan configure $chan $args -> error $r ($eo)}
-	} else {
-	    Debug.chan {$mychan configure $chan $args -> r}
-	}
-	return $r
-    }
-
     # Setting up, shutting down.
     method initialize {mychan mode} {
 	Debug.chan {$mychan initialize $chan $mode ([::chan configure $chan])}
 	::chan configure $chan -blocking 0 -buffering none -encoding binary -eofchar {{} {}} -translation {binary binary}
-	return [list initialize finalize configure blocking watch read write]
+	return [list initialize finalize blocking watch read write]
     }
 
     method finalize {mychan} {
