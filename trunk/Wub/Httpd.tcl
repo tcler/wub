@@ -1542,7 +1542,7 @@ namespace eval Httpd {
 	    chan create {read write} [Chan new chan $sock]
 	} ns eo]} {
 	    # failed to connect.  This can be due to overconnecting
-	    Debug.log {connection error from $ipaddr:$rport - $ns ($eo)}
+	    Debug.error {connection error from $ipaddr:$rport - $ns ($eo)}
 
 	    variable exhaustion
 	    variable server_id
