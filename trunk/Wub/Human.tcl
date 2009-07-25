@@ -3,7 +3,7 @@ if {[catch {package require Debug}]} {
     proc Debug.chan {args} {puts stderr [uplevel subst [list $args]]}
 } else {
     package require Debug
-    Debug on human 10
+    Debug off human 10
 }
 
 package require Cookies
