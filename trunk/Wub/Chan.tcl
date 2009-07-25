@@ -192,6 +192,7 @@ class create Chan {
 	# check overconnections
 	set x [dict get $connections $ip]
 	if {[dict size $x] > $mc} {
+	    Debug.chan {$ip has connections [dict size $x] > $mc from ([dict get $x])}
 	    error "Too Many Connections from $name $ip"
 	}
     }
