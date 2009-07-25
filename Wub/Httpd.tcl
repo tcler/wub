@@ -1544,7 +1544,7 @@ namespace eval Httpd {
 	    Debug.log {connection error from $ipaddr:$rport - $ns ($eo)}
 
 	    variable exhaustion
-	    set msg [dict get [Http Unavailable $r "$ns ($eo)" $exhaustion] -content]
+	    set msg [dict get [Http Unavailable {} "$ns ($eo)" $exhaustion] -content]
 	    puts $sock "HTTP/1.1 503 Exhaustion\r"
 	    puts $sock "Date: [Http Now]\r"
 	    puts $sock "Server: $server_id\r"
