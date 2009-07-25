@@ -146,7 +146,7 @@ class create Chan {
 	    switch -- [string trim $n -] {
 		maxconnections {
 		    my static maxconnections	;# allow setting of max connections
-		    if {$class ne ""} {
+		    if {$chan ne ""} {
 			dict set maxconnections $ip $v
 		    }
 		}
