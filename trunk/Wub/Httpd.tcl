@@ -97,6 +97,7 @@ namespace eval Httpd {
     variable server_id "Wub/[package provide Httpd]"
     variable cid 0		;# unique connection ID
     variable exhaustion	20	;# how long to wait on exhaustion
+    variable maxconn		;# max connections
     variable generation		;# worker/connection association generation
 
     # limits on header size
@@ -1691,6 +1692,11 @@ namespace eval Httpd {
 	    set log [open $logfile a]		;# always add to the end
 	    fconfigure $log -buffering line	;# we want to try to make writes atomic
 	}
+
+	variable maxconn
+	if {[info exists maxconn]} {
+	    Chan new maxconnections $maxconn
+	}
     }
 
     # called by logrotate to rotate log file
@@ -1705,6 +1711,9 @@ namespace eval Httpd {
 	    set log [open $logfile a]		;# always add to the end
 	    fconfigure $log -buffering line	;# we want to try to make writes atomic
 	}
+    }
+
+    proc start {} {
     }
 
     namespace export -clear *
