@@ -180,7 +180,7 @@ class create Chan {
 	# determine maxconnections for this ip
 	my static maxconnections
 	if {![info exists maxconnections]} {
-	    dict set maxconnections "" 20	;# an arbitrary maximum
+	    dict set maxconnections "" 100	;# an arbitrary maximum
 	}
 	if {[dict get? $maxconnections $ip] ne ""} {
 	    set mc [dict get $maxconnections $ip]
