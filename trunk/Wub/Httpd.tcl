@@ -1695,7 +1695,7 @@ namespace eval Httpd {
 
 	variable maxconn
 	if {[info exists maxconn]} {
-	    Chan new maxconnections $maxconn
+	    Chan new -maxconnections $maxconn
 	}
     }
 
