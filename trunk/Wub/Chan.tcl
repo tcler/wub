@@ -4,6 +4,7 @@ namespace import oo::*
 
 package require Debug
 Debug off chan 10
+Debug on connections 10
 
 package provide Chan 1.0
 
@@ -192,7 +193,7 @@ class create Chan {
 	# check overconnections
 	set x [dict get $connections $ip]
 	if {[dict size $x] > $mc} {
-	    Debug.chan {$ip has connections [dict size $x] > $mc from ([dict get $x])}
+	    Debug.connections {$ip has connections [dict size $x] > $mc from ([dict get $x])}
 	    error "Too Many Connections from $name $ip"
 	}
     }
