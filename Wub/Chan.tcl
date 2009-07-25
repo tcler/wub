@@ -194,7 +194,7 @@ class create Chan {
 	set x [dict get $connections $ip]
 	if {[dict size $x] > $mc} {
 	    Debug.connections {$ip has connections [dict size $x] > $mc from ([dict get $x])}
-	    error "Too Many Connections from $name $ip"
+	    #error "Too Many Connections from $name $ip"
 	}
     }
 }
