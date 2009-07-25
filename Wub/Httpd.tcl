@@ -1538,28 +1538,30 @@ namespace eval Httpd {
 
     # connect - process a connection request
     proc Connect {sock ipaddr rport args} {
-	if {[catch {
-	    chan create {read write} [Chan new chan $sock]
-	} ns eo]} {
-	    # failed to connect.  This can be due to overconnecting
-	    Debug.error {connection error from $ipaddr:$rport - $ns ($eo)}
-
-	    variable exhaustion
-	    variable server_id
-	    set msg [dict get? [Http Unavailable {} "$ns ($eo)" $exhaustion] -content]
-
-	    puts $sock "HTTP/1.1 503 Exhaustion\r"
-	    puts $sock "Date: [Http Now]\r"
-	    puts $sock "Server: $server_id\r"
-	    puts $sock "Connection: Close\r"
-	    puts $sock "Content-Length: [string length $msg]\r"
-	    puts $sock \r
-	    puts $sock -nonewline $msg
-	    flush $sock
-	    close $sock
-	    return ""
-	} else {
-	    set sock $ns
+	if {0} {
+	    if {[catch {
+		chan create {read write} [Chan new chan $sock]
+	    } ns eo]} {
+		# failed to connect.  This can be due to overconnecting
+		Debug.error {connection error from $ipaddr:$rport - $ns ($eo)}
+		
+		variable exhaustion
+		variable server_id
+		set msg [dict get? [Http Unavailable {} "$ns ($eo)" $exhaustion] -content]
+		
+		puts $sock "HTTP/1.1 503 Exhaustion\r"
+		puts $sock "Date: [Http Now]\r"
+		puts $sock "Server: $server_id\r"
+		puts $sock "Connection: Close\r"
+		puts $sock "Content-Length: [string length $msg]\r"
+		puts $sock \r
+		puts $sock -nonewline $msg
+		flush $sock
+		close $sock
+		return ""
+	    } else {
+		set sock $ns
+	    }
 	}
 
 	# the socket must stay in non-block binary binary-encoding mode
