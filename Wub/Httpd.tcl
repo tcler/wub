@@ -96,57 +96,7 @@ namespace eval Httpd {
     variable server_port ;# server's port (if different from Listener's)
     variable server_id "Wub/[package provide Httpd]"
     variable cid 0		;# unique connection ID
-
-    # exhaustion control
-    variable max_conn 20	;# max connections per IP
-    variable connbyIP		;# count of connections
-    array set connbyIP {}
-    variable too_many		;# how many times has this IP address been told?
-    array set too_many {}
-    variable no_really 30	;# after this many max_conns - it's blocked
-    variable retry_wait 20
-
-    # ensure that client is not spamming us with too many connections
-    # (sadly we can't do this if we're reverse-proxied)
-    proc countConnections {sock ipaddr} {
-	variable connbyIP
-	variable max_conn
-	# normal external connection
-	if {[incr connbyIP($ipaddr)] > $max_conn} {
-	    # Too many connections for $ipaddr - no more than $max_conn
-	    variable too_many
-	    variable no_really
-	    if {[incr too_many($ipaddr)] > $no_really} {
-		# this client has been told repeatedly - block it.
-		#Block block $ipaddr "Repeatedly too many connections"
-	    } else {
-		Debug.log {Too many connections for $ipaddr on $sock ($connbyIP($ipaddr))}
-	    }
-	    return 0
-	    # use the default retry wait advisory period
-	    variable retry_wait
-	    set retry $retry_wait
-
-	    Debug.socket {Exhausted $sock $eo $retry}
-
-	    variable server_id
-	    puts $sock "HTTP/1.1 503 Exhaustion\r"
-	    puts $sock "Date: [Http Now]\r"
-	    puts $sock "Server: $server_id\r"
-	    puts $sock "Connection: Close\r"
-	    puts $sock "Retry-After: $retry\r"
-	    puts $sock "Content-Length: 0\r"
-	    puts $sock \r
-	    flush $sock
-	    close $sock
-	    
-	    incr connbyIP($ipaddr) -1
-	    return 1
-	} else {
-	    return 0
-	}
-    }
-
+    variable exhaustion	20	;# how long to wait on exhaustion
     variable generation		;# worker/connection association generation
 
     # limits on header size
@@ -1108,17 +1058,6 @@ namespace eval Httpd {
 	    # parse the URL
 	    set r [dict merge $r [Url parse [dict get $r -uri]]]
 
-	    # re-check the connections and log a bit of stuff
-	    variable connbyIP
-	    variable max_conn
-	    if {[info exists connbyIP([dict get $r -ipaddr])]
-		 && $connbyIP([dict get $r -ipaddr]) > $max_conn
-	     } {
-		#dict set r -OC 1
-		# let's log this sucker and see what he's asking for
-		#Debug.log {Overconnector [dict get $r -ipaddr] ([dict get? $r user-agent]) wants [dict get $r -uri]}
-	    }
-
 	    # check the incoming ip for blockage
 	    if {[Block blocked? [dict get? $r -ipaddr]]} {
 		handle [Http Forbidden $r] Forbidden
@@ -1598,12 +1537,32 @@ namespace eval Httpd {
 
     # connect - process a connection request
     proc Connect {sock ipaddr rport args} {
-	set sock0 [Chan new chan $sock]
-	set sock [chan create {read write} $sock0]
-	Debug.chan {New rchan: [configure $sock]}
+	if {[catch {
+	    chan create {read write} [Chan new chan $sock]
+	} ns eo]} {
+	    # failed to connect.  This can be due to overconnecting
+	    Debug.log {connection error from $ipaddr:$rport - $ns ($eo)}
+
+	    variable exhaustion
+	    set msg [dict get [Http Unavailable $r "$ns ($eo)" $exhaustion] -content]
+	    puts $sock "HTTP/1.1 503 Exhaustion\r"
+	    puts $sock "Date: [Http Now]\r"
+	    puts $sock "Server: $server_id\r"
+	    puts $sock "Connection: Close\r"
+	    puts $sock "Content-Length: [string length $msg]\r"
+	    puts $sock \r
+	    puts $sock $msg
+	    flush $sock
+	    close $sock
+	    return ""
+	} else {
+	    set sock $ns
+	}
+
 	# the socket must stay in non-block binary binary-encoding mode
 	chan configure $sock -blocking 0 -translation {binary binary} -encoding binary
 
+	# check for Block on this ipaddress
 	switch -- [::ip::type $ipaddr] {
 	    "normal" {
 		# check list of blocked ip addresses
@@ -1620,9 +1579,6 @@ namespace eval Httpd {
 		    close $sock
 		    return
 		}
-
-		# check spamming
-		if {[countConnections $sock $ipaddr]} return
 	    }
 
 	    "private" {
