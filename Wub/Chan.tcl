@@ -97,7 +97,7 @@ class create Chan {
     }
 
     destructor {
-	Debug.chan {$mychan destroyed}
+	Debug.chan {[self] destroyed}
 	catch {::chan close $chan}
     }
 
