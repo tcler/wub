@@ -8,10 +8,9 @@ Debug on connections 10
 
 package provide Chan 1.0
 
-# Chans.tcl - reflected channels
-class create Chan {
+# Chan.tcl - reflected channels
+class create IChan {
     # Event management.
-
     method blocking {mychan mode} {
 	if {[catch {
 	    ::chan configure $chan -blocking $mode
@@ -70,7 +69,7 @@ class create Chan {
     # Setting up, shutting down.
     method initialize {mychan mode} {
 	Debug.chan {$mychan initialize $chan $mode ([::chan configure $chan])}
-	::chan configure $chan -blocking 0 -buffering none -encoding binary -eofchar {{} {}} -translation {binary binary}
+
 	return [list initialize finalize blocking watch read write]
     }
 
@@ -94,7 +93,7 @@ class create Chan {
 	    }
 	    set $n $v
 	}
-    
+
 	if {![llength $objargs]} {
 	    my destroy	;# this wasn't really a connected socket, just set classvars
 	    return
@@ -102,7 +101,7 @@ class create Chan {
 
 	# validate args
 	if {$chan eq [self]} {
-	    error "recursive Chan!  No good."
+	    error "recursive chan!  No good."
 	} elseif {$chan eq ""} {
 	    error "Needs a chan argument"
 	}
@@ -139,7 +138,7 @@ class create Socket {
 	}
     }
 
-    mixin Chan
+    mixin IChan
     variable chan endpoints
 
     constructor {args} {
@@ -193,6 +192,8 @@ class create Socket {
 	    #error "Too Many Connections from $name $ip"
 	}
 
+	::chan configure $chan -blocking 0 -buffering none -encoding binary -eofchar {{} {}} -translation {binary binary}
+
 	next {*}$args
     }
 
@@ -208,7 +209,7 @@ class create Socket {
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
     set fd [open [info script] r]
-    set fd0 [Chan new chan $fd]
+    set fd0 [IChan new chan $fd]
     set fdr [::chan create {read write} $fd0]
     set lc 0
     while {[gets $fdr line] != -1 && ![eof $fdr]} {
