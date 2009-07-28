@@ -85,18 +85,18 @@ namespace eval Human {
 	set dom [dict get $r -host]	;# the domain on which the request arrived
 
 	# include an optional expiry age
-	variable maxAge
-	if {$maxAge ne ""} {
-	    set age [list -expires $maxAge]
+	variable age
+	if {$age ne ""} {
+	    set ageC [list -expires $age]
 	} else {
-	    set age {}
+	    set ageC {}
 	}
 
 	# add the human cookie
 	variable path
 	set value [clock microseconds]
 	Debug.human {created human cookie $value}
-	set cdict [Cookies add $cdict -path $path -name $cookie -value $value {*}$age]
+	set cdict [Cookies add $cdict -path $path -name $cookie -value $value {*}$ageC]
 
 	dict set r -cookies $cdict
 	return $r
@@ -105,7 +105,7 @@ namespace eval Human {
     variable tracker	;# array of ip->human human->ip
     variable path /	;# which url paths are to be detected/protected?
     variable cookie who	;# name of the cookie to plant
-    variable maxAge ""	;# how long to leave the cookie in.
+    variable age ""	;# how long to leave the cookie in.
     variable logdir ""
 
     proc create {args} {
