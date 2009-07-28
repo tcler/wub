@@ -77,22 +77,44 @@ class create Chan {
     method finalize {mychan} {
 	Debug.chan {$mychan finalize $chan}
 
-	# remove connection record for connected ip
-	my static connections
-	set ep [dict get $endpoints peer]
-	dict with ep {
-	    dict unset connections $ip $port
-	}
-
 	catch {::chan close $chan}
 	catch {my destroy}
+    }
+
+    variable chan
+    constructor {args} {
+	# Initialize the buffer, current read location, and limit
+	set chan ""
+
+	# process object args
+	set objargs [dict filter $args key {[a-zA-Z]*}]
+	foreach {n v} $objargs {
+	    if {$n ni [info class variables [info object class [self]]]} {
+		error "$n is not a valid parameter. ([info class variables [info object class [self]]] are)"
+	    }
+	    set $n $v
+	}
+    
+	if {![llength $objargs]} {
+	    my destroy	;# this wasn't really a connected socket, just set classvars
+	    return
+	}
+
+	# validate args
+	if {$chan eq [self]} {
+	    error "recursive Chan!  No good."
+	} elseif {$chan eq ""} {
+	    error "Needs a chan argument"
+	}
     }
 
     destructor {
 	Debug.chan {[self] destroyed}
 	catch {::chan close $chan}
     }
+}
 
+class create Socket {
     method socket {} {return $chan}
     method endpoints {} {return $endpoints}
 
@@ -117,20 +139,15 @@ class create Chan {
 	}
     }
 
+    mixin Chan
     variable chan endpoints
-    constructor {args} {
-	# Initialize the buffer, current read location, and limit
-	set chan ""
 
-	# process object args
-	set objargs [dict filter $args key {[a-zA-Z]*}]
-	foreach {n v} $objargs {
-	    if {$n ni [info class variables [info object class [self]]]} {
-		error "$n is not a valid parameter. ([info class variables [info object class [self]]] are)"
-	    }
-	    set $n $v
+    constructor {args} {
+	if {$chan eq ""} {
+	    error "Needs a chan argument"
 	}
-    
+	set chan [dict get $args chan]
+
 	# process class parameters
 	set classargs [dict filter $args key {-*}]
 	foreach {n v} $classargs {
@@ -142,18 +159,6 @@ class create Chan {
 		    }
 		}
 	    }
-	}
-
-	if {![llength $objargs]} {
-	    my destroy	;# this wasn't really a connected socket, just set classvars
-	    return
-	}
-
-	# validate args
-	if {$chan eq [self]} {
-	    error "recursive Chan!  No good."
-	} elseif {$chan eq ""} {
-	    error "Needs a chan argument"
 	}
 
 	# get the endpoints for this connected socket
@@ -186,6 +191,17 @@ class create Chan {
 	if {[dict size $x] > $mc} {
 	    Debug.connections {$ip has connections [dict size $x] > $mc from ([dict get $x])}
 	    #error "Too Many Connections from $name $ip"
+	}
+
+	next {*}$args
+    }
+
+    destructor {
+	# remove connection record for connected ip
+	my static connections
+	set ep [dict get $endpoints peer]
+	dict with ep {
+	    dict unset connections $ip $port
 	}
     }
 }
