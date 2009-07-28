@@ -85,18 +85,29 @@ namespace eval Human {
 	set dom [dict get $r -host]	;# the domain on which the request arrived
 
 	# include an optional expiry age
-	variable age
-	if {$age ne ""} {
-	    set ageC [list -expires $age]
+	variable expires
+	if {$expires ne ""} {
+	    if {[string is integer -strict $expires]} {
+		# it's an age
+		if {$expires != 0} {
+		    set expiresC [Http Date [expr {[clock seconds] + $expires}]]
+		    set expiresC [list -expires $expires]
+		} else {
+		    set expiresC {}
+		}
+	    } else {
+		set expiresC [Http Date [clock scan $expires]]
+		set expiresC [list -expires $expires]
+	    }
 	} else {
-	    set ageC {}
+	    set expiresC {}
 	}
 
 	# add the human cookie
 	variable path
 	set value [clock microseconds]
 	Debug.human {created human cookie $value}
-	set cdict [Cookies add $cdict -path $path -name $cookie -value $value {*}$ageC]
+	set cdict [Cookies add $cdict -path $path -name $cookie -value $value {*}$expiresC]
 
 	dict set r -cookies $cdict
 	return $r
@@ -105,11 +116,11 @@ namespace eval Human {
     variable tracker	;# array of ip->human human->ip
     variable path /	;# which url paths are to be detected/protected?
     variable cookie who	;# name of the cookie to plant
-    variable age ""	;# how long to leave the cookie in.
+    variable expires ""	;# how long to leave the cookie in.
     variable logdir ""
 
     proc create {args} {
-	error "Can't create a named Block domain - must be anonymous"
+	error "Can't create a named Human domain - must be anonymous"
     }
 
     proc new {args} {
