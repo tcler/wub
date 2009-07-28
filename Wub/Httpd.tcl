@@ -1538,9 +1538,9 @@ namespace eval Httpd {
 
     # connect - process a connection request
     proc Connect {sock ipaddr rport args} {
-	if {0} {
+	if {1} {
 	    if {[catch {
-		chan create {read write} [Chan new chan $sock]
+		chan create {read write} [Socket new chan $sock]
 	    } ns eo]} {
 		# failed to connect.  This can be due to overconnecting
 		Debug.error {connection error from $ipaddr:$rport - $ns ($eo)}
@@ -1697,7 +1697,7 @@ namespace eval Httpd {
 
 	variable maxconn
 	if {[info exists maxconn]} {
-	    Chan new -maxconnections $maxconn
+	    Socket new -maxconnections $maxconn
 	}
     }
 
