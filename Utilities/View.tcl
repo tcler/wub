@@ -4,7 +4,6 @@ namespace import oo::*
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
     lappend auto_path /usr/lib/${tcl_version}/Mk4tcl
-    #../extensions/
 }
 
 package require Mk4tcl
@@ -16,28 +15,26 @@ if {[info commands ::Debug] eq {}} {
 
 package provide View 3.0
 
+class create ViewReadOnly {
+    # set a field's value
+    method set {index args} {
+	error "[self] is read-only"
+    }
+
+    method insert {index args} {
+	error "[self] is read-only"
+    }
+
+    method append {index args} {
+	error "[self] is read-only"
+    }
+
+    method delete {args} {
+	error "[self] is read-only"
+    }
+}
+
 class create ViewIndexed {
-    method incr {index field {qty 1}} {
-	Debug.view {mixin incr}
-	return [[my parent] incr [[my view] get $index index] $field $qty]
-    }
-
-    # lappend to a field
-    method lappend {index field args} {
-	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
-	}
-	return [[my parent] lappend [[my view] get $index index] $field {*}$args]
-    }
-
-    # append values to field as dict/value pairs
-    method dlappend {index field args} {
-	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
-	}
-	return [[my parent] lappend [[my view] get $index index] $field {*}$args]
-    }
-
     # info - return view's layout
     method info {args} {
 	set result [[my parent] info {*}$args]
@@ -81,6 +78,7 @@ class create ViewIndexed {
     }
 }
 
+# ViewLogger is a View mixin which logs each modification to a script prefix
 class create ViewLogger {
     variable logger
     set logger {}
@@ -107,6 +105,15 @@ class create ViewLogger {
 	return $result
     }
 
+    method append {index args} {
+	set result [next $index {*}$args]
+	if {$index eq "end"} {
+	    set index $result
+	}
+	{*}$logger append [my name] $index $args
+	return $result
+    }
+
     method delete {args} {
 	set result [next {*}$args]
 	{*}$logger delete [my name] $args
@@ -115,151 +122,6 @@ class create ViewLogger {
 }
 
 class create View {
-    # provide static variables
-    method static {args} {
-        if {![llength $args]} return
-        set callclass [lindex [self caller] 0]
-        define $callclass self export varname
-        foreach vname $args {
-            lappend pairs [$callclass varname $vname] $vname
-        }
-        uplevel 1 upvar {*}$pairs
-    }
-
-    # incr a field
-    method incr {index field {qty 1}} {
-	set val [expr {[my get $index $field] + $qty}]
-	my set $index $field $val
-	Debug.view {incr $view!$index $field $qty -> $val}
-	return $val
-    }
-
-    # lappend to a field
-    method lappend {index field args} {
-	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
-	}
-	Debug.view {lappend $view!$index $field $args}
-	set value [my get $index $field]
-	lappend value {*}$args
-	return [my set $index $field $value]
-    }
-
-    # append values to field as dict/value pairs
-    method dlappend {index field args} {
-	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
-	}
-	Debug.view {dlappend $view!$index $field $args}
-	return [my set $index $field [dict merge [my get $index $field] $args]]
-    }
-
-    # get a field's value
-    method get {index args} {
-	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
-	}
-	Debug.view {get $view!$index $args}
-	return [$view get $index {*}$args]
-    }
-
-    # set a field's value
-    method set {index args} {
-	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
-	}
-	if {[dict exists $args ""]} {
-	    dict unset args ""	;# remove the index pseudo-element
-	}
-
-	Debug.view {$view set $index keys: '[dict keys $args]'}
-	if {[dict size $args]} {
-	    set result [$view set $index {*}$args]
-	    if {$commit} {
-		my db commit
-	    }
-	} else {
-	    set result {}
-	}
-
-	return $result
-    }
-
-    # return a view's contents as a list
-    method list {args} {
-	set _args $args
-	set __result {}
-	my all {
-	    set _props {}
-	    foreach __v $_args {
-		lappend _props [set $__v]
-	    }
-	    lappend __result $_props
-	}
-	return $__result
-    }
-
-    # return a view's content as a nested dict
-    method dict {{key {}} args} {
-	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
-	}
-
-	# get a list of the properties we want in the dict,
-	# default to all of them
-	if {![llength $args]} {
-	    set args [dict keys [my info2dict]]	;# get the props
-	}
-
-	set pd [my info2dict]	;# dict of propname->type
-	set subv [dict keys [dict filter $pd value V]]	;# get the subviews
-
-	# if key's unspecified, just use the first property
-	if {0 && $key eq {}} {
-	    set key [lindex [dict keys $pd] 0]
-	}
-
-	# if we're doing a nested dict, then _key must be a dict
-	set keys [lassign $key key]
-
-	set result {}	;# this is collecting the results
-	set size [my size]
-	for {set i 0} {$i < $size} {incr i} {
-	    set r [my get $i]
-	    set record [list {} $i]
-	    dict for {n v} $r {
-		if {$n ni $subv} {
-		    dict set record $n $v	;# collect this property's value
-		} else {
-		    if {[dict exists $keys $n]} {
-			set sk [dict get $keys $n]
-		    } else {
-			set sk {}
-		    }
-		    [my open $n] as sv
-		    dict record $n [$sv dict $sk]
-		    $sv close
-		}
-	    }
-	    if {$key eq ""} {
-		dict set result $i $record
-	    } else {
-		dict set result [dict get $r $key] $record
-	    }
-	}
-	return $result
-    }
-
-    method fields {} {
-	set result {}
-	dict for {n v} [my info2dict] {
-	    if {$v ne "V"} {
-		dict set result $n $v
-	    }
-	}
-	return $result
-    }
-
     # open all the subviews of the index
     method subviews {{index -1}} {
 	set result {}
@@ -313,39 +175,188 @@ class create View {
 		dict set result $index $n [$v dselect]
 	    }
 	}
+
 	return $result
     }
 
-    # select - return a view which is a result of the select criteria
-    method select {args} {
+    # scope-localize the view
+    # this destroys the View at the end of the current variable scope
+    method local {} {
+	set varname [string map {: _} [self]]
+	upvar $varname lifetime
+	my incref
+	trace add variable lifetime unset "catch {[self] decref};#"
+	return [self]
+    }
+
+    # associate the View with a variable, such that the lifetime of the view
+    # is tied to that of the variable.
+    method as {varname} {
+	upvar $varname lifetime
+	set lifetime [self]
+	my incref
+	trace add variable lifetime {write unset} "catch {[self] decref};#"
+	return [self]
+    }
+
+    # apply the given script to each row of View whose index is given in args
+    # each element's properties are assigned to a corresponding variable
+    # a pseudo-variable ${} is given the index value of each row
+    # modifications to the record are not reflected in the view.
+    # returns a dict indexed by row index containing the result of each
+    # application
+    method foreach {script args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	Debug.view {[self] foreach over ($args)}
+	set vn __all__[namespace tail [self]]
+	upvar $vn uv
+	set results {}
+	foreach index $args {
+	    set uv [my get $index]
+
+	    # create subviews
+	    foreach {n v} [my subviews $index] {
+		$v local	;# make the subview local
+		dict set uv $n $v
+	    }
+
+	    dict set uv "" $index	;# create the index pseudo-var
+	    set code [catch {uplevel 1 dict with $vn [list $script]} result eo]
+
+	    switch -- $code {
+		1 {# error - re-raise it
+		    return -options $eo $result
+		}
+		3 {break}
+		4 {continue}
+		2 {return $result}
+
+		default {# normal
+		    lappend results $index $result
+		}
+	    }
+	}
+
+	return $results
+    }
+
+    # all - traverse View applying the given script to each row
+    # each element's properties are assigned to a corresponding variable
+    # a pseudo-variable ${} is given the index value of each row
+    # modifications to the record are not reflected in the view.
+    # returns a dict indexed by row index containing the result of each
+    # application
+    method all {script} {
+	Debug.view {[self]/$view ([my info]) all over [my size] rows}
+	set vn __all__[namespace tail [self]]
+	upvar $vn uv
+	set results {}
+	for {set index [expr {[my size]-1}]} {$index >= 0} {incr index -1} {
+	    set uv [my get $index]
+
+	    # create subviews
+	    foreach {n v} [my subviews $index] {
+		$v local
+		dict set uv $n $v
+	    }
+
+	    dict set uv "" $index
+	    set code [catch {uplevel 1 dict with $vn [list $script]} result eo]
+
+	    switch -- $code {
+		1 {# error - re-raise it
+		    return -options $eo $result
+		}
+		3 {break}
+		4 {continue}
+		2 {return $result}
+
+		default {# normal
+		    lappend results $index $result
+		}
+	    }
+	}
+	return $results
+    }
+ 
+    # return a view's contents as a list
+    method list {args} {
+	set _args $args
+	set __result {}
+	my all {
+	    set _props {}
+	    foreach __v $_args {
+		lappend _props [set $__v]
+	    }
+	    lappend __result $_props
+	}
+	return $__result
+    }
+
+    # return a view's content as a nested dict
+    method dict {{key {}} args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
 
-	if {[lsearch $args -sort] > -1 || [lsearch $args -rsort] > -1} {
-	    set type {}	;# a select with a sort is conformant with the parent
-	} else {
-	    set type {type indexed}
+	# get a list of the properties we want in the dict,
+	# default to all of them
+	if {![llength $args]} {
+	    set args [dict keys [my info2dict]]	;# get the props
 	}
-	set result [View new [$view select {*}$args] parents [self] name "select [self] $args" {*}$type]
-	Debug.view {[self]: $view select ($args) -> $result/[$result size] ([$result info]) }
+
+	set pd [my info2dict]	;# dict of propname->type
+	set subv [dict keys [dict filter $pd value V]]	;# get the subviews
+
+	# if key's unspecified, just use the first property
+	if {0 && $key eq {}} {
+	    set key [lindex [dict keys $pd] 0]
+	}
+
+	# if we're doing a nested dict, then key must be a dict
+	set keys [lassign $key key]
+
+	set result {}	;# this is collecting the results
+	set size [my size]
+	for {set i 0} {$i < $size} {incr i} {
+	    set r [my get $i]
+	    set record [list {} $i]
+	    dict for {n v} $r {
+		if {$n ni $subv} {
+		    dict set record $n $v	;# collect this property's value
+		} else {
+		    if {[dict exists $keys $n]} {
+			set sk [dict get $keys $n]
+		    } else {
+			set sk {}
+		    }
+		    [my open $n] as sv
+		    dict record $n [$sv dict $sk]
+		    $sv close
+		}
+	    }
+	    if {$key eq ""} {
+		dict set result $i $record
+	    } else {
+		dict set result [dict get $r $key] $record
+	    }
+	}
 	return $result
     }
 
-    # info - return view's layout
-    method info {args} {
-	return [$view info {*}$args]
-    }
-
-    # return view info as a dict
-    method info2dict {args} {
-	set result {}
-	foreach el [split [my info {*}$args]] {
-	    set v S
-	    lassign [split $el :] n v
-	    dict set result $n $v
+    # with - perform script over selected records
+    method with {script args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
 	}
-	return $result
+
+	set vn __with__[namespace tail [self]]
+	upvar $vn uv
+	set results {}
+	[my select {*}$args] as __vs
+	return [uplevel 1 $__vs all [list $script]]
     }
 
     # update selected rows with a script's values
@@ -367,10 +378,17 @@ class create View {
 	upvar $vn uv
 	foreach index [my lselect {*}$select] {
 	    set uv [my get $index]
+
+	    # create subdicts for subviews
+	    foreach {n v} [my subviews $index] {
+		$v local
+		dict set result $index $n [$v dselect]
+	    }
+
 	    switch [catch {
 		uplevel 1 dict update __update__[namespace tail [self]] $kv [list $script]
 	    } result eo] {
-		1 {# error - re-raise the error
+		1 {# error - re-raise it
 		    return -options $eo $result
 		}
 		3 {break}
@@ -378,6 +396,7 @@ class create View {
 		2 {return $result}
 
 		default {# normal
+		    # rewrite those fields given in $args
 		    my set $index {*}[dict filter $uv script {k v} {
 			expr {$k in $args}
 		    }]
@@ -387,6 +406,7 @@ class create View {
     }
 
     # subst - run subst over fields from selected records
+    # returns an index-dict of subst-results
     method subst {text args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
@@ -412,132 +432,11 @@ class create View {
 		}
 	    }
 	}
-	return $results
-    }
-
-    method local {} {
-	set varname [string map {: _} [self]]
-	upvar $varname lifetime
-	my incref
-	trace add variable lifetime unset "catch {[self] decref};#"
-	return [self]
-    }
-
-    method as {varname} {
-	upvar $varname lifetime
-	set lifetime [self]
-	my incref
-	trace add variable lifetime {write unset} "catch {[self] decref};#"
-	return [self]
-    }
-
-    method foreach {script args} {
-	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
-	}
-	Debug.view {[self] foreach over ($args)}
-	set vn __all__[namespace tail [self]]
-	upvar $vn uv
-	set results {}
-	foreach index $args {
-	    set uv [my get $index]
-
-	    # create subviews
-	    foreach {n v} [my subviews $index] {
-		$v local
-		dict set uv $n $v
-	    }
-
-	    dict set uv "" $index
-	    set code [catch {uplevel 1 dict with $vn [list $script]} result eo]
-
-	    switch -- $code {
-		1 {# error - re-raise the error
-		    return -options $eo $result
-		}
-		3 {break}
-		4 {continue}
-		2 {return $result}
-
-		default {# normal
-		    lappend results $index $result
-		}
-	    }
-	}
 
 	return $results
     }
 
-    # all - perform script over all records
-    method all {script} {
-	Debug.view {[self]/$view ([my info]) all over [my size] rows}
-	set vn __all__[namespace tail [self]]
-	upvar $vn uv
-	set results {}
-	for {set index [expr {[my size]-1}]} {$index >= 0} {incr index -1} {
-	    set uv [my get $index]
-
-	    # create subviews
-	    foreach {n v} [my subviews $index] {
-		$v local
-		dict set uv $n $v
-	    }
-
-	    dict set uv "" $index
-	    set code [catch {uplevel 1 dict with $vn [list $script]} result eo]
-
-	    switch -- $code {
-		1 {# error - re-raise the error
-		    return -options $eo $result
-		}
-		3 {break}
-		4 {continue}
-		2 {return $result}
-
-		default {# normal
-		    lappend results $index $result
-		}
-	    }
-	}
-	return $results
-    }
- 
-    # with - perform script over selected records
-    method with {script args} {
-	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
-	}
-
-	set vn __with__[namespace tail [self]]
-	upvar $vn uv
-	set results {}
-	[my select {*}$args] as __vs
-	return [uplevel 1 $__vs all [list $script]]
-
-	foreach index [my lselect {*}$args] {
-	    set uv [my get $index]
-	    dict set uv "" $index
-	    foreach {n v} [my subviews $index] {
-		$v local
-		dict set uv $n $v
-	    }
-	    switch [catch {
-		uplevel 1 dict with $vn [list $script]
-	    } result eo] {
-		1 {# error - re-raise the error
-		    return -options $eo $result
-		}
-		3 {break}
-		4 {continue}
-		2 {return $result}
-
-		default {# normal
-		    lappend results $index $result
-		}
-	    }
-	}
-	return $results
-    }
+    ###### Layout and Formatting
 
     # set metakit layout from pretty form
     method pretty {layout} {
@@ -598,6 +497,53 @@ class create View {
     # return the properties of the view
     method properties {} {
 	return [$view properties]
+    }
+
+    # return field names within view
+    method names {} {
+	set result {}
+	foreach f [split [$view properties]] {
+	    lappend result [split $f :]
+	}
+	return $result
+    }
+
+    # info - return view's layout
+    method info {args} {
+	return [$view info {*}$args]
+    }
+
+    # return view info as a dict
+    method info2dict {args} {
+	set result {}
+	foreach el [split [my info {*}$args]] {
+	    set v S
+	    lassign [split $el :] n v
+	    dict set result $n $v
+	}
+	return $result
+    }
+
+    method fields {} {
+	set result {}
+	dict for {n v} [my info2dict] {
+	    if {$v ne "V"} {
+		dict set result $n $v
+	    }
+	}
+	return $result
+    }
+
+    ###### MetaView (not complete)
+    # provide static variables
+    method static {args} {
+        if {![llength $args]} return
+        set callclass [lindex [self caller] 0]
+        define $callclass self export varname
+        foreach vname $args {
+            lappend pairs [$callclass varname $vname] $vname
+        }
+        uplevel 1 upvar {*}$pairs
     }
 
     method metaview {args} {
@@ -662,6 +608,39 @@ class create View {
 	}
     }
 
+    ########### Basic Row Operations
+    
+    # get a row's values
+    method get {index args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	Debug.view {get $view!$index $args}
+	return [$view get $index {*}$args]
+    }
+
+    # set a row's values
+    method set {index args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	if {[dict exists $args ""]} {
+	    dict unset args ""	;# remove the index pseudo-element
+	}
+
+	Debug.view {$view set $index keys: '[dict keys $args]'}
+	if {[dict size $args]} {
+	    set result [$view set $index {*}$args]
+	    if {$commit} {
+		my db commit
+	    }
+	} else {
+	    set result {}
+	}
+
+	return $result
+    }
+
     # insert - insert a row after the given index
     method insert {index args} {
 	set result [$view insert $index {*}$args]
@@ -685,12 +664,14 @@ class create View {
     }
 
     # search - return index of element containing the property with the given value
+    # no error if not found
     method search {args} {
 	Debug.view {[self] search $args}
 	return [$view search {*}$args]
     }
 
-    # search - return index of element containing the property with the given value
+    # find - return index of element containing the property with the given value
+    # error if not found
     method find {args} {
 	Debug.view {[self] find $args}
 	if {[llength $args]%2} {
@@ -699,6 +680,7 @@ class create View {
 	return [$view find {*}$args]
     }
 
+    # fetch a row with given properties as a dict, return {} if none such
     method fetch {args} {
 	set result {}
 	if {[my exists {*}$args]} {
@@ -717,236 +699,6 @@ class create View {
 	return [$view size {*}$args]
     }
 
-    # blocked - create mapped view which blocks its rows in two levels.
-    # This view acts like a large flat view, even though the actual rows are stored in blocks,
-    # which are rebalanced automatically to maintain a good trade-off between block size and 
-    # number of blocks.
-    #
-    # The underlying view must be defined with a single view property,
-    # with the structure of the subview being as needed.
-    method blocked {} {
-	return [View new [$view view blocked] parents [self] name "blocked [self]"]
-    }
-
-    # clone - construct a new view with the same structure but no data.
-    #
-    # Structural information can only be maintain for the top level, 
-    # subviews will be included but without any properties themselves.
-    method clone {} {
-	return [View new [$view view clone] parents [self] name "clone [self]"]
-    }
-
-    # copy - construct a new view with a copy of the data.
-    method copy {} {
-	return [View new [$view view copy] parents [self] name "copy [self]"]
-    }
-
-    # dup - construct a new view with a copy of the data.
-    # The copy is a deep copy, because subviews are always copied in full.
-    method dup {} {
-	return [View new [$view view dup] parents [self] name "dup [self]"]
-    }
-
-    # readonly - create an identity view which only allows reading
-    method readonly {} {
-	return [View new [$view view readonly] parents [self] name "readonly [self]"]
-    }
-
-    # unique - create view with all duplicate rows omitted.
-    method unique {} {
-	return [View new [$view view unique] parents [self] name "unique [self]"]
-    }
-
-    # flatten - create view with a specific subview expanded, like a join.    
-    method flatten {prop} {
-	return [View new [$view view flatten $prop] parents [self] name "flatten [self] $prop"]
-    }
-
-    # Create view with rows from another view appended.
-    #
-    # Constructs a view which has all rows of this view, and all rows of the second view appended.
-    # The structure of the second view is assumed to be identical to this one.
-    # This operation is a bit similar to appending all rows from the second view,
-    # but it does not actually store the result anywhere, it just looks like it.
-    method concat {view2} {
-	return [View new [$view view concat [$view2 view]] parents [list [self] $view2] name "concat [self] $view2"]
-    }
-
-    # different - Create view with all rows not in both views (no dups).
-    #
-    # Calculates the "XOR" of two sets. This will only work if both input views are sets,
-    # i.e. they have no duplicate rows in them.
-    method different {view2} {
-	return [View new [$view view different [$view2 view]] parents [list [self] $view2] name "different [self] $view2"]
-    }
-
-    # intersect - Create view with all rows also in the given view (no dups)
-    # 
-    # Calculates the set intersection. This will only work if both input views are sets,
-    # i.e. they have no duplicate rows in them.
-    method intersect {view2} {
-	return [View new [$view view intersect [$view2 view]] parents [list [self] $view2] name "intersect [self] $view2"]
-    }
-
-    # minus - Create view with all rows not in the given view (no dups).
-    method minus {view2} {
-	return [View new [$view view minus [$view2 view]] parents [list [self] $view2] name "minus [self] $view2"]
-    }
-
-    # union - create view which is the set union (assumes no duplicate rows).
-    method union {view2} {
-	return [View new [$view view union [$view2 view]] parents [list [self] $view2] name "union [self] $view2"]
-    }
-
-    # map - create mapped view which maintains an index permutation
-    #
-    # This is an identity view which somewhat resembles the ordered view,
-    # it maintains a secondary "map" view to contain the permutation to act as an index.
-    # The indexed view presents the same order of rows as the underlying view,
-    # but the index map is set up in such a way that binary search is possible
-    # on the keys specified. When the "unique" parameter is true, insertions which would
-    # create a duplicate key are ignored.
-    method map {view2} {
-	return [View new [$view view map [$view2 view]] parents [list [self] $view2] name "map [self] $view2"]
-    }
-
-    # pair - create view which pairs each row with corresponding row.
-    method pair {view2} {
-	return [View new [$view view pair [$view2 view]] parents [list [self] $view2] name "pair [self] $view2"]
-    }
-
-    # product - create view which is the cartesian product with given view.
-    # 
-    # The cartesian product is defined as every combination of rows in both views.
-    # The number of entries is the product of the number of entries in the two views,
-    # properties which are present in both views will use the values defined in this view.
-    method product {view2} {
-	return [View new [$view view product [$view2 view]] parents [list [self] $view2] name "product [self] $view2"]
-    }
-
-    # join - create view which is the relational join on the given keys.
-    method join {view2 args} {
-	set r [View new [$view view join [$view2 view] {*}$args] parents [list [self] $view2] name "join [self] $view2 over $args"]
-	Debug.view {[self] join $view2 $args -> $r}
-	return $r
-    }
-
-    # hash - create mapped view which adds a hash lookup layer
-    #
-    # This view creates and manages a special hash map view, to implement a fast find on the key.
-    # The key is defined to consist of the first numKeys_ properties of the underlying view.
-    #
-    # The map_ view must be empty the first time this hash view is used, so that MetaKit can
-    # fill it based on whatever rows are already present in the underlying view.
-    # After that, neither the underlying view nor the map view may be modified other
-    # than through this hash mapping layer.
-    # The defined structure of the map view must be "_H:I,_R:I".
-    #
-    # This view is modifiable. Insertions and changes to key field properties can cause rows
-    # to be repositioned to maintain hash uniqueness.
-    # Careful: when a row is changed in such a way that its key is the same as in another row,
-    # that other row will be deleted from the view.
-    method hash {view2 args} {
-	return [View new [$view view hash [$view2 view] {*}$args] parents [list [self] $view2] name "hash [self] $view2 $args"]
-    }
-
-    # indexed - create mapped view which maintains an index permutation
-    #
-    # This is an identity view which somewhat resembles the ordered view,
-    # it maintains a secondary "map" view to contain the permutation to act as an index.
-    # The indexed view presents the same order of rows as the underlying view,
-    # but the index map is set up in such a way that binary search is possible 
-    # on the keys specified.
-    # When the "unique" parameter is true, insertions which would create a duplicate key
-    # are ignored.
-    method indexed {view2 args} {
-	return [View new [$view view indexed [$view2 view] {*}$args] parents [list [self] $view2] name "indexed [self] $view2 $args"]
-    }
-
-    # groupby - create view with a subview, grouped by the specified properties.
-    #
-    # This operation is similar to the SQL 'GROUP BY', but it takes advantage 
-    # of the fact that MetaKit supports nested views.
-    # The view returned from this member has one row per distinct group, with an 
-    # extra view property holding the remaining properties.
-    # If there are N rows in the original view matching key X, then the result is
-    # a row for key X, with a subview of N rows.
-    #
-    # The subview name *must* either be a subview element of the subject view or have a
-    # name like moop:V (in which case it will be created in the resultant view)
-    # The properties of the subview in the result are all the properties not in the key.
-    method groupby {subview args} {
-	return [View new [$view view groupby $subview {*}$args] parents [list [self]] name "groupby [self] $subview $args"]
-    }
-
-    # project - create view with the specified property arrangement.
-    #
-    # The result is virtual, it merely maintains a permutation to access the underlying view.
-    # This "derived" view uses change notification to track changes to the underlying view,
-    # but this only works when based on views which properly generate change notifications 
-    # (.e. raw views, selections, and other projections).
-    method project {args} {
-	return [View new [$view view project {*}$args] parents [list [self]] name "project [self] $args"]
-    }
-
-    # range - create view which is a segment/slice (default is up to end).
-    #
-    # Returns a view which is a subset, either a contiguous range, or a "slice"
-    # with element taken from every step_ entries.
-    # If the step is negative, the same entries are returned, but in reverse order
-    # (start_ is still lower index, it'll then be returned last).
-    method range {args} {
-	return [View new [$view view range {*}$args] parents [list [self]] name "range [self] $args"]
-    }
-
-    # rename - create view with one property renamed (must be of same type).
-    method rename {args} {
-	return [View new [$view view rename {*}$args] parents [list [self]] name "rename [self] $args"]
-    }
-
-    # restrict the search range for rows.
-    method restrict {args} {
-	return [View new [$view view rename {*}$args] parents [list [self]] name "restrict [self] $args"]
-    }
-
-    # ordered - create mapped view which keeps its rows ordered.
-    # 
-    # This is an identity view, which has as only use to inform MetaKit that the underlying
-    # view can be considered to be sorted on its first numKeys_ properties.
-    # The effect is that c4_View::Find will try to use binary search when the search
-    # includes key properties
-    # (results will be identical to unordered views, the find will just be more efficient).
-    #
-    # This view is modifiable. Insertions and changes to key field properties can cause rows
-    # to be repositioned to maintain the sort order. Careful: when a row is changed in such 
-    # a way that its key is the same as in another row, that other row will be deleted from 
-    # the view.
-    method ordered {args} {
-	return [View new [$view view ordered {*}$args] parents [list [self]] name "ordered [self] $args"]
-    }
-
-    # return field names within view
-    method names {} {
-	set result {}
-	foreach f [split [$view properties]] {
-	    lappend result [split $f :]
-	}
-	return $result
-    }
-
-    # all views in this db
-    method views {} {return [::mk::file views $db]}
-
-    # the name of this View
-    method name {} {return $name}
-
-    # the underlying view
-    method view {} {return $view}
-
-    # our first parent
-    method parent {} {return [lindex $parents 0]}
-    method parents {} {return $parents}
-
     # delete the indicated rows
     method delete {args} {
 	set result [$view delete {*}$args]
@@ -955,7 +707,8 @@ class create View {
 	}
 	return $result
     }
-    
+
+    # does a row exist with the given properties?
     method exists {args} {
 	Debug.view {$view exists $args}
 	if {[llength $args]%2} {
@@ -975,19 +728,433 @@ class create View {
 	[self] size 0
     }
 
-    ###################
-    # db level commands
-    
-    # return the view's db
-    method db {args} {
-	if {![llength $args]} {
-	    return $db
-	} else {
-	    set result [::mk::file {*}$args $db]
-	    Debug.view {db operation: ::mk::file $args $db -> $result}
-	    return $result
-	}
+    ###### Extended Basic Property Operations
+
+    # incr a field as an integer
+    method incr {index field {qty 1}} {
+	set val [expr {[my get $index $field] + $qty}]
+	my set $index $field $val
+	Debug.view {incr $view!$index $field $qty -> $val}
+	return $val
     }
+
+    # lappend to a field
+    method lappend {index field args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	Debug.view {lappend $view!$index $field $args}
+	set value [my get $index $field]
+	lappend value {*}$args
+	return [my set $index $field $value]
+    }
+
+    # append values to field as dict/value pairs
+    method dlappend {index field args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	Debug.view {dlappend $view!$index $field $args}
+	return [my set $index $field [dict merge [my get $index $field] $args]]
+    }
+
+    ######## Derived Views
+
+    # select - return a view which is a result of the select criteria
+    #
+    # The result is virtual, it merely maintains a permutation to access the
+    # underlying view.  This "derived" view uses change notification to track
+    # changes to the underlying view, but this only works when based on views
+    # which properly generate change notifications (.e. raw views, other
+    # selections, and projections).
+
+    method select {args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+
+	if {[lsearch $args -sort] > -1 || [lsearch $args -rsort] > -1} {
+	    set type {}	;# a select with a sort is conformant with the parent
+	} else {
+	    set type {type indexed}	;# an unsorted selection is just a map
+	}
+	set result [View new [$view select {*}$args] parents [self] name "select [self] $args" {*}$type]
+	Debug.view {[self]: $view select ($args) -> $result/[$result size] ([$result info]) }
+	return $result
+    }
+
+    # clone - construct a new view with the same structure but no data.
+    #
+    # Structural information can only be maintain for the top level, 
+    # subviews will be included but without any properties themselves.
+    method clone {} {
+	set result [View new [$view view clone] parents [self] name "clone [self]"]
+	Debug.view {[self] clone -> $result}
+	return $result
+    }
+
+    # copy - construct a new view with a copy of the data.
+    method copy {} {
+	set result [View new [$view view copy] parents [self] name "copy [self]"]
+	Debug.view {[self] copy -> $result}
+	return $result
+    }
+
+    # dup - construct a new view with a copy of the data.
+    # The copy is a deep copy, because subviews are always copied in full.
+    method dup {} {
+	set result [View new [$view view dup] parents [self] name "dup [self]"]
+	Debug.view {[self] dup -> $result}
+	return $result
+    }
+
+    # readonly - create an identity view which only allows reading
+    method readonly {} {
+	set result [View new [$view view readonly] parents [self] readonly 1 name "readonly [self]"]
+	Debug.view {[self] readonly -> $result}
+	return $result
+    }
+
+    # project - create view with the specified property arrangement.
+    #
+    # The result is virtual, it merely maintains a permutation to access the underlying view.
+    #
+    # This "derived" view uses change notification to track changes to the underlying view,
+    # but this only works when based on views which properly generate change notifications 
+    # (.e. raw views, selections, and other projections).
+
+    method project {args} {
+	set result [View new [$view view project {*}$args] parents [self] name "project [self] $args"]
+	Debug.view {[self] project $args -> $result}
+	return $result
+    }
+
+    # range - create view which is a segment/slice (default is up to end).
+    #
+    # Returns a view which is a subset, either a contiguous range, or a "slice"
+    # with element taken from every step_ entries.
+    #
+    # If the step is negative, the same entries are returned, but in reverse order
+    # (start_ is still lower index, it'll then be returned last).
+
+    method range {args} {
+	set result [View new [$view view range {*}$args] parents [self] name "range [self] $args"]
+	Debug.view {[self] range $args -> $result}
+	return $result
+    }
+
+    # restrict the search range for rows.
+    method restrict {args} {
+	set result [View new [$view view restrict {*}$args] parents [self] name "restrict [self] $args"]
+	Debug.view {[self] restrict $args -> $result}
+	return $result
+    }
+
+    # rename - create view with one property renamed (must be of same type).
+    method rename {args} {
+	set result [View new [$view view rename {*}$args] parents [self] name "rename [self] $args"]
+	Debug.view {[self] rename $args -> $result}
+	return $result
+    }
+
+    # Create view with rows from another view appended.
+    #
+    # Constructs a view which has all rows of this view, and all rows of the second view appended.
+    #
+    # The structure of the second view is assumed to be identical to this one.
+    #
+    # This operation is a bit similar to appending all rows from the second view,
+    # but it does not actually store the result anywhere, it just looks like it.
+    # modifiable
+    method concat {view2} {
+	set result [View new [$view view concat [$view2 view]] parents [list [self] $view2] name "concat [self] $view2"]
+	Debug.view {[self] concat $view2 -> $result}
+	return $result
+    }
+
+    # pair - create view which pairs each row with corresponding row.
+    # modifiable
+    method pair {view2} {
+	set result [View new [$view view pair [$view2 view]] parents [list [self] $view2] name "pair [self] $view2"]
+	Debug.view {[self] pair $view2 -> $result}
+	return $result
+    }
+
+    ####### Relational Combinators
+
+    # product - create view which is the cartesian product with given view.
+    # 
+    # The cartesian product is defined as every combination of rows in both views.
+    # The number of entries is the product of the number of entries in the two views,
+    # Properties which are present in both views will use the values defined in this view.
+    #
+    # This view is read-only
+
+    method product {view2} {
+	set result [View new [$view view product [$view2 view]] readonly 1 parents [list [self] $view2] name "product [self] $view2"]
+	Debug.view {[self] product $view2 -> $result}
+	return $result
+    }
+
+    # join - create view which is the relational join on the given keys.
+    #
+    # This view is read-only
+
+    method join {view2 args} {
+	set result [View new [$view view join [$view2 view] {*}$args] readonly 1 parents [list [self] $view2] name "join [self] $view2 over $args"]
+	Debug.view {[self] join $view2 $args -> $result}
+	return $result
+    }
+
+    # flatten - create view with a specific subview expanded, like a join.
+    #
+    # This view is read-only
+
+    method flatten {prop} {
+	set result [View new [$view view flatten $prop] parents [self] readonly 1 name "flatten [self] $prop"]
+	Debug.view {[self] flatten $prop -> $result}
+	return $result
+    }
+
+    # groupby - create view with a subview, grouped by the specified properties.
+    #
+    # This operation is similar to the SQL 'GROUP BY', but it takes advantage 
+    # of the fact that MetaKit supports nested views.
+    #
+    # The view returned from this member has one row per distinct group, with an 
+    # extra view property holding the remaining properties.
+    #
+    # If there are N rows in the original view matching key X, then the result is
+    # a row for key X, with a subview of N rows.
+    #
+    # The subview name *must* either be a subview element of the subject view or have a
+    # name like moop:V (in which case it will be created in the resultant view)
+    #
+    # The properties of the subview in the result are all the properties not in the key.
+    #
+    # This view is read-only
+
+    method groupby {subview args} {
+	set result [View new [$view view groupby $subview {*}$args] parents [self] readonly 1 name "groupby [self] $subview $args"]
+	Debug.view {[self] groupby $subview $args -> $result}
+	return $result
+    }
+
+    ########### Permutations and Maps
+
+    # map - create mapped view which maintains an index permutation
+    #
+    # This is an identity view which somewhat resembles the ordered view,
+    # it maintains a secondary "map" view to contain the permutation to act as an index.
+    #
+    # The indexed view presents the same order of rows as the underlying view,
+    # but the index map is set up in such a way that binary search is possible
+    # on the keys specified.
+    #
+    # When the "unique" parameter is true, insertions which would
+    # create a duplicate key are ignored.
+    #
+    # [map] constructs a view with the rows indicated by another view.
+    # The first property in the order view must be an int property
+    # with index values referring to this one.
+    #
+    # The size of the resulting view is determined by the order view and can
+    # differ, for example to act as a subset selection (if smaller).
+
+    method map {{order ""}} {
+	if {$order eq ""} {
+	    set order [View new layout {index:I} parents [self]]
+	}
+	set result [View new [$view view map [$order view]] parents [list [self] $order] name "map [self] $order"]
+	Debug.view {[self] map $order -> $result}
+	return $result
+    }
+
+    # hash - create mapped view which adds a hash lookup layer
+    #
+    # This view creates and manages a special hash map view, to implement a fast find on the key.
+    # The key is defined to consist of the first numKeys_ properties of the underlying view.
+    #
+    # The map view must be empty the first time this hash view is used, so that MetaKit can
+    # fill it based on whatever rows are already present in the underlying view.
+    #
+    # After that, neither the underlying view nor the map view may be modified other
+    # than through this hash mapping layer.
+    #
+    # The layout of the map view must be "_H:I,_R:I".
+    #
+    # This view is modifiable. Insertions and changes to key field properties can cause rows
+    # to be repositioned to maintain hash uniqueness.
+    #
+    # Careful: when a row is changed in such a way that its key is the same as in another row,
+    # that other row will be deleted from the view.
+
+    # View create people layout {name:S age:I}
+    # [people hash 1] as hash
+    # ... [$hash size] ...
+    # [$hash append ...]
+
+    method hash {count} {
+	my mixin ViewReadOnly {*}[my mixin]	;# make this View R/O now
+
+	# create a temporary map
+	set mapname ramdb.imap[incr uniq]
+	::mk::view layout $mapname {_H:I _R:I}
+	set map [::mk::view open $mapname]
+
+	set result [View new [$view view hash $map $count] parents [list [self] $map] name "hash [self] $map $count"]
+	Debug.view {[self] hash $count $map -> $result}
+	return $result
+    }
+
+    # blocked - create mapped view which blocks its rows in two levels.
+    #
+    # This view acts like a large flat view, even though the actual rows are stored in blocks,
+    # which are rebalanced automatically to maintain a good trade-off between block size and 
+    # number of blocks.
+    #
+    # The underlying view must be defined with a single view property,
+    # with the structure of the subview being as needed.
+    # modifiable
+
+    # View create people layout {name:S age:I}
+    # [people blocked] as flat
+    # ... $flat size ...
+    # $flat insert ...
+
+    method blocked {} {
+	set blocked [$view view blocked]
+	set result [View new $blocked parents [self] name "blocked [self]"]
+	Debug.view {[self] blocked -> $result ([$result info]) / ([$blocked properties])}
+	return $result
+    }
+
+    # indexed - create mapped view which maintains an index permutation
+    #
+    # This is an identity view which somewhat resembles the ordered view,
+    # It maintains a secondary "map" view to contain the permutation to act as an index.
+    #
+    # The indexed view presents the same order of rows as the underlying view,
+    # but the index map is set up in such a way that binary search is possible 
+    # on the keys specified.
+    #
+    # When the "unique" parameter is true, insertions which would create a duplicate key
+    # are ignored.
+    #
+    # This view is modifiable.  Careful: when a row is changed in such a way
+    # that its key is the same as in another row, that other row will be
+    # deleted from the view.
+
+    method indexed {unique args} {
+	if {![llength $args]} {
+	    error "indexed requires a set of properties passed as args"
+	}
+	Debug.view {indexed $unique $args}
+
+	# create a temporary map
+	set mapname ramdb.imap[incr uniq]
+	::mk::view layout $mapname {index:I}
+	set map [::mk::view open $mapname]
+
+	set result [View new [$view view indexed $map $unique {*}$args] parents [self] name "indexed [self] $map $unique $args"]
+
+	Debug.view {[self] indexed $unique $args $map -> $result}
+	return $result
+    }
+
+    # ordered - create mapped view which keeps its rows ordered.
+    # 
+    # This is an identity view, which has as only use to inform MetaKit that the underlying
+    # view can be considered to be sorted on its first $numkeys properties.
+    #
+    # The effect is that find/search etc will try to use binary search when the search
+    # includes key properties (results will be identical to unordered views,
+    # the find will just be more efficient).
+    #
+    # This view is modifiable. Insertions and changes to key field properties can cause rows
+    # to be repositioned to maintain the sort order. Careful: when a row is changed in such 
+    # a way that its key is the same as in another row, that other row will be deleted from 
+    # the view.
+    #
+    # This view can be combined with [blocked], to create a 2-level btree structure.
+
+    method ordered {{numkeys 1}} {
+	set result [View new [$view view ordered $numkeys] parents [self] name "ordered [self] $numkeys"]
+	Debug.view {[self] ordered $numkeys -> $result ([$result info]}
+	return $result
+    }
+
+    ######## Derived Views as Sets
+
+    # unique - create view with all duplicate rows omitted.
+    #
+    # This view is read-only
+
+    method unique {} {
+	set result [View new [$view view unique] parents [self] readonly 1 name "unique [self]"]
+	Debug.view {[self] unique -> $result}
+	return $result
+    }
+
+    # different - Create view with all rows not in both views (no dups).
+    #
+    # Calculates the "XOR" of two sets.
+    #
+    # Assumes both input views are sets (have no duplicate rows in them.)
+    # This view is read-only
+
+    method different {view2} {
+	set result [View new [$view view different [$view2 view]] parents [list [self] $view2] readonly 1 name "different [self] $view2"]
+	Debug.view {[self] different $view2 -> $result}
+	return $result
+    }
+
+    # intersect - Create view with all rows also in the given view (no dups)
+    # 
+    # Calculates the set intersection.
+    #
+    # Assumes both input views are sets (have no duplicate rows in them.)
+    # This view is read-only
+
+    method intersect {view2} {
+	set result [View new [$view view intersect [$view2 view]] parents [list [self] $view2] readonly 1 name "intersect [self] $view2"]
+	Debug.view {[self] intersect $view2 -> $result}
+	return $result
+    }
+
+    # minus - Create view with all rows not in the given view
+    #
+    # Assumes both input views are sets (have no duplicate rows in them.)
+    # This view is read-only
+
+    method minus {view2} {
+	set result [View new [$view view minus [$view2 view]] parents [list [self] $view2] readonly 1 name "minus [self] $view2"]
+	Debug.view {[self] minus $view2 -> $result}
+	return $result
+    }
+
+    # union - create view which is the set union
+    #
+    # Assumes both input views are sets (have no duplicate rows in them.)
+    # This view is read-only
+
+    method union {view2} {
+	set result [View new [$view view union [$view2 view]] parents [list [self] $view2] readonly 1 name "union [self] $view2"]
+	Debug.view {[self] union $view2 -> $result}
+	return $result
+    }
+
+    ###### View-Structural
+
+    # the name of this View
+    method name {} {return $name}
+
+    # the underlying view
+    method view {} {return $view}
+
+    # our first parent
+    method parent {} {return [lindex $parents 0]}
+    method parents {} {return $parents}
 
     # child - track the children of this object
     method child {args} {
@@ -1019,8 +1186,7 @@ class create View {
 	}
     }
 
-    variable db view name parents children type logger commit refcount
-
+    # reference counting
     method incref {} {incr refcount}
     method decref {} {
 	incr refcount -1
@@ -1031,8 +1197,32 @@ class create View {
 	}
     }
 
+    ###################
+    # db level commands
+    
+    # return the view's db
+    method db {args} {
+	if {![llength $args]} {
+	    return $db
+	} else {
+	    set result [::mk::file {*}$args $db]
+	    Debug.view {db operation: ::mk::file $args $db -> $result}
+	    return $result
+	}
+    }
+
+    # all views in this db
+    method views {} {return [::mk::file views $db]}
+
+    variable db view name parents children type logger commit refcount uniq map mapname
+
     # construct or open a view
     constructor {args} {
+	my static ramdb
+	if {![info exists ramdb] || $ramdb eq ""} {
+	    set ramdb [::mk::file open ramdb]
+	}
+
 	set mixins {}
 	set children {}
 	set parents {}
@@ -1057,7 +1247,7 @@ class create View {
 		lappend mixins ViewIndexed
 	    }
 	} else {
-	    Debug.view {View constructor: $args}
+	    Debug.view {View raw constructor: $args}
 	    # no already-open view supplied, have to open it
 	    foreach {n v} $args {
 		set $n $v
@@ -1069,12 +1259,16 @@ class create View {
 	    # db to be explicitly supplied
 	    if {![info exists name]} {
 		set name [namespace tail [self]]	;# use the object name
+		Debug.view {using object name as name: $name}
 	    }
+
 	    set name [lindex [lassign [split $name .] dbi] 0]
 	    if {$name eq {}} {
 		set name $dbi	;# no db component/composite name
+		Debug.view {full name is: db:($dbi) name:($name)}
 	    } else {
 		set db $dbi	;# db component of composite name
+		Debug.view {db name is : $dbi.$name}
 	    }
 	    if {![info exists db] || $db eq ""} {
 		error "View must specify a db arg or a composite name such as db.view"
@@ -1125,6 +1319,10 @@ class create View {
 	    set view [::mk::view open $db.$name]
 	}
 
+	if {[info exists readonly] && $readonly} {
+	    lappend mixins ViewReadOnly
+	}
+
 	if {[info exists logger] && $logger ne ""} {
 	    lappend mixins ViewLogger
 	}
@@ -1167,6 +1365,10 @@ class create View {
 	foreach p $parents {
 	    $p child rm [self]
 	    catch {$p decref}
+	}
+	if {[info exists map]} {
+	    $map close
+	    mk::view delete $mapname
 	}
 	$view close
 
@@ -1223,6 +1425,8 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     }
     set x [sdb.v1 groupby moop:V id]
     puts stderr "groupby data [$x dict]"
+
+    # play with ordered
 
     puts stderr "ALL VIEWS: [sdb.v db views]"
     sdb.v close
