@@ -225,16 +225,17 @@ class create Socket {
 
 	if {$chan ne ""} {
 	    ::chan configure $chan -blocking 0 -buffering none -encoding binary -eofchar {{} {}} -translation {binary binary}
-	    Debug.chan {Socket configured $chan to [::chan configure $chan]}
-	}
 
-	# get the endpoints for this connected socket
-	foreach {n cn} {sock -sockname peer -peername} {
-	    set ep [::chan configure $chan $cn]
-	    lassign [split $ep] ip name port
-	    foreach pn {ip name port} {
-		dict set endpoints $n $pn [set $pn]
+	    # get the endpoints for this connected socket
+	    foreach {n cn} {sock -sockname peer -peername} {
+		set ep [::chan configure $chan $cn]
+		lassign [split $ep] ip name port
+		foreach pn {ip name port} {
+		    dict set endpoints $n $pn [set $pn]
+		}
 	    }
+
+	    Debug.chan {Socket configured $chan to [::chan configure $chan]}
 	}
 
 	# keep tally of connections from a given peer
