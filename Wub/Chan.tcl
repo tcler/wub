@@ -55,7 +55,19 @@ class create IChan {
 	if {[catch {::chan read $chan $n} result eo]} {
 	    Debug.chan {$mychan read $chan $n -> error $result ($eo)}
 	} else {
-	    Debug.chan {$mychan read $chan $n ([::chan configure $chan]) -> [string map {\n \\n} "[string length $result] bytes '[string range $result 0 20]...[string range $result end-20 end]"]'}
+	    Debug.chan {$mychan read $chan $n -> [string length $result] bytes: [string map {\n \\n} "[string length $result] bytes '[string range $result 0 20]...[string range $result end-20 end]"]'}
+	    Debug.chan {$mychan read $chan eof     = [chan eof     $chan]}
+	    Debug.chan {$mychan read $chan blocked = [chan blocked $chan]}
+	    Debug.chan {$chan configured: ([chan configure $chan])}
+
+	    # ![chan configure $chan -blocking] - optimization -> save the
+	    # -blocking information in a flag, as it passes through method
+	    # 'blocking'.
+	    if {![string length $result] &&
+		![chan configure $chan -blocking] &&
+		![chan eof $chan]} {
+		return -code error EAGAIN
+	    }
 	}
 	return $result
     }
@@ -68,8 +80,8 @@ class create IChan {
 
     # Setting up, shutting down.
     method initialize {mychan mode} {
-	Debug.chan {$mychan initialize $chan $mode ([::chan configure $chan])}
-	::chan configure $chan -blocking 0 -buffering none -encoding binary -eofchar {{} {}} -translation {binary binary}
+	Debug.chan {$mychan initialize $chan $mode}
+	Debug.chan {$chan configured: ([chan configure $chan])}
 	return [list initialize finalize blocking watch read write]
     }
 
@@ -94,6 +106,8 @@ class create IChan {
 	    set $n $v
 	}
 
+	next {*}$args
+
 	if {![llength $objargs]} {
 	    my destroy	;# this wasn't really a connected socket, just set classvars
 	    return
@@ -110,6 +124,50 @@ class create IChan {
     destructor {
 	Debug.chan {[self] destroyed}
 	catch {::chan close $chan}
+    }
+}
+
+class create CaptureChan {
+    variable capture file fd
+
+    method read {mychan n} {
+	set result [next $mychan $n]
+	if {$capture && $fd ne ""} {
+	    puts -nonewline $fd $result; flush $fd
+	}
+	return $result
+    }
+
+    method capture {{on 1}} {
+	set capture $on
+    }
+
+    # set capture on/off
+    constructor {args} {
+	# process class parameters
+	set fd ""
+	set capture 0
+
+	set classargs [dict filter $args key {-*}]
+	foreach {n v} $classargs {
+	    switch -- [string trim $n -] {
+		capture {
+		    set capture $v	;# set capture on/off
+		}
+		file {
+		    # construct the capture file
+		    set file $v
+		    set fd [open $v a]
+		    ::chan configure $fd -buffering none -translation binary
+		}
+	    }
+	}
+	next {*}$args
+    }
+    destructor {
+	if {$fd ne ""} {
+	    chan close $fd
+	}
     }
 }
 
@@ -138,10 +196,12 @@ class create Socket {
 	}
     }
 
-    mixin IChan
+    #mixin CaptureChan IChan	;# run the capture refchan
+    mixin IChan		;# mixin the identity channel
     variable chan endpoints
 
     constructor {args} {
+	Debug.chan {Socket construction ($args)}
 	if {$chan eq ""} {
 	    error "Needs a chan argument"
 	}
@@ -156,8 +216,17 @@ class create Socket {
 		    if {$chan ne ""} {
 			dict set maxconnections $ip $v
 		    }
+		    dict unset args $n
+		}
+		default {
+		    lappend cargs $n $v
 		}
 	    }
+	}
+
+	if {$chan ne ""} {
+	    ::chan configure $chan -blocking 0 -buffering none -encoding binary -eofchar {{} {}} -translation {binary binary}
+	    Debug.chan {Socket configured $chan to [::chan configure $chan]}
 	}
 
 	# get the endpoints for this connected socket
@@ -192,7 +261,7 @@ class create Socket {
 	    #error "Too Many Connections from $name $ip"
 	}
 
-	next {*}$args
+	#next {*}$args {*}$cargs
     }
 
     destructor {
