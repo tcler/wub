@@ -202,9 +202,9 @@ class create Socket {
 
     constructor {args} {
 	Debug.chan {Socket construction ($args)}
-	set chan [dict get? $args chan]
 
 	# process class parameters
+	set chan [dict get? $args chan]
 	set classargs [dict filter $args key {-*}]
 	foreach {n v} $classargs {
 	    switch -- [string trim $n -] {
@@ -223,20 +223,22 @@ class create Socket {
 	    }
 	}
 
-	if {$chan ne ""} {
-	    ::chan configure $chan -blocking 0 -buffering none -encoding binary -eofchar {{} {}} -translation {binary binary}
-
-	    # get the endpoints for this connected socket
-	    foreach {n cn} {sock -sockname peer -peername} {
-		set ep [::chan configure $chan $cn]
-		lassign [split $ep] ip name port
-		foreach pn {ip name port} {
-		    dict set endpoints $n $pn [set $pn]
-		}
-	    }
-
-	    Debug.chan {Socket configured $chan to [::chan configure $chan]}
+	if {$chan eq ""} {
+	    return
 	}
+
+	::chan configure $chan -blocking 0 -buffering none -encoding binary -eofchar {{} {}} -translation {binary binary}
+
+	# get the endpoints for this connected socket
+	foreach {n cn} {sock -sockname peer -peername} {
+	    set ep [::chan configure $chan $cn]
+	    lassign [split $ep] ip name port
+	    foreach pn {ip name port} {
+		dict set endpoints $n $pn [set $pn]
+	    }
+	}
+	
+	Debug.chan {Socket configured $chan to [::chan configure $chan]}
 
 	# keep tally of connections from a given peer
 	my static connections
@@ -260,8 +262,6 @@ class create Socket {
 	    Debug.connections {$ip has connections [dict size $x] > $mc from ([dict get $x])}
 	    #error "Too Many Connections from $name $ip"
 	}
-
-	#next {*}$args {*}$cargs
     }
 
     destructor {
