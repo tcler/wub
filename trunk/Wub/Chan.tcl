@@ -124,6 +124,7 @@ class create IChan {
     destructor {
 	Debug.chan {[self] destroyed}
 	catch {::chan close $chan}
+	next
     }
 }
 
@@ -168,6 +169,7 @@ class create CaptureChan {
 	if {$fd ne ""} {
 	    chan close $fd
 	}
+	next
     }
 }
 
@@ -237,7 +239,7 @@ class create Socket {
 		dict set endpoints $n $pn [set $pn]
 	    }
 	}
-	
+
 	Debug.chan {Socket configured $chan to [::chan configure $chan]}
 
 	# keep tally of connections from a given peer
@@ -261,6 +263,8 @@ class create Socket {
 	if {[dict size $x] > $mc} {
 	    Debug.connections {$ip has connections [dict size $x] > $mc from ([dict get $x])}
 	    #error "Too Many Connections from $name $ip"
+	} else {
+	    Debug.connections {$ip connected from port $port ([dict size $x] connections)}
 	}
     }
 
@@ -270,6 +274,7 @@ class create Socket {
 	set ep [dict get $endpoints peer]
 	dict with ep {
 	    dict unset connections $ip $port
+	    Debug.connections {disconnecting $ip port $port ([dict size $x] remaining)}
 	}
     }
 }
