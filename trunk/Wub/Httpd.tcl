@@ -892,7 +892,7 @@ namespace eval Httpd {
 	    Debug.HttpdLow {[info coroutine] gets $socket - status:$status '$line'}
 	    set result [yield]
 	    if {$maxline && [chan pending input $socket] > $maxline} {
-		handle [Http Bad $request "Line too long"] "Line too long"
+		error "Line too long (over $maxline) '[string range $line 0 20]..."
 	    }
 	}
 	Debug.HttpdLow {[info coroutine] get - success:$status}
@@ -921,7 +921,7 @@ namespace eval Httpd {
 	
 	if {[chan eof $socket]} {
 	    Debug.HttpdLow {[info coroutine] eof in read}
-	    terminate entity	;# check the socket for closure
+	    terminate "eof in reading entity - $size"	;# check the socket for closure
 	}
 	
 	# return the chunk
@@ -955,7 +955,7 @@ namespace eval Httpd {
 	    if {$maxfield
 		&& [string length [dict get $r $key]] > $maxfield
 	    } {
-		handle [Http Bad $request "Illegal header: '$line'"] "Illegal Header"
+		handle [Http Bad $r "Illegal header: '[string range 0 20 $line]...' [string length $dict get $r $key] is too long"] "Illegal Header - [string length $dict get $r $key] is too long"
 	    }
 	}
 
@@ -1540,7 +1540,8 @@ namespace eval Httpd {
     proc Connect {sock ipaddr rport args} {
 	if {1} {
 	    if {[catch {
-		chan create {read write} [Socket new chan $sock]
+		set s [Socket new chan $sock -file sock.dump -capture 0]
+		chan create {read write} $s
 	    } ns eo]} {
 		# failed to connect.  This can be due to overconnecting
 		Debug.error {connection error from $ipaddr:$rport - $ns ($eo)}
