@@ -277,6 +277,7 @@ class create Socket {
 	    Debug.connections {$ip port $port disconnected ([dict size $ep] remaining)}
 	    if {![dict size $ep]} {
 		dict unset connections $ip
+		Debug.connections {total: [dict size $connections]}
 	    }
 	}
     }
