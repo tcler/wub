@@ -274,7 +274,10 @@ class create Socket {
 	set ep [dict get $endpoints peer]
 	dict with ep {
 	    dict unset connections $ip $port
-	    Debug.connections {disconnecting $ip port $port ([dict size $ep] remaining)}
+	    Debug.connections {$ip port $port disconnected ([dict size $ep] remaining)}
+	    if {![dict size $ep]} {
+		dict unset connections $ip
+	    }
 	}
     }
 }
