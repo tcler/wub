@@ -82,7 +82,7 @@ class create IChan {
     method initialize {mychan mode} {
 	Debug.chan {$mychan initialize $chan $mode}
 	Debug.chan {$chan configured: ([chan configure $chan])}
-	return [list initialize finalize blocking watch read write]
+	return [list initialize finalize blocking watch read write cget cgetall]
     }
 
     method finalize {mychan} {
@@ -90,6 +90,24 @@ class create IChan {
 
 	catch {::chan close $chan}
 	catch {my destroy}
+    }
+
+    method cget {mychan option} {
+	switch -- $option {
+	    self {
+		return [self]
+	    }
+	}
+	return [next $mychan $option]
+    }
+
+    method cgetall {mychan} {
+	if {[catch {
+	    next $mychan
+	} result]} {
+	    set result {}
+	}
+	return [list self [self] {*}$result]
     }
 
     variable chan
@@ -119,6 +137,7 @@ class create IChan {
 	} elseif {$chan eq ""} {
 	    error "Needs a chan argument"
 	}
+	#rename [self] [namespace qualifiers [self]]::$chan	;# rename the object to the $chan.
     }
 
     destructor {
