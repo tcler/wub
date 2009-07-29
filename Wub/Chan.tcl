@@ -202,10 +202,7 @@ class create Socket {
 
     constructor {args} {
 	Debug.chan {Socket construction ($args)}
-	if {$chan eq ""} {
-	    error "Needs a chan argument"
-	}
-	set chan [dict get $args chan]
+	set chan [dict get? $args chan]
 
 	# process class parameters
 	set classargs [dict filter $args key {-*}]
@@ -215,6 +212,8 @@ class create Socket {
 		    my static maxconnections	;# allow setting of max connections
 		    if {$chan ne ""} {
 			dict set maxconnections $ip $v
+		    } else {
+			dict set maxconnections "" $v
 		    }
 		    dict unset args $n
 		}
