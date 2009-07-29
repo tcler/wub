@@ -55,7 +55,7 @@ class create IChan {
 	if {[catch {::chan read $chan $n} result eo]} {
 	    Debug.chan {$mychan read $chan $n -> error $result ($eo)}
 	} else {
-	    Debug.chan {$mychan read $chan $n -> [string map {\n \\n} "[string length $result] bytes '[string range $result 0 20]...[string range $result end-20 end]"]'}
+	    Debug.chan {$mychan read $chan $n ([::chan configure $chan]) -> [string map {\n \\n} "[string length $result] bytes '[string range $result 0 20]...[string range $result end-20 end]"]'}
 	}
 	return $result
     }
@@ -69,7 +69,7 @@ class create IChan {
     # Setting up, shutting down.
     method initialize {mychan mode} {
 	Debug.chan {$mychan initialize $chan $mode ([::chan configure $chan])}
-
+	::chan configure $chan -blocking 0 -buffering none -encoding binary -eofchar {{} {}} -translation {binary binary}
 	return [list initialize finalize blocking watch read write]
     }
 
@@ -191,8 +191,6 @@ class create Socket {
 	    Debug.connections {$ip has connections [dict size $x] > $mc from ([dict get $x])}
 	    #error "Too Many Connections from $name $ip"
 	}
-
-	::chan configure $chan -blocking 0 -buffering none -encoding binary -eofchar {{} {}} -translation {binary binary}
 
 	next {*}$args
     }
