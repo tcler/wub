@@ -16,7 +16,7 @@ namespace eval About {
 
     proc do {r} {
 	foreach x $::APIDomains {
-	    package require $x
+	    catch {package require $x}
 	}
 
 	proc do {r} {
