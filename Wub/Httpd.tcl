@@ -1505,7 +1505,6 @@ namespace eval Httpd {
 	#Debug on HttpdLow 10
 	if {[info commands ::wub] eq {}} {
 	    package require Mason
-	    puts stderr "DOCS: $::Site::docroot"
 	    Mason create ::wub -url / -root $::Site::docroot -auth .before -wrapper .after
 	}
 
