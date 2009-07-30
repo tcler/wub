@@ -139,7 +139,7 @@ namespace eval Http {
     # set of response-only headers
     variable rs_headers {
 	accept-ranges age etag location proxy-authenticate retry-after
-	server vary www-authenticate
+	server vary www-authenticate content-disposition
     }
     foreach n $rs_headers {
 	set headers($n) rs
