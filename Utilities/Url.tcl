@@ -242,6 +242,7 @@ namespace eval Url {
     proc http {x args} {
 	Debug.url {Url http $x}
 
+	set result ""
 	foreach {part pre post} {
 	    -path "" ""
 	    -fragment \# ""
