@@ -4,7 +4,6 @@ package ifneeded conversions 1.0 [list source [file join $dir conversions.tcl]]
 # domains
 package ifneeded File 2.0 [list source [file join $dir File.tcl]]
 package ifneeded Repo 1.0 [list source [file join $dir Repo.tcl]]
-package ifneeded Compose 1.0 [list source [file join $dir Compose.tcl]]
 package ifneeded Convert 1.0 [list source [file join $dir Convert.tcl]]
 package ifneeded Session 3.1 [list source [file join $dir Session.tcl]]
 package ifneeded Mason 1.0 [list source [file join $dir Mason.tcl]]
