@@ -35,3 +35,4 @@ package ifneeded Nub 1.0 [list source [file join $dir Nub.tcl]]
 package ifneeded Woof 1.0 [list source [file join $dir Woof.tcl]]
 
 package ifneeded ReCAPTCHA 1.0 [list source [file join $dir ReCAPTCHA.tcl]]
+package ifneeded Tiny 1.0 [list source [file join $dir Tiny.tcl]]
