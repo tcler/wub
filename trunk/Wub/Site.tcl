@@ -168,7 +168,7 @@ namespace eval Site {
 	home [file normalize [file dirname [info script]]] ;# home of application script
 	host [info hostname]	;# default home for relative paths
 	ini site.ini		;# init files
-	globaldocroot 1		;# do we use Wub's docroot, or caller's
+	globaldocroot 0		;# do we use Wub's docroot, or caller's
 	cmdport 8082		;# Console listening socket
 
 	application ""		;# package to require as application
