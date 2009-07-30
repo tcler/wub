@@ -1,7 +1,14 @@
 # Url - support for URL manipulation
 
-package require Query
-package require Dict
+if {[catch {package require Debug}]} {
+    proc Debug.url {args} {}
+    #proc Debug.url {args} {puts stderr url@[uplevel subst $args]}
+} else {
+    Debug off url 10
+}
+
+catch {package require Query}	;# reduced functionality - no redir
+catch {package require Dict}	;# no subset or assemble
 
 package provide Url 1.0
 
@@ -172,6 +179,8 @@ namespace eval Url {
 
 	if {[info exists x(-scheme)]} {
 	    set x(-url) [url [array get x]]
+	} else {
+	    #set x(-scheme) http
 	}
 
 	Debug.url {Url parse: $url -> [array get x]} 30
@@ -200,8 +209,8 @@ namespace eval Url {
 	}
 
 	foreach {part pre post} {
-	    -scheme "" :
-	    -host // ""
+	    -scheme "" :/
+	    -host / ""
 	    -port : ""
 	    -path "" ""
 	} {
@@ -214,6 +223,9 @@ namespace eval Url {
     }
 
     proc uri {x args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
 	set result [url $x]
 
 	foreach {part pre post} {
@@ -370,4 +382,23 @@ namespace eval Url {
 
     namespace export -clear *
     namespace ensemble create -subcommands {}
+}
+
+if {[info exists argv0] && ($argv0 eq [info script])} {
+    # test normalization 
+    foreach {i o exp} {
+	example.com http://example.com/ "A URI with a missing scheme is normalized to a http URI"
+	http://example.com http://example.com/ "An empty path component is normalized to a slash"
+	https://example.com/ https://example.com/ "https URIs remain https URIs"
+	http://example.com/user http://example.com/user "No trailing slash is added to non-empty path components"
+	http://example.com/user/ http://example.com/user/ "Trailing slashes are preserved on non-empty path components"
+	http://example.com/ http://example.com/ "Trailing slashes are preserved when the path is empty"
+	=example =example "Normalized XRIs start with a global context symbol"
+	xri://=example =example "Normalized XRIs start with a global context symbol"
+    } {
+	set d [Url parse $i]
+	if {[Url uri $d] ne $o} {
+	    puts stderr "'[Url uri $d]' doesn't match $o.  Assertion failed: $exp over ($d)"
+	}
+    }
 }
