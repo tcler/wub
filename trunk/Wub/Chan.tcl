@@ -82,7 +82,11 @@ class create IChan {
     method initialize {mychan mode} {
 	Debug.chan {$mychan initialize $chan $mode}
 	Debug.chan {$chan configured: ([chan configure $chan])}
-	return [list initialize finalize blocking watch read write cget cgetall]
+	return [list initialize finalize blocking watch read write cget cgetall configure]
+    }
+
+    method configure {mychan option value} {
+	return [next $mychan $option $value]
     }
 
     method finalize {mychan} {
@@ -94,7 +98,7 @@ class create IChan {
 
     method cget {mychan option} {
 	switch -- $option {
-	    self {
+	    -self {
 		return [self]
 	    }
 	}
@@ -107,7 +111,9 @@ class create IChan {
 	} result]} {
 	    set result {}
 	}
-	return [list self [self] {*}$result]
+	set result [list -self [self] {*}$result]
+	Debug.chan {[self] cgetall $mychan -> $result}
+	return $result
     }
 
     variable chan
@@ -184,6 +190,7 @@ class create CaptureChan {
 	}
 	next {*}$args
     }
+
     destructor {
 	if {$fd ne ""} {
 	    chan close $fd
@@ -195,6 +202,45 @@ class create CaptureChan {
 class create Socket {
     method socket {} {return $chan}
     method endpoints {} {return $endpoints}
+
+    method configure {mychan option value} {
+	switch -glob -- $option {
+	    max* {
+		set ip [dict get $endpoints peer ip]
+		static maxconnections	;# allow setting of max connections
+		dict set $maxconnections $ip $value
+	    }
+	}
+    }
+
+    method cgetall {mychan} {
+	set result {}
+	foreach n {socket peer connections maxconnections} {
+	    lappend result -$n [my cget $mychan $n]
+	}
+    }
+
+    method cget {mychan option} {
+	switch -- $option {
+	    -sock* -
+	    -peer {
+		return [dict get $endpoints $option]
+	    }
+	    -conn* {
+		set ip [dict get $endpoints peer ip]
+		return [dict get $connections $ip]
+	    }
+	    -max* {
+		set ip [dict get $endpoints peer ip]
+		static maxconnections	;# allow setting of max connections
+		if {[dict exists $maxconnections $ip]
+		    return [dict get $maxconnections $ip]
+		} else {
+		    return [dict get $maxconnections ""]
+		}
+	    }
+	}
+    }
 
     # provide static variables
     method static {args} {
@@ -228,8 +274,8 @@ class create Socket {
 	set chan [dict get? $args chan]
 	set classargs [dict filter $args key {-*}]
 	foreach {n v} $classargs {
-	    switch -- [string trim $n -] {
-		maxconnections {
+	    switch -glob -- [string trim $n -] {
+		max* {
 		    my static maxconnections	;# allow setting of max connections
 		    if {$chan ne ""} {
 			dict set maxconnections $ip $v

@@ -90,88 +90,106 @@ if {[catch {package require Http}]} {
 
 # import the relevant commands from Wub Url package
 if {[catch {package require Url}]} {
-    namespace eval ::Url {}
-    # subset the Url package for stand-alone use
-    proc ::Url::url {args} {
-	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
-	}
-	# minimize -port
-	if {[dict exists $args -port]
-	    && ([dict get $args -port] eq "" || [dict get $args -port] eq "80")} {
-	    dict unset args -port
-	}
-
-	foreach {part pre post} {
-	    -scheme "" :
-	    -host // ""
-	    -port : ""
-	    -path "" ""
-	} {
-	    if {[dict exists $args $part]} {
-		append result "${pre}[dict get $args $part]${post}"
+    namespace eval ::Url {
+	# subset the Url package for stand-alone use
+	proc url {args} {
+	    if {[llength $args] == 1} {
+		set args [lindex $args 0]
 	    }
-	}
-	return $result
-    }
-    proc ::Url::uri {x args} {
-	set result [url $x]
-
-	foreach {part pre post} {
-	    -query ? ""
-	    -fragment \# ""
-	} {
-	    if {[dict exists $x $part]} {
-		append result "${pre}[dict get $x $part]${post}"
+	    # minimize -port
+	    if {[dict exists $args -port]
+		&& ([dict get $args -port] eq "" || [dict get $args -port] eq "80")} {
+		dict unset args -port
 	    }
+	    
+	    foreach {part pre post} {
+		-scheme "" :
+		-host // ""
+		-port : ""
+		-path "" ""
+	    } {
+		if {[dict exists $args $part]} {
+		    append result "${pre}[dict get $args $part]${post}"
+		}
+	    }
+	    return $result
 	}
-	return $result
-    }
-    proc ::Url::normalize {url} {
-	while {[set new [regsub -all {(/+)|(^[.][.]/)|(^/[.][.])|(/[^/]+/[.][.]$)|(/[^/]+/[.][.]/)|(^[.]/)|(/[.]$)|(/[.]/)|(^[.][.]$)|(^[.]$)} $url /]] ne $url} {
-	    set url $new
+	proc uri {x args} {
+	    set result [url $x]
+
+	    foreach {part pre post} {
+		-query ? ""
+		-fragment \# ""
+	    } {
+		if {[dict exists $x $part]} {
+		    append result "${pre}[dict get $x $part]${post}"
+		}
+	    }
+	    return $result
 	}
-	return "/[string trimleft $url /]"
-    }
-    proc ::Url::parse {url {normalize 1}} {
-	array set x {}
-	regexp {^(([^:/?\#]+):)?(//([^/?\#]*))?([^?\#]*)([?]([^\#]*))?(\#(.*))?$} $url \
-	    -> . x(-scheme) . x(-authority) x(-path) . x(-query) . x(-fragment)
-	regexp {^(([^@]+)@)?([^@:]+)?(:([0-9]+))?$} $x(-authority) \
-	    -> . x(-authority) x(-host) . x(-port)
+	proc normalize {url} {
+	    while {[set new [regsub -all {(/+)|(^[.][.]/)|(^/[.][.])|(/[^/]+/[.][.]$)|(/[^/]+/[.][.]/)|(^[.]/)|(/[.]$)|(/[.]/)|(^[.][.]$)|(^[.]$)} $url /]] ne $url} {
+		set url $new
+	    }
+	    return "/[string trimleft $url /]"
+	}
+	proc parse {url {normalize 1}} {
+	    array set x {}
+	    regexp {^(([^:/?\#]+):)?(//([^/?\#]*))?([^?\#]*)([?]([^\#]*))?(\#(.*))?$} $url \
+		-> . x(-scheme) . x(-authority) x(-path) . x(-query) . x(-fragment)
+	    regexp {^(([^@]+)@)?([^@:]+)?(:([0-9]+))?$} $x(-authority) \
+		-> . x(-authority) x(-host) . x(-port)
+
+	    if {$normalize} {
+		set x(-path) [normalize $x(-path)]	;# fix up oddities in URLs
+	    }
+	    
+	    foreach n [array names x] {
+		if {$x($n) eq ""} {
+		    unset x($n)
+		}
+	    }
+	    if {[info exists x(-scheme)]} {
+		set x(-url) [url [array get x]]
+	    }
+	    return [array get x]
+	}
 	
-	if {$normalize} {
-	    set x(-path) [normalize $x(-path)]	;# fix up oddities in URLs
+	# construct the host part of a URL dict
+	proc host {x} {
+	    if {[dict exists $x -port]
+		&& [dict get $x -port] ne {}
+		&& [dict get $x -port] != 80} {
+		return "[dict get $x -host]:[dict get $x -port]"
+	    } else {
+		return "[dict get $x -host]"
+	    }
+	}
+
+	proc http {x args} {
+	    foreach {part pre post} {
+		-path "" ""
+		-fragment \# ""
+		-query ? ""
+	    } {
+		set result ""
+		if {[dict exists $x $part]} {
+		    append result "${pre}[dict get $x $part]${post}"
+		}
+	    }
+	    return $result
 	}
 	
-	foreach n [array names x] {
-	    if {$x($n) eq ""} {
-		unset x($n)
-	    }
-	}
-	if {[info exists x(-scheme)]} {
-	    set x(-url) [url [array get x]]
-	}
-	return [array get x]
-    }
-
-    proc ::Url::http {x args} {
-	foreach {part pre post} {
-	    -path "" ""
-	    -fragment \# ""
-	    -query ? ""
-	} {
-	    if {[dict exists $x $part]} {
-		append result "${pre}[dict get $x $part]${post}"
-	    }
-	}
-	return $result
+	namespace export -clear *
+	namespace ensemble create -subcommands {}
     }
 }
 
 if {[catch {package require Debug}]} {
     proc Debug.HTTP {args} {}
+    #proc Debug.HTTP {args} {puts stderr HTTP@[uplevel subst $args]}
     proc Debug.HTTPdetail {args} {}
+    #proc Debug.HTTPdetail {args} {puts stderr HTTPdetail@[uplevel subst $args]}
 } else {
     Debug off HTTP 10
     Debug off HTTPdetail 10
@@ -188,23 +206,35 @@ if {[catch {package require know}]} {
 	}][info body ::unknown]
     } ;# RS
 }
+
+# this parses the URL into a host part and a 'get $path' part.
 know {[string match http://* [lindex $args 0]]} {
-    HTTP new {*}$args	;# close close
+    # parse the URL
+    set urld [Url parse [lindex $args 0]]
+    set host [Url host $urld]
+    set path [Url http $urld]
+    if {[dict exists $urld -fragment]} {
+	dict unset urld -fragment	;# we don't pass fragments
+    }
+    if {$path ne ""} {
+	set path [list get $path]	;# make a 'get' op for path remainder
+    }
+
+    HTTP new [dict get $urld -scheme]://$host {*}$path {*}[lrange $args 1 end]	;# close close
 }
 
 package provide HTTP 2.0
 
 class create HTTP {
-
     # send - send an op HTTP request to the server
     method send {method url {entity ""} args} {
 	corovars socket sent host http
 	Debug.HTTP {send method:$method url:$url entity: [string length $entity] ($args)}
 
-	set T [dict merge $http $args [list -scheme http -port $port -host $host] [::Url::parse $url]]
+	set T [dict merge $http $args [list -scheme http -port $port -host $host] [Url parse $url]]
 	set T [dict merge $T [list -method $method date [::Http::Date] host $host]]
-	set requrl([incr txcount]) [::Url::uri $T]
-	Debug.HTTP {T: ($T) #$txcount -> [::Url::http $T] -> [::Url::uri $T]}
+	set requrl([incr txcount]) [Url uri $T]
+	Debug.HTTP {T: ($T) #$txcount -> [Url http $T] -> [Url uri $T]}
 
 	# format entity
 	if {$entity ne ""} {
@@ -215,7 +245,7 @@ class create HTTP {
 	}
 
 	# format up header
-	set request "[string toupper $method] [::Url::http $T] HTTP/1.1\r\n"
+	set request "[string toupper $method] [Url http $T] HTTP/1.1\r\n"
 
 	dict for {n v} [dict filter $T key {[a-zA-Z]*}] {
 	    if {[string length $v] > 100} {
@@ -322,6 +352,8 @@ class create HTTP {
     }
 
     constructor {url _consumer args} {
+	Debug.HTTP {[self] construct $url $_consumer $args}
+
 	set self [self]		;# for identifying responses
 	set closing 0		;# signals EOF to both reader and writer
 	set outstanding 0	;# counts outstanding packets
@@ -346,10 +378,13 @@ class create HTTP {
 	    }
 	}
 
-	# parse url of host
-	set urld [::Url::parse $url]
+	# parse url into host,port
+	set urld [Url parse $url]
+	Debug.HTTPdetail {url dict: $urld}
+	if {![dict exist $urld -host]} {
+	    error "'$url' is not a properly formed URL"
+	}
 	set host [dict get $urld -host]
-
 	if {[dict exists $urld -port]} {
 	    set port [dict get $urld -port]
 	} else {
@@ -626,6 +661,7 @@ class create HTTP {
 }
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
+    catch {Debug on HTTP 10}
     proc echo {arg} {
 	puts "ECHO: $arg"
 	lassign $arg op
