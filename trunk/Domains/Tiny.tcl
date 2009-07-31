@@ -71,7 +71,7 @@ class create ::Tiny {
 		[<form> miniscurl {*}$formargs [subst {
 		    [<fieldset> fs {
 			[<legend> "MiniscUrl"]
-			[<text> url title "URL to miniscurl" $possible]
+			[<text> url title "URL to make miniscurl" $possible]
 			[<div> id tinyresult {}]
 		    }]
 		}]]
