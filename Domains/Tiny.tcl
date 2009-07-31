@@ -112,6 +112,10 @@ class create ::Tiny {
 	return $r
     }
 
+    # permalink - create permalinks on the fly
+    # Nub domain /tiny/ {Tiny ::tiny} file tiny.mk
+    # set r [::tiny genref $r]
+    # <div> id genref {}
     method /permalink {r {text Permalink} args} {
 	set url [Url uri [Url parse [Http Referer $r]]]	;# normalized referer
 	Debug.tiny {/ref: $url}
