@@ -149,14 +149,14 @@ class create ::Tiny {
 	    return [my /create $r [Http Referer $r]]
 	}
 
-	set ref [my view fetch url $extra]	;# try to load matching record
+	set ref [my view fetch tiny $extra]	;# try to load matching record
 	if {[dict size $ref]} {
 	    # got a matching tiny, redirect to URL
-	    Debug.tiny {ref: redirecting $extra to [dict get $ref tiny]}
+	    Debug.tiny {ref: redirecting '$extra' to [dict get $ref tiny]}
 	    return [Http Relocated $r [dict get $ref tiny]]
 	} else {
 	    # no match, suggest the creation of a tiny with the referer
-	    Debug.tiny {ref: redirecting $extra NOT FOUND}
+	    Debug.tiny {ref: redirecting '$extra' NOT FOUND}
 	    return [my /create $r [Http Referer $r]]
 	}
     }
