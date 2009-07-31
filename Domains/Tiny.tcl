@@ -2,7 +2,7 @@
 # usage: Nub domain /tiny/ Tiny file tiny.mk
 
 package require Debug
-Debug on tiny 10
+Debug off tiny 10
 
 package require View
 package require Direct
