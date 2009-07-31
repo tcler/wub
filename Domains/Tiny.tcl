@@ -17,8 +17,6 @@ set API(Plugins/Tiny) {
 }
 
 class create ::Tiny {
-    mixin Direct
-
     method created {r record} {
 	set url [dict get $record url]
 	set tiny http://[Url host $r][file join $mount [dict get $record tiny]]
@@ -34,6 +32,7 @@ class create ::Tiny {
 		width: 80%;
 		text-align: left;
 	    }
+
 	    form.tiny > fieldset {
 		width:0%;
 		background: whitesmoke;
@@ -66,6 +65,7 @@ class create ::Tiny {
 	    # No url to transform - just generate a form and return it.
 	    Debug.tiny {No url, generate form.  $possible '$args'}
 
+	    # construct a form
 	    set formargs [list class tiny action [file join $mount create] method post]
 	    set content [<div> [subst {
 		[<form> miniscurl {*}$formargs [subst {
@@ -77,11 +77,8 @@ class create ::Tiny {
 		}]]
 	    }]]
 
-	    set r [jQ hint $r]
-	    set r [jQ form $r .tiny target '#tinyresult']
-	    set r [jQ postscript $r {
-		$('input[title!=""]').hint();
-	    }]
+	    set r [jQ hint $r]	;# add auto-hinting to the form element
+	    set r [jQ form $r .tiny target '#tinyresult']	;# make the form AJAX
 
 	    dict set r -style [file join $mount css] {}
 	    return [Http Ok [Http NoCache $r] $content x-text/html-fragment]
@@ -125,8 +122,9 @@ class create ::Tiny {
     }
 
     variable viewV counterV mount
+    mixin Direct
     constructor {args} {
-
+	set db tiny
 	# unpack the args as variables
 	foreach {n v} $args {
 	    variable $n $v
@@ -138,14 +136,14 @@ class create ::Tiny {
 	}
 
 	# create or open the tiny.urls view
-	[View new file $file db tiny name urls commit 1 layout {
+	[View new file $file db $db name urls commit 1 layout {
 	    tiny:S
 	    url:S
 	}] as viewV
 	objdefine [self] forward view $viewV
 
 	# create or open the tiny.counter view
-	[View new file $file db tiny name counter commit 1 layout {
+	[View new file $file db $db name counter commit 1 layout {
 	    id:I
 	}] as counterV
 	objdefine [self] forward counter $counterV
