@@ -2,7 +2,7 @@
 # usage: Nub domain /tiny/ Tiny file tiny.mk
 
 package require Debug
-Debug off tiny 10
+Debug on tiny 10
 
 package require View
 package require Direct
@@ -101,6 +101,46 @@ class create ::Tiny {
 	}
     }
 
+    # generate a reference
+    method genref {r} {
+	set r [jQ jquery $r]	;# load the jQ
+	set r [jQ postscript $r [string map [list %TU% [file join $mount ref]] {
+	    /* this is javascript which will be run only when jQuery is ready */
+	    $('#genref').load('%TU%');
+	}]]
+	#expects [<div> id genref {}]
+	return $r
+    }
+
+    method /ref {r {text MiniscURL} args} {
+	set url [Url uri [Url parse [Http Referer $r]]]	;# normalized referer
+	Debug.tiny {/ref: $url}
+	set durl [Url parse $url]
+
+	if {![dict exists $durl -host]} {
+	    dict set durl -host [dict get $r -host]
+	    dict set durl -port [dict get $r -port]
+	}
+	Debug.tiny {[Url host $durl] [Url host $r] }
+
+	if {$private && [Url host $durl] ne [Url host $r]} {
+	    # don't allow refs to external domains
+	    return [<p> "[Url host $r] does not support external MiniscURLs"]
+	}
+
+	set ref [my view fetch url $url]	;# try to load matching record
+	if {[dict size $ref]} {
+	    dict with ref {}	;# got a matching record
+	} else {
+	    # no record - create one on the fly
+	    set count [my counter incr 0 id]	;# generate new unique tiny from counter
+	    set tiny [string trimleft [binary encode hex [binary format W $count]] 0]
+	    my view append tiny $tiny url $url	;# record association tiny<->URL
+	}
+	return [Http Ok [Http Cache $r "next year"] [<a> href $tiny $text]]
+	#return [Http Ok [Http NoCache $r] [<a> href $tiny $text]]
+    }
+
     # default URL process - this will catch /$tiny type URLs
     method / {r args} {
 	set extra [string tolower [dict get? $r -extra]]
@@ -121,10 +161,11 @@ class create ::Tiny {
 	}
     }
 
-    variable viewV counterV mount
+    variable viewV counterV mount private
     mixin Direct
     constructor {args} {
 	set db tiny
+	set private 1
 	# unpack the args as variables
 	foreach {n v} $args {
 	    variable $n $v
