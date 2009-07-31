@@ -112,7 +112,7 @@ class create ::Tiny {
 	return $r
     }
 
-    method /ref {r {text MiniscURL} args} {
+    method /permalink {r {text Permalink} args} {
 	set url [Url uri [Url parse [Http Referer $r]]]	;# normalized referer
 	Debug.tiny {/ref: $url}
 	set durl [Url parse $url]
@@ -125,7 +125,7 @@ class create ::Tiny {
 
 	if {$private && [Url host $durl] ne [Url host $r]} {
 	    # don't allow refs to external domains
-	    return [<p> "[Url host $r] does not support external MiniscURLs"]
+	    return [<p> "[Url host $r] does not support external Permalinks"]
 	}
 
 	set ref [my view fetch url $url]	;# try to load matching record
@@ -137,7 +137,7 @@ class create ::Tiny {
 	    set tiny [string trimleft [binary encode hex [binary format W $count]] 0]
 	    my view append tiny $tiny url $url	;# record association tiny<->URL
 	}
-	return [Http Ok [Http Cache $r "next year"] [<a> href $tiny $text]]
+	return [Http Ok [Http Cache $r "next year"] [<a> class permalink href $tiny $text]]
 	#return [Http Ok [Http NoCache $r] [<a> href $tiny $text]]
     }
 
