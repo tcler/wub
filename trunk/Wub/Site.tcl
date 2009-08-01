@@ -174,9 +174,6 @@ namespace eval Site {
 	    load 1		;# want Console
 	    port 8082		;# Console listening socket
 	    password munchkin	;# default password
-	    login [list ::apply {{password} {
-		return [expr {$password == "%PASSWORD%"}]
-	    }}]
 	}]
 
 	application ""		;# package to require as application
@@ -512,19 +509,15 @@ namespace eval Site {
 	} {
 	    #### Shell init
 	    package require Shell
-	    set login [dict get? $shell login]
-	    if {$login ne ""} {
-		set password [dict get? $shell password]
-		if {$password ne ""} {
-		    set login [string map [list %PASSWORD% $password] $login]
-		}
-		set login [list login $login]
+	    set password [dict get? $shell password]
+	    if {$password ne ""} {
+		set password [list password $password]
 	    }
 	    if {[dict exists $shell port]} {
-		Shell new port [dict get $shell port] {*}$login
+		Shell new port [dict get $shell port] {*}$password
 		Debug.site {Module Shell: YES on port [dict get $shell port]}
 	    } else {
-		Shell new {*}$login
+		Shell new {*}$password
 		Debug.site {Module Shell: YES on stdio}
 	    }
 	} else {
