@@ -88,7 +88,7 @@ class create Shell {
 	set host localhost	;# default - listen only to localhost
 
 	dict with args {
-	    if {[info exists password] && $login eq ""} {
+	    if {[info exists password] && $password ne "" && $login eq ""} {
 		# throw in some default password handling
 		set login [list ::apply [list {password} [string map [list %PASSWORDS% $password] {
 		    return [expr {$password in {%PASSWORDS%}}]
