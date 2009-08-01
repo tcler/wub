@@ -1276,7 +1276,7 @@ class create View {
 
 	    # open the database if it's not already open
 	    if {![dict exists [mk::file open] $db]} {
-		if {[info exists file]} {
+		if {[info exists file] && $file ne ""} {
 		    set flags {}
 		    foreach flag {-readonly -nocommit -extend -shared} {
 			if {[dict exists $args $flag] && [dict get $args $flag]} {
