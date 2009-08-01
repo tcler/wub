@@ -173,7 +173,6 @@ namespace eval Site {
 	@shell [rc {
 	    load 1		;# want Console
 	    port 8082		;# Console listening socket
-	    password munchkin	;# default password
 	}]
 
 	application ""		;# package to require as application
