@@ -169,7 +169,11 @@ namespace eval Site {
 	host [info hostname]	;# default home for relative paths
 	ini site.ini		;# init files
 	globaldocroot 1		;# do we use Wub's docroot, or caller's
-	cmdport 8082		;# Console listening socket
+
+	@shell [rc {
+	    load 1		;# want Console
+	    port 8082		;# Console listening socket
+	}]
 
 	application ""		;# package to require as application
 
@@ -497,17 +501,22 @@ namespace eval Site {
 	}
 
 	#### Console init
-	variable cmdport
-	if {$cmdport eq ""} {
-	    package require Stdin
-	    Stdin start	;# start a command shell on stdin
-	    Debug.site {Module Console: STDIN}
-	} elseif {$cmdport > 0} {
-	    package require Stdin
-	    Stdin start $cmdport ;# start a command shell on localhost,$cmdport
-	    Debug.site {Module Console: LOCALHOST}
+	variable shell
+	if {[info exists shell]
+	    && [dict get? $shell load] ne ""
+	    && [dict get? $shell load]
+	} {
+	    #### Shell init
+	    package require Shell
+	    if {[dict exists $shell port]} {
+		Shell new port [dict get $shell port]
+		Debug.site {Module Shell: YES on port [dict get $shell port]}
+	    } else {
+		Shell new
+		Debug.site {Module Shell: YES on stdio}
+	    }
 	} else {
-	    Debug.site {Module Console: NO}
+	    Debug.site {Module Shell: NO}
 	}
 
 	#### load the application
