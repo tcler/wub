@@ -91,7 +91,7 @@ class create Shell {
 	    if {[info exists password] && $login eq ""} {
 		# throw in some default password handling
 		set login [list ::apply [list {password} [string map [list %PASSWORDS% $password] {
-		    return [expr {$password in "%PASSWORDS%"}]
+		    return [expr {$password in %PASSWORDS%}]
 		}]]]
 	    }
 
