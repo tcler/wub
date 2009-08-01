@@ -14,7 +14,6 @@ namespace import oo::*
 package provide Shell 1.0
 
 class create Shell {
-    variable interp
     constructor {args} {
 	# prompt for input, collect it and return
 	proc prompt {in out p} {
@@ -27,9 +26,33 @@ class create Shell {
 	}
 
 	# read-eval-print loop - prompt, gets input, evaluate it, print result
-	proc repl {self in out} {
-	    variable interp
+	proc repl {self in out interp {login ""}} {
 	    while {1} {
+		if {[info exists login]} {
+		    if {$login eq ""} {
+			unset login	;# don't leave it hanging around
+		    } else {
+			set cmd [prompt $in $out login:]
+			try {
+			    {*}$login $cmd
+			} on error {result eo} {
+			    puts stderr "Shell login error: $result ($eo)"
+			    break
+			} on return {} {
+			    puts stderr "Shell login aborted"
+			    break
+			} on continue {} {
+			    continue
+			} on ok {result} {
+			    if {$result} {
+				unset login	;# login returned ok
+			    } else {
+				continue
+			    }
+			}
+		    }
+		}
+
 		set cmd [prompt $in $out %]
 		while {![info complete $cmd]} {
 		    append cmd \n [prompt $in $out >]
@@ -59,16 +82,17 @@ class create Shell {
 	    return $result
 	}
 
-	set interp {uplevel #0}
+	set interp {uplevel #0}	;# default cmd interpreter
+	set login ""		;# default - no login
 	set in stdin; set out "";# default - use stdio
 	set host localhost	;# default - listen only to localhost
 
 	dict with args {
 	    if {[info exists port]} {
 		# what is wanted is a listener
-		socket -server [list ::apply {{sock addr port} {
-		    set shell [Shell new in $sock]
-		}}]  -myaddr $host $port
+		socket -server [list ::apply {{login sock addr port} {
+		    set shell [Shell new in $sock login $login]
+		}} $login]  -myaddr $host $port
 	    } else {
 		# we have a chan (or a couple of chans)
 		if {$out eq ""} {
@@ -79,7 +103,7 @@ class create Shell {
 		    }
 		}
 		chan configure $out -buffering line
-		coroutine [self]_CORO repl [self] $in $out
+		coroutine [self]_CORO repl [self] $in $out $interp $login
 	    }
 	}
     }
