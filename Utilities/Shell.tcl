@@ -7,6 +7,12 @@
 # [Shell new] - create a shell listening on stdio
 # [Shell new in $chan out $chan] - shell connected to chan
 # [Shell new port $port] - shell server on localhost port $port
+#
+# Options:
+#
+# login - a command prefix given lines of input until it returns true
+# password - a list of passwords for default login facility
+# host - a non-localhost interface upon which to listen at $port
 
 package require TclOO
 namespace import oo::*
