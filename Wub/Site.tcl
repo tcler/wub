@@ -509,15 +509,15 @@ namespace eval Site {
 	} {
 	    #### Shell init
 	    package require Shell
-	    set password [dict get? $shell password]
-	    if {$password ne ""} {
-		set password [list password $password]
+	    set spasswd [dict get? $shell password]
+	    if {$spasswd ne ""} {
+		set spasswd [list password $spasswd]
 	    }
 	    if {[dict exists $shell port]} {
-		Shell new port [dict get $shell port] {*}$password
+		Shell new port [dict get $shell port] {*}$spasswd
 		Debug.site {Module Shell: YES on port [dict get $shell port]}
 	    } else {
-		Shell new {*}$password
+		Shell new {*}$spasswd
 		Debug.site {Module Shell: YES on stdio}
 	    }
 	} else {
