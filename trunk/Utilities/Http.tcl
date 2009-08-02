@@ -281,7 +281,9 @@ namespace eval Http {
 
 	if {$ctype eq ""} {
 	    # calculate content-type using mime guessing
-	    dict set rsp content-type [Mime type $path]
+	    if {[dict get? $rsp content-type] eq ""} {
+		dict set rsp content-type [Mime type $path]
+	    }
 	} else {
 	    dict set rsp content-type $ctype
 	}
