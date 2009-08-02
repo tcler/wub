@@ -1,6 +1,7 @@
 # Mime - calculate the mime types of file
-
 package require WubUtils
+package require Debug
+Debug on mime 10
 
 package provide Mime 1.0
 
@@ -96,10 +97,12 @@ namespace eval Mime {
 
     array set mimecache {}
     proc type {file} {
-	variable mimecache
+	Debug.mime {MIME type $file}
 
 	# could be cached
+	variable mimecache
 	if {[info exists mimecache($file)]} {
+	    Debug.mime {MIME type $file cached: $mimecache($file)}
 	    return $mimecache($file)
 	}
 
