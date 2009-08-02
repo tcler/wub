@@ -1417,6 +1417,7 @@ namespace eval Httpd {
 
     # format something to suspend this packet
     proc Suspend {r {grace -1}} {
+	Debug.Httpd {Suspending [rdump $r]}
 	dict set r -suspend $grace
 	return $r
     }
@@ -1424,6 +1425,7 @@ namespace eval Httpd {
     # resume this request
     proc Resume {r {cache 1}} {
         # ask socket coro to send the response for us
+	Debug.Httpd {Resuming [rdump $r]}
 	return [catch {{*}[dict get $r -send] [list SEND $r]}]
     }
 
