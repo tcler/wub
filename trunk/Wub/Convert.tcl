@@ -57,7 +57,7 @@ namespace eval Convert {
 	# scan the namespace looking for translators
 	# which are commands of the form .mime/type.mime/type
 	set candidates [namespace eval $ns info commands .*/*.*/*]
-	Debug.convert {Namespace $ns transformers - $candidates}
+	Debug.convert {Namespace '$ns' transformers - $candidates}
 	foreach candidate $candidates {
 	    lassign [split $candidate .] -> from to
 	    Transform $from $to namespace eval $ns $candidate
@@ -67,8 +67,9 @@ namespace eval Convert {
 	# which are commands of the form .mime/type
 	set postproc {}
 	set candidates [namespace eval $ns info commands .*/*]
-	Debug.convert {Namespace $ns postprocessors - $candidates}
+	Debug.convert {Namespace '$ns' postprocessors - $candidates}
 	foreach candidate $candidates {
+	    if {[string match .*/*.*/* $candidate]} continue
 	    if {[lassign [split $candidate .] x from] eq ""} {
 		Postprocess $from namespace eval $ns $candidate
 	    }
@@ -88,7 +89,7 @@ namespace eval Convert {
 	# generate transformer name pairs
 	set pairs {}
 	set path [::sgraph::path $graph $from $to]
-	Debug.convert {path $from -> $to == $path}
+	Debug.convert {path $from -> $to via $path}
 
 	foreach el $path {
 	    if {[info exists prev]} {
@@ -99,16 +100,16 @@ namespace eval Convert {
 
 	set paths($from,$to) $pairs	;# cache result
 
-	Debug.convert {path found $from -> $to == '$pairs'}
+	Debug.convert {path found $from -> $to via '$pairs'}
 	return $pairs
     }
 
     # perform applicable postprocess on content of given type
     proc postprocess {rsp} {
 	set ctype [dict get $rsp content-type]
-	Debug.convert {postprocess type: $ctype ($rsp)}
 	variable postprocess
 	if {[info exists postprocess($ctype)]} {
+	    Debug.convert {postprocess type: $ctype ($rsp)}
 	    # there is a postprocessor
 	    
 	    #set rsp [Http loadContent $rsp] ;# read -fd content if any
@@ -246,7 +247,6 @@ namespace eval Convert {
 
     # Convert - perform all content negotiation on a Wub response
     proc Convert {rsp {to ""}} {
-	Debug.convert {converting '[dict get $rsp content-type]' to '$to'}
 	if {$to ne ""} {
 	    if {[dict get? $rsp content-type] eq $to} {
 		Debug.convert {Identity Conversion}
@@ -254,6 +254,7 @@ namespace eval Convert {
 	    }
 	    dict set rsp accept $to
 	}
+	Debug.convert {converting '[dict get $rsp content-type]' to '[dict get $rsp accept]'}
 
 	# perform any postprocessing on input type
 	if {[dict exists $rsp content-type]} {
@@ -317,7 +318,7 @@ namespace eval Convert {
 
 	# perform the content negotiation
 	set rsp [Convert $rsp]
-	Debug.convert {complete: $code '$rsp' ($eo) - [dumpMsg $rsp]}
+	Debug.convert {complete: [dumpMsg $rsp]}
 
 	return $rsp
     }
