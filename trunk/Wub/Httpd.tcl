@@ -1304,7 +1304,7 @@ namespace eval Httpd {
 	    } rsp eo	;# process the request
 
 	    # handle response code from processing request
-	    switch [dict get $eo -code] {
+	    switch -- [dict get $eo -code] {
 		0 -
 		2 {
 		    # does application want to suspend?
