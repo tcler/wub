@@ -82,6 +82,44 @@
 
 
 /*
+* stiky
+*/
+.containerPlus.stiky .no	{ background: url('../elements/stiky/no.png') top left no-repeat;}
+.containerPlus.stiky .ne	{ background: url('../elements/stiky/ne.png') top right no-repeat; margin-left: 21px;}
+.containerPlus.stiky .n	{ background: url('../elements/stiky/n.png') top center repeat-x; margin-right: 25px;height:26px;}
+.containerPlus.stiky .n	{ padding-top:8px; font-size:16px;-moz-user-select: none; -khtml-user-select: none}
+
+.containerPlus.stiky .o	{ background: url('../elements/stiky/o.png') top left repeat-y;}
+.containerPlus.stiky .e	{ background: url('../elements/stiky/e.png') top right repeat-y; margin-left: 21px;}
+.containerPlus.stiky .c { background: url('../elements/stiky/c.png'); margin-right: 25px; padding-top: 1px; padding-bottom: 1px; }
+.containerPlus.stiky .c .content {color:#000;}
+.containerPlus.stiky .n	a{}
+.containerPlus.stiky .n	a:hover{ text-decoration:underline}
+
+.containerPlus.stiky .so	{ background: url('../elements/stiky/so.png') bottom left no-repeat;}
+.containerPlus.stiky .se	{ background: url('../elements/stiky/se.png') bottom right no-repeat; margin-left: 21px;}
+.containerPlus.stiky .s { background: url('../elements/stiky/s.png') bottom repeat-x; padding-top: 20px; margin-right: 25px;}
+
+/*
+* green
+*/
+.containerPlus.green .no	{ background: url('../elements/green/no.png') top left no-repeat;}
+.containerPlus.green .ne	{ background: url('../elements/green/ne.png') top right no-repeat; margin-left: 21px;}
+.containerPlus.green .n	{ background: url('../elements/green/n.png') top center repeat-x; margin-right: 25px;height:26px;}
+.containerPlus.green .n	{ padding-top:8px; font-size:16px;-moz-user-select: none; -khtml-user-select: none}
+
+.containerPlus.green .o	{ background: url('../elements/green/o.png') top left repeat-y;}
+.containerPlus.green .e	{ background: url('../elements/green/e.png') top right repeat-y; margin-left: 21px;}
+.containerPlus.green .c { background: url('../elements/green/c.png'); margin-right: 25px; padding-top: 1px; padding-bottom: 1px; }
+.containerPlus.green .c .content {color:#000;}
+.containerPlus.green .n	a{}
+.containerPlus.green .n	a:hover{ text-decoration:underline}
+
+.containerPlus.green .so	{ background: url('../elements/green/so.png') bottom left no-repeat;}
+.containerPlus.green .se	{ background: url('../elements/green/se.png') bottom right no-repeat; margin-left: 21px;}
+.containerPlus.green .s { background: url('../elements/green/s.png') bottom repeat-x; padding-top: 20px; margin-right: 25px;}
+
+/*
 * alert
 */
 .containerPlus.alert .no	{ background: url('../elements/alert/no.png') top left no-repeat;}
