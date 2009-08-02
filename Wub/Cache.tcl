@@ -126,7 +126,7 @@ namespace eval Cache {
 	} elseif {[exists? [dict get $req -uri]]} {
 	    set key $keys([dict get $req -uri])
 	} else {
-	    error "Cache Fetching $req, no match."
+	    error "Cache Fetching '[dict get? $req etag]'/'[dict get? $req -uri]', no match."
 	}
 
 	# maintain some stats for cache management
@@ -377,12 +377,11 @@ namespace eval Cache {
 	    Debug.cache {etag '$etag' given, but not in cache}
 	    return {}	;# we don't have a copy matching etag
 	}
-	set url [Url url $req]; #dict get? $req -uri
-	if {$url ne "" && ![exists? $url]} {
-	    Debug.cache {url '$url' not in cache}
+	set uri [Url uri $req]; #dict get? $req -uri
+	if {$uri ne "" && ![exists? $uri]} {
+	    Debug.cache {url '$uri' not in cache}
 	    return {}	;# we don't have a copy matching -uri either
 	}
-	dict set req etag $etag
 
 	# old style no-cache request
 	variable obey_CC
@@ -419,7 +418,7 @@ namespace eval Cache {
 	    fetch $req
 	} cached eo]} {
 	    # it's gotta be there!
-	    Debug.error {cache inconsistency - can't fetch existing entry for url:'$url' etag:'$etag' because '$cached' ($eo)}
+	    Debug.error {cache inconsistency '$cached' ($eo) - can't fetch existing entry for url:'$uri'/[exists? $uri] etag:'$etag'}
 	    return {}
 	}
 
@@ -454,7 +453,7 @@ namespace eval Cache {
 		# SHOULD respond with a 304 (Not Modified) response, including
 		# the cache-related header fields (particularly ETag) of one 
 		# of the entities that matched.
-		Debug.cache {unmodified $url}
+		Debug.cache {unmodified $uri}
 		counter $cached -unmod	;# count unmod hits
 		return [Http NotModified $req]
 		# NB: the expires field is set in $req
@@ -466,7 +465,7 @@ namespace eval Cache {
 	}
 
 	if {[unmodified? $req $cached]} {
-	    Debug.cache {unmodified $url}
+	    Debug.cache {unmodified $uri}
 	    counter $cached -unmod	;# count unmod hits
 	    return [Http NotModified $req]
 	    # NB: the expires field is set in $req
@@ -476,7 +475,7 @@ namespace eval Cache {
 	    counter $cached -hits	;# count individual entry hits
 	    set req [dict merge $req $cached]
 	    set req [Http CacheableContent $req [dict get $cached -modified]]
-	    Debug.cache {cached content for $url ([set xx $req; dict set xx -entity <ELIDED>; dict set xx -content <ELIDED>; dict set xx -gzip <ELIDED>; return $xx])}
+	    Debug.cache {cached content for $uri ([set xx $req; dict set xx -entity <ELIDED>; dict set xx -content <ELIDED>; dict set xx -gzip <ELIDED>; return $xx])}
 	    return $req
 	}
 
