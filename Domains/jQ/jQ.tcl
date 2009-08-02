@@ -194,9 +194,9 @@ namespace eval jQ {
 	}
 	container {
 	    buttons 'm'
-	    skin 'stiky'
-	    icon 'browser.png'
-	    width '80%'
+	    skin 'default'
+	    aspectRatio false
+	    handles 'n,s,e,w'
 	}
 	datatables {
 	    sPaginationType 'full_numbers'
@@ -408,76 +408,59 @@ namespace eval jQ {
     proc container {args} {
 	# grab content (if any)
 	if {[llength $args]%2} {
-	    set content [lindex $args end]
+	    set ct [lindex $args end]
 	    set args [lrange $args 0 end-1]
 	} else {
-	    set content ""
+	    set ct ""
 	}
 
-	# class supplied?
-	set class [dict get? $args class]; catch {dict unset args class}
-	if {$class ne ""} {
-	    set class [list class $class]
+	# grab some significant parameters
+	foreach v {style class id cid} {
+	    # attribute supplied?
+	    if {[dict exists $args $v]} {
+		set $v [list $v [dict get $args $v]]
+		dict unset args $v
+	    } else {
+		set $v {}
+	    }
 	}
 
-	# id supplied?
-	set id [dict get? $args id]; catch {dict unset args id}
-	if {$id ne ""} {
-	    set id [list id $id]
-	}
+	# assemble the classes
+	set class [lindex $class end]	;# remove the prefix
+	lappend class containerPlus
 
-	# cid supplied?
-	set cid [dict get? $args cid]; catch {dict unset args cid}
-	if {$cid ne ""} {
-	    set cid [list id $cid]
+	foreach sc {draggable resizable} {
+	    if {[dict exists $args $sc]} {
+		if {[dict get $args $sc]} {
+		    lappend class $sc
+		}
+		dict unset args $sc
+	    }
 	}
 
 	# set up the funky <div> structure this thing needs
-	append C [<div> class ne [<div> class n [dict get? $args title]]] \n; catch {dict unset args title}
-	append C [<div> class o [<div> class e [<div> class c [<div> {*}$id class mbcontainercontent {*}$class $content]]]] \n
-	append C [<div> class so [<div> class se [<div> class s {}]]] \n
-	set C [<div> class no $C]\n
-
-	# assemble the classes
-	set class containerPlus
-
-	# draggable?
-	set draggable [dict get? $args draggable]; catch {dict unset args draggable}
-	if {$draggable ne "" && $draggable} {
-	    lappend class draggable
+	set footer ""; set title ""; set header ""
+	dict with args {
+	    set C [<div> class no [subst {
+		[<div> class ne [<div> class n "$title $header"]]
+		[<div> class o [<div> class e [<div> class c [<div> class content $ct]]]]
+		[<div> class bl [<div> class so [<div> class se [<div> class s $footer]]]]
+	    }]]
+	    unset header
+	    unset footer
+	    unset title
 	}
 
-	# resizable?
-	set resizable [dict get? $args resizable]; catch {dict unset args resizable}
-	if {$resizable ne "" && $resizable} {
-	    lappend class resizable
-	}
-
-	set attrs ""
-	if {0} {
-	    # collapsed?
-	    set collapsed [dict get? $args collapsed]; catch {dict unset args collapsed}
-	    if {$collapsed ne "" && $collapsed} {
-		lappend attrs collapsed true
-	    }
-	    # iconized?
-	    set iconized [dict get? $args iconized]; catch {dict unset args iconized}
-	    if {$iconized ne "" && $iconized} {
-		lappend attrs iconized true
-	    }
-	}
-
-	# fetch style arg, if any
-	set style [dict get? $args style]; catch {dict unset args style}
-
-	# assemble the metadata in a 'class' element
+	# assemble options in a metadata class element
+	# skin, collapsed, iconized, icon, buttons, content, aspectRatio
+	# handles, width, height, 
 	set opts [string map {' \"} [opts container {*}$args]]
 	if {$opts ne ""} {
-	    #lappend class $opts
 	    set opts [list class $opts]
 	}
 
-	return [<div> {*}$cid class $class {*}$opts {*}[expr {[llength $style]?[list style [join $style ;]]:{}}] {*}$attrs $C\n]
+	set result [<div> {*}$cid class $class {*}$opts {*}$style $C\n]
+	return $result
     }
 
     # http://docs.jquery.com/UI/Tabs
