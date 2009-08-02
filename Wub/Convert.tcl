@@ -303,6 +303,9 @@ namespace eval Convert {
 
     # do - perform content negotiation and transformation
     proc do {rsp} {
+	if {![dict exists $rsp -content]} {
+	    return $rsp
+	}
 	if {![dict exists $rsp content-type]} {
 	    error "response has no content-type [dumpMsg $rsp]"
 	}
