@@ -2,7 +2,7 @@
  *         developed by Matteo Bicocchi on JQuery
  *         © 2002-2009 Open Lab srl, Matteo Bicocchi
  *			    www.open-lab.com - info@open-lab.com
- *       	version 2.0
+ *       	version 2.1
  *       	tested on: 	Explorer and FireFox for PC
  *                  		FireFox and Safari for Mac Os X
  *                  		FireFox for Linux
@@ -22,11 +22,12 @@
       this.options = {
         containment:"document",
         elementsPath:"elements/",
-        onCollapse:function(o){},
-        onIconize:function(o){},
-        onClose: function(o){},
-        onResize: function(o){},
-        onDrag: function(o){},
+        onCollapse:function(){},
+        onIconize:function(){},
+        onClose: function(){},
+        onResize: function(){},
+        onDrag: function(){},
+        onRestore:function(){},
         minimizeEffect:"slide", //or "fade"
         effectDuration:300
       };
@@ -50,6 +51,9 @@
         if (container.metadata().buttons) container.attr("buttons",container.metadata().buttons);
         if (container.metadata().content) container.attr("content",container.metadata().content); //ajax
         if (container.metadata().aspectRatio) container.attr("aspectRatio",container.metadata().aspectRatio); //ui.resize
+        if (container.metadata().grid) container.attr("grid",container.metadata().grid); //ui.grid
+        if (container.metadata().gridx) container.attr("gridx",container.metadata().gridx); //ui.grid
+        if (container.metadata().gridy) container.attr("gridy",container.metadata().gridy); //ui.grid
         if (container.metadata().handles) container.attr("handles",container.metadata().handles); //ui.resize
         if (container.metadata().dock) container.attr("dock",container.metadata().dock);
 
@@ -83,7 +87,6 @@
         container.mb_BringToFront();
         container.draggable({
           handle:".n:first",
-          cancel:".c",
           delay:0,
           containment:this.options.containment,
           stop:function(){
@@ -91,6 +94,11 @@
             if(opt.onDrag) opt.onDrag($(this));
           }
         });
+        if (container.attr("grid") || (container.attr("gridx") && container.attr("gridy"))){
+          var grid= container.attr("grid")? [container.attr("grid"),container.attr("grid")]:[container.attr("gridx"),container.attr("gridy")];
+          container.draggable('option', 'grid', grid);
+          //alert( container.draggable('option', 'grid'))
+        }
         container.bind("mousedown",function(){
           $(this).mb_BringToFront();
         });
@@ -111,7 +119,6 @@
 
   jQuery.fn.containerResize = function (){
     var isDraggable=$(this).hasClass("draggable");
-
     var handles= $(this).attr("handles")?$(this).attr("handles"):"s";
     var aspectRatio= $(this).attr("aspectRatio")?$(this).attr("aspectRatio"):false;
 
@@ -142,12 +149,6 @@
      *TO SOLVE UI CSS CONFLICT I REDEFINED A SPECIFIC CLASS FOR HANDLERS
      */
 
-    //    $(this).find(".ui-resizable-n").removeClass("ui-resizable-n");
-    //    $(this).find(".ui-resizable-e").removeClass("ui-resizable-e");
-    //    $(this).find(".ui-resizable-w").removeClass("ui-resizable-w");
-    //    $(this).find(".ui-resizable-s").removeClass("ui-resizable-s");
-    //    $(this).find(".ui-resizable-se").removeClass("ui-resizable-se");
-
     $(this).find(".ui-resizable-n").addClass("mb-resize").addClass("mb-resize-resizable-n");
     $(this).find(".ui-resizable-e").addClass("mb-resize").addClass("mb-resize-resizable-e");
     $(this).find(".ui-resizable-w").addClass("mb-resize").addClass("mb-resize-resizable-w");
@@ -159,9 +160,9 @@
   jQuery.fn.containerSetIcon = function (icon,path){
     if (icon && icon!="" ){
 	if (icon[0] != "/") {
-	    $(this).find(".ne:first").prepend("<img class='icon' src='"+path+"icons/"+icon+"' style='position:absolute'>");
+	    $(this).find(".ne:first").prepend("<img class='icon' src='"+path+"icons/"+icon+"' style='position:absolute'/>");
 	} else {
-	    $(this).find(".ne:first").prepend("<img class='icon' src='"+icon+"' style='position:absolute'>");
+	    $(this).find(".ne:first").prepend("<img class='icon' src='"+icon+"' style='position:absolute'/>");
 	}
       $(this).find(".n:first").css({paddingLeft:25});
     }else{
@@ -178,7 +179,7 @@
       $(this).find(".ne:first").append("<div class='buttonBar'></div>");
       for (var i in btn){
         if (btn[i]=="c"){
-          $(this).find(".buttonBar:first").append("<img src='"+path+$(this).attr('skin')+"/close.png' class='close'>");
+          $(this).find(".buttonBar:first").append("<img src='"+path+$(this).attr('skin')+"/close.png' title='close' class='close'/>");
           $(this).find(".close:first").bind("click",function(){
             if (!$.browser.msie) container.fadeOut(opt.effectDuration);
             else container.hide();
@@ -187,18 +188,19 @@
           });
         }
         if (btn[i]=="m"){
-          $(this).find(".buttonBar:first").append("<img src='"+path+$(this).attr('skin')+"/min.png' class='collapsedContainer'>");
+          $(this).find(".buttonBar:first").append("<img src='"+path+$(this).attr('skin')+"/min.png' title='minimize' class='collapsedContainer'/>");
           $(this).find(".collapsedContainer:first").bind("click",function(){container.containerCollapse(opt);});
           $(this).find(".n:first").bind("dblclick",function(){container.containerCollapse(opt);});
         }
         if (btn[i]=="p"){
-          $(this).find(".buttonBar:first").append("<img src='"+path+$(this).attr('skin')+"/print.png' class='printContainer'>");
+          $(this).find(".buttonBar:first").append("<img src='"+path+$(this).attr('skin')+"/print.png' title='print' class='printContainer'/>");
           $(this).find(".printContainer:first").bind("click",function(){});
         }
         if (btn[i]=="i"){
-          $(this).find(".buttonBar:first").append("<img src='"+path+$(this).attr('skin')+"/iconize.png' class='iconizeContainer'>");
+          $(this).find(".buttonBar:first").append("<img src='"+path+$(this).attr('skin')+"/iconize.png' title='iconize' class='iconizeContainer'/>");
           $(this).find(".iconizeContainer:first").bind("click",function(){container.containerIconize(opt);});
         }
+        $(this).find(".buttonBar:first").hide("fast");
       }
       var fadeOnClose=$.browser.mozilla || $.browser.safari;
       if (fadeOnClose) $(this).find(".buttonBar:first img")
@@ -225,7 +227,7 @@
         }
         container.attr("collapsed","true");
         container.find(".collapsedContainer:first").attr("src",opt.elementsPath+$(this).attr('skin')+"/max.png");
-        container.resizable("destroy");
+        container.resizable("disable");
         if (opt.onCollapse) opt.onCollapse(container);
       }else{
         if (opt.minimizeEffect=="fade")
@@ -235,7 +237,7 @@
           container.find(".icon:first").hide();
           container.animate({height:container.attr("h")},opt.effectDuration,function(){container.find(".icon:first").show();});
         }
-        if (container.hasClass("resizable")) container.containerResize();
+        if (container.hasClass("resizable")) container.resizable("enable");
         container.attr("collapsed","false");
         container.find(".collapsedContainer:first").attr("src",opt.elementsPath+$(this).attr('skin')+"/min.png");
         container.find(".mbcontainercontent:first").css("overflow","auto");
@@ -256,7 +258,7 @@
       container.attr("w",container.attr("width") && container.attr("width")>0 ? (!container.hasClass("resizable")? container.attr("width"):container.width()):!$(this).attr("handles")?"99.9%":container.width());
       container.attr("t",container.css("top"));
       container.attr("l",container.css("left"));
-      container.resizable("destroy");
+      container.resizable("disable");
       var l=0;
       var t= container.css("top");
       var dockPlace= container;
@@ -266,14 +268,16 @@
         l=$("#"+container.attr("dock")).offset().left+(32*icns);
         t=$("#"+container.attr("dock")).offset().top;
       };
- /*
- ICONIZING CONTAINER
-  */
-      this.dockIcon= $("<img src='"+opt.elementsPath+"/icons/"+(container.attr("icon")?container.attr("icon"):"restore.png")+"' class='restoreContainer' width='32'>").appendTo(dockPlace)
+      /*
+       ICONIZING CONTAINER
+       */
+      this.dockIcon= $("<img src='"+opt.elementsPath+"icons/"+(container.attr("icon")?container.attr("icon"):"restore.png")+"' class='restoreContainer' width='32'/>").appendTo(dockPlace)
               .css("cursor","pointer")
               .hide()
               .attr("contTitle",container.find(".n:first").html())
               .bind("click",function(){
+
+
         container.attr("iconized","false");
         if (container.is(".draggable"))
           container.css({top:$(this).offset().top, left:$(this).offset().left});
@@ -293,7 +297,7 @@
             container.find(".c:first , .mbcontainercontent:first").css("height",container.attr("h")-container.find(".n:first").outerHeight()-(container.find(".s:first").outerHeight()));
           }
           else
-            container.animate({height:"60px", width:container.attr("w"),left:container.attr("l"),top:container.attr("t")},opt.effectDuration);
+            container.animate({height:"60px", width:container.attr("w"), left:container.attr("l"),top:container.attr("t")},opt.effectDuration);
         } else {
           container.find(".no:first").show();
           if(container.attr("collapsed")=="false"){
@@ -303,10 +307,11 @@
           else
             container.css({height:"60px", width:container.attr("w"),left:container.attr("l"),top:container.attr("t")},opt.effectDuration);
         }
-        if (container.hasClass("resizable") && container.attr("collapsed")=="false") container.containerResize();
+        if (container.hasClass("resizable") && container.attr("collapsed")=="false") container.resizable("enable");
         $(this).remove();
         if(container.hasClass("draggable")) container.mb_BringToFront();
         $(".iconLabel").remove();
+        if(opt.onRestore) opt.onRestore(container);        
       })
               .bind("mouseenter",function(){
         var label="<div class='iconLabel'>"+$(this).attr("contTitle")+"</div>";
@@ -416,8 +421,7 @@
 
   jQuery.fn.mb_getState= function(attr){
     var state = $(this).attr(attr);
-    if (state=="true") state=true;
-    if (state=="false") state=false;
+    state= state == "true";
     return state;
   };
 
