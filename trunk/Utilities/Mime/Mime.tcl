@@ -1,7 +1,7 @@
 # Mime - calculate the mime types of file
 package require WubUtils
 package require Debug
-Debug on mime 10
+Debug off mime 10
 
 package provide Mime 1.0
 
