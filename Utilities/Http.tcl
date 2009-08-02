@@ -266,6 +266,7 @@ namespace eval Http {
     # modify response to indicate that the content is a cacheable file
     proc CacheableFile {rsp path {ctype ""}} {
 	set path [file normalize $path]
+	dict set rsp -file $path
 
 	# read the file
 	set fd [::open $path r]
@@ -273,12 +274,12 @@ namespace eval Http {
 	dict set rsp -content [read $fd]
 	close $fd
 
-	dict set rsp -file $path
-
+	# set the file mod time
 	set mtime [file mtime $path]
 	dict set rsp -modified $mtime
 	dict set rsp last-modified [Date $mtime]
 
+	# ensure the response has a mime-type
 	if {$ctype eq ""} {
 	    # calculate content-type using mime guessing
 	    if {[dict get? $rsp content-type] eq ""} {
