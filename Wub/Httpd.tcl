@@ -652,6 +652,7 @@ namespace eval Httpd {
 	if {$cache} {
 	    # handle caching (under no circumstances cache bot replies)
 	    Cache put $r	;# cache it before it's sent
+	    dict set r -caching inserted
 	} else {
 	    Debug.Httpd {Do Not Cache put: ([rdump $r]) cache:$cache}
 	}
@@ -1287,6 +1288,7 @@ namespace eval Httpd {
 		dict set cached -transaction [dict get $r -transaction]
 		dict set cached -generation [dict get $r -generation]
 		dict set unsatisfied [dict get $cached -transaction] {}
+		dict set r -caching retrieved
 
 		Debug.Httpd {[info coroutine] sending cached ([rdump $cached])}
 		lappend status CACHED
