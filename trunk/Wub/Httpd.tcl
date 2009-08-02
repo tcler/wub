@@ -512,9 +512,9 @@ namespace eval Httpd {
 	variable activity
 
 	# send all responses in sequence from the next expected to the last available
-	Debug.Httpd {[info coroutine] pending to send: [dict keys $replies]}
+	Debug.Httpd {[info coroutine] pending to send: ([dict keys $replies])}
 	foreach next [lsort -integer [dict keys $replies]] {
-	    set activity([info coroutine]) [clock milliseconds]
+	    watchdog
 	    
 	    if {[chan eof $socket]} {
 		# detect socket closure ASAP in sending
@@ -791,7 +791,7 @@ namespace eval Httpd {
 			Debug.Httpd {[info coroutine] eof detected from yield}
 			terminate "EOF on reading"
 		    } else {
-			set activity([info coroutine]) [clock milliseconds]
+			watchdog
 			return $args
 		    }
 		}
@@ -805,7 +805,7 @@ namespace eval Httpd {
 			terminate "socket is closed"
 		    } else {
 			# just read incoming data
-			set activity([info coroutine]) [clock milliseconds]
+			watchdog
 			set x [chan read $socket]
 			Debug.Httpd {[info coroutine] is closing, read [string length $x] bytes}
 		    }
@@ -813,7 +813,7 @@ namespace eval Httpd {
 
 		SEND {
 		    # send a response to client
-		    set activity([info coroutine]) [clock milliseconds]
+		    watchdog
 		    set retval [send {*}$args]
 		}
 
@@ -1315,7 +1315,7 @@ namespace eval Httpd {
 			    set duration [dict get $rsp -suspend]
 			}
 			
-			#puts stderr "SUSPEND: $duration"
+			Debug.Httpd {SUSPEND: $duration}
 			grace $duration	;# response has been suspended
 			continue
 		    } elseif {[dict exists $rsp -passthrough]} {
@@ -1335,22 +1335,38 @@ namespace eval Httpd {
 		}
 	    }
 	    
-	    # send the response to client
-	    set activity([info coroutine]) [clock milliseconds]
-	    send [pprocess $rsp]
-	}
-    }
+	    watchdog
+	    if {[catch {
+		post $rsp
+	    } rspp eo]} {
+		# post-processing error - report it
+		Debug.error {[info coroutine] postprocess error: $rspp ($eo)} 1
+		watchdog
+		send [Convert do [Http ServerError $r $rspp $eo]]
+	    } else {
+		# send the response to client
+		Debug.Httpd {[info coroutine] postprocess: [rdump $rspp]} 10
+		watchdog
 
-    # run the postprocess - catch any errors
-    proc pprocess {r} {
-	if {[catch {
-	    post $r
-	} rsp eo]} {
-	    Debug.error {[info coroutine] POST ERROR: $rsp ($eo)} 1
-	    return [Http ServerError $r $rsp $eo]
-	} else {
-	    Debug.Httpd {[info coroutine] POST: [rdump $rsp]} 10
-	    return $rsp
+		# does post-process want to suspend?
+		if {[dict size $rspp] == 0 || [dict exists $rspp -suspend]} {
+		    if {[dict size $rspp] == 0} {
+			set duration 0
+		    } else {
+			set duration [dict get $rspp -suspend]
+		    }
+		    
+		    Debug.Httpd {SUSPEND in postprocess: $duration}
+		    grace $duration	;# response has been suspended
+		    continue
+		} elseif {[dict exists $rspp -passthrough]} {
+		    # the output is handled elsewhere (as for WOOF.)
+		    # so we don't need to do anything more.
+		    continue
+		} else {
+		    send $rspp	;# send the response through to client
+		}
+	    }
 	}
     }
 
@@ -1380,6 +1396,12 @@ namespace eval Httpd {
 	    lappend result "name $chan $el"
 	}
 	return $result
+    }
+
+    # tickle the watchdog
+    proc watchdog {} {
+	variable activity
+	set activity([info coroutine]) [clock milliseconds]
     }
 
     # grant the caller some timeout grace
@@ -1492,12 +1514,16 @@ namespace eval Httpd {
 	return [pre $r]
     }
 
-    proc post {req} {
+    proc post {r} {
 	package require Convert
-	proc post {req} {
-	    return [::Convert do $req]	;# got to do post-conversion
+	proc post {r} {
+	    if {[dict exists $r -postprocess]} {
+		set r [{*}[dict get $r -postprocess] $r]
+	    }
+	    set r [::Convert do $r]	;# got to do post-conversion
+	    return $r
 	}
-	return [post $req]
+	return [post $r]
     }
 
     proc do {op req} {
