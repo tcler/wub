@@ -100,7 +100,7 @@ namespace eval jQ {
 	variable version; variable min
 	if {$script eq "jquery.js"} {
 	    # get the currently supported jquery
-	    set script jquery-${version}[expr {min?".min":""}].js
+	    set script jquery-${version}[expr {$min?".min":""}].js
 	}
 
 	variable mount
@@ -149,7 +149,7 @@ namespace eval jQ {
 	    variable version; variable min
 	    if {$script eq "jquery.js"} {
 		# get the currently supported jquery
-		set script jquery-${version}[expr {min?".min":""}].js
+		set script jquery-${version}[expr {$min?".min":""}].js
 	    }
 
 	    dict set r -postscript [file join $mount scripts $script] {}
