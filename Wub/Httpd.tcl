@@ -752,7 +752,7 @@ namespace eval Httpd {
 	    Debug.HttpdLow {coro [info coroutine] yielding}
 	    set x [after info]
 	    if {[llength $x] > 10} {
-		puts stderr "After: [llength $x]"
+		Debug.log {After: [llength $x]}
 	    }
 
 	    # unpack event
