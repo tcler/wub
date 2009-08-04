@@ -88,14 +88,24 @@ namespace eval jQ {
     variable expires 0
     variable google 0
 
+    variable version 1.3.2
+    variable min 1
+
     proc _postscript {script args} {
 	variable mount
 	return [list -postscript [file join $mount scripts $script] $args]
     }
 
     proc script {r script args} {
+	variable version; variable min
+	if {$script eq "jquery.js"} {
+	    # get the currently supported jquery
+	    set script jquery-${version}[expr {min?".min":""}].js
+	}
+
 	variable mount
 	dict set r -postscript [file join $mount scripts $script] $args
+
 	return $r
     }
 
@@ -122,12 +132,12 @@ namespace eval jQ {
 
     proc scripts {r args} {
 	Debug.jq {PRESCRIPT: [Dict get? $r -postscript]}
-
+	variable version
 	variable google
 	if {$google} {
 	    # use the google AJAX repository
 	    dict set r -postscript http://www.google.com/jsapi {}
-	    dict set r -postscript !google [<script> {google.load("jquery", "1.2.6");}]
+	    dict set r -postscript !google [<script> {google.load("jquery", "$version");}]
 	}
 	# load each script
 	variable mount
@@ -135,6 +145,13 @@ namespace eval jQ {
 	    if {$google
 		&& $script eq "jquery.js"
 	    } continue ;# needn't load jquery.js
+
+	    variable version; variable min
+	    if {$script eq "jquery.js"} {
+		# get the currently supported jquery
+		set script jquery-${version}[expr {min?".min":""}].js
+	    }
+
 	    dict set r -postscript [file join $mount scripts $script] {}
 	}
 	Debug.jq {SCRIPT: [dict get $r -postscript]}
@@ -240,6 +257,8 @@ namespace eval jQ {
     }
 
     # http://garage.pimentech.net/scripts_doc_jquery_jframe/
+    # <a href="javascript:$('#target1').loadJFrame('url1')">click here</a>
+    # or place a src attribute in your target <div>
     proc jframe {r} {
 	return [scripts $r jquery.js jquery.form.js jquery.jframe.js]
     }
