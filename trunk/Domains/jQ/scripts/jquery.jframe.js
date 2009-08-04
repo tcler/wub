@@ -1,9 +1,9 @@
 // jFrame
-// $Revision: 1.131 $
+// $Revision: 1.132 $
 // Author: Frederic de Zorzi
 // Contact: fredz@_nospam_pimentech.net
-// Revision: $Revision: 1.131 $
-// Date: $Date: 2008-11-13 08:53:14 $
+// Revision: $Revision: 1.132 $
+// Date: $Date: 2009-01-21 11:55:29 $
 // Copyright: 2007-2008 PimenTech SARL
 // Tags: ajax javascript pimentech english jquery
 
