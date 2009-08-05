@@ -287,8 +287,11 @@ class create Direct {
 	    # no namespace or object - must be a mixin
 	    next {*}$args mount $mount
 	    set object [self]
-	    #error "Direct domain must specify namespace or object"
+	    Debug.direct {mixin Direct [self] class: '[info object class [self]]', mixins: '[info class mixins [info object class $object]]' methods: '[info class methods [info object class $object] -private -all]'}
 	}
+
+	set wildcard /[string trim $wildcard /]
+
 	if {[info exists object]} {
 	    if {[info exists namespace]} {
 		error "Direct domain: can only specify one of object or namespace"
@@ -312,9 +315,20 @@ class create Direct {
 	    # construct a dict from method name to the formal parameters of the method
 	    set class [info object class $object]
 	    set methods {}
+	    set mixins [info class mixins $class]
 	    foreach m [lreverse [lsort -dictionary [info class methods $class -private -all]]] {
 		if {[string match /* $m]} {
-		    set def [lindex [info class definition $class $m] 0]
+		    foreach class [list [info object class [self]] {*}$mixins] {
+			if {![set unfound [catch {
+			    lindex [info class definition $class $m] 0
+			} def eo]]} {
+			    # defined in $class, else try next mixin
+			    break
+			}
+		    }
+		    if {$unfound} {
+			error "Can't find method $m in any class of [info object class [self]] $mixins"
+		    }
 		    Debug.direct {[lindex $object 0] method $m definition: $def}
 		    if {[lindex $def end] eq "args"} {
 			set needargs 1
@@ -331,12 +345,14 @@ class create Direct {
 
 	    Debug.direct {[lindex $object 0] of class $class methods: ($methods) / ([info class methods $class -private -all])}
 	    objdefine $object export {*}[info object methods $object -all] {*}[dict keys $methods]
+	    if {![dict exists $methods $wildcard]} {
+		error "Wildcard method $wildcard must exist in object. ([dict keys $methods])"
+	    }
 	} else {
 	    # namespace must be fully qualified
 	    if {![string match "::*" $namespace]} {
 		set namespace ::$namespace
 	    }
 	}
-	set wildcard /[string trim $wildcard /]
     }
 }
