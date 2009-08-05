@@ -363,6 +363,8 @@ proc <script> {args} {
     if {[llength $args]%2} {
 	set script [lindex $args end]
 	set args [lrange $args 0 end-1]
+
+	set script "/* <!\[CDATA\[ */\n$script\n/* \]\]> */\n"
     } else {
 	set script ""
     }
@@ -402,6 +404,29 @@ foreach tag {html body head} {
 
 proc <message> {args} {
     return [<p> class message [join $args "</p><p class='message'>"]]
+}
+
+proc <div> {args} {
+    if {[llength $args]%2} {
+	set content [lindex $args end]
+	set args [lrange $args 0 end-1]
+    } else {
+	set content {}
+    }
+
+    set class {}
+    set result div
+    foreach {n v} $args {
+	if {$n eq "class"} {
+	    lappend class $v	;# aggregate class args
+	} else {
+	    lappend result "[string trim $n]='[armour [string trim $v]]'"
+	}
+    }
+    if {$class ne {}} {
+	lappend result "class='[join $class]'"
+    }
+    return "<[join ${result}]>$content</div>"
 }
 
 # return a nested set of HTML <divs>
