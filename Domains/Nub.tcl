@@ -656,12 +656,14 @@ namespace eval Nub {
 		append definitions [string trim [string map [list %N $n %D $domain %A $body] {
 		    if {[catch {set defs(%N) [%D new %A]} e eo]} {
 			Debug.error {Nub Definition Error: '$e' in anonymous "%D new %A".  ($eo)}
+			set defs(%N) [string map [list %EM $e %EO $eo] [lambda {do r} {Http ServerError $r "Failed to construct domain '%N' because '%EM'" [list %EO]}]]
 		    }
 		}] \n] \n
 	    } elseif {[string match _rewrite* $n]} {
 		set def [string trim [string map [list %N $n %L $body] {
 		    if {[catch {set defs(%N) {::apply {r {return "%L"}}}} e eo]} {
 			Debug.error {Nub Definition Error: '$e' in rewrite "lambda r {%L}".  ($eo)}
+			set defs(%N) [string map [list %EM $e %EO $eo] [lambda {do r} {Http ServerError $r "Failed to construct domain '%N' because '%EM'" [list %EO]}]]
 		    }
 		}] \n]
 		append definitions $def \n
@@ -669,6 +671,7 @@ namespace eval Nub {
 		append definitions [string trim [string map [list %N $n %D $domain %A $body] {
 		    if {[catch {set defs(%N) [%D create %N %A]} e eo]} {
 			Debug.error {Nub Definition Error: '$e' in running "%D create %N %A".  ($eo)}
+			set defs(%N) [string map [list %EM $e %EO $eo] [lambda {do r} {Http ServerError $r "Failed to construct domain '%N' because '%EM'" [list %EO]}]]
 		    }
 		}] \n] \n
 	    }
@@ -719,7 +722,7 @@ namespace eval Nub {
 			append switch [string map [list %H $host %U $url %N $name] {
 			    "%H,%U*" {
 				Debug.nub {Dispatch [dict get $r -url] via %H,%U* to cmd '$defs(%N)'}
-				$defs(%N) do $r
+				{*}$defs(%N) do $r
 			    }}]
 		    }
 		}
