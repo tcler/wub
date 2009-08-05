@@ -506,18 +506,22 @@ namespace eval Site {
 	    && [dict get? $shell load] ne ""
 	    && [dict get? $shell load]
 	} {
-	    #### Shell init
-	    package require Shell
-	    set spasswd [dict get? $shell password]
-	    if {$spasswd ne ""} {
-		set spasswd [list password $spasswd]
-	    }
-	    if {[dict exists $shell port]} {
-		Shell new port [dict get $shell port] {*}$spasswd
-		Debug.site {Module Shell: YES on port [dict get $shell port]}
-	    } else {
-		Shell new {*}$spasswd
-		Debug.site {Module Shell: YES on stdio}
+	    if {[catch {
+		#### Shell init
+		package require Shell
+		set spasswd [dict get? $shell password]
+		if {$spasswd ne ""} {
+		    set spasswd [list password $spasswd]
+		}
+		if {[dict exists $shell port]} {
+		    Shell new port [dict get $shell port] {*}$spasswd
+		    Debug.site {Module Shell: YES on port [dict get $shell port]}
+		} else {
+		    Shell new {*}$spasswd
+		    Debug.site {Module Shell: YES on stdio}
+		}
+	    } err eo]} {
+		Debug.error {Module Shell: Failed to Init. $err ($eo)}
 	    }
 	} else {
 	    Debug.site {Module Shell: NO}
