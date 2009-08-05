@@ -139,6 +139,14 @@ namespace eval ::tcl::dict {
 	}
     }
 
+    proc list {list} {
+	::set o {}
+	::foreach l $list {
+	    ::lappend o $l {}
+	}
+	return $o
+    }
+
     # return the dict subset specified by args
     proc in {dict args} {
 	if {[llength $args] == 1} {
@@ -159,8 +167,24 @@ namespace eval ::tcl::dict {
 	}]
     }
 
+    if {0} {
+	# [dict_project $keys $dict] extracts the specified keys in $args from the $dict
+	# and returns a plain old list-of-values.
+	proc project {dict args} {
+	    set result {}
+	    foreach k $args {
+		lappend result [dict get $dict $k]
+	    }
+	    return $result
+	}
 
-    foreach x {get? witharray equal apply capture nlappend in ni} {
+	# [dict_select $keys $dicts] does the same thing to a list-of-dicts, returning a list-of-lists.
+	proc select {keys args} {
+	    return [map [list dict project $keys] $args]
+	}
+    }
+
+    foreach x {get? witharray equal apply capture nlappend in ni list} {
 	namespace ensemble configure dict -map [linsert [namespace ensemble configure dict -map] end $x ::tcl::dict::$x]
     }
     ::unset x
