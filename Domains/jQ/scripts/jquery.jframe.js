@@ -14,8 +14,13 @@ jQuery.fn.waitingJFrame = function () {
     // message, like :  $(this).html("<b>loading...</b>");
 }
 
+jQuery.fn.failedJFrame = function (response, XMLHttpRequest) {
+    // Overload this function in your code to place a waiting event
+    // message, like :  $(this).html("<b>loading...</b>");
+}
+
 function _jsattr(elem, key) {
-	var res = jQuery(elem).attr(key);
+	var res = $(elem).attr(key);
 	if (res == undefined) {
 		return function() {};
 	}
@@ -27,21 +32,21 @@ function _jsattr(elem, key) {
 
 
 function jFrameSubmitInput(input) {
-    var target = jQuery(input).getJFrameTarget();
+    var target = $(input).getJFrameTarget();
     if (target.length) {
         var form = input.form;
         if (form.onsubmit && form.onsubmit() == false
             || target.preloadJFrame() == false) {
             return false;
         }
-        jQuery(form).ajaxSubmit({
-            target: target,
+        $(form).ajaxSubmit({
+		target: target,
                     beforeSubmit: function(formArray) {
-                    formArray.push({ name:"submit", value: jQuery(input).attr("value") });
+                    formArray.push({ name:"submit", value: $(input).attr("value") });
                 },
                     success: function() {
-                    target.attr("src", jQuery(form).attr("action"));
-					_jsattr(target, "onload")();
+                    target.attr("src", $(form).attr("action"));
+		    _jsattr(target, "onload")();
                     target.activateJFrame();
                 }
             });
@@ -54,20 +59,20 @@ jQuery.fn.preloadJFrame = function(initial) {
 	if (!initial && _jsattr(this, "onunload")() == false) {
 		return false;
 	}
-    jQuery(this).waitingJFrame();
+    $(this).waitingJFrame();
 }
 
 
 jQuery.fn.getJFrameTarget = function() {
     // Returns first parent jframe element, if exists
-    var div = jQuery(this).parents("div[src]").get(0);
+    var div = $(this).parents("div[src]").get(0);
     if (div) {
-        var target = jQuery(this).attr("target");
+        var target = $(this).attr("target");
         if (target) {
-            return jQuery("#" + target);
+            return $("#" + target);
         }
     }
-    return jQuery(div);
+    return $(div);
 };
 
 
@@ -76,36 +81,43 @@ jQuery.fn.loadJFrame = function(url, callback, initial) {
     // like ajax.load, for jFrame. the onload attribute is supported
     var this_callback = _jsattr(this, "onload");
     callback = callback || function(){};
-    url = url || jQuery(this).attr("src");
+    url = url || $(this).attr("src");
     if (url && url != "#") {
-        if (jQuery(this).preloadJFrame(initial) == false) {
+        if ($(this).preloadJFrame(initial) == false) {
             return false;
         }
-        jQuery(this).load(url,
-                     function() {
-                         jQuery(this).attr("src", url);
-                         jQuery(this).activateJFrame();
-                         jQuery(this).find("div[src]").each(function(i) {
-                                 jQuery(this).loadJFrame();
-                             } );
-                         this_callback();
-                         callback();
-                     });
+        $(this).load(url,
+                     function(response, status, xhr) {
+			 if (status != "error") {
+			     $(this).attr("src", url);
+			     $(this).activateJFrame();
+			     $(this).find("div[src]").each(function(i) {
+				     $(this).loadJFrame(undefined, callback);
+				 });
+			     $(this).find("span[src]").each(function(i) {
+				     $(this).loadJFrame(undefined, callback);
+				 });
+			     this_callback(xhr);
+			 } else {
+			     $(this).failedJFrame(response, XMLHttpRequest);
+			 }
+			 callback(status);
+		     });
     }
     else {
-        jQuery(this).activateJFrame();
+        $(this).activateJFrame();
     }
 };
 
 jQuery.fn.activateJFrame = function() {
     // Add an onclick event on all <a> and <input type="submit"> tags
-    jQuery(this).find("a")
+    $(this).find("a")
     .not("[jframe='no']")
     .unbind("click")
     .click(function() {
-            var target = jQuery(this).getJFrameTarget();
+            var target = $(this).getJFrameTarget();
             if (target.length) {
-                var href = jQuery(this).attr("href");
+                var href = $(this).attr("href");
                 if (href && href.indexOf('javascript:') != 0) {
                     target.loadJFrame(href);
                     return false;
@@ -114,7 +126,7 @@ jQuery.fn.activateJFrame = function() {
             return true;
         } );
 
-    jQuery(":image,:submit,:button", this)
+    $(":image,:submit,:button", this)
     .not("[jframe='no']")
     .unbind("click")
     .click(function() {
@@ -122,16 +134,19 @@ jQuery.fn.activateJFrame = function() {
 		} );
 
 	// Only for IE6 : enter key invokes submit event
-    jQuery(this).find("form")
+    $(this).find("form")
     .unbind("submit")
     .submit(function() {
-			return jFrameSubmitInput(jQuery(":image,:submit,:button", this).get(0));
+			return jFrameSubmitInput($(":image,:submit,:button", this).get(0));
     } );
 };
 
 
-jQuery(document).ready(function() {
-    jQuery(document).find("div[src]").each(function(i) {
-            jQuery(this).loadJFrame(undefined, undefined, true);
+$(document).ready(function() {
+    $(document).find("div[src]").each(function(i) {
+            $(this).loadJFrame(undefined, undefined, true);
+    } );
+    $(document).find("span[src]").each(function(i) {
+            $(this).loadJFrame(undefined, undefined, true);
     } );
 } );
