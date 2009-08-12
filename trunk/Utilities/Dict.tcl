@@ -139,10 +139,11 @@ namespace eval ::tcl::dict {
 	}
     }
 
-    proc list {list} {
+    # construct a dict with empty elements whose keys are passed
+    proc list {args} {
 	::set o {}
-	::foreach l $list {
-	    ::lappend o $l {}
+	::foreach l $args {
+	    ::dict set o {*}$l {}
 	}
 	return $o
     }
