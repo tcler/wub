@@ -28,6 +28,14 @@
 if (!Parse) { var Parse = {}; }
 if (!Parse.Simple) { Parse.Simple = {}; }
 
+// remove multiple, leading or trailing spaces
+function trim(s) {
+	s = s.replace(/(^\s*)|(\s*$)/gi,"");
+	s = s.replace(/[ ]{2,}/gi," ");
+	s = s.replace(/\n /,"\n");
+	return s;
+}
+
 Parse.Simple.Base = function(grammar, options) {
     if (!arguments.length) { return; }
 
@@ -51,7 +59,6 @@ Parse.Simple.Base.prototype = {
         }
 	
         data = data.replace(/\r\n?/g, '\n');
-	//alert(data + " parse " + options.root_id);
         this.grammar.root.apply(node, data, options);
         if (options && options.forIE) { node.innerHTML = node.innerHTML.replace(/\r?\n/g, '\r\n'); }
     }
@@ -247,24 +254,45 @@ Parse.Simple.Creole = function(options) {
             build: function(node, r, options) {
 		if (r[1].match(/(gif|jpg|png|svg)/i)) {
 		    var img = document.createElement('img');
-		    img.src = r[1];
+		    img.src = trim(r[1]);
 		    img.alt = r[2] === undefined
                     ? (options && options.defaultImageText ? options.defaultImageText : '')
-                    : r[2].replace(/~(.)/g, '$1');
+                    : trim(r[2]).replace(/~(.)/g, '$1');
 		    $(node).append(img);
 		} else {
-		    var script = document.createElement('script');
+		    //var script = document.createElement('script');
 		    var iid = "L"+uniqid();
-		    $(node).append($("<span id='"+iid+"'><img src='/icons/indicator.gif'></span>"));
+		    var span = $("<span id='"+iid+"'><img src='/icons/indicator.gif'></span>");
 
+		    r[1] = trim(r[1]);
 		    if (r[2] != undefined) {
-			var script = "$('#" + iid + "').loader({url:'" + r[1] +"?trargs="+r[2] + "'});";
+			r[2]=trim(r[2]);
+			if (r[2].match(/\\|[ ]*close/)) {
+			    $(span).attr("closed", r[1]);
+			    $(span).attr("args", r[2]);
+			} else {
+			    $(span).attr("loader", r[1]+"?trargs="+r[2]);
+			}
 		    } else {
-			var script = "$('#" + iid + "').loader({url:'" + r[1] + "'});";
+			$(span).attr("loader", r[1]);
 		    }
+		    $(node).append(span);
 
-		    script = "$(function () {" + script + "});"
-		    $(node).append($("<script>"+script+"</script>"));
+		    if (0) {
+			r[1]=trim(r[1]);
+			if (r[2] != undefined) {
+			    r[2]=trim(r[2]);
+			    var script = "$('#" + iid + "').loader({url:'" + r[1] +"?trargs="+r[2] + "', post: function (data) {alert('moop'); return data;}});";
+			} else {
+			    var script = "$('#" + iid + "').loader({url:'" + r[1] + "', post: function (data) {alert('moop');return data;}});";
+			}
+			
+			script = "alert('creoloading1 " + r[1] + " " + iid + "');" + script + "alert('creoloading2 " + r[1] + " " + iid + "');";
+			
+			script = "$(function () {" + script + "});"
+			    $(node).append($("<script>"+script+"</script>"));
+			alert("CREOLE " + iid + " " + $(node).html());
+		    }
 		}
             } },
 
