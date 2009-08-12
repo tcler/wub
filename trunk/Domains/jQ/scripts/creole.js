@@ -260,7 +260,7 @@ Parse.Simple.Creole = function(options) {
                     : trim(r[2]).replace(/~(.)/g, '$1');
 		    $(node).append(img);
 		} else {
-		    var span = $("<span id='"+iid+"'><img src='/icons/indicator.gif'></span>");
+		    var span = $("<span><img src='/icons/indicator.gif'></span>");
 
 		    r[1] = trim(r[1]);
 		    if (r[2] != undefined) {
