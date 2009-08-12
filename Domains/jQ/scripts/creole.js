@@ -261,38 +261,24 @@ Parse.Simple.Creole = function(options) {
 		    $(node).append(img);
 		} else {
 		    //var script = document.createElement('script');
-		    var iid = "L"+uniqid();
 		    var span = $("<span id='"+iid+"'><img src='/icons/indicator.gif'></span>");
 
 		    r[1] = trim(r[1]);
 		    if (r[2] != undefined) {
 			r[2]=trim(r[2]);
 			if (r[2].match(/\\|[ ]*close/)) {
+			    // Don't load a closed card
 			    $(span).attr("closed", r[1]);
 			    $(span).attr("args", r[2]);
 			} else {
+			    // load the card
 			    $(span).attr("loader", r[1]+"?trargs="+r[2]);
 			}
 		    } else {
 			$(span).attr("loader", r[1]);
 		    }
-		    $(node).append(span);
 
-		    if (0) {
-			r[1]=trim(r[1]);
-			if (r[2] != undefined) {
-			    r[2]=trim(r[2]);
-			    var script = "$('#" + iid + "').loader({url:'" + r[1] +"?trargs="+r[2] + "', post: function (data) {alert('moop'); return data;}});";
-			} else {
-			    var script = "$('#" + iid + "').loader({url:'" + r[1] + "', post: function (data) {alert('moop');return data;}});";
-			}
-			
-			script = "alert('creoloading1 " + r[1] + " " + iid + "');" + script + "alert('creoloading2 " + r[1] + " " + iid + "');";
-			
-			script = "$(function () {" + script + "});"
-			    $(node).append($("<script>"+script+"</script>"));
-			alert("CREOLE " + iid + " " + $(node).html());
-		    }
+		    $(node).append(span);
 		}
             } },
 
