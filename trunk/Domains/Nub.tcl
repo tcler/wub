@@ -525,6 +525,14 @@ namespace eval Nub {
 	puts stderr "ERROR: $error"
     }
 
+    proc armr {str} {
+	return [string map [list \" \\\"] $str]
+    }
+
+    proc failed {domain e eo} {
+	return [string map [list %N $domain %EM [Nub armr $e] %EO $eo] [lambda {do r} {Http ServerError $r "Nub failed to construct domain '%N' because '%EM' upon construction" [list %EO]}]]
+    }
+
     proc generate {urls {domains {}} {defaults {}}} {
 	upvar error error
 
@@ -656,14 +664,14 @@ namespace eval Nub {
 		append definitions [string trim [string map [list %N $n %D $domain %A $body] {
 		    if {[catch {set defs(%N) [%D new %A]} e eo]} {
 			Debug.error {Nub Definition Error: '$e' in anonymous "%D new %A".  ($eo)}
-			set defs(%N) [string map [list %EM $e %EO $eo] [lambda {do r} {Http ServerError $r "Failed to construct domain '%N' because '%EM'" [list %EO]}]]
+			set defs(%N) [Nub failed %N $e $eo]
 		    }
 		}] \n] \n
 	    } elseif {[string match _rewrite* $n]} {
 		set def [string trim [string map [list %N $n %L $body] {
 		    if {[catch {set defs(%N) {::apply {r {return "%L"}}}} e eo]} {
 			Debug.error {Nub Definition Error: '$e' in rewrite "lambda r {%L}".  ($eo)}
-			set defs(%N) [string map [list %EM $e %EO $eo] [lambda {do r} {Http ServerError $r "Failed to construct domain '%N' because '%EM'" [list %EO]}]]
+			set defs(%N) [Nub failed %N $e $eo]
 		    }
 		}] \n]
 		append definitions $def \n
@@ -671,7 +679,7 @@ namespace eval Nub {
 		append definitions [string trim [string map [list %N $n %D $domain %A $body] {
 		    if {[catch {set defs(%N) [%D create %N %A]} e eo]} {
 			Debug.error {Nub Definition Error: '$e' in running "%D create %N %A".  ($eo)}
-			set defs(%N) [string map [list %EM $e %EO $eo] [lambda {do r} {Http ServerError $r "Failed to construct domain '%N' because '%EM'" [list %EO]}]]
+			set defs(%N) [Nub failed %N $e $eo]
 		    }
 		}] \n] \n
 	    }
