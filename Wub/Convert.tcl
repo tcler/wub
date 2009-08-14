@@ -82,7 +82,7 @@ namespace eval Convert {
 		Postprocess $m eval $object $m
 	    }
 	}
-	Debug.convert {Object Convertors from $class: $convertors}
+	Debug.convert {Object Convertors from $defclass: $convertors}
     }
 
     # Namespace - add all transformers and postprocessors from the namespace
@@ -112,29 +112,57 @@ namespace eval Convert {
     # path - return a path through the transformation graph
     # between source 'from' and sink 'to'
     proc path {from to} {
+	Debug.convert {PATH: trying to find a path from '$from' to '$to'}
 	variable graph
-	Debug.convert {path $from -> $to ($graph)}
 	variable paths
 	if {[info exists paths($from,$to)]} {
-	    return $paths($from,$to)
+	    Debug.convert {CACHED path '$from' -> '$to'}
+	    Debug.convert {all known paths [array names paths]}
+	    return $paths($from,$to)	;# cached match
 	}
 
+	Debug.convert {PATH? $from -> $to along cached path ($graph)}
+
+	# try a glob match
+	lassign [split $from /] fmajor
+	lassign [split $to /] tmajor
+	
 	# generate transformer name pairs
-	set pairs {}
-	set path [::sgraph::path $graph $from $to]
-	Debug.convert {path $from -> $to via $path}
-
-	foreach el $path {
-	    if {[info exists prev]} {
-		lappend pairs "$prev,$el"
+	foreach {accept possible} [subst {
+	    1.0 [list $from,$to]
+	    0.5 [list [array names paths -glob $fmajor/*,$to]]
+	    0.5 [list [array names paths -glob $from,$tmajor/*]]
+	    0.25 [list [array names paths -glob $fmajor/*,$tmajor/*]]
+	}] {
+	    if {![llength $possible]} continue
+	    lassign [split [lindex $possible 0] ,] from to
+	    Debug.convert {ESSAY $accept: '$from' '$to'}
+	    set path [::sgraph::path $graph $from $to]
+	    if {[llength $path]} {
+		Debug.convert {SUCCESS path $from -> $to via $path}
+		break
+	    } else {
+		Debug.convert {FAIL essayed path $from -> $to}
 	    }
-	    set prev $el
 	}
 
-	set paths($from,$to) $pairs	;# cache result
+	if {[llength $path]} {
+	    # turn path into pairwise transformer list
+	    set pairs {}
+	    foreach el $path {
+		if {[info exists prev]} {
+		    lappend pairs "$prev,$el"
+		}
+		set prev $el
+	    }
 
-	Debug.convert {path found $from -> $to via '$pairs'}
-	return $pairs
+	    Debug.convert {path FOUND $from -> $to via '$pairs'}
+	    set paths($from,$to) [list $pairs $accept]	;# cache result
+	    return [list $pairs $accept]
+	} else {
+	    Debug.convert {NO PATH FOUND $from -> $to}
+	    return {}
+	}
     }
 
     # perform applicable postprocess on content of given type
@@ -151,8 +179,9 @@ namespace eval Convert {
 	    set rsp [{*}$postprocess($ctype) [list $rsp]]
 	    catch {dict unset rsp -file}	;# forget that there's a file connected
 	    Debug.convert {postprocessed: $postprocess($ctype)}
+	} else {
+	    Debug.convert {there is no $ctype postprocessor}
 	}
-	Debug.convert {postprocessed type: $ctype ($rsp)}
 	return $rsp
     }
 
@@ -164,14 +193,6 @@ namespace eval Convert {
     # which will generate an acceptable type
 
     proc tpath {rsp} {
-	if {![dict exists $rsp accept]} {
-	    # by default, accept text/html
-	    dict set rsp accept "text/html"
-	} else {
-	    # don't allow */* as an 'accept' - they never mean it
-	    dict set rsp accept [string map [list */* text/html] [dict get $rsp accept]]
-	}
-
 	set ctype [dict get $rsp content-type]	;# what we hae
 	set accept [dict get $rsp accept]	;# what we want
 	set path ""	;# how to get there
@@ -181,7 +202,7 @@ namespace eval Convert {
 	if {[info exists tcache(${ctype}=$accept)]} {
 	    # found a cached transformation path - use it
 	    set path $tcache(${ctype}=$accept)
-	    return [list $path $rsp]
+	    return $path
 	}
 
 	# search the acceptable for a match to what we have
@@ -194,8 +215,8 @@ namespace eval Convert {
 	    Debug.convert {tpath matching '$a' '$q' against '$ctype'}
 	    if {$a eq $ctype} {
 		# exact match - we have a direct conversion
-		Debug.convert {tpath: matched $a}
-		return [list * [dict replace $rsp -raw 1]]
+		Debug.convert {tpath: DIRECT conversion to '$a'}
+		return *
 	    }
 	    
 	    if {$q eq ""} {
@@ -216,43 +237,54 @@ namespace eval Convert {
 	    }
 
 	    # while not an exact match, $a would be acceptable
-	    lappend acceptable [list $a $q]
+	    lappend acceptable $a $q
 	}
 	
+	Debug.convert {tpath: searching indirect among acceptable ($acceptable)}
+
 	# there is no direct match for any accepted types
 	# process acceptable types in decreasing order of acceptability
-	foreach a [lsort -real -decreasing -index 1 $acceptable] {
-	    set a [lindex $a 0]
-	    Debug.convert {trying '$ctype,$a'}
-	    set path [path $ctype $a]	;# find a conversion path
+	# find all possible conversion paths (including wildcards)
+	set found {}
+	foreach {a q} $acceptable {
+	    Debug.convert {trying '$ctype->$a' quality $q}
+	    lassign [path $ctype $a] path quality ;# find a conversion path
 	    if {$path ne {}} {
 		# we found a path to the most acceptable available type
-		set tcache(${ctype}=$accept) $path
-		break
+		Debug.convert {possible path $path.  Quality $quality * $q}
+		dict lappend found [expr {$quality * $q}] $path
+	    } else {
+		Debug.convert {impossible path $ctype->$a}
 	    }
 	}
 
-	return [list $path $rsp]
+	Debug.convert {possible successful paths: ($found)}
+
+	# find the most acceptable path
+	if {[dict size $found]} {
+	    set path [dict get $found [lindex [lsort -real -decreasing [dict keys $found]] 0]]
+	    set path [lindex $path 0]
+	    set tcache(${ctype}=$accept) $path
+	}
+
+	return $path
     }
 
     # Apply transformations to content
     # yielding a desired content-type
     proc transform {rsp} {
-	Debug.convert {transform: [dumpMsg $rsp]}
-	lassign [tpath $rsp] path rsp
+	set path [tpath $rsp]	;# find a transformation path
 	if {$path eq "*"} {
 	    Debug.convert {transform identity}
-	    return $rsp
+	    return [list identity $rsp]
 	} elseif {$path eq ""} {
 	    # no transformations possible
-	    dict set rsp -raw 1
-	    return $rsp
+	    Debug.convert {no transformations possible}
+	    return [list none $rsp]
 	}
 	
 	# a transforming path exists
 	Debug.convert {TRANSFORMING: [dict get $rsp -url] $path}
-	set rsp [Http loadContent $rsp] ;# read -fd content if any
-	catch {dict unset rsp -file} ;# forget that there's a file
 
 	# perform those transformations on the path
 	variable transform
@@ -262,11 +294,12 @@ namespace eval Convert {
 		{*}$transform($el) [list $rsp]
 	    } result eo]]} {
 		# transformation success - proceed
-		Debug.convert {transform Success: $result}
 		set rsp $result
 		if {[dict exists $rsp -suspend]} {
 		    # the transformer wants to suspend
+		    return [list suspended $rsp]
 		}
+		Debug.convert {transform Success: $transform($el)}
 	    } else {
 		# transformation failure - alert the caller
 		Debug.convert {transform Error: $result ($eo)}
@@ -274,8 +307,7 @@ namespace eval Convert {
 	    }
 	}
 
-	dict set rsp -raw 1	;# no transformations - go with what we have
-	return $rsp
+	return [list complete $rsp]
     }
 
     # Convert - perform all content negotiation on a Wub response
@@ -287,28 +319,60 @@ namespace eval Convert {
 	    }
 	    dict set rsp accept $to
 	}
-	Debug.convert {converting '[dict get $rsp content-type]' to '[dict get $rsp accept]'}
+
+	if {![dict exists $rsp accept]} {
+	    # by default, accept text/html
+	    dict set rsp accept "text/html"
+	} else {
+	    # don't allow */* as an 'accept' - they never mean it
+	    dict set rsp accept [string map [list */* text/html] [dict get $rsp accept]]
+	}
+
+	dict set rsp content-type [string tolower [dict get $rsp content-type]]
 
 	# perform any postprocessing on input type
-	if {[dict exists $rsp content-type]} {
+	variable postprocess
+	set preprocessed ""
+	set ctype [dict get $rsp content-type]
+	if {[dict exists $rsp content-type]
+	    && [info exists postprocess($ctype)]
+	} {
+	    Debug.convert {Preprocess of [dict get $rsp content-type]}
 	    set rsp [postprocess $rsp]
-	    set ctype [dict get $rsp content-type]
+	    # remember we've preprocessed
+	    set preprocessed [dict get $rsp content-type]
 	}
 
 	# perform each transformation on the path
 	# any step may set -raw to avoid further conversion
-	while {![dict exists $rsp -raw]
-	       && [dict exists $rsp content-type]} {
+	while {[dict get? $rsp -raw] ne "1"} {
 	    # transform according to mime type
-	    Debug.convert {convert transform: [dumpMsg $rsp]}
-	    set rsp [transform $rsp]
+	    Debug.convert {converting from '[dict get $rsp content-type]' to one of these '[dict get $rsp accept]'}
 	    
-	    # perform any postprocessing on *transformed* type
-	    if {$ctype ne [dict get $rsp content-type]} {
-		Debug.convert {post-postprocess: [dumpMsg $rsp]}
-		set rsp [postprocess $rsp]
+	    lassign [transform $rsp] state rsp
+	    switch -- $state {
+		complete -
+		none -
+		identity {
+		    # the transformation completed normally
+		    # the content is now in an acceptable form
+		    # or: no transformation is possible
+
+		    # perform any postprocessing on *transformed* type
+		    # avoid doing this twice - if we've already preprocessed
+		    set ctype [dict get $rsp content-type]
+		    if {$preprocessed ne $ctype
+			&& [info exists postprocess($ctype)]
+		    } {
+			set rsp [postprocess $rsp]
+		    }
+		    break
+		}
+		suspended {
+		    # a transformer has suspended
+		    break 
+		}
 	    }
-	    
 	    Debug.convert {converted ($ctype [dict get $rsp content-type]): [dumpMsg $rsp]}
 	}
 
