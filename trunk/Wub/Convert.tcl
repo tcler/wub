@@ -7,6 +7,7 @@
 #
 
 package require sgraph
+package require OO
 
 package provide Convert 1.0
 
@@ -50,6 +51,38 @@ namespace eval Convert {
     proc Postprocess {from args} {
 	variable postprocess
 	set postprocess($from) $args
+    }
+
+    # Namespace - add all transformers and postprocessors from the object
+    proc Object {object} {
+	# scan the object looking for translators
+	# which are methods of the form .mime/type.mime/type
+
+	# construct a dict from method name to the formal parameters of the method
+	set defclass [info object class $object]
+	set mixins [info class mixins $defclass]
+	set methods [lreverse [lsort -dictionary [info class methods $defclass -private -all]]]
+
+	set convertors {}
+	foreach m $methods {
+	    if {[string match */*.*/* $m]} {
+		lassign [split $m .] from to
+		lappend convertors "$from->($m)->$to"
+		Transform $from $to eval $object $m
+	    }
+	}
+
+	# scan the object looking for postprocessors
+	# which are methods of the form .mime/type
+	foreach m $methods {
+	    if {[string match /* $m]} continue
+	    if {[string match */* $m]} {
+		if {[string match */*.*/* $m]} continue
+		lappend convertors "$m->($m)->$m"
+		Postprocess $m eval $object $m
+	    }
+	}
+	Debug.convert {Object Convertors from $class: $convertors}
     }
 
     # Namespace - add all transformers and postprocessors from the namespace
