@@ -514,7 +514,7 @@ namespace eval Http {
     proc sysPage {rsp title content} {
 	dict set rsp content-type "x-text/system"
 	set rsp [title $rsp $title]
-	dict set rsp -content "[<h1> $title]\n$content"
+	dict set rsp -content "[<h2> $title]\n$content"
 	return $rsp
     }
 
