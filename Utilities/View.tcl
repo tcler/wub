@@ -900,9 +900,9 @@ class create View {
     #
     # This view is read-only
 
-    method join {view2 args} {
-	set result [View new [$view view join [$view2 view] {*}$args] readonly 1 parents [list [self] $view2] name "join [self] $view2 over $args"]
-	Debug.view {[self] join $view2 $args -> $result}
+    method join {view2 field args} {
+	set result [View new [$view view join [$view2 view] $field {*}$args] readonly 1 parents [list [self] $view2] name "join [self] $view2 over $field $args"]
+	Debug.view {[self] join $view2 $field $args -> $result}
 	return $result
     }
 
