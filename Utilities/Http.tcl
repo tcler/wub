@@ -520,7 +520,7 @@ namespace eval Http {
 
     # construct an HTTP response containing a server error page
     proc ServerError {rsp message {eo ""}} {
-	Debug.error {Server Error: '$message' ($eo)} 2
+	Debug.error {Server Error: '$message' ($eo) [dumpMsg $rsp]} 2
 	set content ""
 	if {[catch {
 	    if {$eo ne ""} {
