@@ -302,8 +302,8 @@ namespace eval Convert {
 		Debug.convert {transform Success: $transform($el)}
 	    } else {
 		# transformation failure - alert the caller
-		Debug.convert {transform Error: $result ($eo)}
-		return [Http ServerError $rsp $result $eo]
+		Debug.convert {transform Error: $result ($eo) ([dumpMsg $rsp])}
+		return [list error [Http ServerError $rsp $result $eo]]
 	    }
 	}
 
@@ -348,7 +348,7 @@ namespace eval Convert {
 	while {[dict get? $rsp -raw] ne "1"} {
 	    # transform according to mime type
 	    Debug.convert {converting from '[dict get $rsp content-type]' to one of these '[dict get $rsp accept]'}
-	    
+ 
 	    lassign [transform $rsp] state rsp
 	    switch -- $state {
 		complete -
@@ -367,6 +367,10 @@ namespace eval Convert {
 			set rsp [postprocess $rsp]
 		    }
 		    break
+		}
+		error {
+		    # a transformation error has occurred
+		    
 		}
 		suspended {
 		    # a transformer has suspended
