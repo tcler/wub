@@ -150,3 +150,8 @@ proc alias {alias args} {
 }
 
 alias tclarmour string map {\[ "&#x5B;" \] "&#x5D;" \{ "&#x7B;" \} "&#x7D;" $ "&#x24;"}
+
+proc defang {string} {
+    # convert away any subversive tcl characters
+    return [string map {\\ "" \[ \\\[ \] \\\] \{ \\\{ \} \\\} $ \\$} [subst -nocommands -novariables $string]]
+}
