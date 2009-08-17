@@ -116,12 +116,12 @@ namespace eval Convert {
 	variable graph
 	variable paths
 	if {[info exists paths($from,$to)]} {
-	    Debug.convert {CACHED path '$from' -> '$to'}
-	    Debug.convert {all known paths [array names paths]}
+	    Debug.convert {CACHED path '$from' -> '$to' is $paths($from,$to)}
+	    #Debug.convert {all known paths [array names paths]}
 	    return $paths($from,$to)	;# cached match
 	}
 
-	Debug.convert {PATH? $from -> $to along cached path ($graph)}
+	Debug.convert {PATH? $from -> $to within ($graph)}
 
 	# try a glob match
 	lassign [split $from /] fmajor
@@ -284,7 +284,7 @@ namespace eval Convert {
 	}
 	
 	# a transforming path exists
-	Debug.convert {TRANSFORMING: [dict get $rsp -url] $path}
+	Debug.convert {TRANSFORMING: [dict get $rsp -url] along path $path}
 
 	# perform those transformations on the path
 	variable transform
