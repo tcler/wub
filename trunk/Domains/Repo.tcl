@@ -79,11 +79,12 @@ namespace eval Repo {
 	    set name [file tail $file]
 	    if {![regexp {^([.].*)|(.*~)|(\#.*)$} $name]} {
 		set type [Mime type $file]
+		set qname [Query encode $name]	;# remove problem chars
 		if {$type eq "multipart/x-directory"} {
 		    set type directory
 		    append name /
+		    append qname /
 		}
-		set qname [Query encode $name]	;# remove problem chars
 		set title [<a> href $qname $name]
 		set del [<a> href $qname?op=del title "click to delete" [<img> height $icon_size src [dict get $args icons]remove.gif]]
 		set del [<form> del$name action ./$qname {
