@@ -8,6 +8,7 @@ Debug off repo 10
 package require tar
 package require fileutil
 package require Html
+package require Query
 package require Report
 package require Form
 package require Mime
@@ -76,6 +77,7 @@ namespace eval Repo {
 
 	foreach file [glob -nocomplain -directory $path *] {
 	    set name [file tail $file]
+	    set name [Query encode $name]	;# remove problem chars
 	    if {![regexp {^([.].*)|(.*~)|(\#.*)$} $name]} {
 		set type [Mime type $file]
 		if {$type eq "multipart/x-directory"} {
