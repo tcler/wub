@@ -77,20 +77,20 @@ namespace eval Repo {
 
 	foreach file [glob -nocomplain -directory $path *] {
 	    set name [file tail $file]
-	    set name [Query encode $name]	;# remove problem chars
 	    if {![regexp {^([.].*)|(.*~)|(\#.*)$} $name]} {
 		set type [Mime type $file]
 		if {$type eq "multipart/x-directory"} {
 		    set type directory
 		    append name /
 		}
-		set title [<a> href $name $name]
-		set del [<a> href $name?op=del title "click to delete" [<img> height $icon_size src [dict get $args icons]remove.gif]]
-		set del [<form> del$name action ./$name {
+		set qname [Query encode $name]	;# remove problem chars
+		set title [<a> href $qname $name]
+		set del [<a> href $qname?op=del title "click to delete" [<img> height $icon_size src [dict get $args icons]remove.gif]]
+		set del [<form> del$name action ./$qname {
 		    [<hidden> op del]
 		    [<submit> submit [<img> height $icon_size src [dict get $args icons]remove.gif]]
 		}]
-		dict set files $name [list name $title modified [clock format [file mtime $file] -format $dirtime] size [file size $file] type $type delete $del view [<a> href $name?format=plain view]]
+		dict set files $name [list name $title modified [clock format [file mtime $file] -format $dirtime] size [file size $file] type $type delete $del view [<a> href $qname?format=plain view]]
 	    }
 	}
 
