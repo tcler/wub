@@ -62,6 +62,15 @@ interp alias {} demoronizer {} string map [demoronizer]
 namespace eval Html {
     variable XHTML 0
 
+    # convert a dict to a JSON object
+    proc dict2json {d} {
+	set result {}
+	dict for {k v} $d {
+	    lappend result \"[jsarmour $k]\":\"[jsarmour $v]\"
+	}
+	return \{[join $result ,]\}
+    }
+
     # arrange a set of links as a list
     proc links {args} {
 	if {[llength $args] == 1} {
@@ -440,7 +449,6 @@ proc divs {ids {content ""}} {
     append divs [string repeat "\n</div>" [llength $ids]]
     return $divs
 }
-
 
 # HTML <> commands per http://wiki.tcl.tk/2776
 know {[string match <*> [lindex $args 0]]} {
