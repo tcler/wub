@@ -89,7 +89,7 @@ namespace eval jQ {
     variable google 0
 
     variable version 1.3.2
-    variable version 1.7.2
+    variable uiversion 1.7.2
     variable min 1
 
     proc _postscript {script args} {
@@ -157,6 +157,12 @@ namespace eval jQ {
 	    if {$script eq "jquery.js"} {
 		# get the currently supported jquery
 		set script jquery-${version}[expr {$min?".min":""}].js
+	    }
+
+	    variable uiversion
+	    if {$script eq "jquery.ui.js"} {
+		# get the currently supported jquery UI
+		set script jquery-ui-${uiversion}[expr {$min?".min":""}].js
 	    }
 
 	    dict set r -postscript [file join $mount scripts $script] {}
