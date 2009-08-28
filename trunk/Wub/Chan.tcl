@@ -327,10 +327,10 @@ class create Socket {
 	# check overconnections
 	set x [dict get $connections $ip]
 	if {[dict size $x] > $mc} {
-	    Debug.connections {$ip has connections [dict size $x] > $mc from ([dict get $x])}
+	    Debug.connections {$ip has connections [dict size $x] > $mc from ([dict get $x]) / [llength [chan names]] open fds}
 	    #error "Too Many Connections from $name $ip"
 	} else {
-	    Debug.connections {$ip connected from port $port ([dict size $x] connections)}
+	    Debug.connections {$ip connected from port $port ([dict size $x] connections) / [llength [chan names]] open fds}
 	}
     }
 
