@@ -339,6 +339,7 @@ class create Socket {
     destructor {
 	# remove connection record for connected ip
 	my static connections
+	if {![info exists endpoints]} return
 	set ep [dict get $endpoints peer]
 	dict with ep {
 	    dict unset connections $ip $port
