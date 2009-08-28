@@ -148,7 +148,9 @@ class create IChan {
 
     destructor {
 	Debug.chan {[self] destroyed}
-	catch {::chan close $chan}
+	if {[catch {::chan close $chan} e eo]} {
+	    Debug.chan {failed to close $chan [self] because '$e' ($eo)}
+	}
 	next
     }
 }
