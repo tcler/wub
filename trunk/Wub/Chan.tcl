@@ -223,19 +223,12 @@ class create Socket {
 	foreach n {socket peer connections maxconnections} {
 	    lappend result -$n [my cget -$mychan $n]
 	}
+	lappend result {*}[chan configure $chan]
 	return $result
     }
 
     method cget {mychan option} {
 	switch -- $option {
-	    -socket {
-		return [dict get $endpoints [string trim $option -]]
-		return [dict get $endpoints [string trim $option -]]
-	    }
-	    -conn* {
-		set ip [dict get $endpoints peer ip]
-		return [dict get $connections $ip]
-	    }
 	    -max* {
 		set ip [dict get $endpoints peer ip]
 		static maxconnections	;# allow setting of max connections
@@ -244,6 +237,9 @@ class create Socket {
 		} else {
 		    return [dict get $maxconnections ""]
 		}
+	    }
+	    default {
+		return [chan configure $chan $option]
 	    }
 	}
     }
