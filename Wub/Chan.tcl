@@ -118,8 +118,7 @@ class create IChan {
 	} result]} {
 	    set result {}
 	}
-	set result [list -self [self] {*}$result -fd $chan]
-	lappend result {*}[next $mychan]
+	lappend result -self [self] -fd $chan
 	lappend result {*}[::chan configure $chan]
 	Debug.chan {[self] cgetall $mychan -> $result}
 	return $result
@@ -226,15 +225,15 @@ class create Socket {
 
     method cgetall {mychan} {
 	set result {}
-	foreach n {connections maxconnections} {
-	    lappend result -$n [my cget -$mychan -$n]
+	foreach n {-connections -maxconnections} {
+	    lappend result $n [my cget $mychan $n]
 	}
 	return $result
     }
 
     method cget {mychan option} {
-	switch -- $option {
-	    -max* {
+	switch -glob -- $option {
+	    -maxconnections {
 		set ip [dict get $endpoints peer ip]
 		my static maxconnections	;# allow setting of max connections
 		if {[dict exists $maxconnections $ip]
