@@ -101,6 +101,9 @@ class create IChan {
 	    -self {
 		return [self]
 	    }
+	    -fd {
+		return $chan
+	    }
 	}
 	return [next $mychan $option]
     }
@@ -111,7 +114,7 @@ class create IChan {
 	} result]} {
 	    set result {}
 	}
-	set result [list -self [self] {*}$result]
+	set result [list -self [self] {*}$result -fd $chan]
 	Debug.chan {[self] cgetall $mychan -> $result}
 	return $result
     }
@@ -225,9 +228,9 @@ class create Socket {
 
     method cget {mychan option} {
 	switch -- $option {
-	    -sock* -
-	    -peer {
-		return [dict get $endpoints $option]
+	    -socket {
+		return [dict get $endpoints [string trim $option -]]
+		return [dict get $endpoints [string trim $option -]]
 	    }
 	    -conn* {
 		set ip [dict get $endpoints peer ip]
@@ -300,7 +303,7 @@ class create Socket {
 	::chan configure $chan -blocking 0 -buffering none -encoding binary -eofchar {{} {}} -translation {binary binary}
 
 	# get the endpoints for this connected socket
-	foreach {n cn} {sock -sockname peer -peername} {
+	foreach {n cn} {socket -sockname peer -peername} {
 	    set ep [::chan configure $chan $cn]
 	    lassign [split $ep] ip name port
 	    foreach pn {ip name port} {
