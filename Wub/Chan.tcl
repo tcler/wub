@@ -1,6 +1,5 @@
 # Chan - reflected channels in TclOO
-package require TclOO
-namespace import oo::*
+package require OO
 
 package require Debug
 Debug off chan 10
@@ -217,7 +216,6 @@ class create Socket {
 	switch -glob -- $option {
 	    max* {
 		set ip [dict get $endpoints peer ip]
-		my static maxconnections	;# allow setting of max connections
 		dict set $maxconnections $ip $value
 	    }
 	}
@@ -235,7 +233,6 @@ class create Socket {
 	switch -glob -- $option {
 	    -maxconnections {
 		set ip [dict get $endpoints peer ip]
-		my static maxconnections	;# allow setting of max connections
 		if {[dict exists $maxconnections $ip]
 		    return [dict get $maxconnections $ip]
 		} else {
@@ -244,26 +241,13 @@ class create Socket {
 	    }
 	    -connections {
 		set ip [dict get $endpoints peer ip]
-		my static connections
 		return [dict keys $connections $ip]
 	    }
 	}
 	error "No such option $option"
     }
 
-    # provide static variables
-    method static {args} {
-        if {![llength $args]} return
-        set callclass [lindex [self caller] 0]
-        define $callclass self export varname
-        foreach vname $args {
-            lappend pairs [$callclass varname $vname] $vname
-        }
-        uplevel 1 upvar {*}$pairs
-    }
-
     method maxconnections {args} {
-	my static maxconnections	;# allow setting of max connections
 	lassign $args ip value
 	if {$value eq "" && [string is integer -strict $value]} {
 	    dict set maxconnections "" $value
@@ -275,7 +259,7 @@ class create Socket {
     #mixin CaptureChan IChan	;# run the capture refchan
     mixin IChan		;# mixin the identity channel
     variable chan endpoints
-
+    classvar maxconnections connections
     constructor {args} {
 	Debug.chan {Socket construction ($args)}
 
@@ -285,7 +269,6 @@ class create Socket {
 	foreach {n v} $classargs {
 	    switch -glob -- [string trim $n -] {
 		max* {
-		    my static maxconnections	;# allow setting of max connections
 		    if {$chan ne ""} {
 			dict set maxconnections $ip $v
 		    } else {
@@ -317,11 +300,9 @@ class create Socket {
 	Debug.chan {Socket configured $chan to [::chan configure $chan]}
 
 	# keep tally of connections from a given peer
-	my static connections
 	dict set connections $ip $port [self]
  
 	# determine maxconnections for this ip
-	my static maxconnections
 	if {![info exists maxconnections]} {
 	    dict set maxconnections "" 20	;# an arbitrary maximum
 	}
@@ -348,7 +329,6 @@ class create Socket {
 
     destructor {
 	# remove connection record for connected ip
-	my static connections
 	if {![info exists endpoints]} return
 
 	set ep [dict get $endpoints peer]
