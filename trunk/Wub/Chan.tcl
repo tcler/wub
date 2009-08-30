@@ -227,7 +227,7 @@ class create Socket {
     method cgetall {mychan} {
 	set result {}
 	foreach n {connections maxconnections} {
-	    lappend result -$n [my cget -$mychan $n]
+	    lappend result -$n [my cget -$mychan -$n]
 	}
 	return $result
     }
