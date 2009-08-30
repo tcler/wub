@@ -104,7 +104,8 @@ class create IChan {
 		return $chan
 	    }
 	}
-	if {[catch {next $mychan $option} result]} {
+	if {[catch {next $mychan $option} result eo]} {
+	    #puts stderr "cget: $result ($eo)"
 	    return [::chan configure $chan $option]
 	} else {
 	    return $result
@@ -114,11 +115,11 @@ class create IChan {
     method cgetall {mychan} {
 	if {[catch {
 	    next $mychan
-	} result]} {
+	} result eo]} {
 	    set result {}
 	}
+
 	lappend result -self [self] -fd $chan
-	lappend result {*}[::chan configure $chan]
 	Debug.chan {[self] cgetall $mychan -> $result}
 	return $result
     }
@@ -216,6 +217,7 @@ class create Socket {
 	switch -glob -- $option {
 	    max* {
 		set ip [dict get $endpoints peer ip]
+		classvar maxconnections
 		dict set $maxconnections $ip $value
 	    }
 	}
@@ -230,24 +232,31 @@ class create Socket {
     }
 
     method cget {mychan option} {
-	switch -glob -- $option {
+	switch -- $option {
 	    -maxconnections {
+		classvar maxconnections
 		set ip [dict get $endpoints peer ip]
-		if {[dict exists $maxconnections $ip]
+		if {[dict exists $maxconnections $ip]} {
 		    return [dict get $maxconnections $ip]
 		} else {
 		    return [dict get $maxconnections ""]
 		}
 	    }
+
 	    -connections {
+		classvar connections
 		set ip [dict get $endpoints peer ip]
-		return [dict keys $connections $ip]
+		return [dict values [dict get $connections $ip]]
+	    }
+
+	    default {
+		error "No such option $option"
 	    }
 	}
-	error "No such option $option"
     }
 
     method maxconnections {args} {
+	classvar maxconnections
 	lassign $args ip value
 	if {$value eq "" && [string is integer -strict $value]} {
 	    dict set maxconnections "" $value
@@ -259,9 +268,10 @@ class create Socket {
     #mixin CaptureChan IChan	;# run the capture refchan
     mixin IChan		;# mixin the identity channel
     variable chan endpoints
-    classvar maxconnections connections
+
     constructor {args} {
 	Debug.chan {Socket construction ($args)}
+	classvar maxconnections connections
 
 	# process class parameters
 	set chan [dict get? $args chan]
@@ -332,6 +342,7 @@ class create Socket {
 	if {![info exists endpoints]} return
 
 	set ep [dict get $endpoints peer]
+	classvar connections
 	dict with ep {
 	    dict unset connections $ip $port
 	    set remain [dict get $connections $ip]
