@@ -91,7 +91,7 @@ class create IChan {
 
     method finalize {mychan} {
 	Debug.chan {$mychan finalize $chan}
-
+	catch {next $mychan}
 	catch {::chan close $chan}
 	catch {my destroy}
     }
@@ -105,7 +105,11 @@ class create IChan {
 		return $chan
 	    }
 	}
-	return [next $mychan $option]
+	if {[catch {next $mychan $option} result]} {
+	    return [::chan configure $chan $option]
+	} else {
+	    return $result
+	}
     }
 
     method cgetall {mychan} {
@@ -115,6 +119,8 @@ class create IChan {
 	    set result {}
 	}
 	set result [list -self [self] {*}$result -fd $chan]
+	lappend result {*}[next $mychan]
+	lappend result {*}[::chan configure $chan]
 	Debug.chan {[self] cgetall $mychan -> $result}
 	return $result
     }
@@ -212,7 +218,7 @@ class create Socket {
 	switch -glob -- $option {
 	    max* {
 		set ip [dict get $endpoints peer ip]
-		static maxconnections	;# allow setting of max connections
+		my static maxconnections	;# allow setting of max connections
 		dict set $maxconnections $ip $value
 	    }
 	}
@@ -220,10 +226,9 @@ class create Socket {
 
     method cgetall {mychan} {
 	set result {}
-	foreach n {socket peer connections maxconnections} {
+	foreach n {connections maxconnections} {
 	    lappend result -$n [my cget -$mychan $n]
 	}
-	lappend result {*}[chan configure $chan]
 	return $result
     }
 
@@ -231,17 +236,20 @@ class create Socket {
 	switch -- $option {
 	    -max* {
 		set ip [dict get $endpoints peer ip]
-		static maxconnections	;# allow setting of max connections
+		my static maxconnections	;# allow setting of max connections
 		if {[dict exists $maxconnections $ip]
 		    return [dict get $maxconnections $ip]
 		} else {
 		    return [dict get $maxconnections ""]
 		}
 	    }
-	    default {
-		return [chan configure $chan $option]
+	    -connections {
+		set ip [dict get $endpoints peer ip]
+		my static connections
+		return [dict keys $connections $ip]
 	    }
 	}
+	error "No such option $option"
     }
 
     # provide static variables
@@ -312,7 +320,7 @@ class create Socket {
 	# keep tally of connections from a given peer
 	my static connections
 	dict set connections $ip $port [self]
-
+ 
 	# determine maxconnections for this ip
 	my static maxconnections
 	if {![info exists maxconnections]} {
@@ -335,10 +343,15 @@ class create Socket {
 	}
     }
 
+    method finalize {mychan} {
+	catch {my destroy}
+    }
+
     destructor {
 	# remove connection record for connected ip
 	my static connections
 	if {![info exists endpoints]} return
+
 	set ep [dict get $endpoints peer]
 	dict with ep {
 	    dict unset connections $ip $port
