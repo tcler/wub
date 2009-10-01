@@ -1722,7 +1722,11 @@ namespace eval Httpd {
 	variable logfile
 	variable log
 	if {$logfile ne "" && $log eq ""} {
-	    set log [open $logfile a]		;# always add to the end
+	    if {[catch {
+		open $logfile a
+	    } log]} {
+		set log [open [file join /tmp $logfile] a]
+	    }
 	    fconfigure $log -buffering line	;# we want to try to make writes atomic
 	}
 
