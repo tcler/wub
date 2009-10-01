@@ -1724,10 +1724,13 @@ namespace eval Httpd {
 	if {$logfile ne "" && $log eq ""} {
 	    if {[catch {
 		open $logfile a
+	    } log] || [catch {
+		open [file join /tmp [file tail $logfile]] a
 	    } log]} {
-		set log [open [file join /tmp $logfile] a]
+	    } else {
+		# we want to try to make writes atomic
+		fconfigure $log -buffering line
 	    }
-	    fconfigure $log -buffering line	;# we want to try to make writes atomic
 	}
 
 	variable maxconn
