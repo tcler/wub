@@ -1,6 +1,6 @@
 [
  # This file is evaluated after content is received but prior to conversion
- # this .after file performs basic authentication
+ # this script file performs basic authentication
  lassign [Http Credentials $response] userid pass
  if {$userid ne "admin" || $pass ne "admin"} {
      set challenge "Please login user: 'admin' password: 'admin'"
