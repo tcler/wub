@@ -1049,7 +1049,7 @@ namespace eval Httpd {
 	    # A server SHOULD return 414 (Requestuest-URI Too Long) status
 	    # if a URI is longer than the server can handle (see section 10.4.15).)
 	    variable maxurilen
-	    dict set r -uri [Url decode [join [lrange $header 1 end-1]]]	;# requested URL
+	    dict set r -uri [join [lrange $header 1 end-1]]	;# requested URL
 	    if {$maxurilen && [string length [dict get $r -uri]] > $maxurilen} {
 		# send a 414 back
 		handle [Http Bad $r "URI too long '[dict get $r -uri]'" 414] "URI too long"
