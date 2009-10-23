@@ -152,7 +152,7 @@ namespace eval Query {
 		    } else {
 			# var present with assignment
 			set var [decode [lindex $z 0]]
-			set val [decode [string trim [join [lrange $z 1 end] =] "\"'"]]
+			set val [decode [join [lrange $z 1 end] =]]
 			set meta [list -count [incr count]]
 		    }
 		    
