@@ -244,7 +244,8 @@ namespace eval Query {
 	}
 
 	if {[dict exists $http -query]} {
-	    lassign [qparse [dict get $http -query] 0] query count
+	    set q [decode [dict get $http -query]]
+	    lassign [qparse $q 0] query count
 	    set query [charset $query]
 	} elseif {![dict exists $http -entity]} {
 	    set query [dict create]
