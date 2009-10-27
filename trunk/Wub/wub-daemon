@@ -29,7 +29,7 @@ case "$1" in
 		--user=www-data.www-data --umask=005 \
 		--respawn --inherit --core \
 		--errlog=/var/log/wub/wub.err --output=/var/log/wub/wub.out \
-		--command="$DAEMON $DAEMON_OPTS"
+		$TCLSH $DAEMON $DAEMON_OPTS
 	else
 	    start-stop-daemon --start --quiet --background \
 		--chuid www-data:www-data \
