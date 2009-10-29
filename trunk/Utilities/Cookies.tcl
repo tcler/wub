@@ -571,10 +571,6 @@ namespace eval Cookies {
 
 	return $cookies
     }
-    proc Add {r args} {
-	dict set r -cookies [add [dict get? $r -cookies] {*}$args]
-	return $r
-    }
 
     # remove cookies from the cookie dict.
     proc remove {cookies args} {
@@ -587,10 +583,6 @@ namespace eval Cookies {
 	    dict unset cookies $n
 	}
 	return $cookies
-    }
-    proc Remove {r args} {
-	dict set r -cookies [remove [dict get $r -cookies] {*}$args]
-	return $r
     }
 
     # modify matching cookies in the cookie dict.
@@ -616,10 +608,6 @@ namespace eval Cookies {
 
 	return $cookies
     }
-    proc Modify {r args} {
-	dict set r -cookies [modify [dict get $r -cookies] {*}$args]
-	return $r
-    }
 
     # fetch a single matching cookie's value from the cookie dict.
     proc fetch {cookies args} {
@@ -638,9 +626,6 @@ namespace eval Cookies {
 
 	return [dict get $cookies [lindex $matches 0]]
     }
-    proc Fetch {r args} {
-	return [fetch [dict get $r -cookies] {*}$args]
-    }
 
     # fetch all matching cookie's values from the cookie dict.
     proc fetchAll {cookies args} {
@@ -654,6 +639,24 @@ namespace eval Cookies {
 	    lappend result $n [dict get $cookies $n]
 	}
 	return $result
+    }
+
+    # Request Dict API - same as lowercased procs, but operates on
+    # cookie dict within request dict,
+    proc Add {r args} {
+	dict set r -cookies [add [dict get? $r -cookies] {*}$args]
+	return $r
+    }
+    proc Remove {r args} {
+	dict set r -cookies [remove [dict get $r -cookies] {*}$args]
+	return $r
+    }
+    proc Modify {r args} {
+	dict set r -cookies [modify [dict get $r -cookies] {*}$args]
+	return $r
+    }
+    proc Fetch {r args} {
+	return [fetch [dict get $r -cookies] {*}$args]
     }
     proc FetchAll {r args} {
 	return [fetchAll [dict get $r -cookies] {*}$args]
