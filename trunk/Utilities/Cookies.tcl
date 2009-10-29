@@ -512,6 +512,9 @@ namespace eval Cookies {
 
 	return $matches
     }
+    proc Match {r args} {
+	dict set r -cookies [match [dict get $r -cookies] {*}$args]
+    }
 
     # clear all cookies in cookie dict which match the template in args
     # note: the cookies are modified to a state intended to cause a client
@@ -530,6 +533,9 @@ namespace eval Cookies {
 	}
 
 	return $cookies
+    }
+    proc Clear {r args} {
+	dict set r -cookies [clear [dict get $r -cookies] {*}$args]
     }
 
     # add a cookie to the cookie dict.
@@ -564,6 +570,9 @@ namespace eval Cookies {
 
 	return $cookies
     }
+    proc Add {r args} {
+	dict set r -cookies [add [dict get $r -cookies] {*}$args]
+    }
 
     # remove cookies from the cookie dict.
     proc remove {cookies args} {
@@ -576,6 +585,9 @@ namespace eval Cookies {
 	    dict unset cookies $n
 	}
 	return $cookies
+    }
+    proc Remove {r args} {
+	dict set r -cookies [remove [dict get $r -cookies] {*}$args]
     }
 
     # modify matching cookies in the cookie dict.
@@ -601,6 +613,9 @@ namespace eval Cookies {
 
 	return $cookies
     }
+    proc Modify {r args} {
+	dict set r -cookies [modify [dict get $r -cookies] {*}$args]
+    }
 
     # fetch a single matching cookie's value from the cookie dict.
     proc fetch {cookies args} {
@@ -619,6 +634,9 @@ namespace eval Cookies {
 
 	return [dict get $cookies [lindex $matches 0]]
     }
+    proc Fetch {r args} {
+	return [fetch [dict get $r -cookies] {*}$args]
+    }
 
     # fetch all matching cookie's values from the cookie dict.
     proc fetchAll {cookies args} {
@@ -632,6 +650,9 @@ namespace eval Cookies {
 	    lappend result $n [dict get $cookies $n]
 	}
 	return $result
+    }
+    proc FetchAll {r args} {
+	return [fetchAll [dict get $r -cookies] {*}$args]
     }
 
     namespace export -clear *
