@@ -572,7 +572,7 @@ namespace eval Cookies {
 	return $cookies
     }
     proc Add {r args} {
-	dict set r -cookies [add [dict get $r -cookies] {*}$args]
+	dict set r -cookies [add [dict get? $r -cookies] {*}$args]
 	return $r
     }
 
