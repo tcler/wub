@@ -3,6 +3,9 @@ multipart/x-directory
 multipart/x-search
 multipart/x-aggregate
 
+application/x-sylk .sylk
+text/csv .csv
+
 application/x-characterspecial
 application/x-blockspecial
 application/x-fifo
