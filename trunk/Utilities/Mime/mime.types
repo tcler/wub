@@ -3,7 +3,7 @@ multipart/x-directory
 multipart/x-search
 multipart/x-aggregate
 
-application/x-sylk .sylk
+application/x-sylk .sylk .slk
 text/csv .csv
 
 application/x-characterspecial
