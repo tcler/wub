@@ -21,7 +21,7 @@ package provide Sql 1.0
 
 set API(Domains/Direct) {
     {
-	A domain to return contents of a db
+	A domain to return contents of a tdbc by Sql SELECT
     }
 }
 
