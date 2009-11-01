@@ -283,6 +283,11 @@ namespace eval Report {
 	variable defaults; set args [dict merge $defaults $args]
 	Debug.report {html $args}
 
+	if {![dict exists $args headers]} {
+	    Debug.report {Syn Headers: [dict keys [lindex [dict values $data] 0]]}
+	    dict set args headers [dict keys [lindex [dict values $data] 0]]
+	}
+
 	if {![dict exists $args _header]} {
 	    set args [header {*}$args]
 	}
