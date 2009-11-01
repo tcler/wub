@@ -35,15 +35,15 @@ namespace eval SqlConvert {
 	sortable 1
 	evenodd 1
 	class table
-	tparam {title table}
-	hclass header
-	hparam {title column}
-	thparam {class thead}
-	thrparam {class thead}
-	fclass footer
-	tfparam {class tfoot}
-	tfrparam {class tfoot}
-	rclass row
+	tparam {}
+	hclass ""
+	hparam {}
+	thparam {}
+	thrparam {}
+	fclass ""
+	tfparam {}
+	tfrparam {}
+	rclass ""
 	rparam {}
 	eclass el
 	eparam {}
