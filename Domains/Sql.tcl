@@ -262,18 +262,22 @@ class create Sql {
     }
 
     method /_tables {r {table {}}} {
-	if {$table ne {}} {
-	    foreach table [$db tables] {
-		dict for {n v} [db columns $table] {
-		    dict lappend result $table [<a> href _columns?table=$table&column=$n $n]
-		}
+	set result {}
+	if {$table eq {}} {
+	    Debug.Sql {tables: [$db tables]}
+	    foreach {table v} [$db tables] {
+		set key [<a> href _tables?table=$table $table]
+		dict set v name $key
+		dict unset v type
+		dict set result $table $v
 	    }
 	} else {
 	    dict for {n v} [$db columns $table] {
-		dict lappend result [<a> href _columns?table=$table&column=$n $n] $v
+		dict set result [<a> href _columns?table=$table&column=$n $n] $v
 	    }
 	}
-	return [Http Ok $r $result text/x-tdbc]
+	set result [Report html $result]
+	return [Http Ok $r $result]
     }
 
     method / {r} {
@@ -295,6 +299,9 @@ class create Sql {
 		    do respond NotFound $r
 		}
 	    }
+	}
+	if {$view eq {}} {
+	    return [my /_tables $r]
 	}
 
 	# generate a select from the query
