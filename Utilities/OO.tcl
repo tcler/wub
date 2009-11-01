@@ -60,3 +60,8 @@ proc oo::define::Variable args {
 #         return $x,$y|$p,$d,$q
 #     }
 # }
+
+proc oo::define::Var {args} {
+    uplevel 1 [list Variable -append {*}[dict keys $args]]
+    # now have to arrange to have these values assigned at constructor time.
+}
