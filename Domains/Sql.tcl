@@ -59,9 +59,9 @@ namespace eval SqlConvert {
 
 	variable params
 	set p [dict merge $params [dict get? $r -params]]
-	set sepchar [dict get $p $sepchar]
+	set sepchar [dict get $p sepchar]
 	set r [.text/x-tdbc.text/csv $r]
-	set content [csv2sylk [dict get $r -content] $sepchar]
+	set content [Sylk csv2sylk [dict get $r -content] $sepchar]
 
 	return [dict merge $r [list -content $content content-type application/x-sylk]]
     }
@@ -71,16 +71,17 @@ namespace eval SqlConvert {
 
 	variable params
 	set p [dict merge $params [dict get? $r -params]]
-	set sepchar [dict get $p $sepchar]
-	set delchar [dict get $p $delchar]
+	set sepchar [dict get $p sepchar]
+	set delchar [dict get $p delchar]
 
 	set content ""
 	foreach record [dict get $r -content] {
-	    append content [::csv::joinlist [dict values $record] $sepchar $delchar] \n
+	    Debug.Sql {cvs line: $record}
+	    append content [::csv::join [dict values $record] $sepchar $delchar] \n
 	}
-	set header #[::csv::joinlist [dict keys $record] $sepchar $delchar]\n
+	set header #[::csv::join [dict keys $record] $sepchar $delchar]\n
 
-	return [dict merge $r [list -content $header$content content-type text/csv]]
+	return [dict merge $r [list -content $header$content content-type text/csv -raw 1]]
     }
 
     proc .text/x-tdbc.text/html {r} {
@@ -277,14 +278,14 @@ class create Sql {
 
     method / {r} {
 	# calculate the suffix of the URL relative to $mount
-	lassign [Url urlsuffix $r $mount] result r suffix path
+	lassign [Url urlsuffix $r $mount] result r view path
 	if {!$result} {
 	    return $r	;# the URL isn't in our domain
 	}
 
 	# use suffix to determine which view
-	lassign [split $suffix .] view ext
-	Debug.Sql {$view - $suffix}
+	lassign [split $path .] -> ext
+	Debug.Sql {$path -> $view '$ext'}
 
 	# determine which views must be joined
 	set view [split $view /]
@@ -312,7 +313,7 @@ class create Sql {
 	if {$mime eq "" || $mime eq "text/plain"} {
 	    set mime text/html
 	}
-	Debug.Sql {desired content type: $mime}
+	Debug.Sql {desired content type of '$ext': $mime}
 
 	# generate and pre-convert the response
 	set r [Http Ok $r $content text/x-tdbc]
