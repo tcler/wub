@@ -178,21 +178,20 @@ namespace eval Report {
 	    }
 	    
 	    set row {}
-	    if {[dict exists $args rclass]} {
-		set rparams [list class [dict get $args rclass] {*}$rp]
-	    } else {
-		set rparams $rp
+	    set rparams $rp
+	    if {[dict get? $args rclass] ne ""} {
+		dict lappend rparams class [dict get $args rclass]
 	    }
 	    
 	    if {[dict exists $args evenodd] && [dict get $args evenodd]} {
 		dict incr args rc
 		if {[dict get $args rc] % 2} {
-		    lappend rparams class [dict get $args even]
+		    dict lappend rparams class [dict get $args even]
 		} else {
-		    lappend rparams class [dict get $args odd]
+		    dict lappend rparams class [dict get $args odd]
 		}
 	    }
-
+	    
 	    # do column content string match for row parameters
 	    dict for {spec val} [dict get? $args rowp] {
 		set match [lassign [split $spec ,] col]
@@ -205,7 +204,7 @@ namespace eval Report {
 	    
 	    # now traverse the value as a dict
 	    foreach th [dict get $args headers] {
-		if {[dict exists $args eclass]} {
+		if {[dict get? $args eclass] ne ""} {
 		    set params [list class [dict get $args eclass]]
 		} else {
 		    set params {}
