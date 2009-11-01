@@ -14,8 +14,10 @@
 package require OO
 package require Query
 package require Mime
+package require Convert
+package require Report
 package require Debug
-Debug off sql 10
+Debug off Sql 10
 
 package provide Sql 1.0
 
@@ -84,15 +86,16 @@ namespace eval SqlConvert {
     proc .text/x-tdbc.text/html {r} {
 	variable params
 	set p [dict merge $params [dict get? $r -params]]
+	Debug.Sql {Report: params:($p), [dict get? $p headers]}
 
 	set content {}
 	set n 0
-	foreach el [dict get $r -content] {
+	foreach el [dict get? $r -content] {
 	    dict set content $n $el
 	    incr n
 	}
-
-	return [dict merge $r [list -content [Report html $content {*}$p] content-type text/x-html-fragment]]
+	Debug on Report 10
+	return [dict merge $r [list -content [Report html $content {*}$p] content-type x-text/html-fragment]]
     }
 
     namespace export -clear *
@@ -112,23 +115,24 @@ class create Sql {
 	foreach {n v m} [Query nvmlist $q] {
 	    catch {unset meta}
 	    array set meta $m
-	    if {[info exists meta(unassigned)]} {
+	    Debug.Sql {parse args: $n '$v' ($m)}
+	    if {[info exists meta(-unassigned)]} {
 		if {[string match -* $n]} {
 		    # flag from &-field&
 		    dict set flags $n 1
 		} elseif {[string match ^* $n]} {
 		    # order from &^field&
-		    lappend order_f $meta(-count) $n
+		    lappend order_f $meta(-count) [string trim $n ^]
 		} else {
 		    # display field indicated by &field&
 		    dict set display_f $meta(-count) $n
 		}
 	    } elseif {[string match -* $n]} {
 		# flag from &-field&
-		dict set flags $n $v
+		dict lappend flags $n $v
 	    } elseif {[string match ^* $n]} {
 		# order from &^field&
-		lappend order_f $meta(-count) $n
+		lappend order_f $meta(-count) [string trim $n ^]
 
 		# select clause element indicatd by &field=expr
 		lappend select_f [string trim $n ^] $v
@@ -140,27 +144,50 @@ class create Sql {
 
 	# get display fields in query order
 	set display {}
-	foreach n [lsort -integer [dict keys display_f]] {
+	foreach n [lsort -integer [dict keys $display_f]] {
 	    lappend display [dict get $display_f $n]
 	}
 
 	# get order fields in query order
 	set order {}
-	foreach n [lsort -integer [dict keys order_f]] {
+	foreach n [lsort -integer [dict keys $order_f]] {
 	    lappend order [dict get $order_f $n]
 	}
 
-	Debug.sql {Sql query: display:($display) order:($order) flags:($flags) select:($select)}
+	Debug.Sql {Sql query: display:($display) order:($order) flags:($flags) select:($select_f)}
 	if {![llength $display]} {
 	    set display *
 	}
 
-	set select "SELECT [join $display ,] FROM [join $vs ,]"
+	set select "SELECT [join $display ,]"
+	if {[dict exists $flags -distinct]} {
+	    append select " DISTINCT "
+	    dict unset flags -distinct
+	}
+	append select " FROM "
+
+	foreach flag {natural left inner outer cross} {
+	    if {[dict exists $flags -$flag]} {
+		append select " [string toupper $flag] "
+		dict unset flags -$flag
+	    }
+	}
+	if {[dict exists $flags -on]} {
+	    append select " ON [dict get $flags -on]"
+	    dict unset flags -on
+	}
+	if {[dict exists $flags -using]} {
+	    append select " USING [join [dict get $flags -using] ,]"
+	    dict unset flags -using
+	}
+	
+	append select [join $vs ,]
+	
 
 	# calculate the selector from select clause elements
 	set selector {}
 	foreach {n v} $select_f {
-	    set plain [string trim $n "%@=<>!^"]
+	    set plain [string trim $n "%@=<>!^*"]
 	    switch -glob -- $n {
 		*% {
 		    # like
@@ -181,7 +208,7 @@ class create Sql {
 		    lappend selector [list $plain > '$v']
 		}
 
-		*>= {
+		*!< {
 		    lappend selector [list $plain >= '$v']
 		}
 
@@ -189,7 +216,7 @@ class create Sql {
 		    lappend selector [list $plain < '$v']
 		}
 
-		*<= {
+		*!> {
 		    lappend selector [list $plain < '$v']
 		}
 
@@ -211,11 +238,25 @@ class create Sql {
 	    append select " WHERE $selector"
 	}
 
+	if {[dict exists $flags -group]} {
+	    append select " GROUP BY [join [dict get $flags -group] ,] "
+	    dict unset flags -group
+	}
+
 	if {$order ne {}} {
 	    append select " ORDER BY [join $order ,]"
 	}
 	
-	Debug.sql {select: $select}
+	if {[dict exists $flags -limit]} {
+	    append select " LIMIT [dict get $flags -limit] "
+	    dict unset flags -limit
+	}
+	if {[dict exists $flags -offset]} {
+	    append select " OFFSET [dict get $flags -offset] "
+	    dict unset flags -offset
+	}
+
+	Debug.Sql {select: $select}
 	return $select
     }
 
@@ -227,7 +268,7 @@ class create Sql {
 		}
 	    }
 	} else {
-	    dict for {n v} [db columns $table] {
+	    dict for {n v} [$db columns $table] {
 		dict lappend result [<a> href _columns?table=$table&column=$n $n] $v
 	    }
 	}
@@ -243,7 +284,7 @@ class create Sql {
 
 	# use suffix to determine which view
 	lassign [split $suffix .] view ext
-	Debug.sql {$view - $suffix}
+	Debug.Sql {$view - $suffix}
 
 	# determine which views must be joined
 	set view [split $view /]
@@ -259,28 +300,31 @@ class create Sql {
 	set select [my selector $r $view]
 
 	# run the select and generate list-of-dicts content
-	if {[dict exists stmts($select)]} {
+	if {[info exists stmts($select)]} {
 	    set stmt $stmts($select)
 	} else {
-	    set stmts($select) [set stmt [db prepare $select]]
+	    set stmts($select) [set stmt [$db prepare $select]]
 	}
 	set content [$stmt allrows -as dicts]
 
 	# calculate the desired content-type
 	set mime [Mime MimeOf [string tolower $ext]]
-	if {$mime eq ""} {
-	    set mime text/x-html-fragment
+	if {$mime eq "" || $mime eq "text/plain"} {
+	    set mime text/html
 	}
-	Debug.sql {desired content type: $mime}
+	Debug.Sql {desired content type: $mime}
 
 	# generate and pre-convert the response
 	set r [Http Ok $r $content text/x-tdbc]
+	dict set r -content $content
 
 	dict set r -params $params	;# send parameters to conversion
-	return [Convert Convert! $r $mime]
+	Debug on convert 10
+	set r [Convert Convert! $r $mime]
+	return $r
     }
 
-    variable db views csv tdbc local params stmts
+    variable db views csv tdbc local params stmts mount
 
     destructor {
 	if {$local} {
@@ -296,11 +340,11 @@ class create Sql {
 	set views {}		;# views which can be accessed by the domain
 	set tdbc sqlite3	;# TDBC backend
 	set params {}	;# parameters for Report in html table generation
-	set stmts {}
+	array set stmts {}
 
 	foreach {n v} $args {
 	    set [string trimleft $n -] $v
-	    Debug.direct {variable: $n $v}
+	    Debug.Sql {variable: $n $v}
 	}
 
 	# load the tdbc drivers
@@ -319,5 +363,10 @@ class create Sql {
 	    # use a supplied db
 	    set local 0
 	}
+
+	Debug.Sql {Database $db: tables:([$db tables])}
     }
 }
+
+# add the tdbc converters to Convert
+Convert Namespace ::SqlConvert
