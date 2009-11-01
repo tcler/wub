@@ -12,9 +12,7 @@
 #
 #  fred do $r
 
-package require TclOO
-namespace import oo::*
-
+package require OO
 package require Query
 package require Url
 package require Debug
