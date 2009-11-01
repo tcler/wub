@@ -8,6 +8,11 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 
 package require Mk4tcl
 if {[info commands ::Debug] eq {}} {
+    lappend auto_path [pwd]
+    catch {package require Debug}
+}
+
+if {[info commands ::Debug] eq {}} {
     proc Debug.view {args} {}
 } else {
     Debug off view 10
@@ -46,7 +51,7 @@ class create ViewIndexed {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
-	Debug.view {MIXIN get [my view]!$index ([[my view] info]) (which is [my parent]/[[my view] get $index index]) $args}
+	Debug.view {Indexed get [my view]!$index ([[my view] info]) (which is [my parent]/[[my view] get $index index]) $args}
 	return [[my parent] get [[my view] get $index index] {*}$args]
     }
 
@@ -55,7 +60,7 @@ class create ViewIndexed {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
-	Debug.view {MIXIN [my view] set $index keys: '[dict keys $args]'}
+	Debug.view {Indexed [my view] set $index keys: '[dict keys $args]'}
 	return [[my parent] set [[my view] get $index] {*}$args]
     }
 
@@ -65,11 +70,11 @@ class create ViewIndexed {
 	set indices {}
 	for {set i $mysize} {$i >= 0} {incr i -1} {
 	    set record [$view get $i index]
-	    Debug.view {MIXIN $view}
+	    Debug.view {Indexed $view all}
 	    lappend indices [$view get $i index]
 	}
 	set result [uplevel 1 [my parent] foreach [list $script] {*}$indices]
-	Debug.view {MIXIN $view [$view size] ([$view info]) all -> [my parent]/[[my parent] view] foreach $indices -> $result }
+	Debug.view {Indexed $view [$view size] ([$view info]) all -> [my parent]/[[my parent] view] foreach $indices -> $result }
 	return $result
     }
 
@@ -121,7 +126,83 @@ class create ViewLogger {
     }
 }
 
+# blocked - create mapped view which blocks its rows in two levels.
+#
+# This view acts like a large flat view, even though the actual rows are stored in blocks,
+# which are rebalanced automatically to maintain a good trade-off between block size and 
+# number of blocks.
+#
+# The underlying view must be defined with a single view property,
+# with the structure of the subview being as needed.
+# modifiable
+
+# View create people layout {_B {name:S age:I}}
+# [people blocked] as flat
+# ... $flat size ...
+# $flat insert ...
+
+class create ViewBlocked {
+    variable raw
+    method blocked_constructor {underview} {
+	set raw $underview
+    }
+
+    method blocked_destructor {} {
+	$raw close
+    }
+
+    # return the properties of the raw view
+    method properties {} {
+	return [$raw properties]
+    }
+
+    # info - return view's layout
+    method info {args} {
+	return [$raw info {*}$args]
+    }
+}
+
 class create View {
+    # return the properties of the view
+    method properties {} {
+	return [$view properties]
+    }
+
+    # return field names within view
+    method names {} {
+	set result {}
+	foreach f [split [my properties]] {
+	    lappend result [split $f :]
+	}
+	return $result
+    }
+
+    # info - return view's layout
+    method info {args} {
+	return [$view info {*}$args]
+    }
+
+    # return view info as a dict
+    method info2dict {args} {
+	set result {}
+	foreach el [split [my info {*}$args]] {
+	    set v S
+	    lassign [split $el :] n v
+	    dict set result $n $v
+	}
+	return $result
+    }
+
+    method fields {} {
+	set result {}
+	dict for {n v} [my info2dict] {
+	    if {$v ne "V"} {
+		dict set result $n $v
+	    }
+	}
+	return $result
+    }
+
     # open all the subviews of the index
     method subviews {{index -1}} {
 	set result {}
@@ -223,7 +304,9 @@ class create View {
 	    }
 
 	    dict set uv "" $index	;# create the index pseudo-var
-	    set code [catch {uplevel 1 dict with $vn [list $script]} result eo]
+	    set code [catch {
+		uplevel 1 dict with $vn [list $script]
+	    } result eo]
 
 	    switch -- $code {
 		1 {# error - re-raise it
@@ -492,46 +575,6 @@ class create View {
 	
 	Debug.view {LAYOUT: '$pretty'}
 	return $pretty
-    }
-
-    # return the properties of the view
-    method properties {} {
-	return [$view properties]
-    }
-
-    # return field names within view
-    method names {} {
-	set result {}
-	foreach f [split [$view properties]] {
-	    lappend result [split $f :]
-	}
-	return $result
-    }
-
-    # info - return view's layout
-    method info {args} {
-	return [$view info {*}$args]
-    }
-
-    # return view info as a dict
-    method info2dict {args} {
-	set result {}
-	foreach el [split [my info {*}$args]] {
-	    set v S
-	    lassign [split $el :] n v
-	    dict set result $n $v
-	}
-	return $result
-    }
-
-    method fields {} {
-	set result {}
-	dict for {n v} [my info2dict] {
-	    if {$v ne "V"} {
-		dict set result $n $v
-	    }
-	}
-	return $result
     }
 
     ###### MetaView (not complete)
@@ -901,7 +944,7 @@ class create View {
     # This view is read-only
 
     method join {view2 field args} {
-	set result [View new [$view view join [$view2 view] $field {*}$args] readonly 1 parents [list [self] $view2] name "join [self] $view2 over $field $args"]
+	set result [View new [$view view join [$view2 view] $field {*}$args] readonly 1 parents [list [self] $view2] name "join [self] $view2 over [join [list $field {*}$args]]"]
 	Debug.view {[self] join $view2 $field $args -> $result}
 	return $result
     }
@@ -1007,28 +1050,6 @@ class create View {
 	return $result
     }
 
-    # blocked - create mapped view which blocks its rows in two levels.
-    #
-    # This view acts like a large flat view, even though the actual rows are stored in blocks,
-    # which are rebalanced automatically to maintain a good trade-off between block size and 
-    # number of blocks.
-    #
-    # The underlying view must be defined with a single view property,
-    # with the structure of the subview being as needed.
-    # modifiable
-
-    # View create people layout {name:S age:I}
-    # [people blocked] as flat
-    # ... $flat size ...
-    # $flat insert ...
-
-    method blocked {} {
-	set blocked [$view view blocked]
-	set result [View new $blocked parents [self] name "blocked [self]"]
-	Debug.view {[self] blocked -> $result ([$result info]) / ([$blocked properties])}
-	return $result
-    }
-
     # indexed - create mapped view which maintains an index permutation
     #
     # This is an identity view which somewhat resembles the ordered view,
@@ -1080,7 +1101,7 @@ class create View {
 
     method ordered {{numkeys 1}} {
 	set result [View new [$view view ordered $numkeys] parents [self] name "ordered [self] $numkeys"]
-	Debug.view {[self] ordered $numkeys -> $result ([$result info]}
+	Debug.view {[self] ordered $numkeys -> $result ([$result info])}
 	return $result
     }
 
@@ -1187,7 +1208,10 @@ class create View {
     }
 
     # reference counting
-    method incref {} {incr refcount}
+    method incref {} {
+	incr refcount
+	Debug.view {[self] incref $refcount}
+    }
     method decref {} {
 	incr refcount -1
 	if {$refcount < 0} {
@@ -1214,7 +1238,7 @@ class create View {
     # all views in this db
     method views {} {return [::mk::file views $db]}
 
-    variable db view name parents children type logger commit refcount uniq map mapname
+    variable db view name parents children type logger commit refcount uniq map mapname raw
 
     # construct or open a view
     constructor {args} {
@@ -1228,6 +1252,7 @@ class create View {
 	set parents {}
 	set commit 0
 	set refcount 0
+
 	if {[llength $args]%2} {
 	    # we're wrapping an existing view
 	    # (could be from one of the mk view builtins.)
@@ -1306,8 +1331,17 @@ class create View {
 		}
 		
 		if {[info exists layout]} {
-		    Debug.view {layout $db.$name [my pretty $layout]}
-		    ::mk::view layout $db.$name [my pretty $layout]
+
+		    set layout [my pretty $layout]
+		    if {[dict exists $args blocked]
+			&& [dict get $args blocked]
+		    } {
+			# this is a blocked view - add the crap around it
+			set layout "\{_B \{$layout\}\}"
+		    }
+		    Debug.view {laying out $db.$name as '$layout'}
+		    ::mk::view layout $db.$name $layout
+		    Debug.view {layed out $db.name as '[::mk::view layout $db.$name]'}
 		} else {
 		    error "Must specify a pre-existing view, or view and layout or view and ini"
 		}
@@ -1327,8 +1361,26 @@ class create View {
 	    lappend mixins ViewLogger
 	}
 
+	# all views which consist only of a single _B subview are blocked
+	set sv [my subviews]
+	if {[dict size [my info2dict]] == 1
+	    && [llength $sv] == 1
+	    && [lindex $sv 0] eq "_B"
+	} {
+	    # this is a blocked view
+	    lappend mixins ViewBlocked	;# mixin a helper object
+	    set blocked 1
+	} else {
+	    set blocked 0
+	}
+
 	if {[llength $mixins]} {
 	    oo::objdefine [self] mixin {*}$mixins
+	}
+
+	if {$blocked} {
+	    my blocked_constructor $view
+	    set view [$view view blocked]	;# substitute a blocked view for the raw view
 	}
 
 	if {[info exists logger] && $logger ne ""} {
@@ -1360,8 +1412,10 @@ class create View {
 	incr _refs($db)
     }
 
+    method blocked_destructor {} {}	;# overriden by ViewBlocked if mixedin
+
     destructor {
-	Debug.view {destroy [self]}
+	Debug.view {destroy [self] from '[info level [expr {[info level]-1}]]'}
 	foreach p $parents {
 	    $p child rm [self]
 	    catch {$p decref}
@@ -1370,6 +1424,8 @@ class create View {
 	    $map close
 	    mk::view delete $mapname
 	}
+
+	my blocked_destructor	;# close the raw view (if any)
 	$view close
 
 	# close the metaview
@@ -1381,8 +1437,9 @@ class create View {
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
     package require Mk4tcl
+    Debug off view 10
 
-    View create sdb.v file sdb.mk layout {time:I value date}
+    [View create sdb.v file sdb.mk blocked 1 layout {time:I value date}] as sdb_v
     #View create sdb.v file sdb.mk ini sdb.ini
     foreach v {foot head neck dangly_bits} {
 	sdb.v append time [clock seconds] value $v
@@ -1411,8 +1468,8 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     }
     set j [sdb.v1 join sdb.v2 id]
     puts stderr "JOIN meta: $j '[$j name]' [$j parents] - info:'[$j info]' props:'[$j properties]'"
-    $j set 0 value2 2000
-    $j set 0 value 200
+    #$j set 0 value2 2000
+    #$j set 0 value 200
     #$j append id 99 value -1 value2 -10
     set x [$j dict]
     #puts stderr "99: [$j exists id 99]"
@@ -1427,7 +1484,6 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     puts stderr "groupby data [$x dict]"
 
     # play with ordered
-
     puts stderr "ALL VIEWS: [sdb.v db views]"
     sdb.v close
 }
