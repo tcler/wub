@@ -962,7 +962,7 @@ namespace eval Nub {
 	    set urls $::Nub::urls
 	}
 	set do [Nub generate $urls]
-	Debug.nub {DO: $do}
+	Debug.nub {apply: $do}
 	eval $do
     }
 
