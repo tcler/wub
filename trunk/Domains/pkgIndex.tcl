@@ -15,6 +15,7 @@ package ifneeded Tub 1.0 [list source [file join $dir Tub.tcl]]
 #package ifneeded CA 1.0 [list source [file join $dir CA.tcl]]
 package ifneeded Login 1.0 [list source [file join $dir Login.tcl]]
 package ifneeded About 1.0 [list source [file join $dir About.tcl]]
+package ifneeded Sql 1.0 [list source [file join $dir Sql.tcl]]
 
 #package ifneeded Host 2.0 [list source [file join $dir Host.tcl]]
 #package ifneeded Cache 1.0 [list source [file join $dir Cache.tcl]]
