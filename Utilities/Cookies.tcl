@@ -512,9 +512,6 @@ namespace eval Cookies {
 
 	return $matches
     }
-    proc Match {r args} {
-	return [match [dict get $r -cookies] {*}$args]
-    }
 
     # clear all cookies in cookie dict which match the template in args
     # note: the cookies are modified to a state intended to cause a client
@@ -533,10 +530,6 @@ namespace eval Cookies {
 	}
 
 	return $cookies
-    }
-    proc Clear {r args} {
-	dict set r -cookies [clear [dict get $r -cookies] {*}$args]
-	return $r
     }
 
     # add a cookie to the cookie dict.
@@ -643,6 +636,13 @@ namespace eval Cookies {
 
     # Request Dict API - same as lowercased procs, but operates on
     # cookie dict within request dict,
+    proc Match {r args} {
+	return [match [dict get $r -cookies] {*}$args]
+    }
+    proc Clear {r args} {
+	dict set r -cookies [clear [dict get $r -cookies] {*}$args]
+	return $r
+    }
     proc Add {r args} {
 	dict set r -cookies [add [dict get? $r -cookies] {*}$args]
 	return $r
