@@ -157,6 +157,8 @@ namespace eval Query {
 		    }
 		    
 		    dict lappend query $var $val $meta
+		    # todo - not quite right - this doesn't allow duplicate
+		    # var=val, but should
 		}
 	    }
 	    
@@ -238,26 +240,26 @@ namespace eval Query {
     #	A dictionary of names associated with a list of 
     #	values from the request's query part and entity body
     
-    proc parse {http} {
-	if {[dict exists $http -Query]} {
-	    return [dict get $http -Query]
+    proc parse {r} {
+	if {[dict exists $r -Query]} {
+	    return [dict get $r -Query]
 	}
 
-	if {[dict exists $http -query]} {
-	    lassign [qparse [dict get $http -query] 0] query count
+	if {[dict exists $r -query]} {
+	    lassign [qparse [dict get $r -query] 0] query count
 	    set query [charset $query]
-	} elseif {![dict exists $http -entity]} {
+	} elseif {![dict exists $r -entity]} {
 	    set query [dict create]
 	    set count -1
-	    dict set http -entity {}
+	    dict set r -entity {}
 	} else {
 	    set query {}
 	    set count 0
 	}
 
-	if {[dict exists $http content-type]} {
-	    set ct [dict get $http content-type]
-	    set entity [dict get? $http -entity]
+	if {[dict exists $r content-type]} {
+	    set ct [dict get $r content-type]
+	    set entity [dict get? $r -entity]
 	    lassign [qparse $entity $count $ct] query1 count
 	    set query1 [charset $query1]
 	    Debug.query {qparsed [string range $query1 0 80]...}
