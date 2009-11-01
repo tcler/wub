@@ -47,8 +47,8 @@ namespace eval Report {
 	
 	set h {}
 	foreach t [dict get $args header] {
-	    if {[dict exists $args hclass]} {
-		set params [list class [dict get $args hclass]]
+	    if {[dict get? $args hclass] ne ""} {
+		dict lappend params class [dict get $args hclass]
 	    } else {
 		set params {}
 	    }
@@ -100,8 +100,8 @@ namespace eval Report {
 	if {[dict exists $args footer]} {
 	    set f {}
 	    foreach t [dict get $args footer] {
-		if {[dict exists $args fclass]} {
-		    set params [list class [dict get $args fclass]]
+		if {[dict get? $args fclass] ne ""} {
+		    dict set params class [dict get $args fclass]
 		} else {
 		    set params {}
 		}
