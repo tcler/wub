@@ -23,7 +23,6 @@ application/x-x509-email-cert .ecert
 x-text/html-fragment htmf
 x-text/stx stx
 x-text/form form
-text/x-csv csv
 
 application/x-tcl-template .tml
 application/x-session-template .stml
