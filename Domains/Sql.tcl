@@ -45,7 +45,7 @@ namespace eval SqlConvert {
 	tfrparam {}
 	rclass ""
 	rparam {}
-	eclass el
+	eclass ""
 	eparam {}
 	footer {}
     }
