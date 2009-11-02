@@ -11,7 +11,7 @@ application/x-blockspecial
 application/x-fifo
 application/x-socket
 application/vnd.google-earth.kml+xml
-application/vnd.google-earth.kmz
+application/vnd.google-earth.kmz .kmz
 application/vnd.gpx+xml gpx
 
 application/x-x509-ca-cert .cacert
