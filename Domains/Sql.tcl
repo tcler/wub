@@ -251,6 +251,8 @@ class create Sql {
 	if {[dict exists $flags -limit]} {
 	    append select " LIMIT [dict get $flags -limit] "
 	    dict unset flags -limit
+	} else {
+	    append select " LIMIT 500 "
 	}
 	if {[dict exists $flags -offset]} {
 	    append select " OFFSET [dict get $flags -offset] "
