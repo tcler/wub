@@ -54,19 +54,19 @@ namespace eval SqlConvert {
 	set params [dict merge $params $args]
     }
 
-    proc .text/x-tdbc.application/x-sylk {r} {
+    proc .x-text/tdbc.application/x-sylk {r} {
 	package require Sylk
 
 	variable params
 	set p [dict merge $params [dict get? $r -params]]
 	set sepchar [dict get $p sepchar]
-	set r [.text/x-tdbc.text/csv $r]
+	set r [.x-text/tdbc.text/csv $r]
 	set content [Sylk csv2sylk [dict get $r -content] $sepchar]
 
 	return [dict merge $r [list -content $content content-type application/x-sylk]]
     }
 
-    proc .text/x-tdbc.text/csv {r} {
+    proc .x-text/tdbc.text/csv {r} {
 	package require csv
 
 	variable params
@@ -84,7 +84,7 @@ namespace eval SqlConvert {
 	return [dict merge $r [list -content $header$content content-type text/csv -raw 1]]
     }
 
-    proc .text/x-tdbc.text/html {r} {
+    proc .x-text/tdbc.text/html {r} {
 	variable params
 	set p [dict merge $params [dict get? $r -params]]
 	Debug.Sql {Report: params:($p), [dict get? $p headers]}
@@ -323,7 +323,7 @@ class create Sql {
 	Debug.Sql {desired content type of '$ext': $mime}
 
 	# generate and pre-convert the response
-	set r [Http Ok $r $content text/x-tdbc]
+	set r [Http Ok $r $content x-text/tdbc]
 	dict set r -content $content
 
 	dict set r -params $params	;# send parameters to conversion
