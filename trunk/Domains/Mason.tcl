@@ -297,7 +297,7 @@ class create Mason {
 		if {[info exists expires] && $expires ne ""} {
 		    set r [Http Cache $req $expires]
 		}
-		return [Http CacheableFile $req $path]
+		return [Http CacheableFile $req $path [Mime type $path]]
 	    }
 	    
 	    directory {
