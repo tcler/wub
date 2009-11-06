@@ -43,7 +43,7 @@ function TimeEntry() {
 			// false to never use it
 		minTime: null, // The earliest selectable time, or null for no limit
 		maxTime: null, // The latest selectable time, or null for no limit
-		spinnerImage: 'timeEntry.png', // The URL of the images to use for the time spinner
+		spinnerImage: '/jquery/images/timeEntry.png', // The URL of the images to use for the time spinner
 			// Six images packed horizontally for normal and then each button pressed
 		spinnerSize: [20, 20, 8], // The width and height of the spinner image,
 			// and size of centre button for current time
