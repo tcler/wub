@@ -138,7 +138,7 @@ class create File {
 			}
 		    }
 		    if {$nodir} {
-			return [Http NotFound "No Such Directory"]
+			return [Http NotFound $r "<p>No Such Directory.</p>"]
 		    } else {
 			# no index file - generate a directory listing
 			set r [my dir $r $path]
