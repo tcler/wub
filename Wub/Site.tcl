@@ -332,7 +332,6 @@ namespace eval Site {
 	variable host; variable listener
 	Variable url "http://$host:[dict get $listener -port]/"
 
-
 	# now we're configured set some derived values
 	if {[info exists ::starkit::topdir]} {
 	    # starkit startup
@@ -587,15 +586,16 @@ namespace eval Site {
 	variable host
 	variable docroot
 
-	#### start Listener
+	#### start Listeners
 	variable listener
-	if {[dict exists $listener -port]
-	    && ([dict get $listener -port] > 0)
-	} {
-	    Listener listen -host $host -httpd Httpd {*}$listener
-
-	    Debug.log {Listening on http://$host:[dict get $listener -port]/ using docroot $docroot}
+	if {![dict exists $listener -port]} {
+	    dict set listener -port 80
 	}
+	set h {}
+	if {[dict exists $listener -host]} {
+	    set h [list -host [dict get $listener -host]]
+	}
+	Listener new {*}$h -httpd Httpd {*}$listener
 
 	#### start HTTPS Listener
 	variable https
@@ -609,8 +609,7 @@ namespace eval Site {
 	    #package require CA
 	    #CA init dir $home/CA host $host port [dict get $https -port]
 	    #dict lappend https -tls -cafile [CA cafile] -certfile [CA certificate $host] 
-	    Listener listen -host $host -httpd Httpd {*}$https
-	    Debug.log {Listening on https://$host:[dict get $https -port]/ using docroot $docroot}
+	    Listener new {*}$h -httpd Httpd {*}$https
 	}
 
 	#### start scgi Listener
