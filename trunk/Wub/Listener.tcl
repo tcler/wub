@@ -13,6 +13,8 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     lappend auto_path [pwd]
 }
 
+package require OO
+package require Chan
 package require WubUtils
 package require Debug
 Debug off listener 10
@@ -46,9 +48,8 @@ set API(Server/Listener) {
 	Some options bound for the protocol handler are important.  Notably ''-dispatch'' which is specifies the worker script for each request processed by the [Httpd] protocol stack.
     }
 }
-namespace eval Listener {
-    variable listeners; array set listeners {}	;# listener by port
 
+class create Listener {
     # accept --
     #
     #	This is the socket accept callback invoked by Tcl when
@@ -68,7 +69,7 @@ namespace eval Listener {
     #	The per-connection state is kept in Httpd$sock, (e.g., Httpdsock6),
     #	and upvar is used to create a local "data" alias for this global array.
 
-    proc accept {opts sock ipaddr rport} {
+    method accept {opts sock ipaddr rport} {
 	Debug.listener {accepted: $sock $ipaddr $rport}
 
 	if {[catch {
@@ -79,20 +80,24 @@ namespace eval Listener {
 	}
     }
 
-    variable id 0	;# listener id
+    method progress {args} {
+	puts stderr "TLS: $args"
+	return 1
+    }
 
-    proc listen {args} {
-	variable id
+    variable listener
+
+    constructor {args} {
 	if {[catch {
 	    set args [dict merge [subst {
 		-host [info hostname]
-		-port 8015
+		-port 8080
 		-httpd Httpd
-		-id [incr id]
+		-id [self]
 	    }] $args]
 
 	    if {![dict exists $args -tls]} {
-		set cmd [list socket -server [list ::Listener::accept $args]]
+		set cmd [list socket -server [list [self] accept $args]]
 	    } else {
 		puts stderr "TLS:$args"
 		dict set args -tls [dict merge {
@@ -100,7 +105,7 @@ namespace eval Listener {
 		} [dict get $args -tls]]
 		dict set args -certfile server-public.pem
 		dict set args -keyfile  server-private.pem
-		set cmd [list tls::socket -server [list ::Listener::accept $args] -command ::Listener::progress {*}[dict get $args -tls]]
+		set cmd [list tls::socket -server [list [self] accept $args] -command [list [self] progress] {*}[dict get $args -tls]]
 	    }
 	    
 	    if {[dict exists $args -myaddr] &&
@@ -112,30 +117,18 @@ namespace eval Listener {
 	    lappend cmd [dict get $args -port]
 
 	    Debug.listener {server: $cmd}
-	    if {[catch $cmd listen eo]} {
+	    if {[catch $cmd listener eo]} {
 		error "[dict get $args -host]:[dict get $args -port] $listen\ncmd=$cmd"
 	    }
-	    variable listeners; set listeners([dict get $args -port]) $id
-
+	    Debug.log {Listener $listener on [fconfigure $listener]}
 	} error eo]} {
 	    Debug.error {constructor err: $eo}
 	}
     }
 
-    proc destroy {} {
-	variable listeners
-	foreach listen [array names listeners] {
-	    catch {close $listen}
-	}
+    destructor {
+	catch {close $listen}
     }
-
-    proc progress {args} {
-	puts stderr "TLS: $args"
-	return 1
-    }
-
-    namespace export -clear *
-    namespace ensemble create -subcommands {}
 }
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
@@ -194,7 +187,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	$http Respond 200 [dict replace $req -content $c \
 			       warning "199 Moop 'For fun'" \
 			       content-type text/html \
-			  ]
+			      ]
     }
 
     # start Listener
