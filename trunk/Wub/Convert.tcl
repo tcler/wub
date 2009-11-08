@@ -187,7 +187,6 @@ namespace eval Convert {
 
     variable tcache	;# cache of known transformations
 
-
     # Find a match for an acceptable type,
     # or calculate a path through the transformation graph
     # which will generate an acceptable type
@@ -261,7 +260,7 @@ namespace eval Convert {
 
 	Debug.convert {possible successful paths: ($found)}
 
-	# find the most acceptable path
+	# find the most acceptable path by quality
 	if {[dict size $found]} {
 	    set path [dict get $found [lindex [lsort -real -decreasing [dict keys $found]] 0]]
 	    set path [lindex $path 0]
@@ -334,6 +333,12 @@ namespace eval Convert {
 
     # Convert - perform all content negotiation on a Wub response
     proc Convert {rsp {to ""}} {
+	# raw responses get no conversion
+	if {[dict get? $rsp -raw] eq "1"} {
+	    return $rsp	;# this is raw - no conversion
+	}
+
+	# avoid identity conversions
 	if {$to ne ""} {
 	    if {[dict get? $rsp content-type] eq $to} {
 		Debug.convert {Identity Conversion}
@@ -348,7 +353,7 @@ namespace eval Convert {
 	    dict set rsp accept "text/html"
 	} else {
 	    # don't allow */* as an 'accept' - they never mean it
-	    dict set rsp accept [string map [list */* text/html] [dict get $rsp accept]]
+	    dict set rsp accept [string map [list */* text/html,text/plain] [dict get $rsp accept]]
 	}
 
 	# condition 'content-type'
