@@ -1,3 +1,4 @@
+package ifneeded Package 1.0 [list source [file join $dir Package.tcl]]
 package ifneeded Http 2.1 [list source [file join $dir Http.tcl]]
 package ifneeded Cookies 1.0 [list source [file join $dir Cookies.tcl]]
 
