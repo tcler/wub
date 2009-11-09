@@ -132,7 +132,7 @@ namespace eval stx2html {
 	set tag [lindex $lc 0]	;# ignore the tag, use the id
 	set toc([join [lrange $toccnt 1 $level] .]) [list [join $args] $tag]
 
-	set p [subst $args]
+	set p [subst [join $args]]
 	variable title
 	if {$title eq ""} {
 	    set title $p
