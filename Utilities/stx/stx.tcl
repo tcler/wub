@@ -214,7 +214,7 @@ namespace eval stx {
 	lassign $lc ls le
 	set hnode [newnode $tree header [list $ls $ls]]
 	$tree set $hnode level $count
-	nodecdata $tree $hnode $para
+	nodecdata $tree $hnode [char $tree $para]
 
 	# now process any pendant para
 	if {$rest ne ""} {
