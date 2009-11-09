@@ -138,7 +138,7 @@ namespace eval stx2html {
 	    set title $p
 	}
 
-	return "[<h$level> {*}[id $lc] [join $args]]\n"
+	return "[<h$level> {*}[id $lc] $p]\n"
     }
 
     proc +hr {lc} {
