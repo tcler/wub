@@ -31,7 +31,9 @@ namespace eval ::tcl::package {
     }
     unset e; unset eo
 
-    variable dbfile ~/.tclpkg
+    package require md5
+    variable libv [::md5::md5 -hex [file normalize [info library]]]
+    variable dbfile ~/.tclpkg.$libv
     variable repo ~/.tclrepo
     catch {file mkdir $repo}
 
@@ -540,6 +542,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 
     package teapot ceptcl 0.3 linux-glibc2.3-ix86
     package require ceptcl
+    cep localhost 8080
 
     package require moop	;# doesn't exist
 }
