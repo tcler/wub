@@ -25,7 +25,8 @@ package ifneeded Package 1.0 {
 		CREATE TABLE package (package TEXT NOT NULL,
 				      version TEXT NOT NULL,
 				      script TEXT NOT NULL,
-				      dir TEXT
+				      dir TEXT,
+				      PRIMARY KEY (package,version)
 				      );
 	    }] execute
 	    [pdb prepare {
@@ -33,7 +34,9 @@ package ifneeded Package 1.0 {
 	    }] execute
 	    [pdb prepare {
 		CREATE TABLE path (path TEXT NOT NULL,
-				   date INT NOT NULL);
+				   date INT NOT NULL,
+				   PRIMARY KEY (path)
+				   );
 	    }] execute
 	    [pdb prepare {
 		CREATE INDEX pathindex ON path (path);
@@ -48,7 +51,7 @@ package ifneeded Package 1.0 {
 	    version {SELECT * FROM package WHERE package = :package AND version = :version}
 	    find {SELECT * FROM package WHERE package = :package}
 	    findD {SELECT * FROM package WHERE package = :package ORDER BY version DESC}
-	    paths {SELECT path FROM path}
+	    paths {SELECT * FROM path}
 	    addpath {REPLACE INTO path (path, date) VALUES (:path, :date)}
 	} {
 	    set statement($name) [pdb prepare $stmt]
@@ -284,9 +287,9 @@ package ifneeded Package 1.0 {
 	} else {
 	    # build cache of known paths
 	    variable paths
-	    [$statement(paths) foreach -as dicts d {
-		dict set paths $paths [dict get $d path] [dict get $d date]
-	    }]
+	    $statement(paths) foreach -as dicts d {
+		dict set paths [dict get $d path] [dict get $d date]
+	    }
 	    running
 	}
     }
