@@ -1,4 +1,10 @@
 # Package - provide a [package] work-alike with db backing
+# [package require Package]
+# http://code.google.com/p/wub/source/browse/trunk/Utilities/Package.tcl
+
+# Completely replaces package with a version which tracks additions to (note: not subtractions from) ::auto_path. First time it ever runs it creates a database under ~/.tclpkg into which it stores all the packages it finds. Thereafter, it satisfies all [package require] calls from that database, never traversing the filesystem again, unless and until ::auto_path changes to include a new, as yet unseen, directory.
+
+# This is faster than filesystem traversal, and provides a centralised database of all known/seen packages. This speed comes at a cost, of course: changes to the underlying file system will *not* be noticed by or reflected in Package. As things stand, the database would have to be removed to reflect these changes when it is automatically rebuilt.
 
 package require sqlite3
 package require tdbc::sqlite3
