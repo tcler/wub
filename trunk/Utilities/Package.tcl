@@ -294,6 +294,17 @@ namespace eval ::tcl::package {
 	}
     }
 
+    proc pkgFILE {cmd args} {
+	switch -- $cmd {
+	    join {
+		return [file join {*}$args]
+	    }
+	    default {
+		error "Can't call file $cmd"
+	    }
+	}
+    }
+
     # mount a zip file for processing
     proc zmount {file} {
 	package require vfs::zip
@@ -324,17 +335,14 @@ namespace eval ::tcl::package {
 	    # TODO: define a different style of metadata?
 	    error "Zip package $file doesn't contain a pkgIndex.tcl"
 	} else {
-	    interp create zipper
+	    interp create -safe zipper
 	    zipper alias ::package ::package zipIN $file $mp
-	    zipper eval {
-		trace add variable ::auto_path write "::package zipauto_path"
-	    }
+	    zipper alias ::file ::package pkgFILE
 	    foreach index $indices {
 		puts stderr "Package: zip adding $index"
-		zipper eval [string map [list %F% $index] {
-		    set dir [file dirname %F%]
-		    source %F%
-		}]
+		set fd [open $index]; set content [read $fd]; close $fd
+		zipper eval [list set dir [file dirname $index]]
+		zipper eval [list eval $content]
 	    }
 	    interp delete zipper
 	}
@@ -377,6 +385,81 @@ namespace eval ::tcl::package {
 	}
     }
 
+    # add an http archive to the package search space via vfs
+    proc http {url args} {
+	package require vfs::http
+	package require md5
+	variable repo
+	set repo [file normalize $repo]
+	set mp [file join $repo HTTP.[md5::md5 -hex $url]]
+	if {[file exists $mp]} {
+	    return
+	}
+	file mkdir $mp
+	set root [file join $mp .http]
+	file mkdir $root
+	::vfs::http::Mount $url $root
+
+	set index [file join $root pkgIndex.tcl]
+	if {![file exists $index]} {
+	    # no pkgIndex.tcl - this isn't a httpped package
+	    # TODO: define a different style of metadata?
+	    error "Http package $url doesn't contain a pkgIndex.tcl"
+	} else {
+	    puts stderr "Package: http adding $index to $mp"
+	    file copy $index $mp
+	    interp create -safe httper
+	    httper alias ::package [namespace current]::httpIN $root $mp
+	    httper alias ::load [namespace current]::http_copy $root $mp
+	    httper alias ::source [namespace current]::http_copy $root $mp
+	    httper alias ::file [namespace current]::pkgFILE
+	    set fd [open $index]; set content [read $fd]; close $fd
+	    httper eval [list set dir @BASE@]
+	    httper eval [list eval $content]
+	    interp delete httper
+	}
+	::vfs::http::Unmount $url $root
+	file delete $root
+    }
+
+    proc http_copy {root mp file} {
+	puts stderr "Package: http copying $file to $mp"
+	file copy [string map [list @BASE@ $root] $file] $mp
+    }
+
+    # intercept httper's ::package calls, paying attention to ifneeded
+    proc httpIN {root mp command args} {
+	variable statement
+	switch -- $command {
+	    ifneeded {
+		set script ""
+		lassign $args package version script
+		set found [$statement(version) allrows -as dicts]
+		if {![llength $found]} {
+		    # this is a new script
+		    if {$script ne ""} {
+			httper eval $script	;# run the install script, to copy files across
+			set script [string map [list @BASE@ $mp] $script]
+			$statement(replace) allrows
+			puts stderr "Package: Http Priming ifneeded $package $version $script"
+		    } else {
+			return $script
+		    }
+		} elseif {$script eq ""} {
+		    return [dict get [lindex $found 0] script $script]
+		} else {
+		    # we have a http file seeking to override an existing mapping
+		    # what to do?  Do nothing ATM.  Could optionally permit it,
+		    # could error on conflict ...
+		}
+	    }
+	    default {
+		# perform normal package thing
+		return [$command {*}$args]
+	    }
+	}
+    }
+
     # track changes to ::auto_path
     trace add variable ::auto_path write [namespace code pathchange]
 
@@ -401,5 +484,10 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     package require fileutil
     package zip ziptest.zip
     package require ZipTest
+
+    package http http://wub.googlecode.com/svn/trunk/Client/
+    puts stderr "Package: Loaded Client"
+    package require HTTP
+
     package require moop	;# doesn't exist
 }
