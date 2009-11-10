@@ -1,3 +1,5 @@
+# Package - provide a [package] work-alike with db backing
+
 package ifneeded Package 1.0 {
     package require sqlite3
     package require tdbc::sqlite3
@@ -29,16 +31,15 @@ package ifneeded Package 1.0 {
 	    [pdb prepare {
 		CREATE INDEX pindex ON package (package,version);
 	    }] execute
-	    if {0} {
-		[pdb prepare {
-		    CREATE TABLE path (path TEXT NOT NULL,
-				       date INT NOT NULL);
-		}]
-		[pdb prepare {
-		    CREATE INDEX pathindex ON path (path);
-		}]
-	    }
-	}]
+	    [pdb prepare {
+		CREATE TABLE path (path TEXT NOT NULL,
+				   date INT NOT NULL);
+	    }] execute
+	    [pdb prepare {
+		CREATE INDEX pathindex ON path (path);
+	    }] execute
+	} e eo]
+	#puts stderr "DB: $e: $eo"
 
 	# construct DB statements
 	foreach {name stmt} {
@@ -47,6 +48,8 @@ package ifneeded Package 1.0 {
 	    version {SELECT * FROM package WHERE package = :package AND version = :version}
 	    find {SELECT * FROM package WHERE package = :package}
 	    findD {SELECT * FROM package WHERE package = :package ORDER BY version DESC}
+	    paths {SELECT path FROM path}
+	    addpath {REPLACE INTO path (path, date) VALUES (:path, :date)}
 	} {
 	    set statement($name) [pdb prepare $stmt]
 	}
@@ -92,15 +95,55 @@ package ifneeded Package 1.0 {
 	namespace export -clear *
 	namespace ensemble create -command ::package -subcommands {} -unknown ::tcl::package::_unknown
 
+	variable priming 0	;# we're not currently priming
+	variable paths {}	;# cache of known paths
+
+	# track changes to ::auto_path
+	proc pathchange {args} {
+	    variable paths
+	    variable statement
+	    puts stderr "PathChange $::auto_path ($paths)"
+	    set new 0
+	    set date [clock seconds]
+	    foreach path $::auto_path {
+		set path [file normalize $path]
+		if {![dict exists $paths $path]} {
+		    $statement(addpath) execute
+		    dict set paths $path $date
+		    puts stderr "PathChange $path"
+		    incr new
+		}
+	    }
+	    variable priming
+	    if {$new && !$priming} {
+		priming
+	    }
+	}
+
 	# prime the db
-	proc prime {} {
-	    puts stderr "Priming"
+	proc priming {} {
+	    variable priming
+	    if {$priming} return
+	    set priming 1
+
+	    variable paths
+	    puts stderr "PRIMING $::auto_path ($paths)"
+
 	    # collect and store in db each ifneeded script
 	    proc ifneeded {package version script} {
 		variable statement
 		upvar 1 dir dir
-		$statement(replace) execute
-		puts stderr "Priming ifneeded $package $version $script"
+		set found [$statement(version) allrows -as lists]
+		if {![llength $found]} {
+		    $statement(replace) execute
+		    puts stderr "Priming ifneeded $package $version $script"
+		}
+	    }
+
+	    proc require {args} {
+		set result [uplevel [list [namespace current]::_package require {*}$args]]
+		puts stderr "called package require $args -> $result"
+		return $result
 	    }
 
 	    # collect and store any additionally provided packages
@@ -111,23 +154,33 @@ package ifneeded Package 1.0 {
 		if {[llength $versions]} {
 		    # here's a package with multiple versions
 		    foreach version $versions {
-			set script [_package ifneeded $package $version]
-			puts stderr "PRELOAD: $package $version $script"
-			$statement(replace) execute
+			set found [$statement(version) allrows -as lists]
+			if {![llength $found]} {
+			    set script [_package ifneeded $package $version]
+			    puts stderr "PRELOAD: $package $version $script"
+			    $statement(replace) execute
+			}
 		    }
 		} else {
 		    # this package has no versions, must be builtin
-		    puts stderr "BUILTIN $package"
 		    set script ""
 		    set version [_package present $package]
-		    $statement(replace) execute
+		    set found [$statement(version) allrows -as lists]
+		    if {![llength $found]} {
+			$statement(replace) execute
+			puts stderr "BUILTIN $package"
+		    }
 		}
 	    }
 
 	    # force traversal of the whole ::auto_path, collecting ifneeded data
 	    catch {package require __MOOOP____}
+	    running
+	}
 
-	    # replace the collector ifneeded script with the real one
+	# replace the collector ifneeded script with the real one
+	proc running {} {
+	    variable priming 0
 	    proc ifneeded {package version {script ""}} {
 		if {$script eq ""} {
 		    set d [$statement(version) -as dict]
@@ -144,108 +197,106 @@ package ifneeded Package 1.0 {
 		    return ""
 		}
 	    }
-	}
 
-	if {!$live} {
-	    prime
-	}
-
-	# what versions do we know about?
-	proc versions {package} {
-	    variable statement
-	    set v {}
-	    $statement(find) foreach -as dicts d {
-		lappend v [dict get $d version]
-	    }
-	    puts stderr "Package versions $package -> $v"
-	    return $v
-	}
-
-	proc require {args} {
-	    # parse args
-	    if {[string match -exact [lindex $args 0]]} {
-		set exact 1
-		set package [lindex $args end-1]
-		set version [lindex $args end]
-
-		puts stderr "Package require -exact $package '$version'"
-		if {![catch {_package present $package} present]} {
-		    return $present
+	    # what versions do we know about?
+	    proc versions {package} {
+		variable statement
+		set v {}
+		$statement(find) foreach -as dicts d {
+		    lappend v [dict get $d version]
 		}
-
-		set match [$statement(version) allrows -as dicts]
-		if {[llength $match]} {
-		    uplevel #0 [dict get [lindex $match 0] script]
-		    return $version
-		} else {
-		    return ""
-		}
+		puts stderr "Package versions $package -> $v"
+		return $v
 	    }
 
-	    set package [lindex $args 0]
-	    if {[llength $args] > 1} {
-		set version [lindex $args end]
-	    }
+	    proc require {args} {
+		# parse args
+		if {[string match -exact [lindex $args 0]]} {
+		    set exact 1
+		    set package [lindex $args end-1]
+		    set version [lindex $args end]
 
-	    variable statement
-	    if {[info exists version]} {
-		# run query over all matches, check requirement
-		set ds [$statement(findD) allrows -as dicts]
-		if {![llength $ds]} {
-		    return ""
-		}
-		foreach d $ds {
-		    if {[_package vsatisfies [dict get $d version] $version]} {
-			puts stderr "$package,$version is vsatisfied by ($d)"
-			break
+		    puts stderr "Package require -exact $package '$version'"
+		    if {![catch {_package present $package} present]} {
+			return $present
+		    }
+
+		    set match [$statement(version) allrows -as dicts]
+		    if {[llength $match]} {
+			uplevel #0 [dict get [lindex $match 0] script]
+			return $version
 		    } else {
-			puts stderr "($d) does not satisfy $package,$version"
+			return ""
 		    }
 		}
-	    } elseif {![catch {_package present $package} present]} {
-		return $present
-	    } else {
-		# no version, get highest available
-		set d [$statement(findD) allrows -as dicts]
-		if {![llength $d]} {
-		    error "no package $package"
-		    return ""
-		} else {
-		    set d [lindex $d 0]
-		    puts stderr "no version of $package specified, found singleton ($d)"
-		}
-	    }
 
-	    dict with d {
-		if {$script ne ""} {
-		    puts stderr "Running: $d"
-		    uplevel #0 $script
+		set package [lindex $args 0]
+		if {[llength $args] > 1} {
+		    set version [lindex $args end]
 		}
-		return $version
+
+		variable statement
+		if {[info exists version]} {
+		    # run query over all matches, check requirement
+		    set ds [$statement(findD) allrows -as dicts]
+		    if {![llength $ds]} {
+			return ""
+		    }
+		    foreach d $ds {
+			if {[_package vsatisfies [dict get $d version] $version]} {
+			    puts stderr "$package,$version is vsatisfied by ($d)"
+			    break
+			} else {
+			    puts stderr "($d) does not satisfy $package,$version"
+			}
+		    }
+		} elseif {![catch {_package present $package} present]} {
+		    return $present
+		} else {
+		    # no version, get highest available
+		    set d [$statement(findD) allrows -as dicts]
+		    if {![llength $d]} {
+			error "no package $package"
+			return ""
+		    } else {
+			set d [lindex $d 0]
+			puts stderr "no version of $package specified, found singleton ($d)"
+		    }
+		}
+
+		dict with d {
+		    if {$script ne ""} {
+			puts stderr "Running: $d"
+			uplevel #0 $script
+		    }
+		    return $version
+		}
 	    }
+	
 	}
 
-	proc ifneeded {package version {script ""}} {
-	    if {$script eq ""} {
-		set d [$statement(version) -as dict]
-		if {[dict size $d]} {
-		    puts stderr "Package ifneeded $package $version -> [dict get $d script]"
-		    return [dict get $d script]
-		} else {
-		    puts stderr "Package ifneeded $package $version -> UNREGISTERED"
-		    return ""
-		}
-	    } else {
-		$statement(replace) execute
-		puts stderr "Package ifneeded $package $version -> [dict get $d script]"
-		return ""
-	    }
+	# track changes to ::auto_path
+	trace add variable ::auto_path write [namespace code pathchange]
+
+	if {!$live} {
+	    pathchange
+	    priming
+	} else {
+	    # build cache of known paths
+	    variable paths
+	    [$statement(paths) foreach -as dicts d {
+		dict set paths $paths [dict get $d path] [dict get $d date]
+	    }]
+	    running
 	}
     }
 }
 
 package require Package
-puts stderr "DONE PRIMING"
-package require Tcl
-package require fileutil
-package require moop
+
+if {[info exists argv0] && ($argv0 eq [info script])} {
+    puts stderr "DONE PRIMING"
+    package require Tcl
+    package require fileutil
+    package require moop
+}
