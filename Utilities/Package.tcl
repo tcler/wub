@@ -60,7 +60,7 @@ package ifneeded Package 1.0 {
 	# create our own [package unknown] command
 	variable oldunknown [package unknown]
 	proc unknown {args} {
-	    puts stderr "UNKNOWN: $args"
+	    puts stderr "Package: UNKNOWN: $args"
 	    variable oldunknown
 	    return [{*}$oldunknown {*}$args]
 	}
@@ -72,7 +72,7 @@ package ifneeded Package 1.0 {
 		{*}[string map [list %N% $n] {
 		    proc %N% {args} {
 			set result [uplevel [list [namespace current]::_package %N% {*}$args]]
-			puts stderr "called package %N% $args -> $result"
+			puts stderr "Package: called package %N% $args -> $result"
 			return $result
 		    }
 		}]
@@ -84,7 +84,7 @@ package ifneeded Package 1.0 {
 	    variable orgsubs
 	    if {$subcmd in $orgsubs} {
 		set result [list [namespace current]::_package $subcmd {*}$args]
-		puts stderr "$cmd $subcmd $args -> $result"
+		puts stderr "Package: $cmd $subcmd $args -> $result"
 		return $result
 	    } else {
 		error "bad option $subcmd: must be [join $orgsubs ,]"
@@ -105,7 +105,7 @@ package ifneeded Package 1.0 {
 	proc pathchange {args} {
 	    variable paths
 	    variable statement
-	    puts stderr "PathChange $::auto_path ($paths)"
+	    puts stderr "Package: PathChange $::auto_path ($paths)"
 	    set new 0
 	    set date [clock seconds]
 	    foreach path $::auto_path {
@@ -113,7 +113,7 @@ package ifneeded Package 1.0 {
 		if {![dict exists $paths $path]} {
 		    $statement(addpath) execute
 		    dict set paths $path $date
-		    puts stderr "PathChange $path"
+		    puts stderr "Package: PathChanged $path"
 		    incr new
 		}
 	    }
@@ -130,22 +130,22 @@ package ifneeded Package 1.0 {
 	    set priming 1
 
 	    variable paths
-	    puts stderr "PRIMING $::auto_path ($paths)"
+	    puts stderr "Package: PRIMING $::auto_path ($paths)"
 
 	    # collect and store in db each ifneeded script
 	    proc ifneeded {package version script} {
 		variable statement
-		upvar 1 dir dir
+		upvar 1 dir dir	;# this is supposed to be the active dir, but isn't
 		set found [$statement(version) allrows -as lists]
 		if {![llength $found]} {
 		    $statement(replace) execute
-		    puts stderr "Priming ifneeded $package $version $script"
+		    puts stderr "Package: Priming ifneeded $package $version $script"
 		}
 	    }
 
 	    proc require {args} {
 		set result [uplevel [list [namespace current]::_package require {*}$args]]
-		puts stderr "called package require $args -> $result"
+		puts stderr "Package: called package require $args -> $result"
 		return $result
 	    }
 
@@ -160,7 +160,7 @@ package ifneeded Package 1.0 {
 			set found [$statement(version) allrows -as lists]
 			if {![llength $found]} {
 			    set script [_package ifneeded $package $version]
-			    puts stderr "PRELOAD: $package $version $script"
+			    puts stderr "Package: PRELOAD: $package $version $script"
 			    $statement(replace) execute
 			}
 		    }
@@ -171,7 +171,7 @@ package ifneeded Package 1.0 {
 		    set found [$statement(version) allrows -as lists]
 		    if {![llength $found]} {
 			$statement(replace) execute
-			puts stderr "BUILTIN $package"
+			puts stderr "Package: BUILTIN $package"
 		    }
 		}
 	    }
@@ -188,15 +188,15 @@ package ifneeded Package 1.0 {
 		if {$script eq ""} {
 		    set d [$statement(version) -as dict]
 		    if {[dict size $d]} {
-			puts stderr "Package ifneeded $package $version -> [dict get $d script]"
+			puts stderr "Package: ifneeded $package $version -> [dict get $d script]"
 			return [dict get $d script]
 		    } else {
-			puts stderr "Package ifneeded $package $version -> UNREGISTERED"
+			puts stderr "Package: ifneeded $package $version -> UNREGISTERED"
 			return ""
 		    }
 		} else {
 		    $statement(replace) execute
-		    puts stderr "Package ifneeded $package $version -> [dict get $d script]"
+		    puts stderr "Package: ifneeded $package $version -> [dict get $d script]"
 		    return ""
 		}
 	    }
@@ -208,7 +208,7 @@ package ifneeded Package 1.0 {
 		$statement(find) foreach -as dicts d {
 		    lappend v [dict get $d version]
 		}
-		puts stderr "Package versions $package -> $v"
+		puts stderr "Package: versions $package -> $v"
 		return $v
 	    }
 
@@ -219,7 +219,7 @@ package ifneeded Package 1.0 {
 		    set package [lindex $args end-1]
 		    set version [lindex $args end]
 
-		    puts stderr "Package require -exact $package '$version'"
+		    puts stderr "Package: require -exact $package '$version'"
 		    if {![catch {_package present $package} present]} {
 			return $present
 		    }
@@ -247,10 +247,10 @@ package ifneeded Package 1.0 {
 		    }
 		    foreach d $ds {
 			if {[_package vsatisfies [dict get $d version] $version]} {
-			    puts stderr "$package,$version is vsatisfied by ($d)"
+			    puts stderr "Package: $package,$version is vsatisfied by ($d)"
 			    break
 			} else {
-			    puts stderr "($d) does not satisfy $package,$version"
+			    puts stderr "Package: ($d) does not satisfy $package,$version"
 			}
 		    }
 		} elseif {![catch {_package present $package} present]} {
@@ -263,13 +263,13 @@ package ifneeded Package 1.0 {
 			return ""
 		    } else {
 			set d [lindex $d 0]
-			puts stderr "no version of $package specified, found singleton ($d)"
+			puts stderr "Package: no version of $package specified, found singleton ($d)"
 		    }
 		}
 
 		dict with d {
 		    if {$script ne ""} {
-			puts stderr "Running: $d"
+			puts stderr "Package: Running: $d"
 			uplevel #0 $script
 		    }
 		    return $version
@@ -295,10 +295,10 @@ package ifneeded Package 1.0 {
     }
 }
 
-package require Package
-
 if {[info exists argv0] && ($argv0 eq [info script])} {
-    puts stderr "DONE PRIMING"
+    package require Package	;# start the cooption of [package]
+
+    puts stderr "Package: DONE PRIMING"
     package require Tcl
     package require fileutil
     package require moop
