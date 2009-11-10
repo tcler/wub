@@ -20,26 +20,26 @@ namespace eval ::tcl::package {
     # open DB
     tdbc::sqlite3::connection create pdb ~/.tclpkg
     variable live [catch {
-	[pdb prepare {
+	pdb allrows {
 	    CREATE TABLE package (package TEXT NOT NULL,
 				  version TEXT NOT NULL,
 				  script TEXT NOT NULL,
 				  dir TEXT,
 				  PRIMARY KEY (package,version)
 				  );
-	}] execute
-	[pdb prepare {
+	}
+	pdb allrows {
 	    CREATE INDEX pindex ON package (package,version);
-	}] execute
-	[pdb prepare {
+	}
+	pdb allrows {
 	    CREATE TABLE path (path TEXT NOT NULL,
 			       date INT NOT NULL,
 			       PRIMARY KEY (path)
 			       );
-	}] execute
-	[pdb prepare {
+	}
+	pdb allrows {
 	    CREATE INDEX pathindex ON path (path);
-	}] execute
+	}
     } e eo]
     #puts stderr "DB: $e: $eo"
     
