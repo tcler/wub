@@ -12,6 +12,14 @@ package require tdbc::sqlite3
 package provide Package 1.0
 
 namespace eval ::tcl::package {
+    variable Debug 1
+    proc puts {args} {
+	variable Debug
+	if {$Debug} {
+	    ::puts {*}$args
+	}
+    }
+
     # calculate old-school package subcommands
     catch {package moop} e eo
     set e [split [lindex [split [dict get $eo -errorinfo] \n] 0] ,]
@@ -22,7 +30,7 @@ namespace eval ::tcl::package {
 	lappend orgsubs [string trim $eo]
     }
     unset e; unset eo
-    
+
     # open DB
     tdbc::sqlite3::connection create pdb ~/.tclpkg
     variable live [catch {
