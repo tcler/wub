@@ -110,7 +110,7 @@ namespace eval ::tcl::package {
 	foreach path $::auto_path {
 	    set path [file normalize $path]
 	    if {![dict exists $paths $path]} {
-		$statement(addpath) execute
+		$statement(addpath) allrows
 		dict set paths $path $date
 		puts stderr "Package: PathChanged $path"
 		incr new
@@ -137,7 +137,7 @@ namespace eval ::tcl::package {
 	    upvar 1 dir dir	;# this is supposed to be the active dir, but isn't
 	    set found [$statement(version) allrows -as lists]
 	    if {![llength $found]} {
-		$statement(replace) execute
+		$statement(replace) allrows
 		puts stderr "Package: Priming ifneeded $package $version $script"
 	    }
 	}
@@ -160,7 +160,7 @@ namespace eval ::tcl::package {
 		    if {![llength $found]} {
 			set script [_package ifneeded $package $version]
 			puts stderr "Package: PRELOAD: $package $version $script"
-			$statement(replace) execute
+			$statement(replace) allrows
 		    }
 		}
 	    } else {
@@ -169,7 +169,7 @@ namespace eval ::tcl::package {
 		set version [_package present $package]
 		set found [$statement(version) allrows -as lists]
 		if {![llength $found]} {
-		    $statement(replace) execute
+		    $statement(replace) allrows
 		    puts stderr "Package: BUILTIN $package"
 		}
 	    }
@@ -194,7 +194,7 @@ namespace eval ::tcl::package {
 		    return ""
 		}
 	    } else {
-		$statement(replace) execute
+		$statement(replace) allrows
 		puts stderr "Package: ifneeded $package $version -> [dict get $d script]"
 		return ""
 	    }
