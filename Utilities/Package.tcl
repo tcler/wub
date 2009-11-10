@@ -185,7 +185,7 @@ namespace eval ::tcl::package {
 	variable priming 0
 	proc ifneeded {package version {script ""}} {
 	    if {$script eq ""} {
-		set d [$statement(version) allrows -as dict]
+		set d [$statement(version) allrows -as dicts]
 		if {[dict size $d]} {
 		    puts stderr "Package: ifneeded $package $version -> [dict get $d script]"
 		    return [dict get $d script]
