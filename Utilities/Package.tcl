@@ -389,8 +389,8 @@ namespace eval ::tcl::package {
     proc http {url args} {
 	package require vfs::http
 	package require md5
-	variable repo
-	set repo [file normalize $repo]
+
+	variable repo; set repo [file normalize $repo]
 	set mp [file join $repo HTTP.[md5::md5 -hex $url]]
 	if {[file exists $mp]} {
 	    return
@@ -460,6 +460,55 @@ namespace eval ::tcl::package {
 	}
     }
 
+    proc teapot {package version {arch tcl}} {
+	variable repo; set repo [file normalize $repo]
+	puts stderr "Package: teapot $package $version $arch"
+	set url "http://teapot.activestate.com/package/name/$package/ver/$version/arch/$arch/"
+	set mp TEAPOT.[md5::md5 -hex $package-$version-$arch]
+	if {$arch eq "tcl"} {
+	    append url file.tm
+	    append mp .tm
+	} else {
+	    append url file.zip
+	    append mp .zip
+	}
+	set mp [file join $repo $mp]
+	if {[file exists $mp]} {
+	    return
+	}
+
+	package require http
+	set token [::http::geturl $url]
+	switch -- [::http::status $token] {
+	    ok {
+		set fd [open $mp wb]
+		fconfigure $fd 
+		puts -nonewline $fd [::http::data $token]
+		close $fd
+		::http::cleanup $token
+
+		if {$arch eq "tcl"} {
+		    variable statement
+		    set script [list source $mp]
+		    set found [$statement(version) allrows -as dicts]
+		    if {![llength $found]} {
+			# this is a new script
+			$statement(replace) allrows
+			puts stderr "Package: TEA Priming ifneeded $package $version $script"
+		    } else {
+			# what to do about conflicting versions?
+		    }
+		} else {
+		    return [zip $mp]
+		}
+	    }
+	    default {
+		set error [::http::error $token]
+		::http::cleanup $token
+	    }
+	}
+    }
+
     # track changes to ::auto_path
     trace add variable ::auto_path write [namespace code pathchange]
 
@@ -488,6 +537,9 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     package http http://wub.googlecode.com/svn/trunk/Client/
     puts stderr "Package: Loaded Client"
     package require HTTP
+
+    package teapot ceptcl 0.3 linux-glibc2.3-ix86
+    package require ceptcl
 
     package require moop	;# doesn't exist
 }
