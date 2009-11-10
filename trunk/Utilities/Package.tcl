@@ -31,8 +31,12 @@ namespace eval ::tcl::package {
     }
     unset e; unset eo
 
+    variable dbfile ~/.tclpkg
+    variable repo ~/.tclrepo
+    catch {file mkdir $repo}
+
     # open DB
-    tdbc::sqlite3::connection create pdb ~/.tclpkg
+    tdbc::sqlite3::connection create pdb $dbfile
     variable live [catch {
 	pdb allrows {
 	    CREATE TABLE package (package TEXT NOT NULL,
@@ -56,7 +60,7 @@ namespace eval ::tcl::package {
 	}
     } e eo]
     #puts stderr "DB: $e: $eo"
-    
+
     # construct DB statements
     foreach {name stmt} {
 	del {DELETE from package WHERE package = :package AND version = :version}
@@ -69,7 +73,7 @@ namespace eval ::tcl::package {
     } {
 	set statement($name) [pdb prepare $stmt]
     }
-    
+
     # create our own [package unknown] command
     variable oldunknown [package unknown]
     proc unknown {args} {
@@ -78,7 +82,7 @@ namespace eval ::tcl::package {
 	return [{*}$oldunknown {*}$args]
     }
     package unknown [namespace code unknown]
-    
+
     # create a wrapper around each existing package subcommand
     foreach n $orgsubs {
 	if {"::tcl::package::$n" ni [info commands ::tcl::package::*]} {
@@ -91,7 +95,7 @@ namespace eval ::tcl::package {
 	    }]
 	}
     }
-    
+
     # forward unimplemented subcommands
     proc _unknown {cmd subcmd args} {
 	variable orgsubs
@@ -103,17 +107,17 @@ namespace eval ::tcl::package {
 	    error "bad option $subcmd: must be [join $orgsubs ,]"
 	}
     }
-    
+
     # install the contents of this ns as an ensemble over ::package
     rename ::package ::tcl::package::_package
-    
+
     # create ::package as an ensemble
     namespace export -clear *
     namespace ensemble create -command ::package -subcommands {} -unknown ::tcl::package::_unknown
-    
+
     variable priming 0	;# we're not currently priming
     variable paths {}	;# cache of known paths
-    
+
     # track changes to ::auto_path
     proc pathchange {args} {
 	variable paths
@@ -135,16 +139,16 @@ namespace eval ::tcl::package {
 	    priming
 	}
     }
-    
+
     # prime the db
     proc priming {} {
 	variable priming
 	if {$priming} return
 	set priming 1
-	
+
 	variable paths
 	puts stderr "Package: PRIMING $::auto_path ($paths)"
-	
+
 	# collect and store in db each ifneeded script
 	proc ifneeded {package version script} {
 	    variable statement
@@ -155,13 +159,13 @@ namespace eval ::tcl::package {
 		puts stderr "Package: Priming ifneeded $package $version $script"
 	    }
 	}
-	
+
 	proc require {args} {
 	    set result [uplevel [list [namespace current]::_package require {*}$args]]
 	    puts stderr "Package: called package require $args -> $result"
 	    return $result
 	}
-	
+
 	# collect and store any additionally provided packages
 	variable statement
 	foreach package [_package names] {
@@ -188,12 +192,12 @@ namespace eval ::tcl::package {
 		}
 	    }
 	}
-	
+
 	# force traversal of the whole ::auto_path, collecting ifneeded data
 	catch {package require __MOOOP____}
 	running
     }
-    
+
     # replace the collector ifneeded script with the real one
     proc running {} {
 	variable priming 0
@@ -213,7 +217,7 @@ namespace eval ::tcl::package {
 		return ""
 	    }
 	}
-	
+
 	# what versions do we know about?
 	proc versions {package} {
 	    variable statement
@@ -224,19 +228,19 @@ namespace eval ::tcl::package {
 	    puts stderr "Package: versions $package -> $v"
 	    return $v
 	}
-	
+
 	proc require {args} {
 	    # parse args
 	    if {[string match -exact [lindex $args 0]]} {
 		set exact 1
 		set package [lindex $args end-1]
 		set version [lindex $args end]
-		
+
 		puts stderr "Package: require -exact $package '$version'"
 		if {![catch {_package present $package} present]} {
 		    return $present
 		}
-		
+
 		set match [$statement(version) allrows -as dicts]
 		if {[llength $match]} {
 		    uplevel #0 [dict get [lindex $match 0] script]
@@ -245,12 +249,12 @@ namespace eval ::tcl::package {
 		    return ""
 		}
 	    }
-	    
+
 	    set package [lindex $args 0]
 	    if {[llength $args] > 1} {
 		set version [lindex $args end]
 	    }
-	    
+
 	    variable statement
 	    if {[info exists version]} {
 		# run query over all matches, check requirement
@@ -288,7 +292,89 @@ namespace eval ::tcl::package {
 		return $version
 	    }
 	}
-	
+    }
+
+    # mount a zip file for processing
+    proc zmount {file} {
+	package require vfs::zip
+	set file [file normalize $file]
+	set root [file rootname $file]
+	file mkdir $root
+	::vfs::zip::Mount $file $root
+	return $root
+    }
+
+    # add a zip archive to the package search space via vfs
+    proc zip {file args} {
+	package require vfs::zip
+	set file [file normalize $file]
+	set mp [zmount $file]
+	set indices {}
+	foreach index [list $mp {*}[glob -directory $mp *]] {
+	    if {[file isdirectory $index]} {
+		set index [file join $index pkgIndex.tcl]
+		if {[file exists $index]} {
+		    lappend indices $index
+		}
+	    }
+	}
+
+	if {![llength $indices]} {
+	    # no pkgIndex.tcl - this isn't a zipped package
+	    # TODO: define a different style of metadata?
+	    error "Zip package $file doesn't contain a pkgIndex.tcl"
+	} else {
+	    interp create zipper
+	    zipper alias ::package ::package zipIN $file $mp
+	    zipper eval {
+		trace add variable ::auto_path write "::package zipauto_path"
+	    }
+	    foreach index $indices {
+		puts stderr "Package: zip adding $index"
+		zipper eval [string map [list %F% $index] {
+		    set dir [file dirname %F%]
+		    source %F%
+		}]
+	    }
+	    interp delete zipper
+	}
+    }
+
+    # track zipper's auto_path
+    proc zipauto_path {args} {
+	lappend ::auto_path {*}[zipper eval {set ::auto_path}]
+    }
+
+    # intercept zipper's ::package calls, paying attention to ifneeded
+    proc zipIN {zip mp command args} {
+	variable statement
+	switch -- $command {
+	    ifneeded {
+		set script ""
+		lassign $args package version script
+		set found [$statement(version) allrows -as dicts]
+		if {![llength $found]} {
+		    # this is a new script
+		    if {$script ne ""} {
+			set script "package zmount $zip; $script"
+			$statement(replace) allrows
+			puts stderr "Package: Zip Priming ifneeded $package $version $script"
+		    } else {
+			return $script
+		    }
+		} elseif {$script eq ""} {
+		    return [dict get [lindex $found 0] script $script]
+		} else {
+		    # we have a zip file seeking to override an existing mapping
+		    # what to do?  Do nothing ATM.  Could optionally permit it,
+		    # could error on conflict ...
+		}
+	    }
+	    default {
+		# perform normal package thing
+		return [$command {*}$args]
+	    }
+	}
     }
 
     # track changes to ::auto_path
@@ -313,5 +399,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     puts stderr "Package: DONE PRIMING"
     package require Tcl
     package require fileutil
-    package require moop
+    package zip ziptest.zip
+    package require ZipTest
+    package require moop	;# doesn't exist
 }
