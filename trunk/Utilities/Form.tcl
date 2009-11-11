@@ -400,8 +400,14 @@ namespace eval Form {
     }
 
     proc <button> {name args} {
+	if {[llength $args]%2} {
+	    set content [lindex $args end]
+	    set args [lrange $args 0 end-1]
+	} else {
+	    set content ""
+	}
 	variable Fdefaults
-	set config [dict merge [dict get? $Fdefaults button] [lrange $args 0 end-1] [list name $name]]
+	set config [dict merge [dict get? $Fdefaults button] $args [list name $name]]
 
 	if {![dict exists $config tabindex]} {
 	    variable tabindex
@@ -409,7 +415,7 @@ namespace eval Form {
 	}
 
 	variable buttonA
-	return "<[attr button [Dict subset $config $buttonA]]>[uplevel 1 [list subst [lindex $args end]]]</button>"
+	return "<[attr button [Dict subset $config $buttonA]]>$content</button>"
     }
     
     foreach {itype attrs field} {
