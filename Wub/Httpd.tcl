@@ -1530,6 +1530,22 @@ namespace eval Httpd {
 	return [post $r]
     }
 
+    # Authorisation
+    variable realms
+    proc addRealm {realm args} {
+	set realms($realm) $args
+    }
+
+    proc Auth {r realm} {
+	variable realms
+	dict set r -realm $realm
+	if {[dict exists $r code]} {dict unset r code}
+	set r [{*}$realms($realm) $r {*}$realm]
+	if {[dict exists $r code]} {
+	    return -level 1 $r	;# return from the caller (do)
+	}
+    }
+
     proc do {op req} {
 	#Debug on Httpd 10
 	#Debug on HttpdLow 10
