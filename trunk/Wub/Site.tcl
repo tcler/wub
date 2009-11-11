@@ -57,7 +57,7 @@ findpaths
 package require Debug
 package require Dict
 
-Debug off site 10
+Debug on site 10
 package provide Site 1.0
 
 namespace eval Site {
@@ -366,6 +366,7 @@ namespace eval Site {
     Debug on block 10
 
     proc start {args} {
+	Debug.site {start: $args}
 	init {*}$args
 	variable docroot
 
@@ -534,10 +535,18 @@ namespace eval Site {
 	    
 	    # install variables defined by local, argv, etc
 	    variable modules
-	    if {[info exists modules($application)]} {
-		variable $application
-		namespace eval $application [list variable {*}[set $application]]
+	    set app [string tolower $application]
+	    if {[info exists modules([string tolower $app])]} {
+		variable $app
+		Debug.site {starting application $application - [list variable {*}[set $app]]}
+		Debug.site {app ns: [info vars ::${application}::*]}
+		namespace eval ::$application [list variable {*}[set $app]]
+		Debug.site {app ns: [info vars ::${application}::*]}
+	    } else {
+		Debug.site {not starting application $application, no module in [array names modules]}
 	    }
+	} else {
+	    Debug.site {No application specified}
 	}
 
 	#### Load up nubs
