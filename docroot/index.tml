@@ -8,7 +8,7 @@
     <title>Wub Server in Pure Tcl</title>
     <meta name='description' content='Wub HTTP Server in Pure Tcl'>
     <meta name='keywords' content='web,server,pure,tcl'>
-    <meta name='author' content='Robert L Hicks / Design by Andreas Viklund - http://andreasviklund.com/'>
+    <meta name='author' content='Colin McCormack, Robert L Hicks / Design by Andreas Viklund - http://andreasviklund.com/'>
     <link rel='stylesheet' type='text/css' href='css/style.css' title='800px style' media='screen,projection'>
     <title>Wub Server in Pure Tcl</title>
   </head>
@@ -56,6 +56,7 @@
 	<p class='list2'><a href='http:/_stats/'>Server stats</a></p>
 	<!-- <p class='list2last'><a href='#'>Control panel</a></p> -->
 	<p class='list1'><a href='docs/'>Documentation</a></p>
+	<p class='list2'><a href='quickstart.tml'>Quick Start</a></p>
 	<p class='list2'><a href='docs/Server/'>Server</a></p>
 	<p class='list2'><a href='docs/Domains/'>Domains</a></p>
 	<p class='list2'><a href='docs/Utilities/'>Utilities</a></p>
