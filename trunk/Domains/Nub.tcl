@@ -459,6 +459,8 @@ namespace eval Nub {
 
 	# order urls by key length - longest first
 	set ordered [lsort -command urlorder [dict keys $urls]]
+	Debug.nub {ORDERED $ordered}
+
 	set count 0
 	set nubs {}
 	foreach key $ordered {
@@ -509,17 +511,20 @@ namespace eval Nub {
 
     proc urlorder {k1 k2} {
 	# make shorter lists come later in the order
-	set diff [expr {[llength $k2] - [llength $k1]}]
+	set l1 [split $k1 /]
+	set l2 [split $k2 /]
+	set diff [expr {[llength $l2] - [llength $l1]}]
 	if {$diff != 0} {
+	    #Debug.nub {urlorder '$k1'=[llength $l1] '$k2'=[llength $l2] -> $diff}
 	    return $diff
 	}
 
-	# make wildcards come later in the order
-	if {[string map {* \xff} $k1]
-	    >= [string map {* \xff} $k2]
-	} {
+	# make wildcards come later in the order for the same length
+	if {[string map {* ~~} $k1] >= [string map {* ~~} $k2]} {
+	    #Debug.nub {urlorder '$k1' '$k2' -> 1}
 	    return 1
 	} else {
+	    #Debug.nub {urlorder '$k1' '$k2' -> -1}
 	    return -1
 	}
     }
