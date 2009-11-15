@@ -204,7 +204,8 @@ class create CGI {
     method entity {r pipe} {
 	if {[catch {
 	    fconfigure $pipe -translation {binary binary} -encoding binary
-	    if {[eof $pipe]} {
+	    set gone [catch {eof $pipe} eof]
+	    if {$gone || $eof]} {
 		set c [read $pipe]
 		dict append r -content $c
 		Debug.cgi {done body [string length $c]'}
