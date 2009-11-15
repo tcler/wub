@@ -791,7 +791,7 @@ namespace eval Httpd {
 		READ {
 		    # fileevent tells us there's input to be read
 		    # check the channel
-		    set gone [catch {eof $pipe} eof]
+		    set gone [catch {eof $socket} eof]
 		    if {$gone || $eof} {
 			Debug.Httpd {[info coroutine] eof detected from yield}
 			terminate "EOF on reading"
@@ -805,7 +805,7 @@ namespace eval Httpd {
 		    # fileevent tells us there's input, but we're half-closed
 		    # and won't process any more input, but we want to send
 		    # all pending responses
-		    set gone [catch {eof $pipe} eof]
+		    set gone [catch {chan eof $socket} eof]
 		    if {$gone || $eof} {
 			# remote end closed - just forget it
 			terminate "socket is closed"
@@ -894,7 +894,7 @@ namespace eval Httpd {
 	variable maxline
 	set result [yield]
 	set line ""
-	set gone [catch {eof $pipe} eof]
+	set gone [catch {eof $socket} eof]
 	while {[set status [chan gets $socket line]] == -1 && !$gone && !$eof} {
 	    Debug.HttpdLow {[info coroutine] gets $socket - status:$status '$line'}
 	    set result [yield]
@@ -926,14 +926,15 @@ namespace eval Httpd {
 	    set chunklet [chan read $socket $size]
 	    incr size -[string length $chunklet]
 	    append chunk $chunklet
+	    set gone [catch {chan eof $socket} eof]
 	}
-	
+
 	set gone [catch {chan eof $socket} eof]
 	if {$gone || $eof} {
 	    Debug.HttpdLow {[info coroutine] eof in read}
 	    terminate "eof in reading entity - $size"	;# check the socket for closure
 	}
-	
+    	
 	# return the chunk
 	Debug.HttpdLow {[info coroutine] read: '$chunk'}
 	return $chunk
