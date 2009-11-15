@@ -205,7 +205,8 @@ class create CGI {
 	if {[catch {
 	    fconfigure $pipe -translation {binary binary} -encoding binary
 	    set gone [catch {eof $pipe} eof]
-	    if {$gone || $eof]} {
+	    
+	    if {$gone || $eof} {
 		set c [read $pipe]
 		dict append r -content $c
 		Debug.cgi {done body [string length $c]'}
@@ -243,13 +244,12 @@ class create CGI {
 		    set line [string trim [join [lassign [split $line :] header] :]]
 		    dict set r [string tolower $header] $line
 		    fileevent $pipe readable [list [self] headers $r $pipe]]
-		    Debug.cgi {header: $header '$line'}
-		} else {
-		    # get field continuation
-		    dict append r [string tolower $header] " " [string trim $line]
-		    fileevent $pipe readable [list [self] headers $r $pipe]
-		    Debug.cgi {continuation: $header '$line'}
-		}
+		Debug.cgi {header: $header '$line'}
+	    } else {
+		# get field continuation
+		dict append r [string tolower $header] " " [string trim $line]
+		fileevent $pipe readable [list [self] headers $r $pipe]
+		Debug.cgi {continuation: $header '$line'}
 	    }
 	} e eo]} {
 	    Debug.error {cgi header: $e ($eo)}
