@@ -225,7 +225,8 @@ class create CGI {
     method headers {r pipe} {
 	if {[catch {
 	    # get headers from CGI process
-	    if {[eof $pipe]} {
+	    set gone [catch {eof $pipe} eof]
+	    if {$gone || $eof} {
 		closed $r $pipe
 	    } else {
 		set n [gets $pipe line]
