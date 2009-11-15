@@ -204,8 +204,7 @@ class create CGI {
     method entity {r pipe} {
 	if {[catch {
 	    fconfigure $pipe -translation {binary binary} -encoding binary
-	    set gone [catch {eof $pipe} eof]
-	    
+	    set gone [catch {chan eof $pipe} eof]
 	    if {$gone || $eof} {
 		set c [read $pipe]
 		dict append r -content $c
@@ -226,7 +225,7 @@ class create CGI {
     method headers {r pipe} {
 	if {[catch {
 	    # get headers from CGI process
-	    set gone [catch {eof $pipe} eof]
+	    set gone [catch {chan eof $pipe}]
 	    if {$gone || $eof} {
 		my closed $r $pipe
 	    } else {
