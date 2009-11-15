@@ -198,7 +198,7 @@ class create CGI {
 	} e eo]} {
 	    Debug.error {cgi closed: $e ($eo)}
 	}
-	Http Resume $r
+	Httpd Resume $r
     }
 
     method entity {r pipe} {
@@ -355,7 +355,7 @@ class create CGI {
 	fileevent $pipe readable [list [self] headers $r $pipe]
 
 	# suspend this response
-	return [Http Suspend $r]
+	return [Httpd Suspend $r]
     }
 
     constructor {args} {
