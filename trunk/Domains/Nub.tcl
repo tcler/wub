@@ -40,7 +40,7 @@ set API(Domains/Nub) {
 	;<url> redirect <to> : Sends the client a redirect which causes it to attempt to load the specified 'to' URL.
 	;<url> code <script> ?<content-type>?: Returns the result of evaluating the supplied tcl script in the Nub namespace.
 	;<url> literal <literal> ?<content-type>?: Returns specified literal content to client.
-	;<url> rewrite <script>: Transforms a URL (selected by regexp) into another (as calculate by the rewrite tcl script, which is evaluated in the Nub namespace).  The rewrite script has access to all fields of the request, as elements of the dict variable named 'r'.
+	;<url> rewrite <script> or <url> rewrite -regsub <subspec>: Transforms a URL (selected by regexp) into another (as calculate by the rewrite tcl script, which is evaluated in the Nub namespace).  The rewrite script has access to all fields of the request, as elements of the dict variable named 'r'.  If the -regsub form is used, then <url> and <subspec> function as the exp and subspec elements of tcl's [[regsub]] command, whose result is returned.
 
 	== Nub as a Domain handler ==
 	Nub is itself a domain handler which presents a web interface through which a (suitably credentialed) user can create new nubs, edit or delete existing nubs, and apply nubs to the currently running server.  The Nub domain itself may be mapped into the URL space by: [[Nub domain /nub/ Nub]].
