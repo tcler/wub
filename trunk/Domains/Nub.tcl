@@ -995,6 +995,7 @@ namespace eval Nub {
 	lassign [split [dict get $parsed -path] "#"] path	;# remove #-part
 	switch -nocase -glob -- $url {
 	    http://* -
+	    https://* -
 	    //* {
 		# absolute URL - specifies hosts
 		set key [dict get $parsed -host]
