@@ -45,3 +45,5 @@ package ifneeded SMTP 3.0 [list source [file join $dir SMTP.tcl]]
 package ifneeded Mail 1.0 [list source [file join $dir Mail.tcl]]
 package ifneeded Image 1.0 [list source [file join $dir Image.tcl]]
 package ifneeded OO 1.0 [list source [file join $dir OO.tcl]]
+
+package ifneeded tclhttpd 1.0 [list source [file join $dir tclhttpd.tcl]]
