@@ -11,6 +11,7 @@ package require Debug
 Debug off Httpd 10
 Debug off HttpdLow 10
 Debug off Watchdog 10
+Debug off Entity 10
 Debug on slow 10
 
 package require Listener
@@ -515,8 +516,9 @@ namespace eval Httpd {
 	Debug.Httpd {[info coroutine] pending to send: ([dict keys $replies])}
 	foreach next [lsort -integer [dict keys $replies]] {
 	    watchdog
-	    
-	    if {[chan eof $socket]} {
+
+	    set gone [catch {chan eof $socket} eof]
+	    if {$gone || $eof} {
 		# detect socket closure ASAP in sending
 		Debug.Httpd {[info coroutine] Lost connection on transmit}
 		terminate "eof on $socket"
@@ -763,7 +765,8 @@ namespace eval Httpd {
 		terminate yieldcrash
 	    }
 
-	    if {[eof $socket] || [string match DEAD* [info coroutine]]} {
+	    set gone [catch {chan eof $socket} eof]
+	    if {$gone || $eof || [string match DEAD* [info coroutine]]} {
 		Debug.HttpdLow {[info coroutine] yield - eof $socket}
 		terminate "oops - we're dead"
 		return
@@ -788,7 +791,8 @@ namespace eval Httpd {
 		READ {
 		    # fileevent tells us there's input to be read
 		    # check the channel
-		    if {[chan eof $socket]} {
+		    set gone [catch {eof $pipe} eof]
+		    if {$gone || $eof} {
 			Debug.Httpd {[info coroutine] eof detected from yield}
 			terminate "EOF on reading"
 		    } else {
@@ -801,7 +805,8 @@ namespace eval Httpd {
 		    # fileevent tells us there's input, but we're half-closed
 		    # and won't process any more input, but we want to send
 		    # all pending responses
-		    if {[chan eof $socket]} {
+		    set gone [catch {eof $pipe} eof]
+		    if {$gone || $eof} {
 			# remote end closed - just forget it
 			terminate "socket is closed"
 		    } else {
@@ -889,7 +894,8 @@ namespace eval Httpd {
 	variable maxline
 	set result [yield]
 	set line ""
-	while {[set status [chan gets $socket line]] == -1 && ![chan eof $socket]} {
+	set gone [catch {eof $pipe} eof]
+	while {[set status [chan gets $socket line]] == -1 && !$gone && !$eof} {
 	    Debug.HttpdLow {[info coroutine] gets $socket - status:$status '$line'}
 	    set result [yield]
 	    if {$maxline && [chan pending input $socket] > $maxline} {
@@ -898,7 +904,8 @@ namespace eval Httpd {
 	}
 	Debug.HttpdLow {[info coroutine] get - success:$status}
 
-	if {[chan eof $socket]} {
+	set gone [catch {chan eof $socket} eof]
+	if {$gone || $eof} {
 	    Debug.HttpdLow {[info coroutine] eof in get}
 	    terminate $reason	;# check the socket for closure
 	}
@@ -913,14 +920,16 @@ namespace eval Httpd {
 	# read a chunk of $size bytes
 	Debug.HttpdLow {[info coroutine] reading}
 	set chunk ""
-	while {$size && ![chan eof $socket]} {
+	set gone [catch {chan eof $socket} eof]
+	while {$size && !$gone && !$eof} {
 	    set result [yield]
 	    set chunklet [chan read $socket $size]
 	    incr size -[string length $chunklet]
 	    append chunk $chunklet
 	}
 	
-	if {[chan eof $socket]} {
+	set gone [catch {chan eof $socket} eof]
+	if {$gone || $eof} {
 	    Debug.HttpdLow {[info coroutine] eof in read}
 	    terminate "eof in reading entity - $size"	;# check the socket for closure
 	}
@@ -1151,6 +1160,8 @@ namespace eval Httpd {
 	    # the request's headers.
 	    if {[dict exists $r transfer-encoding]} {
 		set te [dict get $r transfer-encoding]
+		Debug.entity {got transfer-encoding: $te}
+
 		# chunked 3.6.1, identity 3.6.2, gzip 3.5, compress 3.5, deflate 3.5
 		set tels {}
 		array set params {}
@@ -1199,6 +1210,7 @@ namespace eval Httpd {
 
 	    # fetch the entity (if any)
 	    if {"chunked" in [dict get? $r -te]} {
+		Debug.entity {got chunked content [dict get? $r -te]}
 		set chunksize 1
 		while {$chunksize} {
 		    chan configure $socket -translation {crlf binary}
@@ -1221,8 +1233,11 @@ namespace eval Httpd {
 			handle [Http Bad $r "Request Entity Too Large" 413] "Entity Too Large"
 		    }
 		}
+		Debug.entity {got chunked entity of length [string length [dict get $r -entity]]}
+
 	    } elseif {[dict exists $r content-length]} {
 		set left [dict get $r content-length]
+		Debug.entity {content-length: $left}
 
 		# enforce server limits on Entity length
 		variable maxentity
@@ -1248,6 +1263,7 @@ namespace eval Httpd {
 			Debug.HttpdLow {[info coroutine] reader got whole entity}
 		    }
 		}
+		Debug.entity {entity of length: [string length [dict get $r -entity]]}
 	    }
 
 	    # reset socket to header config, having read the entity
