@@ -901,6 +901,7 @@ namespace eval Httpd {
 	    if {$maxline && [chan pending input $socket] > $maxline} {
 		error "Line too long (over $maxline) '[string range $line 0 20]..."
 	    }
+	    set gone [catch {eof $socket} eof]
 	}
 	Debug.HttpdLow {[info coroutine] get - success:$status}
 
