@@ -373,7 +373,7 @@ class create CGI {
 	# a set of executors for each extension
 	foreach {ext lang} {.TCL tclsh .PY python .PL perl .SH bash .PHP php} {
 	    if {![dict exists $executors $ext]} {
-		dict set executors $ext $lan
+		dict set executors $ext $lang
 	    }
 	}
 
