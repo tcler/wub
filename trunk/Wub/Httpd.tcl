@@ -894,7 +894,7 @@ namespace eval Httpd {
 	variable maxline
 	set result [yield]
 	set line ""
-	set gone [catch {eof $socket} eof]
+   	set gone [catch {eof $socket} eof]
 	while {[set status [chan gets $socket line]] == -1 && !$gone && !$eof} {
 	    Debug.HttpdLow {[info coroutine] gets $socket - status:$status '$line'}
 	    set result [yield]
@@ -915,11 +915,10 @@ namespace eval Httpd {
 	Debug.HttpdLow {[info coroutine] get: '$line' [chan blocked $socket] [chan eof $socket]}
 	return $line
     }
-
+    
     # coroutine-enabled read
     proc read {socket size} {
-	# read a chunk of $size bytes
-	Debug.HttpdLow {[info coroutine] reading}
+    	# read a chunk of size bytes
 	set chunk ""
 	set gone [catch {chan eof $socket} eof]
 	while {$size && !$gone && !$eof} {
@@ -935,10 +934,10 @@ namespace eval Httpd {
 	    Debug.HttpdLow {[info coroutine] eof in read}
 	    terminate "eof in reading entity - $size"	;# check the socket for closure
 	}
-    	
+	
 	# return the chunk
 	Debug.HttpdLow {[info coroutine] read: '$chunk'}
-	return $chunk
+    	return $chunk
     }
 
     proc parse {lines} {
@@ -1495,7 +1494,7 @@ namespace eval Httpd {
 
 	foreach s [chan names] {
 	    catch {
-		if {[catch {chan eof $s] eof] || $eof} {
+		if {[catch {chan eof $s} eof] || $eof} {
 		    close $s
 		}
 	    }
