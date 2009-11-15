@@ -34,6 +34,11 @@ domain /html/ {File html} root [file join $::Site::docroot html]
 domain /bin/ {File bin} root [file join $::Site::docroot bin]
 domain /wub/docs/ About
 
+# the following nub rewrites all files of the form *.jpg (etc) occurring directly under /
+# so they appear to be under the /images/ URL
+rewrite {/[^/]+[^/](jpg|gif|png|ico)} {/images/[file tail [dict get $r -path]]}
+
+
 # just for fun
 # The code domain evaluates its first argument as a tcl script, and returns it with the 
 # optional type specified by the second domain
