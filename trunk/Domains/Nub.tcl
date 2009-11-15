@@ -36,11 +36,11 @@ set API(Domains/Nub) {
 	== Synthetic Nubs ==
 	The following synthetic nubs are available to pre-filter or manipulate the URL request, or to provide immediate content:
 	
-	;[http:../Server/Block Block]: instructs the server to place an IP address which attempts to access the URL onto a block list, preventing it from accessing the server in future.
-	;Redirect: Sends the client a redirect which causes it to attempt to load the specified URL.
-	;Code: Returns the result of evaluating the supplied tcl script in the Nub namespace.
-	;Literal: Returns literal content to client.
-	;Rewrite: Transforms a URL (selected by regexp) into another (as calculate by the rewrite tcl script, which is evaluated in the Nub namespace).
+	;[http:../Server/Block Block]: instructs the server to place an IP address which attempts to access a matching URL onto a block list, preventing it from accessing the server in future.
+	;<url> redirect <to> : Sends the client a redirect which causes it to attempt to load the specified 'to' URL.
+	;<url> code <script> ?<content-type>?: Returns the result of evaluating the supplied tcl script in the Nub namespace.
+	;<url> literal <literal> ?<content-type>?: Returns specified literal content to client.
+	;<url> rewrite <script>: Transforms a URL (selected by regexp) into another (as calculate by the rewrite tcl script, which is evaluated in the Nub namespace).  The rewrite script has access to all fields of the request, as elements of the dict variable named 'r'.
 
 	== Nub as a Domain handler ==
 	Nub is itself a domain handler which presents a web interface through which a (suitably credentialed) user can create new nubs, edit or delete existing nubs, and apply nubs to the currently running server.  The Nub domain itself may be mapped into the URL space by: [[Nub domain /nub/ Nub]].
@@ -560,12 +560,24 @@ namespace eval Nub {
 
 	    if {[string match _rewrite* $n]} {
 		# this is a rewrite definition - generate code to do the rewrite
-		append definitions [string trim [string map [list %N $n %L $body] {
-		    if {[catch {set defs(%N) {::apply {r {return "%L"}}}} e eo]} {
-			Debug.error {Nub Definition Error: '$e' in rewrite "lambda r {%L}".  ($eo)}
-			set defs(%N) [Nub failed %N $e $eo]
+		if {[lindex $body 0] eq "-regsub"} {
+		    lassign $body -> subspec url
+		    set rwtemplate {
+			if {[catch {set defs(%N) {::apply {r {return [regsub -- $url [dict get $r -path] $subspec]}}} e eo]} {
+			    Debug.error {Nub Definition Error: '$e' in rewrite "lambda r {%L}".  ($eo)}
+			    set defs(%N) [Nub failed %N $e $eo]
+			}
 		    }
-		}] \n] \n
+		} else {
+		    set body [lindex $body 0]
+		    set rwtemplate {
+			if {[catch {set defs(%N) {::apply {r {return "%L"}}}} e eo]} {
+			    Debug.error {Nub Definition Error: '$e' in rewrite "lambda r {%L}".  ($eo)}
+			    set defs(%N) [Nub failed %N $e $eo]
+			}
+		    }
+		}
+		append definitions [string trim [string map [list %N $n %L $script] $rwtemplate] \n] \n
 		continue
 	    }
 
@@ -606,7 +618,8 @@ namespace eval Nub {
 	set rewriting ""
 	foreach {from name} $rewrites {
 	    set url [join [lassign $from host] /]
-	    append rewriting [string map [list %H% [expr {$host eq "*"?".*":$host}] %U% $url %N% $name] {{^%H%,%U%$} { set url [{*}$defs(%N%) $r] }}] \n
+	    set rwtemplate {{^%H%,%U%$} { set url [{*}$defs(%N%) $r] }}
+	    append rewriting [string map [list %H% [expr {$host eq "*"?".*":$host}] %U% $url %N% $name] $rwtemplate] \n
 	}
 	return $rewriting
     }
@@ -817,7 +830,8 @@ namespace eval Nub {
 	    while {!$done && [incr count] < 30} {
 		Debug.nub {pre-RW [dict get $r -url]}
 		set prior [Url url $r]
-		switch -regexp -- "[dict get $r -host],[dict get $r -path]" {
+		set matches {}
+		switch -matchvar matches -regexp -- "[dict get $r -host],[dict get $r -path]" {
 		    %RW
 		    default {
 			set url [dict get $r -url]
@@ -868,8 +882,8 @@ namespace eval Nub {
 		    dict set rewrites $key $name
 
 		    # record this rewrite as a domain so we can generate the code
-		    # defining the rewrite operation
-		    dict set domains $name [list domain $domain body [dict get $urls $key body]]
+		    # defining the rewrite operation - handle the -regsub case
+		    dict set domains $name [list domain $domain body [list {*}[dict get $urls $key body] $url]]
 		    continue
 		}
 
@@ -1016,9 +1030,9 @@ namespace eval Nub {
 	}
     }
 
-    proc rewrite {url to} {
+    proc rewrite {url args} {
 	variable urls
-	dict set urls [parseurl $url] [list domain Rewrite body $to section $url]
+	dict set urls [parseurl $url] [list domain Rewrite body $args section $url]
     }
 
     proc block {url} {
