@@ -1495,7 +1495,7 @@ namespace eval Httpd {
 
 	foreach s [chan names] {
 	    catch {
-		if {[eof $s]} {
+		if {[catch {chan eof $s] eof] || $eof} {
 		    close $s
 		}
 	    }
