@@ -296,7 +296,7 @@ class create CGI {
 	# only execute scripts with appropriate extension
 	if {[catch {
 	    Debug.cgi {executors '$ext' in ($executors)}
-	    dict get $executors $ext
+	    dict get $executors [string toupper $ext]
 	} executor]} {
 	    return [Http Forbidden $r [<p> "Can't execute files of type '$ext'"]]
 	}
@@ -367,13 +367,13 @@ class create CGI {
 	foreach {n v} $args {
 	    set $n $v
 	}
-	
+
 	# a set of executors for each extension
-	if {![info exists executors] || $executors eq {}} {
-	    foreach {ext lang} {.TCL tclsh .PY python .PL perl .SH bash .PHP php} {
-		catch {
+	foreach {ext lang} {.TCL tclsh .PY python .PL perl .SH bash .PHP php} {
+	    catch {
+		if {![dict exists $executors $ext]} {
 		    set l [join [exec which [lindex $lang 0]] [lrange $lang 1 end]]
-		    lappend executors $ext $l
+		    dict set executors $ext $l
 		}
 	    }
 	}
