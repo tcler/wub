@@ -73,6 +73,9 @@ class create Listener {
 	Debug.listener {accepted: $sock $ipaddr $rport}
 
 	if {[catch {
+	    if {[dict exists $opts -tls]} {
+		tls::handshake $sock
+	    }
 	    # select an Http object to handle incoming
 	    {*}[dict get $opts -httpd] Connect $sock $ipaddr $rport {*}$opts
 	} result eo]} {
