@@ -209,7 +209,7 @@ class create CGI {
 		set c [read $pipe]
 		dict append r -content $c
 		Debug.cgi {done body [string length $c]'}
-		closed $r $pipe
+		my closed $r $pipe
 	    } else {
 		# read the rest of the content
 		set c [read $pipe]
@@ -227,12 +227,12 @@ class create CGI {
 	    # get headers from CGI process
 	    set gone [catch {eof $pipe} eof]
 	    if {$gone || $eof} {
-		closed $r $pipe
+		my closed $r $pipe
 	    } else {
 		set n [gets $pipe line]
 		if {$n == -1} {
 		    Debug.cgi {end of input}
-		    closed $r $pipe
+		    my closed $r $pipe
 		    # cgi dead
 		} elseif {$n == 0} {
 		    Debug.cgi {end of headers}
