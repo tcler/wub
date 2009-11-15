@@ -242,13 +242,14 @@ class create CGI {
 		    # read a new header
 		    set line [string trim [join [lassign [split $line :] header] :]]
 		    dict set r [string tolower $header] $line
-		    fileevent $pipe readable [list [self] headers $r $pipe]]
-		Debug.cgi {header: $header '$line'}
-	    } else {
-		# get field continuation
-		dict append r [string tolower $header] " " [string trim $line]
-		fileevent $pipe readable [list [self] headers $r $pipe]
-		Debug.cgi {continuation: $header '$line'}
+		    fileevent $pipe readable [list [self] headers $r $pipe]
+		    Debug.cgi {header: $header '$line'}
+		} else {
+		    # get field continuation
+		    dict append r [string tolower $header] " " [string trim $line]
+		    fileevent $pipe readable [list [self] headers $r $pipe]
+		    Debug.cgi {continuation: $header '$line'}
+		}
 	    }
 	} e eo]} {
 	    Debug.error {cgi header: $e ($eo)}
