@@ -1016,12 +1016,15 @@ namespace eval Httpd {
 	    }
 
 	    # parse the header into a request
-	    set r [dict merge $prototype [parse [lrange $lines 1 end]]]	;# parse the header
+	    set h [parse [lrange $lines 1 end]]	;# parse the header
+	    set r [dict merge $prototype $h]
+
 	    set start [clock microseconds]
 	    dict set r -htime [expr {$start - $hstart}]
 	    dict set r -received $start
 	    dict set r -transaction [incr transaction]
 	    dict set r -sock $socket
+	    dict set r -clientheaders [dict keys $h]
 
 	    # unpack the header line
 	    set header [lindex $lines 0]
