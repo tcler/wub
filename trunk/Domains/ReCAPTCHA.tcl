@@ -11,6 +11,19 @@ package provide ReCAPTCHA 1.0
 
 set API(Domains/ReCAPTCHA) {
     {ReCAPTCHA interface
+	=== Example: recaptcha on a page ===
+	Nub domain /rc/ {ReCAPTCHA ::rc} public YOUR_PUBLIC_KEY private YOUR_PRIVATE_KEY
+
+	Nub code /recap/ {
+	    set r [jQ form $r .autoform target '#result']	;# optional jQ
+	    set r [Http NoCache $r]	;# don't cache captchas
+
+	    # everything from here is content:
+	    <div> [subst {
+		[::rc form class autoform]
+		[<div> id result {}]
+	    }]
+	}
     }
 }
 

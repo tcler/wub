@@ -171,7 +171,7 @@ namespace eval Site {
 	globaldocroot 1		;# do we use Wub's docroot, or caller's
 
 	@shell [rc {
-	    load 1		;# want Console
+	    load 0		;# want Console
 	    port 8082		;# Console listening socket
 	}]
 

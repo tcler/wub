@@ -5,3 +5,7 @@ proc Doc_Dynamic {} {
     upvar 1 req req
     dict set req -dynamic 1
 }
+proc Doc_Static {} {
+    upvar 1 req req
+    dict set req -dynamic 0
+}
