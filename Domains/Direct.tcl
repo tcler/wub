@@ -36,7 +36,7 @@ set API(Domains/Direct) {
 
 	Argument defaults are honoured, as is the ''$args'' formal parameter - unspecified query arguments are passed into the target command as a dict.  Multiple query args with the same name are passed as a list of values.
 
-	Prefix invocation is supported, where a url like '''/fred/wilma''' will be matched by command /fred if /fred/wilma is not found.
+	Prefix invocation is supported, where a url like '''/fred/wilma''' will be matched by command /fred if /fred/wilma is not found.  The unmatched url suffix can be found in [[dict $r get -extra]]
 
 	Wildcard invocation is supported, with unmatched urls being handled by a nominated default command.
 
