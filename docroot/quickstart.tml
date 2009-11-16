@@ -44,8 +44,7 @@ return ""
       <p>quick and dirty: local.tcl in Application directory is always sourced before startup.</p>
     </dd>
   </dl>
-  
-  
+    
     <hr>
     <address><a href='mailto:colin@chinix.com'>Colin McCormack</a></address>
     <!-- Created: Thu Jan  5 13:00:57 EST 2006 -->
