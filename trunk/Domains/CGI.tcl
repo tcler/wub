@@ -16,13 +16,14 @@ set API(Domains/CGI) {
     executors {+association list between extension and language processor (which should be somewhere on your exec path)}
     root {root of directory containing scripts}
     maxcgi {limit to number of simultaneously running CGI processes}
+    whitelist {+list of environment variables to pass to CGI scripts}
 }
 
 class create CGI {
-    variable fields executors mount root maxcgi cgi
+    variable fields executors mount root maxcgi cgi whitelist
 
     method env {r} {
-	lappend env SERVER_SOFTWARE $::Httpd::server_id
+	lappend env SERVER_SOFTWARE [string map {" " /} $::Httpd::server_id]
 	# name and version of the server. Format: name/version
 
 	lappend env GATEWAY_INTERFACE CGI/1.1
@@ -33,7 +34,9 @@ class create CGI {
 	# server's hostname, DNS alias, or IP address
 	# as it would appear in self-referencing URLs.
 
-	lappend env SERVER_PROTOCOL [dict get? $r -scheme]
+	set protocol [string toupper [dict get? $r -scheme]]
+	append protocol /[dict get? $r -version]
+	lappend env SERVER_PROTOCOL $protocol
 	# name and revision of the information protcol this request came in with.
 	# Format: protocol/revision
 
@@ -83,13 +86,20 @@ class create CGI {
 	# into the environment with the prefix HTTP_ followed by the header name.
 	# If necessary, the server may choose to exclude any or all of these headers
 	# if including them would exceed any system environment limits.
-	foreach field $fields {
+	foreach field [dict get $r -clientheaders] {
 	    if {[dict exists $r $field]} {
-		lappend env [string map {- _} [string toupper $field]] [dict get $r $field]
+		lappend env HTTP_[string map {- _} [string toupper $field]] [dict get $r $field]
 	    }
 	}
 
-	return $env
+	# Modify the global environment variable by removing anything not
+	# in our whitelist. We may not unset ::env as that breaks the link
+	# between the environment and this Tcl array.
+	foreach name [array names ::env] {
+	    if {$name ni $whitelist} { unset ::env($name) }
+	}
+	array set ::env $env
+	return
     }
 
     # parseSuffix - given a suffix, locate the named object and split its name
@@ -315,8 +325,7 @@ class create CGI {
 	    dict set req -script $script
 	}
 
-	array set ::env [my env $r]	;# construct the environment per CGI 1.1
-	# TODO - need to clean up a lot of sensitive stuff from the ::env
+	my env $r	;# construct the environment per CGI 1.1
 
 	# limit the number of CGIs running
 	if {[incr cgi] > $maxcgi} {
@@ -365,6 +374,7 @@ class create CGI {
 	set root /var/www/cgi-bin/
 	set maxcgi 10
 	set cgi 0
+	set whitelist {PATH LD_LIBRARY_PATH TZ}
 
 	foreach {n v} $args {
 	    set $n $v
