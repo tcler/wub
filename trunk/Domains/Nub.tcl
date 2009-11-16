@@ -557,30 +557,33 @@ namespace eval Nub {
 	dict for {n d} $domains {
 	    Debug.nub {DEFINING: $n $d}
 	    set body [dict get $d body]; dict unset d body
-
+	    
 	    if {[string match _rewrite* $n]} {
 		# this is a rewrite definition - generate code to do the rewrite
 		if {[lindex $body 0] eq "-regsub"} {
-		    lassign $body -> subspec url
+		    lassign $body -> subspec
+		    set url [dict get $d url]
+
 		    set rwtemplate {
-			if {[catch {set defs(%N) {::apply {r {return [regsub -- $url [dict get $r -path] $subspec]}}} e eo]} {
-			    Debug.error {Nub Definition Error: '$e' in rewrite "lambda r {%L}".  ($eo)}
-			    set defs(%N) [Nub failed %N $e $eo]
+			if {[catch {set defs(%N) {::apply {r {return [regsub -- {%URL%} //[dict get $r -host]/[dict get $r -path] %SS%]}}}} e eo]} {
+			    Debug.error {Nub Definition Error: '$e' in rewrite "-regsub %URL% -> %SS%".  ($eo)}
+			    set defs(%N) [Nub failed "%N -regsub %URL%->%SS%" $e $eo]
 			}
 		    }
+		    append definitions [string trim [string map [list %N $n %URL% $url %SS% $subspec] $rwtemplate] \n] \n
 		} else {
-		    set body [lindex $body 0]
+		    set script [lindex $body 0]
 		    set rwtemplate {
 			if {[catch {set defs(%N) {::apply {r {return "%L"}}}} e eo]} {
 			    Debug.error {Nub Definition Error: '$e' in rewrite "lambda r {%L}".  ($eo)}
 			    set defs(%N) [Nub failed %N $e $eo]
 			}
 		    }
+		    append definitions [string trim [string map [list %N $n %L $script] $rwtemplate] \n] \n
 		}
-		append definitions [string trim [string map [list %N $n %L $script] $rwtemplate] \n] \n
 		continue
 	    }
-
+	    
 	    # handle domain package require
 	    set domain [dict get $d domain]; dict unset d domain
 	    if {![info exists defined($domain)]} {
@@ -612,18 +615,16 @@ namespace eval Nub {
 	Debug.nub {DEFINED: $definitions}
 	return $definitions
     }
-
+    
     # generate rewritingcode
     proc gen_rewrites {rewrites} {
 	set rewriting ""
-	foreach {from name} $rewrites {
-	    set url [join [lassign $from host] /]
-	    set rwtemplate {{^%H%,%U%$} { set url [{*}$defs(%N%) $r] }}
-	    append rewriting [string map [list %H% [expr {$host eq "*"?".*":$host}] %U% $url %N% $name] $rwtemplate] \n
+	foreach {url name} $rewrites {
+	    append rewriting [string map [list %URL% $url %N% $name] {{%URL%} {set url [{*}$defs(%N%) $r]}}] \n
 	}
 	return $rewriting
     }
-
+    
     # generate redirect code
     proc gen_redirects {redirects} {
 	set redirecting ""
@@ -830,8 +831,7 @@ namespace eval Nub {
 	    while {!$done && [incr count] < 30} {
 		Debug.nub {pre-RW [dict get $r -url]}
 		set prior [Url url $r]
-		set matches {}
-		switch -matchvar matches -regexp -- "[dict get $r -host],[dict get $r -path]" {
+		switch -regexp -- "//[dict get $r -host]/[dict get $r -path]" {
 		    %RW
 		    default {
 			set url [dict get $r -url]
@@ -882,8 +882,8 @@ namespace eval Nub {
 		    dict set rewrites $key $name
 
 		    # record this rewrite as a domain so we can generate the code
-		    # defining the rewrite operation - handle the -regsub case
-		    dict set domains $name [list domain $domain body [list {*}[dict get $urls $key body] $url]]
+		    # defining the rewrite operation
+		    dict set domains $name [list domain $domain body [dict get $urls $key body] url $section]
 		    continue
 		}
 
@@ -987,7 +987,7 @@ namespace eval Nub {
 	Debug.nub {GEN: $p}
 	return $p
     }
-
+    
     proc sect2dict {sect} {
 	set result {}
 	foreach {n v} $sect {
@@ -1000,7 +1000,7 @@ namespace eval Nub {
     }
 
     variable urls {}
-
+    
     proc parseurl {url} {
 	if {$url eq "default"} {
 	    set url //*/*
@@ -1032,7 +1032,7 @@ namespace eval Nub {
 
     proc rewrite {url args} {
 	variable urls
-	dict set urls [parseurl $url] [list domain Rewrite body $args section $url]
+	dict set urls $url [list domain Rewrite body $args section $url]
     }
 
     proc block {url} {
