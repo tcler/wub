@@ -1,6 +1,7 @@
 #! /usr/bin/env tclsh
 
 if {0} {
+    # this will run Wub under the experimental Package facility
     lappend auto_path [file dirname [pwd]]/Utilities/
     package require Package	;# start the cooption of [package]
 }
