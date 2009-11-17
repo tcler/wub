@@ -121,7 +121,7 @@ class create Listener {
 
 	    Debug.listener {server: $cmd}
 	    if {[catch $cmd listener eo]} {
-		error "[dict get $args -host]:[dict get $args -port] $listen\ncmd=$cmd"
+		error "[dict get $args -host]:[dict get $args -port] $listener\ncmd=$cmd"
 	    }
 	    Debug.log {Listener $listener on [fconfigure $listener]}
 	} error eo]} {
