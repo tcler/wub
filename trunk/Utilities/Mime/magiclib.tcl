@@ -1,6 +1,6 @@
 # usage:
 
-# 1) magic::open to open the file and prime buffers, etc.
+# 1) magic::open - opens file and primes buffer or magic::value - sets buffer
 # 2) run the appropriate generated magic over it, viz magic::/magic.mime
 # 3) the result call in the generated magic will return the result of scanning
 #     to the caller.
@@ -47,47 +47,33 @@
 #
 # - common prefix strings will have to be guarded against, by
 #   sorting string values, then sorting the tests in reverse length order.
+package require Tcl 8.6
 package provide magiclib 1.0
 
 namespace eval magic {
     variable debug 0
     variable optimise 1
 
-    # open the file to be scanned
-    proc open {path} {
-	variable fd
-	if {[info exists fd]} {
-	    close
-	}
-	
-	set fd [::open $path]
-	fconfigure $fd -translation binary -encoding binary
-	
-	# fill the string cache
-	# the vast majority of magic strings are in the first 4k of the file.
-	variable strbuf
-	set strbuf [read $fd 4096]
-
-	# clear the fetch cache
-	variable cache
-	catch {unset cache}
-	
-	variable result
-	set result ""
-	
-	variable string
-	set string ""
-	
-	variable numeric
-	set numeric -9999
-	
-	return $fd
+    # buffer the value given
+    proc value {text} {
+	variable strbuf [string range $text 0 4096]
+	variable result ""
+	variable string ""
+	variable numeric -9999
     }
 
-    proc close {args} {
-	variable fd
+    # open the file to be scanned and read in a buffer
+    proc open {path} {
+	# fill the string cache from file
+	# the vast majority of magic strings are in the first 4k of the file.
+	set fd [::open $path]
+	fconfigure $fd -translation binary -encoding binary
+	variable strbuf [::read $fd 4096]
 	::close $fd
-	unset fd
+
+	variable result ""
+	variable string ""
+	variable numeric -9999
     }
 
     # mark the start of a magic file in debugging
@@ -129,17 +115,10 @@ namespace eval magic {
 
     # fetch and cache a value from the file
     proc fetch {where what scan} {
-	variable cache
 	variable numeric
-
-	if {![info exists cache($where,$what,$scan)]} {
-	    variable fd
-	    seek $fd $where
-	    binary scan [read $fd $what] $scan numeric
-	    set cache($where,$what,$scan) $numeric
-	} else {
-	    set numeric $cache($where,$what,$scan)
-	}
+	variable strbuf
+	set str [string range $strbuf $where $what]
+	binary scan $str $scan numeric
 	return $numeric
     }
 
@@ -244,18 +223,17 @@ namespace eval magic {
 	    # in the string cache
 	    variable strbuf
 	    set string [string range $strbuf $offset $end]
+	    return $string
 	} else {
-	    # an unusual one
-	    variable fd
-	    seek $fd $offset	;# move to the offset
-	    set string [read $fd $len]
+	    Debug.mime {outside buffer range $offset,$len}
+	    return ""
 	}
-	return $string
     }
 
     proc S {offset comp val {qual ""}} {
 	variable fd
 	variable string
+	variable strbuf
 
 	# convert any backslashes
 	set val [subst -nocommands -novariables $val]
@@ -263,10 +241,10 @@ namespace eval magic {
 	if {$comp eq "x"} {
 	    # match anything - don't care, just get the value
 	    set string ""
-
-	    seek $fd $offset	;# move to the offset
+	    
+	    incr offset -1
 	    while {([::string length $string] < 100)
-		   && [::string is print [set c [read $fd 1]]]} {
+		   && [::string is print [set c [string index $strbuf $offset 1]]]} {
 		if {[string is space $c]} {
 		    break
 		}

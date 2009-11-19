@@ -3,14 +3,13 @@ package require WubUtils
 package require Debug
 Debug off mime 10
 
+package require mime-magic
 package provide Mime 1.0
 
 namespace eval Mime {
-    variable mimecache
     variable file_attributes 1	;# should we seek file attributes to tell us?
     variable home [file dirname [info script]]
-    variable e2m
-    array set e2m {}
+    variable e2m {}
 
     variable default text/plain	;# default mime type
     variable prime mime.types	;# file to prime map
@@ -31,14 +30,13 @@ namespace eval Mime {
     proc add {ext type} {
 	variable e2m
 	set ext [string tolower [string trimleft $ext .]]
-	set e2m(.$ext) $type
-	lappend e2m($type) .$ext
+	dict set e2m .$ext $type
+	dict lappend e2m $type .$ext
     }
 
     proc read {file} {
 	package require fileutil
 	variable e2m
-	#puts stderr "Mime read $file"
 
 	::fileutil::foreachLine line $file {
 	    set line [string trim $line]
@@ -49,7 +47,7 @@ namespace eval Mime {
 	    set line [split $line]
 	    if {[llength $line] == 1} {
 		# record a known type with no extension
-		set e2m([lindex $line 0]) {}
+		dict set e2m [lindex $line 0] {}
 	    } else {
 		if {[string match {*/*} [lindex $line 0]]} {
 		    foreach ext [lrange $line 1 end] {
@@ -62,61 +60,88 @@ namespace eval Mime {
 	}
     }
 
+    # determine type by file extension
     proc MimeOf {ext} {
-	variable e2m
-
-	init	;# lazy init, to allow user customisation
-
-	set ext ".[string trim [string tolower $ext] .]"
-	if {[info exist e2m($ext)]} {
-	    return $e2m($ext)
-	} else {
-	    return $e2m()
+	# try to prime the e2m array
+	variable prime
+	variable home
+	if {$prime ne ""} {
+	    if {[file pathtype $prime] eq "relative"} {
+		set prime [file join $home $prime]
+	    }
+	    catch {
+		read $prime
+	    }
 	}
+
+	# set the default mimetype
+	variable e2m; variable default
+	dict set e2m "" $default
+
+	proc MimeOf {ext} {
+	    variable e2m
+	    
+	    set ext ".[string trim [string tolower $ext] .]"
+	    if {[dict exist $e2m $ext]} {
+		return [dict get $e2m $ext]	;# mime type of extension
+	    } else {
+		return [dict get $e2m ""]	;# default mime type
+	    }
+	}
+	
+	return [MimeOf $ext]
     }
 
     # init the thing
     proc init {args} {
-	#puts stderr "Mime init"
-	variable home
-	variable tie
-	variable e2m
-	variable prime
-
-	if {[file pathtype $prime] eq "relative"} {
-	    set prime [file join $home $prime]
+	Debug.mime {Mime init $args}
+	foreach {n v} $args {
+	    variable $n $v
 	}
-
-	# set the default mimetype
-	variable default
-	set e2m() $default
-
-	catch {read $prime}
 	proc init {args} {}	;# can only be initialized once.
     }
 
-    array set mimecache {}
+    # call mime magic on a given string or {path $file}
+    proc magic {args} {
+	if {[llength $args]%2} {
+	    # this is a string
+	    Debug.mime {typeOf text}
+	    magic::value [lindex $args end]
+	    set args [lrange $args 0 end-1]
+	} else {
+	    # this is a file
+	    Debug.mime {typeOf file}
+	    magic::open [dict get $args path]
+	}
+
+	if {[catch {
+	    ::magic::/magic.mime
+	} result eo]} {
+	    Debug.mime {magic error: $result ($eo)}
+	    set result ""
+	}
+
+	if {$result eq ""
+	    && [dict exists $args path]
+	} {
+	    return [MimeOf $path]
+	}
+
+	Debug.mime {magic result: $result}
+	return $result
+    }
+
+    variable cache; array set cache {}
+    # this tries to store mime info in the file's attributes
     proc type {file} {
 	Debug.mime {MIME type $file}
-
-	# could be cached
-	variable mimecache
-	if {[info exists mimecache($file)]} {
-	    Debug.mime {MIME type $file cached: $mimecache($file)}
-	    return $mimecache($file)
-	}
 
 	# filesystem may know file's mime type
 	variable file_attributes
 	if {$file_attributes
-	    &&
-	    (
-	     ![catch {file attributes $file -mime} type]
-	     &&
-	     ($type != "")
-	     )} {
+	    && ![catch {file attributes $file -mime} type]
+	    && $type != ""} {
 	    # filesystem maintains -mime type attribute
-	    set mimecache($file) $type
 	    return $type
 	}
 
@@ -126,7 +151,7 @@ namespace eval Mime {
 	    directory {
 		return "multipart/x-directory"
 	    }
-
+	    
 	    characterspecial -
 	    blockspecial -
 	    fifo -
@@ -135,46 +160,37 @@ namespace eval Mime {
 	    }
 	}
 
-	# possibly do mime magic
-	variable mime_magic
-	if {![info exists mime_magic]} {
-	    # load mime-magic if it's about ... otherwise don't
-	    if {[catch {package require mime-magic} r eo]} {
-		Debug.mime {MIME err: $r ($eo)}
-		set mime_magic 0
-	    } else {
-		set mime_magic 1
-	    }
+	variable cache
+	if {[info exists cache($file)]} {
+	    return $cache($file)
 	}
 
-	Debug.mime {MIME magic? $mime_magic}
-
-	if {$mime_magic} {
-	    if {![catch {
-		::magic::open $file
-		set mimecache($file) [::magic::/magic.mime]
-		Debug.mime {MIME magic: $mimecache($file)}
-		::magic::close
-	    } r eo]} {
-		if {$file_attributes} {
-		    # record the finding for posterity
-		    catch {file attributes $file -mime $mimecache($file)}
-		}
-
-		Debug.mime {MIME cache: $mimecache($file)}
-		if {$mimecache($file) ne ""} {
-		    return $mimecache($file)
-		}
-	    } else {
-		Debug.mime {MAGIC error: $r ($eo)}
+	# possibly do mime magic
+	Debug.mime {MIME magic}
+	if {![catch {
+	    ::magic::open $file
+	    set result [::magic::/magic.mime]
+	    Debug.mime {MIME magic: $result}
+	} r eo]} {
+	    if {$file_attributes} {
+		# record the finding for posterity
+		catch {file attributes $file -mime $result}
 	    }
+	    Debug.mime {MIME cache: $result}
+	    if {$result ne ""} {
+		set cache($file) $result
+		return $result
+	    }
+	} else {
+	    Debug.mime {MAGIC error: $r ($eo)}
 	}
 	
-	set mimecache($file) [MimeOf [file extension $file]]
-	# (note: we don't store e2m mime types in file attributes) Why?
-
-	Debug.mime {MIME ext: $mimecache($file)}
-	return $mimecache($file)
+	# fallback to using file extension
+	set result [MimeOf [file extension $file]]
+	set cache($file) $result
+	
+	Debug.mime {MIME ext: $result}
+	return $result
     }
 
     namespace import 
