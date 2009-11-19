@@ -632,7 +632,7 @@ namespace eval Httpd {
 		    chan event $socket readable ""	;# stop reading input while fcopying
 		    chan event $socket writable ""	;# stop writing while fcopying
 		    Debug.Httpd {[info coroutine] FCOPY ENTITY: '$file' $bytes bytes} 8
-		    fcopy $fd $socket -command [list ::coroshim_fcopy [info coroutine] FCOPY $fd $bytes]
+		    chan copy $fd $socket -command [list ::coroshim_fcopy [info coroutine] FCOPY $fd $bytes]
 		    Debug.HttpdLow {[info coroutine] FCOPY STARTED} 8
 		    break	;# we don't process any more i/o on $socket
 		} else {
