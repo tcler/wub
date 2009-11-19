@@ -380,13 +380,21 @@ namespace eval Httpd {
 			#Debug.HttpdLow {pre-CE content length [string length [dict get $reply -content]]}
 			# also gzip content so cache can store that.
 			lassign [CE $reply {*}$args] reply content
+			set file ""	;# this is not a file
 
 			# ensure content-length is correct
 			dict set reply content-length [string length $content]
 			#Debug.HttpdLow {post-CE content length [string length $content]}
+		    } elseif {[dict exists $reply -file]} {
+			# the app has returned the pathname of a file instead of content
+			set file [dict get $reply -file]
+			dict set reply content-length [file size $file]
+			set content ""
+			set cache 0	;# can't cache these - TODO: maybe later
 		    } else {
 			Debug.HttpdLow {format4write: response empty - no content in reply}
 			set content ""	;# there is no content
+			set file ""	;# this is not a file
 			set empty 1	;# it's empty
 			dict set reply content-length 0
 			#puts stderr "NOCACHE empty $code: $cache"
@@ -487,7 +495,38 @@ namespace eval Httpd {
 	    Debug.HttpdLow {format4server: ($dh)}
 	}
 	#puts stderr "HEADER: $header"
-	return [list $reply $header $content $empty $cache]
+	return [list $reply $header $content $file $empty $cache]
+    }
+
+    # our fcopy has completed
+    proc fcopy_complete {fd bytes written {error ""}} {
+	corovars replies closing socket
+	Debug.HttpdLow {[info coroutine] fcopy_complete: $fd $bytes $written '$error'
+}
+	set gone [catch {chan eof $socket} eof]
+	if {$gone || $eof} {
+	    # detect socket closure ASAP in sending
+	    Debug.Httpd {[info coroutine] Lost connection on fcopy}
+	    if {$error eq ""} {
+		set error "eof on $socket in fcopy"
+	    }
+	}
+
+	# if $bytes != $written or $error ne "", we have a problem
+	if {$gone || $eof || $bytes != $written || $error ne ""} {
+	    if {$error eq ""} {
+		set error "fcopy failed to send $bytes, only sent $written."
+	    }
+	    Debug.error $error
+	    terminate "$error in fcopy"
+	} elseif {![chan pending output $socket]} {
+	    # only when the client has consumed our output do we
+	    # restart reading input
+	    chan event $socket readable [list [info coroutine] READ]
+	}
+
+	# see if the writer needs service
+	chan event $socket writable [list [info coroutine] WRITABLE]
     }
 
     # respond to client with as many consecutive responses as he can consume
@@ -550,10 +589,10 @@ namespace eval Httpd {
 	    # respond to the next transaction in trx order
 	    # unpack and consume the reply from replies queue
 	    # remove this response from the pending response structure
-	    lassign [dict get $replies $next] head content close empty
+	    lassign [dict get $replies $next] head content file close empty
 	    dict unset replies $next		;# consume next response
 
-	    # connection close required?
+	    # connection close after transmission required?
 	    # NB: we only consider closing if all pending requests
 	    # have been satisfied.
 	    if {$close} {
@@ -574,8 +613,21 @@ namespace eval Httpd {
 	    # which doesn't then pick up the next response
 	    # in the pipeline
 	    if {!$empty} {
-		chan puts -nonewline $socket $content	;# send the content
-		Debug.Httpd {[info coroutine] SENT ENTITY: [string length $content] bytes} 8
+		if {$file ne ""} {
+		    # send content of file descriptor using fcopy
+		    set fd [open $file r]
+		    set bytes [file size $file]
+		    chan configure $socket -translation binary
+		    chan configure $fd -translation binary
+		    chan event $socket readable ""	;# stop reading input while fcopying
+		    chan event $socket writable ""	;# stop writing while fcopying
+		    fcopy $fd $socket -command [list [info coroutine] FCOPY $fd $bytes]
+		    break	;# we don't process any more i/o on $socket
+		} else {
+		    # send literal content
+		    chan puts -nonewline $socket $content	;# send the content
+		    Debug.Httpd {[info coroutine] SENT ENTITY: [string length $content] bytes} 8
+		}
 	    }
 	    chan flush $socket
 
@@ -647,11 +699,11 @@ namespace eval Httpd {
 
 	# wire-format the reply transaction - messy
 	variable ce_encodings	;# what encodings do we support?
-	lassign [format4send $r -cache $cache -encoding $ce_encodings] r header content empty cache
+	lassign [format4send $r -cache $cache -encoding $ce_encodings] r header content file empty cache
 	set header "HTTP/1.1 $header" ;# add the HTTP signifier
 
 	# global consequences - botting and caching
-	if {$cache} {
+	if {$cache && $file eq ""} {
 	    # handle caching (under no circumstances cache bot replies)
 	    Cache put $r	;# cache it before it's sent
 	    dict set r -caching inserted
@@ -670,7 +722,7 @@ namespace eval Httpd {
 	# chunked? - is the content to be sent in chunked mode?
 	# empty? - is there actually no content, as distinct from 0-length content?
 	Debug.Httpd {[info coroutine] ADD TRANS: ([dict keys $replies])}
-	dict set replies $trx [list $header $content [close? $r] $empty]
+	dict set replies $trx [list $header $content $file [close? $r] $empty]
 	dict set satisfied $trx {}	;# record satisfaction of transaction
 
 	# having queued the response, we allow it to be sent on 'socket writable' event
@@ -849,6 +901,10 @@ namespace eval Httpd {
 		TIMEOUT {
 		    # we've timed out - oops
 		    terminate TIMEOUT
+		}
+
+		FCOPY {
+		    fcopy_complete {*}$args
 		}
 
 		default {
