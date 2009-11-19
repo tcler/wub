@@ -40,7 +40,7 @@ namespace eval Debug {
 		}
 		variable timestamp
 		if {$timestamp} {
-		    set time " [tcl::clock::microseconds] "
+		    set time " [tcl::clock::milliseconds] "
 		} else {
 		    set time ""
 		}
