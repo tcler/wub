@@ -615,6 +615,7 @@ namespace eval Httpd {
 	    chan puts -nonewline $socket "$head\r\n"
 	    Debug.Httpd {[info coroutine] SENT HEADER: $socket '[lindex [split $head \r] 0]' [string length $head] bytes} 4
 	    chan flush $socket	;# try to flush as early as possible
+	    Debug.HttpdLow {[info coroutine] flushed $socket} 4
 
 	    # send the content/entity (if any)
 	    # note: we must *not* send a trailing newline, as this
@@ -632,6 +633,7 @@ namespace eval Httpd {
 		    chan event $socket writable ""	;# stop writing while fcopying
 		    Debug.Httpd {[info coroutine] FCOPY ENTITY: '$file' $bytes bytes} 8
 		    fcopy $fd $socket -command [list ::coroshim_fcopy [info coroutine] FCOPY $fd $bytes]
+		    Debug.HttpdLow {[info coroutine] FCOPY STARTED} 8
 		    break	;# we don't process any more i/o on $socket
 		} else {
 		    # send literal content
