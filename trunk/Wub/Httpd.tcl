@@ -369,7 +369,7 @@ namespace eval Httpd {
 		    # 204 (no content),
 		    # and 304 (not modified)
 		    # responses MUST NOT include a message-body
-		    Debug.HttpdLow {format4write: code is $code, content is [llength $content] bytes}
+		    Debug.HttpdLow {format4write: code is $code}
 		    set reply [Http expunge $reply]
 		    set content ""
 		    set cache 0	;# can't cache these
@@ -524,10 +524,14 @@ namespace eval Httpd {
 	    }
 	    Debug.error $error
 	    terminate "$error in fcopy"
+	    return
 	} elseif {![chan pending output $socket]} {
 	    # only when the client has consumed our output do we
 	    # restart reading input
+	    Debug.HttpdLow {[info coroutine] fcopy_complete: restarting reader}
 	    chan event $socket readable [list [info coroutine] READ]
+	} else {
+	    Debug.HttpdLow {[info coroutine] fcopy_complete: suspending reader [chan pending output $socket]}
 	}
 
 	# see if the writer needs service
@@ -539,7 +543,7 @@ namespace eval Httpd {
 	corovars replies response sequence generation satisfied transaction closing unsatisfied socket
 	if {[string match DEAD* [info coroutine]]} {
 	    Debug.Httpd {[info coroutine] appears to be dead}
-	    terminate "oops - we're dead"
+	    terminate "oops - we're dead in respond"
 	    return
 	}
 	if {$closing && ![dict size $unsatisfied]} {
@@ -626,6 +630,7 @@ namespace eval Httpd {
 		    chan configure $fd -translation binary
 		    chan event $socket readable ""	;# stop reading input while fcopying
 		    chan event $socket writable ""	;# stop writing while fcopying
+		    Debug.Httpd {[info coroutine] FCOPY ENTITY: '$file' $bytes bytes} 8
 		    fcopy $fd $socket -command [list ::coroshim_fcopy [info coroutine] FCOPY $fd $bytes]
 		    break	;# we don't process any more i/o on $socket
 		} else {
@@ -825,7 +830,7 @@ namespace eval Httpd {
 	    set gone [catch {chan eof $socket} eof]
 	    if {$gone || $eof || [string match DEAD* [info coroutine]]} {
 		Debug.HttpdLow {[info coroutine] yield - eof $socket}
-		terminate "oops - we're dead"
+		terminate "oops - we're dead in yield"
 		return
 	    }
 
