@@ -20,6 +20,36 @@ namespace eval Debug {
     variable fds
     variable timestamp 1
     variable delta 0
+    variable baseline [::tcl::clock::milliseconds]
+
+    proc every {ms body} {eval $body; after $ms [info level 0]}
+
+    variable duration 0
+    variable heartbeat 0
+    set hbtimer [::tcl::clock::milliseconds]
+
+    proc pulse {} {
+	variable hbtimer
+	set now [::tcl::clock::milliseconds]
+
+	variable duration
+	set diff [expr {$now - $hbtimer - $duration}]
+
+	set hbtimer $now
+
+	variable heartbeat
+	return [list [incr heartbeat] $diff]
+    }
+
+    proc heartbeat {{f 500}} {
+	variable duration
+	set duration $f
+	if {$duration > 0} {
+	    Debug on heartbeat
+	    Debug every $duration {Debug.heartbeat {[Debug pulse]}}
+	} else {
+	}
+    }
 
     proc noop {args} {}
 
@@ -41,12 +71,13 @@ namespace eval Debug {
 		}
 		variable timestamp
 		variable delta
+		variable baseline
 		if {$timestamp} {
-		    set now [tcl::clock::milliseconds]
+		    set now [::tcl::clock::milliseconds]
 		    if {$delta} {
-			set time "${now}-[expr {$now - $delta}]mS "
+			set time "[expr {$now - $baseline}]-[expr {$now - $delta}]mS "
 		    } else {
-			set time "${now}mS "
+			set time "[expr {$now - $baseline}]mS "
 		    }
 		    set delta $now
 		} else {
