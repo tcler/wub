@@ -25,10 +25,10 @@ set API(Domains/File) {
     expires {a tcl clock expression indicating when contents expire from caches.}
     dateformat {a tcl clock format for displaying dates in directory listings}
     nodir {don't allow the browsing of directories (default: 0 - browsing allowed.)}
+    streamsize {files above this size will be streamed using fcopy, not loaded and sent}
 }
 
 class create File {
-
     method dir {req path args} {
 	Debug.file {dir over $path}
 	dict set files .. [list name [<a> href .. ..] type parent]
@@ -115,7 +115,13 @@ class create File {
 		file {
 		    # allow client caching
 		    set r [Http Cache $r $expires]
-		    return [Http CacheableFile $r $path]
+		    if {[file size $path] > $stream} {
+			# this is a large file - stream it using fcopy
+			return [Http File $r $path]
+		    } else {
+			# this is a small file - load then send
+			return [Http CacheableFile $r $path]
+		    }
 		}
 		
 		directory {
@@ -156,7 +162,7 @@ class create File {
 	return [Http NotFound $r "<p>File '$suffix' doesn't resolve to a file.</p>"]
     }
 
-    variable root indexfile mount hide redirdir expires dateformat dirparams nodir
+    variable root indexfile mount hide redirdir expires dateformat dirparams nodir stream
 
     constructor {args} {
 	set indexfile "index.*"
@@ -182,6 +188,8 @@ class create File {
 	    eparam {}
 	    footer {}
 	}
+	#set stream [expr {100 * 1024 * 1024}]	;# default streaming 100Mb
+	set stream [expr {1024 * 1024}]	;# default streaming 1Mb
 
 	foreach {n v} $args {
 	    set [string trimleft $n -] $v
