@@ -302,6 +302,7 @@ namespace eval Httpd {
     # format4send - format up a reply for sending.
     proc format4send {reply args} {
 	Debug.Httpd {format4send $args}
+	set file ""
 	set sock [dict get $reply -sock]
 	set cache [expr {[dict get? $args -cache] eq "1"}]
 	if {[catch {
