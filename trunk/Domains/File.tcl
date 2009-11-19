@@ -25,7 +25,7 @@ set API(Domains/File) {
     expires {a tcl clock expression indicating when contents expire from caches.}
     dateformat {a tcl clock format for displaying dates in directory listings}
     nodir {don't allow the browsing of directories (default: 0 - browsing allowed.)}
-    streamsize {files above this size will be streamed using fcopy, not loaded and sent}
+    stream {files above this size will be streamed using fcopy, not loaded and sent}
 }
 
 class create File {
@@ -114,12 +114,13 @@ class create File {
 
 		file {
 		    # allow client caching
-		    set r [Http Cache $r $expires]
 		    if {[file size $path] > $stream} {
 			# this is a large file - stream it using fcopy
+			set r [Http NoCache $r]
 			return [Http File $r $path]
 		    } else {
 			# this is a small file - load then send
+			set r [Http Cache $r $expires]
 			return [Http CacheableFile $r $path]
 		    }
 		}
