@@ -19,6 +19,7 @@ namespace eval Debug {
     variable level 0
     variable fds
     variable timestamp 1
+    variable delta 0
 
     proc noop {args} {}
 
@@ -39,8 +40,15 @@ namespace eval Debug {
 		    set result "[string range $result 0 2048]...(truncated) ... [string range $result end-2048 end]"
 		}
 		variable timestamp
+		variable delta
 		if {$timestamp} {
-		    set time "[tcl::clock::milliseconds] "
+		    set now [tcl::clock::milliseconds]
+		    if {$delta} {
+			set time "${now}-[expr {$now - $delta}]mS "
+		    } else {
+			set time "${now}mS "
+		    }
+		    set delta $now
 		} else {
 		    set time ""
 		}
