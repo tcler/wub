@@ -211,6 +211,7 @@ if {[catch {package require know}]} {
 know {[string match http://* [lindex $args 0]]} {
     # parse the URL
     set urld [Url parse [lindex $args 0]]
+    Debug.HTTPdetail {parsed URL: $urld}
     set host [Url host $urld]
     set path [Url http $urld]
     if {[dict exists $urld -fragment]} {
@@ -220,7 +221,7 @@ know {[string match http://* [lindex $args 0]]} {
 	set path [list get $path]	;# make a 'get' op for path remainder
     }
 
-    HTTP new [dict get $urld -scheme]://$host {*}$path {*}[lrange $args 1 end]	;# close close
+    HTTP new [Url uri $urld] [lindex $args 1] $path	;# close close
 }
 
 package provide HTTP 2.0
@@ -299,14 +300,16 @@ class create HTTP {
 	corovars socket
 
 	set line ""
-	while {![chan eof $socket]
+	set gone [catch {chan eof $socket} eof]
+	while {!$gone && !$eof
 	       && [chan gets $socket line] != -1
 	       && [chan blocked $socket]
 	   } {
 	    yield
+	    set gone [catch {chan eof $socket} eof]
 	}
 
-	if {[chan eof $socket]} {
+	if {$gone || $eof} {
 	    set reason "EOF reading HEADER"
 	    Debug.HTTPdetail {gets: EOF reading HEADER}
 	    [self] destroy
@@ -319,15 +322,19 @@ class create HTTP {
     method read {size} {
 	corovars socket
 	Debug.HTTP {Reading $size}
+
 	set chunk ""
-	while {$size && ![chan eof $socket]} {
-	    yield	;# wait for read event
+	set gone [catch {chan eof $socket} eof]
+	while {$size && !$gone && !$eof} {
+	    ::yield	;# wait for read event
 	    set chunklet [chan read $socket $size]	;# get some
 	    append chunk $chunklet			;# remember it
 	    incr size -[string length $chunklet]	;# how much left?
+	    set gone [catch {chan eof $socket} eof]
+	    Debug.HTTPdetail {Read chunk ($size left)}
 	}
 
-	if {[chan eof $socket]} {
+	if {$gone || $eof} {
 	    set reason "EOF reading ENTITY"
 	    [self] destroy
 	} else {
@@ -414,27 +421,25 @@ class create HTTP {
 
 	    variable self;
 	    # keep receiving input resulting from our requests
-	    while {![chan eof $socket]} {
+	    set gone [catch {chan eof $socket} eof]
+	    while {!$gone && !$eof} {
 		set r {}	;# empty header
 		# get whole header
 		# keep a count of the number of packets received
 		variable rqcount; set reqcount [incr rqcount]
 
 		set headering 1; set bogus 0
+		set lines {}
 		while {$headering} {
-		    set lines {}
 		    set line [my gets]
-		    while {$headering} {
-			set line [my gets]
-			Debug.HTTP {reader got line: ($line)}
-			if {[string trim $line] eq ""} {
-			    set headering 0
-			} elseif {[string match <* [string trim $line]]} {
-			    set headering 0
-			    set bogus 1
-			} else {
-			    lappend lines $line
-			}
+		    Debug.HTTP {reader got line: ($line)}
+		    if {[string trim $line] eq ""} {
+			set headering 0
+		    } elseif {[string match <* [string trim $line]]} {
+			set headering 0
+			set bogus 1
+		    } else {
+			lappend lines $line
 		    }
 		}
 
@@ -461,9 +466,7 @@ class create HTTP {
 		    if {[dict exists $r content-length]} {
 			set left [dict get $r content-length]
 			set entity ""
-			if {![chan eof $socket]} {
-			    chan configure $socket -translation {binary binary}
-			}
+			chan configure $socket -encoding binary -translation {binary binary}
 			Debug.HTTP {reader getting entity of length ($left)}
 			while {$left > 0} {
 			    set chunk [my read $left]
@@ -477,9 +480,9 @@ class create HTTP {
 			    chunked {
 				set chunksize 1
 				while {$chunksize} {
-				    chan configure $socket -translation {crlf binary}
+				    chan configure $socket -encoding [encoding system] -translation {crlf binary}
 				    set chunksize 0x[my gets]
-				    chan configure $socket -translation {binary binary}
+				    chan configure $socket -encoding binary -translation {binary binary}
 				    if {!$chunksize} {
 					my gets
 					Debug.HTTP {Chunks all done}
@@ -500,7 +503,7 @@ class create HTTP {
 
 		# reset to header config
 		if {![chan eof $socket]} {
-		    chan configure $socket -encoding binary -translation {crlf binary}
+		    chan configure $socket -encoding [encoding system] -translation {crlf binary}
 		}
 
 		# check content-encoding and gunzip content if necessary
@@ -536,6 +539,13 @@ class create HTTP {
 		Debug.HTTP {outstanding: $outstanding}
 
 		variable closing
+		if {[dict exists $r connection]
+		    && [string tolower [dict get $r connection]] eq "close"
+		} {
+		    set outstanding 0
+		    incr closing
+		}
+
 		if {$closing && !$outstanding} {
 		    set reason "requested by WRITER"
 		    $self destroy
@@ -545,6 +555,7 @@ class create HTTP {
 		}
 		Debug.HTTP {reader: sent response, waiting for next}
 		yield
+		set gone [catch {chan eof $socket} eof]
 	    }
 	    catch {chan close $socket}
 	    $self destroy
