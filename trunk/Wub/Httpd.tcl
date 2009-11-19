@@ -93,6 +93,11 @@ interp bgerror {} bgerror
 proc pest {req} {return 0}
 catch {source [file join [file dirname [info script]] pest.tcl]}
 
+# this is a shim for fcopy
+proc coroshim_fcopy {coro args} {
+    $coro $args
+}
+
 namespace eval Httpd {
     variable server_port ;# server's port (if different from Listener's)
     variable server_id "Wub/[package provide Httpd]"
@@ -502,8 +507,7 @@ namespace eval Httpd {
     # our fcopy has completed
     proc fcopy_complete {fd bytes written {error ""}} {
 	corovars replies closing socket
-	Debug.HttpdLow {[info coroutine] fcopy_complete: $fd $bytes $written '$error'
-}
+	Debug.HttpdLow {[info coroutine] fcopy_complete: $fd $bytes $written '$error'}
 	set gone [catch {chan eof $socket} eof]
 	if {$gone || $eof} {
 	    # detect socket closure ASAP in sending
@@ -622,7 +626,7 @@ namespace eval Httpd {
 		    chan configure $fd -translation binary
 		    chan event $socket readable ""	;# stop reading input while fcopying
 		    chan event $socket writable ""	;# stop writing while fcopying
-		    fcopy $fd $socket -command [list [info coroutine] FCOPY $fd $bytes]
+		    fcopy $fd $socket -command [list ::coroshim_fcopy [info coroutine] FCOPY $fd $bytes]
 		    break	;# we don't process any more i/o on $socket
 		} else {
 		    # send literal content
