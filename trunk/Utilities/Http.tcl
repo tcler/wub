@@ -242,11 +242,11 @@ namespace eval Http {
     # modify response to indicate that content is a file (NB: not working)
     proc File {rsp path {ctype ""}} {
 	set path [file normalize $path]
-	dict set rsp -fd [::open $path r]
+	#dict set rsp -fd [::open $path r]
 	dict set rsp -file $path
 
 	if {$ctype eq ""} {
-	    dict set rsp content-type [Mime type $path]
+	    dict set rsp content-type [Mime magic path $path]
 	} else {
 	    dict set rsp content-type $ctype
 	}
