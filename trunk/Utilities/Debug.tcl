@@ -18,6 +18,7 @@ namespace eval Debug {
     variable detail
     variable level 0
     variable fds
+    variable timestamp 1
 
     proc noop {args} {}
 
@@ -37,7 +38,13 @@ namespace eval Debug {
 		if {[string length $result] > 4096} {
 		    set result "[string range $result 0 2048]...(truncated) ... [string range $result end-2048 end]"
 		}
-		puts $fd "$tag @@[string map {\n \\n} $result]"
+		variable timestamp
+		if {$timestamp} {
+		    set time " [tcl::clock::microseconds] "
+		} else {
+		    set time ""
+		}
+		puts $fd "$time$tag @@[string map {\n \\n} $result]"
 	    }
 	} else {
 	    #puts stderr "$tag @@@ $detail($tag) >= $level"
