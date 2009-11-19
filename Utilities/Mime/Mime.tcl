@@ -124,7 +124,7 @@ namespace eval Mime {
 	if {$result eq ""
 	    && [dict exists $args path]
 	} {
-	    return [MimeOf $path]
+	    return [MimeOf [dict get $args path]]
 	}
 
 	Debug.mime {magic result: $result}
