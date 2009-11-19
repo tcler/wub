@@ -59,6 +59,7 @@ set API(Domains/Mason) {
     auth {template sought and evaluated before processing requested file (default .auth)}
     nodir {don't allow the browsing of directories (default: 0 - browsing allowed.)}
     dateformat {a tcl clock format for displaying dates in directory listings}
+    stream {files above this size will be streamed using fcopy, not loaded and sent}
 }
 
 class create Mason {
@@ -293,11 +294,17 @@ class create Mason {
 	}
 	switch -- [file type $path] {
 	    file {
-		# allow client caching
-		if {[info exists expires] && $expires ne ""} {
-		    set r [Http Cache $req $expires]
+		if {[file size $path] > $stream} {
+		    # this is a large file - stream it using fcopy
+		    set r [Http NoCache $r]
+		    return [Http File $r $path]
+		} else {
+		    # allow client caching
+		    if {[info exists expires] && $expires ne ""} {
+			set r [Http Cache $req $expires]
+		    }
+		    return [Http CacheableFile $req $path [Mime type $path]]
 		}
-		return [Http CacheableFile $req $path [Mime type $path]]
 	    }
 	    
 	    directory {
@@ -476,6 +483,7 @@ class create Mason {
 	    footer {}
 	}
 	set dateformat "%Y %b %d %T"
+	set stream [expr {1024 * 1024}]	;# default streaming 1Mb
 
 	# when a file is not located, it will be searched for.
 	# to minimise the cost of this search, -cache will
