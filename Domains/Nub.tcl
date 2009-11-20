@@ -620,7 +620,10 @@ namespace eval Nub {
     proc gen_rewrites {rewrites} {
 	set rewriting ""
 	foreach {url name} $rewrites {
-	    append rewriting [string map [list %URL% $url %N% $name] {{%URL%} {set url [{*}$defs(%N%) $r]}}] \n
+	    append rewriting [string map [list %URL% $url %N% $name] {{%URL%} {
+		set url [{*}$defs(%N%) $r]
+		lappend rw_transforms [list "%URL%"] $url
+	    }}] \n
 	}
 	return $rewriting
     }
@@ -827,6 +830,7 @@ namespace eval Nub {
 	    # Rewrites
 	    set count 0
 	    set done 0
+	    set rw_transforms {}
 	    set r [dict merge $r [Url parse [dict get $r -url]]]
 	    while {!$done && [incr count] < 30} {
 		Debug.nub {pre-RW [dict get $r -url]}
@@ -838,7 +842,7 @@ namespace eval Nub {
 			set done 1
 		    }
 		}
-		Debug.nub {post-RW [Url parse $url]}
+		Debug.nub {post-RW [Url parse $url] transforms:($rw_transforms)}
 		set r [dict merge $r [Url parse $url]]
 		set post [Url url $r]
 		if {$prior eq $post} break
