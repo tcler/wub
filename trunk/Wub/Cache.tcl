@@ -1,6 +1,7 @@
 # cache for multithreading
 
 package require Debug
+package require md5
 package provide Cache 2.0
 
 set API(Server/Cache) {
@@ -40,7 +41,7 @@ namespace eval Cache {
     variable cache	;# array of refcounted dicts
     array set cache {}
     variable unique [clock microseconds]
-    variable maxsize 0	;# maximum size of object to cache
+    variable maxsize [expr {2 * 1024 * 1024}]	;# maximum size of object to cache
 
     proc exists? {key} {
 	if {$key eq ""} {return 0}	;# special case - no key
@@ -167,7 +168,9 @@ namespace eval Cache {
     # put - insert request into cache
     proc put {req} {
 	Debug.cache {put: ([dumpMsg $req])}
+
 	dict set req -uri [Url uri $req]
+
 	# whatever the eventual cache status, must remove old matches
 	invalidate [dict get $req -uri]	;# invalidate by -uri
 	invalidate [dict get? $req etag] ;# invalidate by etag
@@ -185,10 +188,17 @@ namespace eval Cache {
 	}
 
 	variable maxsize
-	if {($maxsize > 0)
-	    && ($maxsize < [string length [dict get $req -content]])} {
-	    # we can't store enormous entities in the cache
-	    return $req
+	if {($maxsize > 0)} {
+	    if {[dict exists $req -content]} {
+		if {$maxsize < [string length [dict get $req -content]]} {
+		    # we can't store enormous entities in the cache
+		    return $req
+		}
+	    } elseif {[dict exists $req -file]} {
+		if {$maxsize < [file size [dict get $req -file]]} {
+		    return $req
+		}
+	    }
 	}
 
 	set ctype [dict get $req content-type]
@@ -197,23 +207,31 @@ namespace eval Cache {
 	    return $req
 	}
 
-	if {[dict exists $req etag]} {
-	    # generator has given us an etag
-	    set etag [string trim [dict get $req etag] \"]
-	    dict unset req etag	;# we don't want to store old etag - why?
-	} else {
-	    # generate an etag
-	    variable unique
-	    set etag "WUB[incr unique]"
-	    while {[exists? $etag]} {
+	if {0} {
+	    if {[dict exists $req etag]} {
+		# generator has given us an etag
+		set etag [string trim [dict get $req etag] \"]
+		dict unset req etag	;# we don't want to store old etag - why?
+	    } else {
+		# generate an etag
+		variable unique
 		set etag "WUB[incr unique]"
+		while {[exists? $etag]} {
+		    set etag "WUB[incr unique]"
+		}
 	    }
+	}
+	# use MD5 of content for etag
+	if {[dict exists $req -file]} {
+	    set etag WUB[::md5::md5 -hex -file [dict get $req -file]]
+	} else {
+	    set etag WUB[::md5::md5 -hex [dict get $req -content]]
 	}
 
 	# subset the cacheable request with just those fields needed
 	set cached [Dict subset $req {
 	    -content -gzip -code -uri -charset -chconverted -modified
-	    -expiry
+	    -expiry -file
 	    content-language content-location content-md5 content-type
 	    expires last-modified cache-control
 	}]
@@ -339,6 +357,8 @@ namespace eval Cache {
 	foreach {n v} [array get cache] {
 	    if {[dict exists $v -content]} {
 		dict set v -size [string length [dict get $v -content]]
+	    } elseif {[dict exists $v -file]} {
+		dict set v -size [file length [dict get $v -file]]
 	    } else {
 		dict set v -size 0
 	    }
