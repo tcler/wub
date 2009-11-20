@@ -300,7 +300,7 @@ class create Mason {
 		}
 		if {[file size $path] > $stream} {
 		    # this is a large file - stream it using fcopy
-		    return [Http File $r $path]
+		    return [Http File $req $path]
 		} else {
 		    return [Http CacheableFile $req $path [Mime type $path]]
 		}
