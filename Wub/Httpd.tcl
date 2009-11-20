@@ -526,6 +526,7 @@ namespace eval Httpd {
     proc fcopy_complete {fd bytes written {error ""}} {
 	corovars replies closing socket
 	Debug.Httpd {[info coroutine] fcopy_complete: $fd $bytes $written '$error'}
+	watchdog
 	set gone [catch {chan eof $socket} eof]
 	if {$gone || $eof} {
 	    # detect socket closure ASAP in sending
@@ -649,6 +650,7 @@ namespace eval Httpd {
 		    chan configure $fd -translation binary
 		    unreadable	;# stop reading input while fcopying
 		    unwritable	;# stop writing while fcopying
+		    grace -1	;# stop the watchdog resetting the link
 		    Debug.Httpd {[info coroutine] FCOPY ENTITY: '$file' $bytes bytes} 8
 		    chan copy $fd $socket -command [list ::coroshim_fcopy [info coroutine] FCOPY $fd $bytes]
 		    break	;# we don't process any more i/o on $socket
