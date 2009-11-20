@@ -133,7 +133,7 @@ class create Mason {
 	}
 
 	# implicit return value - use the substitution
-	if {![dict exists $response -content]} {
+	if {![dict exists $response -content] && ![dict exists $response -file]} {
 	    dict set response -content $result	;# fold subst result back into response
 	}
 
@@ -153,7 +153,7 @@ class create Mason {
 	} else {
 	    # this is able to be cached.
 	    #catch {dict unset rsp -dynamic}
-			
+
 	    if {[info exists expires] && $expires ne ""} {
 		set r [Http Cache $req $expires]
 	    }
