@@ -63,7 +63,7 @@ set API(Domains/Mason) {
 }
 
 class create Mason {
-    variable mount root hide functional notfound wrapper auth indexfile dirhead dirfoot aliases cache ctype nodir dirparams dateformat
+    variable mount root hide functional notfound wrapper auth indexfile dirhead dirfoot aliases cache ctype nodir dirparams dateformat stream
 
     method conditional {req path} {
 	# check conditional
@@ -294,15 +294,14 @@ class create Mason {
 	}
 	switch -- [file type $path] {
 	    file {
+		# allow client caching
+		if {[info exists expires] && $expires ne ""} {
+		    set r [Http Cache $req $expires]
+		}
 		if {[file size $path] > $stream} {
 		    # this is a large file - stream it using fcopy
-		    set r [Http NoCache $r]
 		    return [Http File $r $path]
 		} else {
-		    # allow client caching
-		    if {[info exists expires] && $expires ne ""} {
-			set r [Http Cache $req $expires]
-		    }
 		    return [Http CacheableFile $req $path [Mime type $path]]
 		}
 	    }
