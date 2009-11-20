@@ -170,7 +170,7 @@ namespace eval Httpd {
 	    after cancel $reaper([info coroutine])
 	    unset reaper([info coroutine])
 	}
-
+	variable crs; unset crs([info coroutine])
 	# forget whatever higher level connection info
 	corovars cid socket ipaddr
 
@@ -178,13 +178,31 @@ namespace eval Httpd {
 	variable connbyIP; catch {incr connbyIP($ipaddr) -1}
 
 	# clean up socket - the only point where we close
-	catch {chan event $socket readable ""}	;# is this necessary?
-	catch {chan event $socket writable ""}	;# is this necessary?
 	catch {chan close $socket}
 
 	# destroy reader - that's all she wrote
 	Debug.Httpd {reader [info coroutine]: terminated}
 	rename [info coroutine] ""; ::yield	;# terminate coro
+    }
+
+    proc unwritable {} {
+	corovars socket events
+	chan event $socket writable ""
+	dict unset events writable
+    }
+    proc writable {{what WRITE}} {
+	corovars socket events
+	dict set events writable $what
+    }
+
+    proc unreadable {} {
+	corovars socket events
+	chan event $socket readable ""
+	dict unset events readable
+    }
+    proc readable {{what READ}} {
+	corovars socket events
+	dict set events readable $what
     }
 
     # close? - should we close this connection?
@@ -208,7 +226,7 @@ namespace eval Httpd {
 	    corovars status closing socket
 	    set closing 1	;# flag the closure
 	    lappend status CLOSING
-	    chan event $socket readable [list [info coroutine] CLOSING]
+	    readable CLOSING
 	}
 
 	return $close
@@ -396,7 +414,7 @@ namespace eval Httpd {
 			set file [dict get $reply -file]
 			dict set reply content-length [file size $file]
 			set content ""
-			set cache 0	;# can't cache these - TODO: maybe later
+			#set cache 0	;# can't cache these - TODO: maybe later
 		    } else {
 			Debug.HttpdLow {format4write: response empty - no content in reply}
 			set content ""	;# there is no content
@@ -507,7 +525,7 @@ namespace eval Httpd {
     # our fcopy has completed
     proc fcopy_complete {fd bytes written {error ""}} {
 	corovars replies closing socket
-	Debug.HttpdLow {[info coroutine] fcopy_complete: $fd $bytes $written '$error'}
+	Debug.Httpd {[info coroutine] fcopy_complete: $fd $bytes $written '$error'}
 	set gone [catch {chan eof $socket} eof]
 	if {$gone || $eof} {
 	    # detect socket closure ASAP in sending
@@ -529,13 +547,13 @@ namespace eval Httpd {
 	    # only when the client has consumed our output do we
 	    # restart reading input
 	    Debug.HttpdLow {[info coroutine] fcopy_complete: restarting reader}
-	    chan event $socket readable [list [info coroutine] READ]
+	    readable
 	} else {
 	    Debug.HttpdLow {[info coroutine] fcopy_complete: suspending reader [chan pending output $socket]}
 	}
 
 	# see if the writer needs service
-	chan event $socket writable [list [info coroutine] WRITABLE]
+	writable
     }
 
     # respond to client with as many consecutive responses as he can consume
@@ -555,7 +573,7 @@ namespace eval Httpd {
 
 	# shut down responder if there's nothing to write
 	if {![dict size $replies]} {
-	    chan event $socket writable ""	;# no point in trying to write
+	    unwritable	;# no point in trying to write
 	}
 
 	variable activity
@@ -563,7 +581,7 @@ namespace eval Httpd {
 	# send all responses in sequence from the next expected to the last available
 	Debug.Httpd {[info coroutine] pending to send: ([dict keys $replies])}
 	foreach next [lsort -integer [dict keys $replies]] {
-	    watchdog
+	    watchdog	;# tickle the watchdog
 
 	    set gone [catch {chan eof $socket} eof]
 	    if {$gone || $eof} {
@@ -572,7 +590,7 @@ namespace eval Httpd {
 		terminate "eof on $socket"
 		return 1	;# socket's gone - terminate session
 	    }
-	    
+
 	    # ensure we don't send responses out of sequence
 	    if {$next != $response} {
 		# something's blocking the response pipeline
@@ -580,15 +598,15 @@ namespace eval Httpd {
 		# we must therefore wait until all the preceding transactions
 		# have something to send
 		Debug.Httpd {[info coroutine] no pending or $next doesn't follow $response}
-		chan event $socket writable ""	;# no point in trying to write
+		unwritable	;# no point in trying to write
 		
 		if {[chan pending output $socket]} {
 		    # the client hasn't consumed our output yet
 		    # stop reading input until he does
-		    chan event $socket readable ""
+		    unreadable
 		} else {
 		    # there's space for more output, so accept more input
-		    chan event $socket readable [list [info coroutine] READ]
+		    readable
 		}
 
 		return 0
@@ -629,11 +647,10 @@ namespace eval Httpd {
 		    set bytes [file size $file]
 		    chan configure $socket -translation binary
 		    chan configure $fd -translation binary
-		    chan event $socket readable ""	;# stop reading input while fcopying
-		    chan event $socket writable ""	;# stop writing while fcopying
+		    unreadable	;# stop reading input while fcopying
+		    unwritable	;# stop writing while fcopying
 		    Debug.Httpd {[info coroutine] FCOPY ENTITY: '$file' $bytes bytes} 8
 		    chan copy $fd $socket -command [list ::coroshim_fcopy [info coroutine] FCOPY $fd $bytes]
-		    Debug.HttpdLow {[info coroutine] FCOPY STARTED} 8
 		    break	;# we don't process any more i/o on $socket
 		} else {
 		    # send literal content
@@ -659,22 +676,24 @@ namespace eval Httpd {
 	if {[chan pending output $socket]} {
 	    # the client hasn't consumed our output yet
 	    # stop reading input until he does
-	    chan event $socket readable ""
+	    unreadable
 	} else {
 	    # there's space for more output, so accept more input
-	    chan event $socket readable [list [info coroutine] READ]
+	    readable
 	}
     }
 
     # we have been told we can write a reply
     proc write {r cache} {
-	corovars replies response sequence generation satisfied transaction closing unsatisfied socket
+	corovars replies response sequence generation satisfied transaction closing unsatisfied socket last
 
+	# keep pipeline open while we have unsatisfied requests
 	if {$closing && ![dict size $unsatisfied]} {
 	    # we have no more requests to satisfy and we want to close
 	    terminate "finally close in write"
 	}
 
+	# process suspension at lowest level
 	if {[dict exists $r -suspend]} {
 	    return 0	;# this reply has been suspended - we haven't got it yet
 	    # so we simply return.  The lack of a response for the corresponding
@@ -700,28 +719,34 @@ namespace eval Httpd {
 	    # this could happen if a dispatcher sends a response,
 	    # then gets an error.
 	    Debug.error {Send discarded: duplicate ([rdump $r])}
-	    return 0	;# duplicate response - just ignore
+	    return {0 0}	;# duplicate response - just ignore
 	}
 
 	# only send for unsatisfied requests
 	if {![dict exists $unsatisfied $trx]} {
 	    Debug.error {Send discarded: satisfied duplicate ([rdump $r])}
-	    return 0	;# duplicate response - just ignore
+	    return {0 0}	;# duplicate response - just ignore
+	}
+
+	# record the behaviour
+	variable crs
+	set now [::tcl::clock::milliseconds]
+	lappend crs([info coroutine])  [expr {$now - $last}] SENT
+	dict set r -behaviour $crs([info coroutine])
+	set crs([info coroutine]) {}
+
+	# generate a log line
+	variable log
+	if {$log ne "" && [catch {
+	    puts $log [Http clf $r]	;# generate a log line
+	} le leo]} {
+	    Debug.error {log error: $le ($leo)}
 	}
 
 	# wire-format the reply transaction - messy
 	variable ce_encodings	;# what encodings do we support?
 	lassign [format4send $r -cache $cache -encoding $ce_encodings] r header content file empty cache
 	set header "HTTP/1.1 $header" ;# add the HTTP signifier
-
-	# global consequences - botting and caching
-	if {$cache && $file eq ""} {
-	    # handle caching (under no circumstances cache bot replies)
-	    Cache put $r	;# cache it before it's sent
-	    dict set r -caching inserted
-	} else {
-	    Debug.Httpd {Do Not Cache put: ([rdump $r]) cache:$cache}
-	}
 
 	# record transaction reply and kick off the responder
 	# response has been collected and is pending output
@@ -737,19 +762,22 @@ namespace eval Httpd {
 	dict set replies $trx [list $header $content $file [close? $r] $empty]
 	dict set satisfied $trx {}	;# record satisfaction of transaction
 
-	# having queued the response, we allow it to be sent on 'socket writable' event
-	chan event $socket writable [list [info coroutine] WRITABLE]
-
 	if {[chan pending output $socket]} {
 	    # the client hasn't consumed our output yet
 	    # stop reading input until he does
-	    chan event $socket readable ""
+	    unreadable
 	} else {
 	    # there's space for more output, so accept more input
-	    chan event $socket readable [list [info coroutine] READ]
+	    readable
 	}
 
-	return 0
+	set now [::tcl::clock::milliseconds]
+	lappend crs([info coroutine])  [expr {$now - $last}] READY
+
+	# having queued the response, we allow it to be sent on 'socket writable' event
+	writable
+
+	return [list 0 $cache]
     }
 
     # send --
@@ -759,7 +787,7 @@ namespace eval Httpd {
     #
     # Side Effects:
     #	Send transaction responses to client
-    #	Possibly close socket
+    #	Possibly close socket, possibly cache response
     proc send {r {cache 1}} {
 	Debug.Httpd {[info coroutine] send: ([rdump $r]) $cache [expr {[dict get? $r -ua_class] ni {browser unknown}}]}
 	dict set r -sent [clock microseconds]
@@ -770,16 +798,9 @@ namespace eval Httpd {
 	    dict set r -code 599	;# signal a really bad packet
 	}
 
-	# generate a log line
-	variable log
-	if {$log ne "" && [catch {
-	    puts $log [Http clf $r]	;# generate a log line
-	} le leo]} {
-	    Debug.error {log error: $le ($leo)}
-	}
-
 	# if this isn't a browser - do not cache!
 	if {[dict get? $r -ua_class] ni {browser unknown}} {
+	    Debug.Httpd {not a browser - do not cache [dict get $r -uri]}
 	    set cache 0	;# ??? TODO
 	}
 
@@ -798,22 +819,39 @@ namespace eval Httpd {
 	if {[catch {
 	    # send all pending responses, ensuring we don't send out of sequence
 	    write $r $cache
-	} close eo]} {
-	    Debug.error {FAILED write $close ($eo) IP [dict get $r -ipaddr] ([dict get? $r user-agent]) wanted [dict get $r -uri]}
+	} result eo]} {
+	    Debug.error {FAILED write $result ($eo) IP [dict get $r -ipaddr] ([dict get? $r user-agent]) wanted [dict get $r -uri]}
 
 	    terminate closed
 	}
 
-	# deal with socket
+	lassign $result close cache
+
+	# deal with socket closure
 	if {$close} {
 	    terminate closed
 	}
+
+	# global consequences - caching
+	if {$cache} {
+	    # handle caching (under no circumstances cache bot replies)
+	    Cache put $r	;# cache it before it's sent
+	    dict set r -caching inserted
+	} else {
+	    Debug.Httpd {Do Not Cache put: ([rdump $r]) cache:$cache}
+	}
+
     }
+
+    variable crs
 
     # yield wrapper with command dispatcher
     proc yield {{retval ""}} {
-	corovars cmd status unsatisfied socket
-
+	corovars cmd status unsatisfied socket last events
+	if {![info exists last]} {
+	    set last [::tcl::clock::milliseconds]
+	}
+	variable crs
 	while {1} {
 	    Debug.HttpdLow {coro [info coroutine] yielding}
 	    set x [after info]
@@ -823,7 +861,20 @@ namespace eval Httpd {
 
 	    # unpack event
 	    if {[catch {
+		set now [::tcl::clock::milliseconds]
+		lappend crs([info coroutine]) [expr {$now - $last}] YIELD; set last $now
+
+		dict for {k v} $events {
+		    chan event $socket $k [list [info coroutine] $v]
+		}
+
 		set args [lassign [::yield $retval] op]; set retval ""
+
+		foreach k {readable writable} {
+		    chan event $socket $k ""
+		}
+		set now [::tcl::clock::milliseconds]
+		lappend crs([info coroutine]) [expr {$now - $last}] $op; set last $now
 	    } e eo]} {
 		Debug.HttpdLow {yield crashed $e ($eo)}
 		terminate yieldcrash
@@ -887,7 +938,7 @@ namespace eval Httpd {
 		    set retval [send {*}$args]
 		}
 
-		WRITABLE {
+		WRITE {
 		    # there is space available in the output queue
 		    set retval [respond {*}$args]
 		}
@@ -949,7 +1000,7 @@ namespace eval Httpd {
 
 	# return directly to event handler to process SEND and STATUS
 	set closing 1
-	chan event $socket readable [list [info coroutine] CLOSING]
+	readable CLOSING
 
 	Debug.error {'handle' closing}
 	return -level [expr {[info level] - 1}]	;# return to the top coro level
@@ -1053,6 +1104,8 @@ namespace eval Httpd {
 	set sequence -1	;# which is the next response to queue?
 	set writing 0	;# we're not writing yet
 	set ipaddr 0	;# ip address
+	set events {}	;# readable/writable
+	readable	;# kick off the readable event
 
 	dict with args {}
 	set transaction 0	;# count of incoming requests
@@ -1372,15 +1425,24 @@ namespace eval Httpd {
 
 	    # check Cache for match
 	    if {[dict size [set cached [Cache check $r]]] > 0} {
-		# reply from cache
-		dict set cached -transaction [dict get $r -transaction]
-		dict set cached -generation [dict get $r -generation]
+		# reply directly from cache
+		if {0} {
+		    dict set cached -transaction [dict get $r -transaction]
+		    dict set cached -generation [dict get $r -generation]
+		}
 		dict set unsatisfied [dict get $cached -transaction] {}
-		dict set r -caching retrieved
+		dict set cached -caching retrieved
+		dict set cached -sent [clock microseconds]
 
-		Debug.Httpd {[info coroutine] sending cached ([rdump $cached])}
+		Debug.Httpd {[info coroutine] sending cached [dict get $r -uri] ([rdump $cached])}
 		lappend status CACHED
-		send $cached 0	;# send cached response directly
+		if {[catch {
+		    write [dict merge $r $cached] 0	;# write cached response directly into outgoing structs
+		} result eo]} {
+		    Debug.error {FAILED write $close ($eo) IP [dict get $r -ipaddr] ([dict get? $r user-agent]) wanted [dict get $r -uri]}
+		    terminate closed
+		}
+		#lassign result close cache
 		continue	;# go get the next request
 	    }
 
@@ -1424,7 +1486,7 @@ namespace eval Httpd {
 		    set rsp [Http ServerError $r $rsp $eo]
 		}
 	    }
-	    
+
 	    watchdog
 	    if {[catch {
 		post $rsp
@@ -1432,6 +1494,8 @@ namespace eval Httpd {
 		# post-processing error - report it
 		Debug.error {[info coroutine] postprocess error: $rspp ($eo)} 1
 		watchdog
+
+		# report error from post-processing
 		send [Convert do [Http ServerError $r $rspp $eo]]
 	    } else {
 		# send the response to client
@@ -1441,13 +1505,15 @@ namespace eval Httpd {
 		# does post-process want to suspend?
 		if {[dict size $rspp] == 0 || [dict exists $rspp -suspend]} {
 		    if {[dict size $rspp] == 0} {
+			# returning a {} from postprocess suspends it ... really?
 			set duration 0
 		    } else {
+			# set the grace duration as per request
 			set duration [dict get $rspp -suspend]
 		    }
 		    
 		    Debug.Httpd {SUSPEND in postprocess: $duration}
-		    grace $duration	;# response has been suspended
+		    grace $duration	;# response has been suspended for $duration
 		    continue
 		} elseif {[dict exists $rspp -passthrough]} {
 		    # the output is handled elsewhere (as for WOOF.)
@@ -1491,6 +1557,7 @@ namespace eval Httpd {
     # tickle the watchdog
     proc watchdog {} {
 	variable activity
+	# record fact of activity on this coro, which will prevent its being reaped
 	set activity([info coroutine]) [clock milliseconds]
     }
 
@@ -1514,8 +1581,10 @@ namespace eval Httpd {
 
     # resume this request
     proc Resume {r {cache 1}} {
-        # ask socket coro to send the response for us
 	Debug.Httpd {Resuming [rdump $r]}
+        # ask socket coro to send the response for us
+	# we inject the SEND event into the coro so Resume may be called from any
+	# event, thread or coroutine
 	return [catch {{*}[dict get $r -send] [list SEND $r]}]
     }
 
@@ -1672,31 +1741,30 @@ namespace eval Httpd {
 
     # connect - process a connection request
     proc Connect {sock ipaddr rport args} {
-	if {1} {
-	    if {[catch {
-		set s [Socket new chan $sock -file sock.dump -capture 0]
-		chan create {read write} $s
-	    } ns eo]} {
-		# failed to connect.  This can be due to overconnecting
-		Debug.error {connection error from $ipaddr:$rport - $ns ($eo)}
+	Debug.Httpd {Connect $sock $ipaddr $rport $args}
+	if {[catch {
+	    set s [Socket new chan $sock -file sock.dump -capture 0]
+	    chan create {read write} $s
+	} ns eo]} {
+	    # failed to connect.  This can be due to overconnecting
+	    Debug.error {connection error from $ipaddr:$rport - $ns ($eo)}
+	    
+	    variable exhaustion
+	    variable server_id
+	    set msg [dict get? [Http Unavailable {} "$ns ($eo)" $exhaustion] -content]
 		
-		variable exhaustion
-		variable server_id
-		set msg [dict get? [Http Unavailable {} "$ns ($eo)" $exhaustion] -content]
-		
-		puts $sock "HTTP/1.1 503 Exhaustion\r"
-		puts $sock "Date: [Http Now]\r"
-		puts $sock "Server: $server_id\r"
-		puts $sock "Connection: Close\r"
-		puts $sock "Content-Length: [string length $msg]\r"
-		puts $sock \r
-		puts $sock -nonewline $msg
-		flush $sock
-		close $sock
-		return ""
-	    } else {
-		set sock $ns
-	    }
+	    puts $sock "HTTP/1.1 503 Exhaustion\r"
+	    puts $sock "Date: [Http Now]\r"
+	    puts $sock "Server: $server_id\r"
+	    puts $sock "Connection: Close\r"
+	    puts $sock "Content-Length: [string length $msg]\r"
+	    puts $sock \r
+	    puts $sock -nonewline $msg
+	    flush $sock
+	    close $sock
+	    return ""
+	} else {
+	    set sock $ns
 	}
 
 	# the socket must stay in non-block binary binary-encoding mode
@@ -1784,9 +1852,6 @@ namespace eval Httpd {
 	#trace add command $cr {rename delete} [list ::Httpd::corogone $R]
 	#trace add command $R {rename delete} [list ::Httpd::sockgone $cr $sock]
 
-	# start the ball rolling
-	chan event $sock readable [list $R READ]
-
 	return $result
     }
 
@@ -1804,8 +1869,6 @@ namespace eval Httpd {
     proc sockgone {match sock from to op} {
 	if {$op eq "delete"} {
 	    # clean up socket - the only point where we close
-	    catch {chan event $socket readable ""}	;# is this necessary?
-	    catch {chan event $socket writable ""}	;# is this necessary?
 	    catch {chan close $sock}
 	    catch {$match TERMINATE}
 	    Debug.Httpd {SOCK $op: $from $to}
