@@ -19,6 +19,19 @@ set API(Server/Cache) {
 
 namespace eval Cache {
 
+    proc filemodified? {req cached} {
+	if {![dict exists $cached -file]} {
+	    return 0	;# not a file at all
+	}
+	set since [Http DateInSeconds [dict get $req if-modified-since]]
+	set mtime [file mtime [dict get $cached -file]]
+	if {$since ne $mtime} {
+	    return 1
+	} else {
+	    return 0
+	}
+    }
+
     proc unmodified? {req cached} {
 	# perform cache freshness check
 	if {![dict exists $req if-modified-since]} {
@@ -489,6 +502,10 @@ namespace eval Cache {
 	    counter $cached -unmod	;# count unmod hits
 	    return [Http NotModified $req]
 	    # NB: the expires field is set in $req
+	} elseif {[filemodified? $req $cached]} {
+	    # the cached is a -file type, and the underlying file is newer
+	    # so we invalidate the cached form
+
 	} else {
 	    # deliver cached content in lieue of processing
 	    #dict set req last-modified [dict get $cached last-modified]
