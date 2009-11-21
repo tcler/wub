@@ -505,7 +505,7 @@ namespace eval Cache {
 	} elseif {[filemodified? $req $cached]} {
 	    # the cached is a -file type, and the underlying file is newer
 	    # so we invalidate the cached form
-
+	    return {}
 	} else {
 	    # deliver cached content in lieue of processing
 	    #dict set req last-modified [dict get $cached last-modified]
