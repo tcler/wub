@@ -145,8 +145,24 @@ namespace eval Cache {
 
 	# maintain some stats for cache management
 	variable hits; incr hits	;# count cache hits
+	set cached $cache($key)
 
-	return $cache($key)
+	# the cached is a -file type, and the underlying file is newer
+	# so we invalidate the cached form
+	if {[dict exists $cached -file]} {
+	    set when  [dict get $cached -modified]
+	    set mtime [file mtime [dict get $cached -file]]
+	    if {$when ne $mtime} {
+		if {[exists? [dict get? $cached etag]]} {
+		    invalidate [string trim [dict get $cached etag] \"]
+		}
+		if {[exists? [dict get $cached -uri]]} {
+		    invalidate [dict get $cached -uri]
+		}
+		return {}
+	    }
+	}
+	return $cached
     }
 
     # high and low water mark for cache occupancy
@@ -452,6 +468,9 @@ namespace eval Cache {
 	} cached eo]} {
 	    # it's gotta be there!
 	    Debug.error {cache inconsistency '$cached' ($eo) - can't fetch existing entry for url:'$uri'/[exists? $uri] etag:'$etag'}
+	    return {}
+	}
+	if {$cached eq {}} {
 	    return {}
 	}
 
