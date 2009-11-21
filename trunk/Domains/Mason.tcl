@@ -99,6 +99,10 @@ class create Mason {
 	# read template into interpreter
 	if {[catch {
 	    set fd [open $fpath]
+	    set enc [dict get? $req -encoding]
+	    if {$enc ne ""} {
+		chan configure $fd -encoding $enc
+	    }
 	    set template [read $fd]
 	    close $fd
 	    Debug.mason {template code: $template}
