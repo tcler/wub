@@ -499,6 +499,10 @@ namespace eval Httpd {
 	    set dh {}
 	    dict for {n v} $reply {
 		set nl [string tolower $n]
+		if {[string match x-* $nl]} {
+		    append header "$n: $v" \r\n
+		    lappend dh $n $v	;# keep dict of what we're actually sending
+		}
 		if {$nl ni {server date}
 		    && [info exists ::Http::headers($nl)]
 		    && $::Http::headers($nl) ne "rq"
