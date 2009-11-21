@@ -505,7 +505,6 @@ namespace eval Cache {
 	} elseif {[filemodified? $req $cached]} {
 	    # the cached is a -file type, and the underlying file is newer
 	    # so we invalidate the cached form
-	    dict set req -uri [Url uri $req]
 	    if {[exists? [dict get? $req etag]]} {
 		invalidate [string trim [dict get $req etag] \"]
 	    }
