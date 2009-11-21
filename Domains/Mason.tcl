@@ -245,7 +245,7 @@ class create Mason {
 		Debug.mason {.notfound failed - really not here}
 		# .notfound template completely missing
 		# just pick some match at random and return it
-		set globs [glob -nocomplain [file rootname $file].*]
+		set globs [glob -nocomplain [file rootname $path].*]
 		if {![llength $globs]} {
 		    return [Http NotFound $req]
 		}
