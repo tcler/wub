@@ -496,19 +496,15 @@ namespace eval Httpd {
 	    }
 
 	    # strip http fields which don't have relevance in response
-	    set dh {}
 	    dict for {n v} $reply {
 		set nl [string tolower $n]
 		if {[string match x-* $nl]} {
 		    append header "$n: $v" \r\n
-		    lappend dh $n $v	;# keep dict of what we're actually sending
-		}
-		if {$nl ni {server date}
-		    && [info exists ::Http::headers($nl)]
-		    && $::Http::headers($nl) ne "rq"
-		} {
+		} elseif {$nl ni {server date}
+			  && [info exists ::Http::headers($nl)]
+			  && $::Http::headers($nl) ne "rq"
+		      } {
 		    append header "$n: $v" \r\n
-		    lappend dh $n $v	;# keep dict of what we're actually sending
 		}
 	    }
 	} r eo]} {
@@ -520,9 +516,8 @@ namespace eval Httpd {
 
 	    Debug.error {Sending Error: '$r' ($eo) Sending Error}
 	} else {
-	    Debug.HttpdLow {format4server: ($dh)}
+	    Debug.HttpdLow {format4server: ($header)}
 	}
-	#puts stderr "HEADER: $header"
 	return [list $reply $header $content $file $empty $cache]
     }
 
