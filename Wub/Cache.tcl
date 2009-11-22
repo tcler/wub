@@ -20,8 +20,8 @@ set API(Server/Cache) {
 namespace eval Cache {
 
     proc filemodified? {req cached} {
-	if {![dict exists $cached -file]} {
-	    return 0	;# not a file at all
+	if {![dict exists $req if-modified-since] || ![dict exists $cached -file]} {
+	    return 0	;# not interested in modifications or not a file at all
 	}
 	set since [Http DateInSeconds [dict get $req if-modified-since]]
 	set mtime [file mtime [dict get $cached -file]]
