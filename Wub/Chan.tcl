@@ -353,20 +353,21 @@ class create Socket {
 	# remove connection record for connected ip
 	if {![info exists endpoints]} return
 
-	set ep [dict get $endpoints peer]
 	classvar connections
 	if {![info exists connections]} return	;# huh?
 
-	dict with ep {
-	    if {[dict exists $connections $ip]} {
-		catch {dict unset connections $ip $port}
-		catch {set remain [dict get $connections $ip]}
-		Debug.connections {$ip port $port disconnected ([dict size $remain]) remaining}
-	    }
+	if {![catch {dict get $endpoints peer} ep]} {
+	    dict with ep {
+		if {[dict exists $connections $ip]} {
+		    catch {dict unset connections $ip $port}
+		    catch {set remain [dict get $connections $ip]}
+		    Debug.connections {$ip port $port disconnected ([dict size $remain]) remaining}
+		}
 	    
-	    if {![dict size $remain]} {
-		dict unset connections $ip
-		Debug.connections {total: [dict size $connections]}
+		if {![dict size $remain]} {
+		    dict unset connections $ip
+		    Debug.connections {total: [dict size $connections]}
+		}
 	    }
 	}
     }
