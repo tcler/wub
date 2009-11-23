@@ -130,7 +130,7 @@ namespace eval Http {
 	accept accept-charset accept-encoding accept-language authorization
 	expect from host if-match if-modified-since if-none-match if-range
 	if-unmodified-since max-forwards proxy-authorization referer te
-	user-agent keep-alive cookie via
+	user-agent keep-alive cookie via range
     }
     foreach n $rq_headers {
 	set headers($n) rq
@@ -139,7 +139,7 @@ namespace eval Http {
     # set of response-only headers
     variable rs_headers {
 	accept-ranges age etag location proxy-authenticate retry-after
-	server vary www-authenticate content-disposition
+	server vary www-authenticate content-disposition content-range
     }
     foreach n $rs_headers {
 	set headers($n) rs
@@ -191,7 +191,7 @@ namespace eval Http {
 	if {[dict exists $r -received] && [dict exists $r -sent]} {
 	    set diff [expr {[dict get $r -sent] - [dict get $r -received]}]
 	    if {$diff > 100000} {
-		Debug.slow {SLOW ($diff uS): [dumpMsg $r]}
+		Debug.slow {SLOW ($diff uS): ([dict get? $r -behaviour]) [dumpMsg $r]}
 	    }
 	    lappend line \"$diff [dict get? $r -htime]\"
 	}
@@ -831,7 +831,6 @@ namespace eval Http {
     proc Moved {rsp to {content ""} {ctype "text/html"} args} {
 	return [Http genRedirect Moved 301 $rsp $to $content $ctype {*}$args]
     }
-
     
     # loadContent -- load a response's file content 
     #	used when the content must be transformed
@@ -946,6 +945,27 @@ namespace eval Http {
 	Dict strip reply transfer-encoding -chunked -content
 	return $reply
     }
+
+    # find etag in if-match field
+    proc if-match {req etag} {
+	if {![dict exists $req if-match]} {
+	    return 0
+	}
+	set result [expr {$etag in [split [dict get $req if-match] ", "]}]
+	Debug.cache {if-match: $result - $etag in [dict get $req if-none-match]}
+	return $result
+    }
+
+    # find etag in if-none-match field
+    proc any-match {req etag} {
+	if {![dict exists $req if-none-match]} {
+	    return 0
+	}
+	set result [expr {$etag in [split [dict get $req if-none-match] ", "]}]
+	Debug.cache {any-match: $result - $etag in [dict get $req if-none-match]}
+	return $result
+    }
+
 
     namespace export -clear *
     namespace ensemble create -subcommands {}
