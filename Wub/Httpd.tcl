@@ -320,7 +320,52 @@ namespace eval Httpd {
 	return $reply
     }
 
-    variable etag_id [clock microseconds]
+    # make GET/HEAD conditional
+    # this will transform a request if there's a conditional which
+    # applies to it.
+    proc conditional {r} {
+	if {[dict get $r -code] != 200} {
+	    return $r
+	}
+
+	set etag [dict get? $r etag]
+	# Check if-none-match
+	if {[Http any-match $r $etag]} {
+	    # rfc2616 14.26 If-None-Match
+	    # If any of the entity tags match the entity tag of the entity
+	    # that would have been returned in the response to a similar 
+	    # GET request (without the If-None-Match header) on that 
+	    # resource, or if "*" is given and any current entity exists 
+	    # for that resource, then the server MUST NOT perform the 
+	    # requested method, unless required to do so because the 
+	    # resource's modification date fails to match that
+	    # supplied in an If-Modified-Since header field in the request.
+	    if {[dict get $req -method] in {"GET" "HEAD"}} {
+		# if the request method was GET or HEAD, the server 
+		# SHOULD respond with a 304 (Not Modified) response, including
+		# the cache-related header fields (particularly ETag) of one 
+		# of the entities that matched.
+		Debug.cache {unmodified $uri}
+		counter $cached -unmod	;# count unmod hits
+		return [Http NotModified $req]
+		# NB: the expires field is set in $req
+	    } else {
+		# For all other request methods, the server MUST respond with
+		# a status of 412 (Precondition Failed).
+		return [Http PreconditionFailed $req]
+	    }
+	} elseif {![Http if-match $r $etag]} {
+	    return [Http PreconditionFailed $r]
+	} elseif {![Http if-range $r]} {
+	    catch {dict unset r range}
+	    # 14.27 If-Range
+	    # If the entity tag given in the If-Range header matches the current
+	    # entity tag for the entity, then the server SHOULD provide the
+	    # specified sub-range of the entity using a 206 (Partial content)
+	    # response. If the entity tag does not match, then the server SHOULD
+	    # return the entire entity using a 200 (OK) response.
+	}
+    }
 
     # format4send - format up a reply for sending.
     proc format4send {reply args} {
@@ -340,6 +385,9 @@ namespace eval Httpd {
 		# this was a tcl error code, not an HTTP code
 		set code 500
 	    }
+
+	    # make reply conditional
+	    set reply [conditional $reply]
 
 	    # Deal with content data
 	    set range {}	;# default no range
@@ -492,12 +540,6 @@ namespace eval Httpd {
 			    break
 			}
 		    }
-		}
-
-		if {$cache && ![dict exists $reply etag]} {
-		    # generate an etag for cacheable responses
-		    variable etag_id
-		    dict set reply etag "\"H[incr etag_id]\""
 		}
 	    }
 
@@ -866,6 +908,15 @@ namespace eval Httpd {
 	    return ERROR
 	}
 
+	# global consequences - caching
+	if {$cache} {
+	    # handle caching (under no circumstances cache bot replies)
+	    set r [Cache put $r]	;# cache it before it's sent
+	    dict set r -caching inserted
+	} else {
+	    Debug.Httpd {Do Not Cache put: ([rdump $r]) cache:$cache}
+	}
+
 	if {[catch {
 	    # send all pending responses, ensuring we don't send out of sequence
 	    write $r $cache
@@ -881,16 +932,6 @@ namespace eval Httpd {
 	if {$close} {
 	    terminate closed
 	}
-
-	# global consequences - caching
-	if {$cache} {
-	    # handle caching (under no circumstances cache bot replies)
-	    Cache put $r	;# cache it before it's sent
-	    dict set r -caching inserted
-	} else {
-	    Debug.Httpd {Do Not Cache put: ([rdump $r]) cache:$cache}
-	}
-
     }
 
     variable crs
