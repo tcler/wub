@@ -355,6 +355,8 @@ class create Socket {
 
 	set ep [dict get $endpoints peer]
 	classvar connections
+	if {![info exists connections]} return	;# huh?
+
 	dict with ep {
 	    if {[dict exists $connections $ip]} {
 		catch {dict unset connections $ip $port}
