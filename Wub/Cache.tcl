@@ -40,7 +40,7 @@ namespace eval Cache {
 	    return 0
 	}
 
-	if {[Http if-none-match $req [dict get $cached etag]]} {
+	if {[Http any-match $req [dict get $cached etag]]} {
 	    # this is looking for a completely different entity
 	    # we haven't got that entity, so there's no way they can match
 	    return 0
