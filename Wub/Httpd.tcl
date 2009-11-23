@@ -341,46 +341,8 @@ namespace eval Httpd {
 		set code 500
 	    }
 
-	    # set the informational error message
-	    if {[dict exists $reply -error]} {
-		set errmsg [dict get $reply -error]
-	    }
-	    if {![info exists errmsg] || ($errmsg eq "")} {
-		set errmsg [Http ErrorMsg $code]
-	    }
-
-	    set header "$code $errmsg\r\n"	;# note - needs prefix
-
-	    # format up the headers
-	    if {$code != 100} {
-		append header "Date: [Http Now]" \r\n
-		set si [dict get? $reply -server_id]
-		if {$si eq ""} {
-		    set si "The Wub"
-		}
-		append header "Server: $si" \r\n
-	    }
-
-	    # add in cookies already formatted up
-	    foreach hdr {set-cookie} {
-		if {[dict exists $reply set-cookie]} {
-		    append header $hdr: " " [dict get $reply $hdr] \n
-		}
-	    }
-	    
-	    # format up and send each cookie
-	    if {[dict exists $reply -cookies]} {
-		Debug.cookies {Http processing: [dict get $reply -cookies]}
-		set c [dict get $reply -cookies]
-		foreach cookie [Cookies format4server $c] {
-		    Debug.cookies {Http set: '$cookie'}
-		    append header "set-cookie: $cookie\r\n"
-		}
-	    } else {
-		Debug.cookies {Http processing: no cookies}
-	    }
-
-	    # there is content data
+	    # Deal with content data
+	    set range {}	;# default no range
 	    switch -glob -- $code {
 		204 - 304 - 1* {
 		    # 1xx (informational),
@@ -424,7 +386,77 @@ namespace eval Httpd {
 			#puts stderr "NOCACHE empty $code: $cache"
 			set cache 0	;# can't cache no content
 		    }
+
+		    if {!$empty && $code == 200} {
+			# handle range for 200
+			set ranges [dict get? $reply range]
+			if {$ranges ne ""} {
+			    set ranges [lindex [lassign [split $ranges =] unit] 0]
+			    set ranges [split $ranges ,]
+			    set ranges [lindex $ranges 0]	;# only handle one range
+			    foreach rr $ranges {
+				lassign [split $rr -] from to
+				lassign [split $to] to
+				set size [dict get $reply content-length]
+				if {$from eq ""} {
+				    set from [expr {$size-$to+1}]
+				    set to $size
+				} elseif {$to > $size || $to eq ""} {
+				    set to [expr {$size-1}]
+				}
+				
+				lappend range $from $to	;# remember range to send
+			    }
+
+			    # send appropriate content range and length fields
+			    set code 206	;# partial content
+			    dict set reply content-range "bytes $from-$to/$size"
+			    dict set reply content-length [expr {$from-$to}+1]
+
+			    Debug.Httpd {range: [dict get $reply content-range]}
+			}
+		    }
 		}
+	    }
+
+	    # set the informational header error message
+	    if {[dict exists $reply -error]} {
+		set errmsg [dict get $reply -error]
+	    }
+	    if {![info exists errmsg] || ($errmsg eq "")} {
+		set errmsg [Http ErrorMsg $code]
+	    }
+
+	    # format header
+	    set header "$code $errmsg\r\n"	;# note - needs prefix
+
+	    # format up the headers
+	    if {$code != 100} {
+		append header "Date: [Http Now]" \r\n
+		set si [dict get? $reply -server_id]
+		if {$si eq ""} {
+		    set si "The Wub"
+		}
+		append header "Server: $si" \r\n
+	    }
+
+	    # add in cookies already formatted up
+	    foreach hdr {set-cookie} {
+		if {[dict exists $reply set-cookie]} {
+		    append header $hdr: " " [dict get $reply $hdr] \n
+		}
+	    }
+	    
+	    # format up and send each cookie
+	    if {[dict exists $reply -cookies]} {
+		Debug.cookies {Http processing: [dict get $reply -cookies]}
+		set c [dict get $reply -cookies]
+		foreach cookie [Cookies format4server $c] {
+		    Debug.cookies {Http set: '$cookie'}
+		    append header "set-cookie: $cookie\r\n"
+		}
+	    } else {
+		Debug.cookies {Http processing: no cookies}
 	    }
 
 	    # handle Vary field and -vary dict
@@ -518,7 +550,7 @@ namespace eval Httpd {
 	} else {
 	    Debug.HttpdLow {format4server: ($header)}
 	}
-	return [list $reply $header $content $file $empty $cache]
+	return [list $reply $header $content $file $empty $cache $range]
     }
 
     # our fcopy has completed
@@ -616,7 +648,7 @@ namespace eval Httpd {
 	    # respond to the next transaction in trx order
 	    # unpack and consume the reply from replies queue
 	    # remove this response from the pending response structure
-	    lassign [dict get $replies $next] head content file close empty
+	    lassign [dict get $replies $next] head content file close empty range
 	    dict unset replies $next		;# consume next response
 
 	    # connection close after transmission required?
@@ -645,21 +677,37 @@ namespace eval Httpd {
 		    # send content of file descriptor using fcopy
 		    set fd [open $file r]
 		    set bytes [file size $file]
+
 		    chan configure $socket -translation binary
 		    chan configure $fd -translation binary
 		    unreadable	;# stop reading input while fcopying
 		    unwritable	;# stop writing while fcopying
 		    grace -1	;# stop the watchdog resetting the link
-		    Debug.Httpd {[info coroutine] FCOPY ENTITY: '$file' $bytes bytes} 8
-		    chan copy $fd $socket -command [list ::coroshim_fcopy [info coroutine] FCOPY $fd $bytes]
+
+		    if {[llength $range]} {
+			lassign $range from to
+			chan seek $fd $from start
+			set bytes [expr {$to-$from}+1]
+			Debug.Httpd {[info coroutine] FCOPY RANGE: '$file' hytes $from-$to/$bytes} 8
+			chan copy $fd $socket -command [list ::coroshim_fcopy [info coroutine] FCOPY $fd $bytes]
+
+		    } else {
+			Debug.Httpd {[info coroutine] FCOPY ENTITY: '$file' $bytes bytes} 8
+			chan copy $fd $socket -command [list ::coroshim_fcopy [info coroutine] FCOPY $fd $bytes]
+		    }
 		    break	;# we don't process any more i/o on $socket
 		} else {
 		    # send literal content
-		    chan puts -nonewline $socket $content	;# send the content
-		    Debug.Httpd {[info coroutine] SENT ENTITY: [string length $content] bytes} 8
+		    if {[llength $range]} {
+			chan puts -nonewline $socket [string range $from $to]
+			Debug.Httpd {[info coroutine] SENT RANGE: bytes $from-$to/[string length $content] bytes} 8
+		    } else {
+			chan puts -nonewline $socket $content	;# send the content
+			Debug.Httpd {[info coroutine] SENT ENTITY: [string length $content] bytes} 8
+		    }
 		}
 	    }
-	    chan flush $socket
+	    #chan flush $socket
 
 	    # only send for unsatisfied requests
 	    catch {dict unset unsatisfied $next}
@@ -685,6 +733,7 @@ namespace eval Httpd {
     }
 
     # we have been told we can write a reply
+    # write is the entry point for response from cached content
     proc write {r cache} {
 	corovars replies response sequence generation satisfied transaction closing unsatisfied socket last
 
@@ -746,7 +795,7 @@ namespace eval Httpd {
 
 	# wire-format the reply transaction - messy
 	variable ce_encodings	;# what encodings do we support?
-	lassign [format4send $r -cache $cache -encoding $ce_encodings] r header content file empty cache
+	lassign [format4send $r -cache $cache -encoding $ce_encodings] r header content file empty cache range
 	set header "HTTP/1.1 $header" ;# add the HTTP signifier
 
 	# record transaction reply and kick off the responder
@@ -760,7 +809,7 @@ namespace eval Httpd {
 	# chunked? - is the content to be sent in chunked mode?
 	# empty? - is there actually no content, as distinct from 0-length content?
 	Debug.Httpd {[info coroutine] ADD TRANS: ([dict keys $replies])}
-	dict set replies $trx [list $header $content $file [close? $r] $empty]
+	dict set replies $trx [list $header $content $file [close? $r] $empty $range]
 	dict set satisfied $trx {}	;# record satisfaction of transaction
 
 	if {[chan pending output $socket]} {
@@ -1427,10 +1476,6 @@ namespace eval Httpd {
 	    # check Cache for match
 	    if {[dict size [set cached [Cache check $r]]] > 0} {
 		# reply directly from cache
-		if {0} {
-		    dict set cached -transaction [dict get $r -transaction]
-		    dict set cached -generation [dict get $r -generation]
-		}
 		dict set unsatisfied [dict get $cached -transaction] {}
 		dict set cached -caching retrieved
 		dict set cached -sent [clock microseconds]
@@ -1831,6 +1876,9 @@ namespace eval Httpd {
 	variable generation	;# unique generation
 	set gen [incr generation]
 	set args [dict merge $args [list -generation $gen]]
+
+	# send that we accept ranges
+	dict set args accept-ranges bytes
 
 	# create reader coroutine
 	variable reader
