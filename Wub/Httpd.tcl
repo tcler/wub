@@ -346,7 +346,7 @@ namespace eval Httpd {
 		# the cache-related header fields (particularly ETag) of one 
 		# of the entities that matched.
 		Debug.cache {unmodified $uri}
-		counter $cached -unmod	;# count unmod hits
+		#counter $cached -unmod	;# count unmod hits
 		return [Http NotModified $r]
 		# NB: the expires field is set in $r
 	    } else {
