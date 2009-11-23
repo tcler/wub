@@ -951,8 +951,34 @@ namespace eval Http {
 	if {![dict exists $req if-match]} {
 	    return 0
 	}
-	set result [expr {$etag in [split [dict get $req if-match] ", "]}]
-	Debug.cache {if-match: $result - $etag in [dict get $req if-none-match]}
+	set etag \"[string trim $etag \"]\"
+
+	set im [split [dict get $req if-match] ","]
+	set result [expr {$im eq "*" || $etag in $im}]
+	Debug.cache {if-match: $result - $etag in $im}
+	return $result
+    }
+
+    # find etag in if-range field
+    proc if-match {req etag} {
+	if {![dict exists $req if-range]} {
+	    return 0
+	}
+	set etag \"[string trim $etag \"]\"
+	set im [split [dict get $req if-range] ","]
+	set result [expr {$im eq "*" || $etag in $im}]
+	Debug.cache {if-match: $result - $etag in $im}
+	return $result
+    }
+
+    proc if-none-match {req etag} {
+	if {![dict exists $req if-none-match]} {
+	    return 0
+	}
+	set etag \"[string trim $etag \"]\"
+	set im [split [dict get $req if-none-match] ","]
+	set result [expr {$etag ni $im}]
+	Debug.cache {any-match: $result - $etag in $im}
 	return $result
     }
 
@@ -961,8 +987,10 @@ namespace eval Http {
 	if {![dict exists $req if-none-match]} {
 	    return 0
 	}
-	set result [expr {$etag in [split [dict get $req if-none-match] ", "]}]
-	Debug.cache {any-match: $result - $etag in [dict get $req if-none-match]}
+	set etag \"[string trim $etag \"]\"
+	set im [split [dict get $req if-none-match] ","]
+	set result [expr {$etag in $im}]
+	Debug.cache {any-match: $result - $etag in $im}
 	return $result
     }
 
