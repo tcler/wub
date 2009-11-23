@@ -1526,7 +1526,7 @@ namespace eval Httpd {
 		if {[catch {
 		    write [dict merge $r $cached] 0	;# write cached response directly into outgoing structs
 		} result eo]} {
-		    Debug.error {FAILED write $close ($eo) IP [dict get $r -ipaddr] ([dict get? $r user-agent]) wanted [dict get $r -uri]}
+		    Debug.error {FAILED write $result ($eo) IP [dict get $r -ipaddr] ([dict get? $r user-agent]) wanted [dict get $r -uri]}
 		    terminate closed
 		}
 		#lassign result close cache
