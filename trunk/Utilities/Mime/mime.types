@@ -143,6 +143,7 @@ video/mpeg                     mpeg mpg mpe
 video/quicktime                qt mov          
 video/x-msvideo                avi             
 video/x-sgi-movie              movie           
+video/x-flv		       flv           
 
 text/vnd.wap.wml                wml
 text/vnd.wap.wmlscript          wmls
