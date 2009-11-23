@@ -340,19 +340,19 @@ namespace eval Httpd {
 	    # requested method, unless required to do so because the 
 	    # resource's modification date fails to match that
 	    # supplied in an If-Modified-Since header field in the request.
-	    if {[dict get $req -method] in {"GET" "HEAD"}} {
+	    if {[dict get $r -method] in {"GET" "HEAD"}} {
 		# if the request method was GET or HEAD, the server 
 		# SHOULD respond with a 304 (Not Modified) response, including
 		# the cache-related header fields (particularly ETag) of one 
 		# of the entities that matched.
 		Debug.cache {unmodified $uri}
 		counter $cached -unmod	;# count unmod hits
-		return [Http NotModified $req]
-		# NB: the expires field is set in $req
+		return [Http NotModified $r]
+		# NB: the expires field is set in $r
 	    } else {
 		# For all other request methods, the server MUST respond with
 		# a status of 412 (Precondition Failed).
-		return [Http PreconditionFailed $req]
+		return [Http PreconditionFailed $r]
 	    }
 	} elseif {![Http if-match $r $etag]} {
 	    return [Http PreconditionFailed $r]
