@@ -317,7 +317,7 @@ class create Socket {
 	}
 	if {![dict exists $endpoints $n peer]} {
 	    Debug.error {[self] don't have peer endpoint - give up.}
-	    [self] destroy
+	    #[self] destroy
 	}
 	Debug.chan {Socket configured $chan to [::chan configure $chan]}
 
