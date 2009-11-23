@@ -114,13 +114,12 @@ class create File {
 
 		file {
 		    # allow client caching
+		    set r [Http Cache $r $expires]
 		    if {[file size $path] > $stream} {
 			# this is a large file - stream it using fcopy
-			set r [Http NoCache $r]
 			return [Http File $r $path]
 		    } else {
 			# this is a small file - load then send
-			set r [Http Cache $r $expires]
 			return [Http CacheableFile $r $path]
 		    }
 		}
