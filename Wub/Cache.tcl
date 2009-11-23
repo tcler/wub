@@ -1,4 +1,5 @@
-# cache for multithreading
+# Cache - Server side cache
+# TODO: make Cache a direct domain for some introspection
 
 package require Debug
 package require md5
@@ -36,6 +37,12 @@ namespace eval Cache {
 	# perform cache freshness check
 	if {![dict exists $req if-modified-since]} {
 	    Debug.cache {unmodified? 0 - no if-modified-since}
+	    return 0
+	}
+
+	if {[Http if-none-match $req [dict get $cached etag]]} {
+	    # this is looking for a completely different entity
+	    # we haven't got that entity, so there's no way they can match
 	    return 0
 	}
 
@@ -162,6 +169,7 @@ namespace eval Cache {
 		return {}
 	    }
 	}
+
 	return $cached
     }
 
@@ -194,18 +202,26 @@ namespace eval Cache {
 	return [expr {int(100 * ($weight_b - $weight_a))}]
     }
 
+    # etag - generate an etag for content
+    proc etag {req} {
+	# use MD5 of content for etag
+	if {[dict exists $req -file]} {
+	    return "WUB[::md5::md5 -hex -file [dict get $req -file]]"
+	} else {
+	    return "WUB[::md5::md5 -hex [dict get $req -content]]"
+	}
+    }
+
     # put - insert request into cache
     proc put {req} {
 	Debug.cache {put: ([dumpMsg $req])}
-
-	dict set req -uri [Url uri $req]
-
-	# whatever the eventual cache status, must remove old matches
-	invalidate [dict get $req -uri]	;# invalidate by -uri
-	invalidate [dict get? $req etag] ;# invalidate by etag
+	
+	set uri [Url uri $req]
+	dict set req -uri $uri
 
 	# we only cache 200s
 	if {[dict get $req -code] != 200} {
+	    Debug.cache {code is [dict get $req -code] ... not caching $uri}
 	    return $req
 	}
 
@@ -213,49 +229,43 @@ namespace eval Cache {
 	if {[dict exists $req -dynamic]
 	    && [dict get $req -dynamic]
 	} {
+	    Debug.cache {content is -dynamic ... not caching $uri}
 	    return $req
 	}
+
+	# whatever the eventual cache status, must remove old matches
+	invalidate [dict get $req -uri]	;# invalidate by -uri
+	invalidate [dict get? $req etag] ;# invalidate by etag
 
 	variable maxsize
 	if {($maxsize > 0)} {
 	    if {[dict exists $req -content]} {
-		if {$maxsize < [string length [dict get $req -content]]} {
-		    # we can't store enormous entities in the cache
-		    return $req
-		}
+		set len [string length [dict get $req -content]]
 	    } elseif {[dict exists $req -file]} {
-		if {$maxsize < [file size [dict get $req -file]]} {
-		    return $req
-		}
+		set len [file size [dict get $req -file]]
+	    }
+	    if {$maxsize < $len} {
+		# we can't store enormous entities in the cache
+		Debug.cache {content size $len >= $maxsize too big ... not caching $uri}
+		return $req
 	    }
 	}
 
+	# we don't cache custom mime-typed content
 	set ctype [dict get $req content-type]
-	if {[string match x-*/* $ctype]
-	    || [string match */x-* $ctype]} {
+	if {[string match x-*/* $ctype]} {
+	    Debug.cache {content type $ctype ... not caching $uri}
 	    return $req
 	}
 
-	if {0} {
-	    if {[dict exists $req etag]} {
-		# generator has given us an etag
-		set etag [string trim [dict get $req etag] \"]
-		dict unset req etag	;# we don't want to store old etag - why?
-	    } else {
-		# generate an etag
-		variable unique
-		set etag "WUB[incr unique]"
-		while {[exists? $etag]} {
-		    set etag "WUB[incr unique]"
-		}
-	    }
+	Debug.cache {definitely caching $uri}
+
+	set etag [etag $req]	;# get an etag from content
+	if {[dict exists $req etag]} {
+	    # store *requested* etag, if any
+	    dict set req -etag [dict get $req etag]
 	}
-	# use MD5 of content for etag
-	if {[dict exists $req -file]} {
-	    set etag WUB[::md5::md5 -hex -file [dict get $req -file]]
-	} else {
-	    set etag WUB[::md5::md5 -hex [dict get $req -content]]
-	}
+	dict set req etag \"$etag\"	;# store with ridiculous quotes
 
 	# subset the cacheable request with just those fields needed
 	set cached [Dict subset $req {
@@ -269,7 +279,6 @@ namespace eval Cache {
 	# add new fields for server cache control
 	dict set cached -refcount 2
 	dict set cached -when [clock seconds]
-	dict set cached etag \"$etag\"	;# store with ridiculous quotes
 	dict set cached -key $etag	;# remember the actual etag
 	dict set cached -hits 0
 	dict set cached -unmod 0
@@ -312,7 +321,7 @@ namespace eval Cache {
 
 	Debug.cache {new: $etag == [dict get $req -uri]}
 
-	return $req
+	return $req	;# return, with etag and other fields
     }
 
     # keys - return keys matching filter (default all)
@@ -404,16 +413,6 @@ namespace eval Cache {
 	dict incr cache([dict get $cached -key]) $field
     }
 
-    proc any-match {req cached} {
-	if {![dict exists $req if-none-match]} {
-	    return 0
-	}
-
-	set result [expr {[dict get $cached etag] in [split [dict get $req if-none-match] ", "]}]
-	Debug.cache {any-match: $result - [dict get $cached etag] - [dict get $req if-none-match]}
-	return $result
-    }
-
     # check - can request be satisfied from cache?
     # if so, return it.
     proc check {req} {
@@ -423,9 +422,11 @@ namespace eval Cache {
 	# first query cache to see if there's even a matching entry
 	set etag [dict get? $req etag]
 	if {$etag ne "" && ![exists? $etag]} {
+	    # client provided an etag
 	    Debug.cache {etag '$etag' given, but not in cache}
 	    return {}	;# we don't have a copy matching etag
 	}
+
 	set uri [Url uri $req]; #dict get? $req -uri
 	if {$uri ne "" && ![exists? $uri]} {
 	    Debug.cache {url '$uri' not in cache}
@@ -467,7 +468,7 @@ namespace eval Cache {
 	    fetch $req
 	} cached eo]} {
 	    # it's gotta be there!
-	    Debug.error {cache inconsistency '$cached' ($eo) - can't fetch existing entry for url:'$uri'/[exists? $uri] etag:'$etag'}
+	    Debug.error {cache inconsistency '$cached' ($eo) - can't fetch existing entry for url:'$uri'/[exists? $uri] etag:'$etag'/[exists? $etag]}
 	    return {}
 	}
 	if {$cached eq {}} {
@@ -489,33 +490,6 @@ namespace eval Cache {
 	    }
 	}
 
-	# see if we can respond 304
-	if {[any-match $req $cached]} {
-	    # rfc2616 14.26 If-None-Match
-	    # If any of the entity tags match the entity tag of the entity
-	    # that would have been returned in the response to a similar 
-	    # GET request (without the If-None-Match header) on that 
-	    # resource, or if "*" is given and any current entity exists 
-	    # for that resource, then the server MUST NOT perform the 
-	    # requested method, unless required to do so because the 
-	    # resource's modification date fails to match that
-	    # supplied in an If-Modified-Since header field in the request.
-	    if {[dict get $req -method] in {"GET" "HEAD"}} {
-		# if the request method was GET or HEAD, the server 
-		# SHOULD respond with a 304 (Not Modified) response, including
-		# the cache-related header fields (particularly ETag) of one 
-		# of the entities that matched.
-		Debug.cache {unmodified $uri}
-		counter $cached -unmod	;# count unmod hits
-		return [Http NotModified $req]
-		# NB: the expires field is set in $req
-	    } else {
-		# For all other request methods, the server MUST respond with
-		# a status of 412 (Precondition Failed).
-		return [Http PreconditionFailed $req]
-	    }
-	}
-
 	if {[unmodified? $req $cached]} {
 	    Debug.cache {unmodified $uri}
 	    counter $cached -unmod	;# count unmod hits
@@ -533,7 +507,6 @@ namespace eval Cache {
 	    return {}
 	} else {
 	    # deliver cached content in lieue of processing
-	    #dict set req last-modified [dict get $cached last-modified]
 	    counter $cached -hits	;# count individual entry hits
 	    set req [dict merge $req $cached]
 	    set req [Http CacheableContent $req [dict get $cached -modified]]
