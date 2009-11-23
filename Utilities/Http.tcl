@@ -994,7 +994,6 @@ namespace eval Http {
 	return $result
     }
 
-
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
