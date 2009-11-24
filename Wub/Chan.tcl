@@ -314,11 +314,13 @@ class create Socket {
 	}
 	if {$errs} {
 	    Debug.error {[self] $errs errors out of $tries tries - give up ($errmsgs).}
-	    [self] destroy
+	    error $errmsgs
+	    #[self] destroy
 	}
 	if {![dict exists $endpoints peer]} {
 	    Debug.error {[self] don't have peer endpoint in $endpoints}
-	    [self] destroy
+	    error "[self] don't have peer endpoint in $endpoints"
+	    #[self] destroy
 	}
 	Debug.chan {Socket configured $chan to [::chan configure $chan]}
 
