@@ -296,14 +296,15 @@ class create Socket {
 	    return
 	}
 
-	set errs 0; set tries 0
-	incr errs [catch {::chan configure $chan -blocking 0 -buffering none -encoding binary -eofchar {{} {}} -translation {binary binary}}]
-
+	set errs 0; set tries 0; set errmsgs {}
+	incr errs [catch {::chan configure $chan -blocking 0 -buffering none -encoding binary -eofchar {{} {}} -translation {binary binary}} e eo]
+	lappend errmsgs $e
 	# get the endpoints for this connected socket
 	foreach {n cn} {socket -sockname peer -peername} {
 	    incr tries
-	    if {[catch {::chan configure $chan $cn} ep]} {
+	    if {[catch {::chan configure $chan $cn} ep eo]} {
 		incr errs
+		lappend errmsgs $ep
 	    } else {
 		lassign [split $ep] ip name port
 		foreach pn {ip name port} {
@@ -312,7 +313,7 @@ class create Socket {
 	    }
 	}
 	if {$errs} {
-	    Debug.error {[self] $err errors out of $tries tries - give up.}
+	    Debug.error {[self] $errs errors out of $tries tries - give up ($errmsgs).}
 	    [self] destroy
 	}
 	if {![dict exists $endpoints peer]} {
