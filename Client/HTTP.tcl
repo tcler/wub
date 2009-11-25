@@ -327,7 +327,7 @@ class create HTTP {
 	set gone [catch {chan eof $socket} eof]
 	while {$size && !$gone && !$eof} {
 	    ::yield	;# wait for read event
-	    set chunklet [chan read $socket $size]	;# get some
+	    set chunklet [chan read $socket {*}[expr {$size>0?$size:""}]]	;# get some
 	    append chunk $chunklet			;# remember it
 	    incr size -[string length $chunklet]	;# how much left?
 	    set gone [catch {chan eof $socket} eof]
