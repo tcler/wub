@@ -319,7 +319,7 @@ class create HTTP {
 	}
     }
 
-    method read {size} {
+    method read {{size -1}} {
 	corovars socket
 	Debug.HTTP {Reading $size}
 
@@ -465,7 +465,7 @@ class create HTTP {
 		    Debug.HTTP {reader header: $header ($r)}
 		    
 		    # now we have to fetch the entity (if any)
-		    if {[dict exists $r content-length] || [string toupper $version] eq "HTTP/1.0"} {
+		    if {[dict exists $r content-length]} {
 			set left [dict get $r content-length]
 			set entity ""
 			chan configure $socket -encoding binary -translation {binary binary}
@@ -500,6 +500,8 @@ class create HTTP {
 				error "Unknown transfer encoding"
 			    }
 			}
+		    } elseif {[string toupper $version] eq "HTTP/1.0"} {
+			dict set r -content [my read]
 		    }
 		}
 
