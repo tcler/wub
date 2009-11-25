@@ -31,6 +31,9 @@ proc require {what} {
 foreach tcllib {cmdline csv inifile
     dns fileutil struct
     tar textutil tie} {
+    if {[package present $tcllib]} {
+	puts stderr "BUG: $tcllib is already loaded."
+    }
     require $tcllib
 }
 
