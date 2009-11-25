@@ -459,7 +459,7 @@ namespace eval Httpd {
 			    # send appropriate content range and length fields
 			    set code 206	;# partial content
 			    dict set reply content-range "bytes $from-$to/$size"
-			    dict set reply content-length [expr {$from-$to}+1]
+			    dict set reply content-length [expr {$from-$to+1}]
 
 			    Debug.Httpd {range: [dict get $reply content-range]}
 			}
@@ -1583,7 +1583,7 @@ namespace eval Httpd {
 		watchdog
 
 		# report error from post-processing
-		send [Convert do [Http ServerError $r $rspp $eo]]
+		send [::Convert do [Http ServerError $r $rspp $eo]]
 	    } else {
 		# send the response to client
 		Debug.Httpd {[info coroutine] postprocess: [rdump $rspp]} 10
@@ -1971,6 +1971,8 @@ namespace eval Httpd {
     variable log ""	;# fd of open log file - default none
     variable logfile ""	;# name of log file - "" means none
 
+    variable customize ""	;# file to source to customise Httpd
+
     # configure - set Httpd protocol defaults
     proc configure {args} {
 	variable {*}$args
@@ -1988,6 +1990,15 @@ namespace eval Httpd {
 		# we want to try to make writes atomic
 		fconfigure $log -buffering line
 	    }
+	}
+
+	# source in local customisations for Httpd
+	# mainly useful for [pre] [post] and [pest]
+	variable customize
+	if {$customize ne ""} {
+	    set eo {}
+	    catch {source $customize} result eo
+	    Debug.log {Httpd Customisations from '$customize'->$result ($eo)}
 	}
 
 	variable maxconn
