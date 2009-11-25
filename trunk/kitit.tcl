@@ -40,7 +40,7 @@ if {0} {
     }
 }
 
-foreach wub {Client CWub docs
+foreach wub {Client docroot
     Domains extensions Utilities Wub} {
     dict lappend ::pkgdirs [file normalize $wub] {}
 }
