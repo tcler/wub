@@ -465,7 +465,7 @@ class create HTTP {
 		    Debug.HTTP {reader header: $header ($r)}
 		    
 		    # now we have to fetch the entity (if any)
-		    if {[dict exists $r content-length] || $version == 1.0} {
+		    if {[dict exists $r content-length] || [string toupper $version] eq "HTTP/1.0"} {
 			set left [dict get $r content-length]
 			set entity ""
 			chan configure $socket -encoding binary -translation {binary binary}
