@@ -4,23 +4,25 @@ package require Tcl 8.6	;# minimum version of tcl required
 namespace eval ::Site {}
 
 # keep track of sourced files
-rename source source_org
-proc ::source {args} {
-    set fn [lindex $args end]
-    if {[lindex [file split $fn] end] ne "pkgIndex.tcl"} {
-	set f [file normalize [lindex $args end]]
-	dict set ::Site::sourced [list source $f] $args
-	puts stderr "source $f"
+if {$::tcl_platform(os) eq "Linux"} {
+    rename source source_org
+    proc ::source {args} {
+	set fn [lindex $args end]
+	if {[lindex [file split $fn] end] ne "pkgIndex.tcl"} {
+	    set f [file normalize [lindex $args end]]
+	    dict set ::Site::sourced [list source $f] $args
+	    puts stderr "source $f"
+	}
+	return [uplevel source_org {*}$args]
     }
-    return [uplevel source_org {*}$args]
-}
 
-rename load load_org
-proc ::load {args} {
-    set f [file normalize [lindex $args 0]]
-    dict set ::Site::sourced [list load $f] $args
-    puts stderr "load $f"
-    return [uplevel load_org {*}$args]
+    rename load load_org
+    proc ::load {args} {
+	set f [file normalize [lindex $args 0]]
+	dict set ::Site::sourced [list load $f] $args
+	puts stderr "load $f"
+	return [uplevel load_org {*}$args]
+    }
 }
 
 proc findpaths {} {
@@ -378,7 +380,7 @@ namespace eval Site {
 	} {
 	    # install default conversions
 	    package require Convert
-	    Convert new
+	    Convert new {*}$convert
 	    Debug.site {Module Convert: YES}
 	} else {
 	    Debug.site {Module Convert: NO}
@@ -393,7 +395,7 @@ namespace eval Site {
 	    #### initialize Block
 	    Debug.site {Module Block: YES}
 	    package require Block
-	    Block new logdir $docroot
+	    Block new logdir $docroot {*}$block
 	} else {
 	    # NULL Block
 	    Debug.site {Module Block: NO}
@@ -415,7 +417,7 @@ namespace eval Site {
 	    #### initialize Human
 	    package require Human
 	    Debug.site {Module Human: YES}
-	    Human new logdir $docroot
+	    Human new logdir $docroot {*}$human
 	} else {
 	    # NULL Human
 	    Debug.site {Module Human: NO}
@@ -494,7 +496,7 @@ namespace eval Site {
 	    package require stx2html
 
 	    variable stx_scripting
-	    stx2html init script [dict get? $stx scripting]
+	    stx2html init script [dict get? $stx scripting] {*}$stx
 	    Debug.site {Module STX: YES}
 	} else {
 	    Debug.site {Module STX: NO}
@@ -509,17 +511,7 @@ namespace eval Site {
 	    if {[catch {
 		#### Shell init
 		package require Shell
-		set spasswd [dict get? $shell password]
-		if {$spasswd ne ""} {
-		    set spasswd [list password $spasswd]
-		}
-		if {[dict exists $shell port]} {
-		    Shell new port [dict get $shell port] {*}$spasswd
-		    Debug.site {Module Shell: YES on port [dict get $shell port]}
-		} else {
-		    Shell new {*}$spasswd
-		    Debug.site {Module Shell: YES on stdio}
-		}
+		Shell new {*}$shell
 	    } err eo]} {
 		Debug.error {Module Shell: Failed to Init. $err ($eo)}
 	    }
