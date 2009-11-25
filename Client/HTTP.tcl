@@ -434,7 +434,9 @@ class create HTTP {
 		    set line [my gets]
 		    Debug.HTTP {reader got line: ($line)}
 		    if {[string trim $line] eq ""} {
-			set headering 0
+			if {[llength $lines]} {
+			    set headering 0
+			}
 		    } elseif {[string match <* [string trim $line]]} {
 			set headering 0
 			set bogus 1
