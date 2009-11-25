@@ -336,7 +336,7 @@ class create HTTP {
 
 	if {$gone || $eof} {
 	    set reason "EOF reading ENTITY"
-	    [self] destroy
+	    return $chunk	;# can just EOF in entity
 	} else {
 	    # we have successfully read our chunk of $size
 	    Debug.HTTPdetail {Read: '$chunk' of size $size}
