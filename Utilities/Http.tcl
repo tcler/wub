@@ -960,7 +960,7 @@ namespace eval Http {
     }
 
     # find etag in if-range field
-    proc if-match {req etag} {
+    proc if-range {req etag} {
 	if {![dict exists $req if-range]} {
 	    return 0
 	}
