@@ -834,9 +834,9 @@ namespace eval Nub {
 	    set rw_transforms {}
 	    set r [dict merge $r [Url parse [dict get $r -url]]]
 	    while {!$done && [incr count] < 30} {
-		Debug.nub {pre-RW //[dict get $r -host]/[dict get $r -path]}
+		Debug.nub {pre-RW //[dict get $r -host][dict get $r -path]}
 		set prior [Url url $r]
-		switch -regexp -- "//[dict get $r -host]/[dict get $r -path]" {
+		switch -regexp -- "//[dict get $r -host][dict get $r -path]" {
 		    %RW
 		    default {
 			set url [dict get $r -url]
