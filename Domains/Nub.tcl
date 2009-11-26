@@ -622,6 +622,7 @@ namespace eval Nub {
 	foreach {url name} $rewrites {
 	    append rewriting [string map [list %URL% $url %N% $name] {{%URL%} {
 		set url [{*}$defs(%N%) $r]
+		Debug.nub {rewrite: '%URL%' -> '$url'}
 		lappend rw_transforms {%URL%} $url
 	    }}] \n
 	}
