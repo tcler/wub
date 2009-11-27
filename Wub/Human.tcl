@@ -23,8 +23,15 @@ namespace eval Human {
 	variable cookie
 	variable tracker
 	variable logdir
+	variable path
+
 	set ipaddr [dict get $r -ipaddr]
 
+	# only track cookies on given path
+	if {![string match ${path}* [dict get $r -path]]} {
+	    return $r
+	}
+	
 	# try to find the human cookie
 	set cl [Cookies Match $r -name $cookie]
 	Debug.human {cookie list: $cl}
@@ -107,7 +114,6 @@ namespace eval Human {
 	}
 
 	# add the human cookie
-	variable path
 	set value [clock microseconds]
 	Debug.human {created human cookie $value}
 	set cdict [Cookies add $cdict -path $path -name $cookie -value $value {*}$expiresC]
