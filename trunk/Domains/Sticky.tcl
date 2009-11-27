@@ -58,7 +58,7 @@ class create Sticky {
 	    set url [file join $mount load]
 	    set r [jQ postscript $r [string map [list %LOAD% $url] {
 		$.getScript('%LOAD%', function(data, status){
-		    alert("data:"+data+" status:"+status);
+		    /*alert("data:"+data+" status:"+status);*/
 		});
 	    }]]
 	}
