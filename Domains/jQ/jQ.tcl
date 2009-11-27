@@ -61,22 +61,22 @@ set API(Domains/JQ) {
 
 	=== Example: arbitrary javascript over jQuery ===
 
-	    set r [jQ jquery $r]	;# load the jquery library
-	    set r [jQ postscript $r {
-	        /* this is javascript */
-	    }]
-	    set r [jQ postscript $r [<ready> {
-	        /* this is javascript which will be run only when jQuery is ready */
-	    }]]
+	set r [jQ jquery $r]	;# load the jquery library
+	set r [jQ postscript $r {
+	    /* this is javascript */
+	}]
+	set r [jQ postscript $r [<ready> {
+	    /* this is javascript which will be run only when jQuery is ready */
+	}]]
 
 	=== Example: ajax form ===
 
-	    # apply form plugin to ''formid''
-	    set r [[jQ form $r "#formid" target \"#divid\"]]
+	# apply form plugin to ''formid''
+	set r [[jQ form $r "#formid" target \"#divid\"]]
 
-	    # emit a form with the id ''formid'' and a div with the id ''divid''
-	    # the returned result of submitting ''formid'' will replace the content of ''divid''
-	    return [Http Ok $r "[<form> formid {...}] [<div> divid {...}]" x-text/html-fragment]
+	# emit a form with the id ''formid'' and a div with the id ''divid''
+	# the returned result of submitting ''formid'' will replace the content of ''divid''
+	return [Http Ok $r "[<form> formid {...}] [<div> divid {...}]" x-text/html-fragment]
     }
     expires {when do these javascript files expire?}
     google {use the google versions of jQuery wherever possible}
@@ -199,8 +199,8 @@ namespace eval jQ {
 	}
 
 	autogrow {
-		maxHeight 1000
-		minHeight 100
+	    maxHeight 1000
+	    minHeight 100
 	}
 	galleria {
 	    history true
@@ -736,8 +736,7 @@ namespace eval jQ {
 	# if(validation=='ok'){
 	# $(this).FormObserve_save();
 	#}
-});
-
+	#});
     }
 
     # http://bassistance.de/jquery-plugins/jquery-plugin-validation/
@@ -793,6 +792,15 @@ namespace eval jQ {
 	}]
     }
 
+    # http://tympanus.net/codrops/2009/10/30/jstickynote-a-jquery-plugin-for-creating-sticky-notes/
+    proc stickynote {r selector args} {
+	return [weave $r {
+	    jquery.js jquery.ui.cs
+	} css stickynote.css %SEL $selector %OPTS [opts stickynote {*}$args] {
+	    $('%SEL').stickynote(%OPTS);
+	}]
+    }
+
     proc sheet {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.clickmenu.js jquery.sheet.calc.js jquery.sheet.js
@@ -817,7 +825,7 @@ namespace eval jQ {
 	}
 	return jQ
     }
-    
+
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
