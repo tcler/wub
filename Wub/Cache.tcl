@@ -269,8 +269,9 @@ namespace eval Cache {
 
 	# subset the cacheable request with just those fields needed
 	set cached [Dict subset $req {
-	    -content -gzip -code -uri -charset -chconverted -modified
-	    -expiry -file
+	    -content -file -gzip
+	    -code -uri -charset -chconverted
+	    -modified -expiry
 	    content-language content-location content-md5 content-type
 	    expires last-modified cache-control
 	}]
