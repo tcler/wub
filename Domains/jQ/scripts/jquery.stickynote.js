@@ -50,13 +50,17 @@
 				$.post('/sticky/save',"content="+_content);
 			    });
 		} else
-			_div_note.append('<p class="rest_in_place" style="color:'+o.color+'">'+o.text+'</p>');					
+			_div_note.append('<p style="color:'+o.color+'">'+o.text+'</p>');					
 		
-		var _div_delete = 	$(document.createElement('div'))
-							.addClass('jSticky-delete');
+		var _div_delete = $(document.createElement('div')).addClass('jSticky-delete');
+		if (o.id) {
+		    _div_delete.attr('id', o.id);
+		}
 		
 		_div_delete.click(function(e){
+			var _id = $(this).attr('id');
 			$(this).parent().remove();
+			$.post('/sticky/delete',"id="+_id);
 		})
 		
 		var _div_wrap 	= 	$(document.createElement('div'))
