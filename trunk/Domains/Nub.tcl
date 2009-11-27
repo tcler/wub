@@ -821,6 +821,7 @@ namespace eval Nub {
     }
 
     # generate code for rewriting
+    # TODO: this code doesn't include port in comparison - it likely should.
     proc code_rewrites {rewriting} {
 	Debug.nub {code_rewrites: $rewriting}
 	if {$rewriting eq ""} {
