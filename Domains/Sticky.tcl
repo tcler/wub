@@ -160,7 +160,7 @@ class create Sticky {
 	    set local 0
 	}
 
-	Debug.Sql {Database $db: tables:([$db tables])}
+	Debug.sticky {Database $db: tables:([$db tables])}
     }
     variable mount postprocess params db tdbc file table stmt
 
