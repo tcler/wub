@@ -76,6 +76,14 @@ class create Sticky {
 	$db allrows "INSERT INTO $table (id, key, content) VALUES (:id, :key, :content);"
     }
 
+    method /delete {r {id ""} args} {
+	Debug.sticky {/delete id:$id $args}
+	if {[string match ST* $id]} {
+	    set id [string trimleft $id ST]
+	    $db allrows "DELETE FROM $table where id = :id;"
+	}
+    }
+
     method /load {r {key ""} {content ""}} {
 	# if no key, use referer
 	if {$key eq ""} {
