@@ -111,7 +111,7 @@ class create Sticky {
 	# find stuff matching key, substitute content into template
 	set results {}
 	$db foreach -as dicts -- record "SELECT * FROM $table WHERE key LIKE :key" {
-	    set map [list %ID% [dict get $record id] %TEXT% [dict get $record content]]
+	    set map [list %ID% [dict get $record id] %TEXT% [string map {\n \\n} [dict get $record content]]]
 	    lappend results [string map $map $template]
 	}
 
