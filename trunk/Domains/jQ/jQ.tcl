@@ -239,6 +239,9 @@ namespace eval jQ {
 	    media_url '/icons/'
 	    content_css_url 'rte.css'
 	}
+	stickynote {
+	    size 'large'
+	}
     }
 
     proc opts {type args} {
@@ -795,7 +798,7 @@ namespace eval jQ {
     # http://tympanus.net/codrops/2009/10/30/jstickynote-a-jquery-plugin-for-creating-sticky-notes/
     proc stickynote {r selector args} {
 	return [weave $r {
-	    jquery.js jquery.ui.cs
+	    jquery.js jquery.ui.js jquery.stickynote.js
 	} css stickynote.css %SEL $selector %OPTS [opts stickynote {*}$args] {
 	    $('%SEL').stickynote(%OPTS);
 	}]

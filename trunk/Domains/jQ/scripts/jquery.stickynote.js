@@ -25,6 +25,10 @@
 		var _div_note 	= 	$(document.createElement('div'))
 							.addClass('jStickyNote')
 							.css('cursor','move');
+		if (o.id) {
+		    _div_note.attr('id', o.id);
+		}
+
 		if(!o.text){
 			_div_note.append(_note_content);
 			var _div_create = $(document.createElement('div'))
@@ -32,25 +36,21 @@
 						.attr('title','Create Sticky Note');
 		
 			_div_create.click(function(e){
-				var _p_note_text = 	$(document.createElement('p'))
-									.css('color',o.color)
-									.html	(
-											$(this)
-											.parent()
-											.find('textarea')
-											.val()
-											);
+				var _content = $(this).parent().find('textarea').val();
+				var _p_note_text = $(document.createElement('p'))
+				    .css('color',o.color)
+				    .html(_content);
 				$(this)
-				.parent()
-				.find('textarea')
-				.before(_p_note_text)
-				.remove(); 
+				    .parent()
+				    .find('textarea')
+				    .before(_p_note_text)
+				    .remove(); 
 				
-				$(this).remove();						
-			})
-		}	
-		else
-			_div_note.append('<p style="color:'+o.color+'">'+o.text+'</p>');					
+				$(this).remove();
+				$.post('/sticky/save',"content="+_content);
+			    });
+		} else
+			_div_note.append('<p class="rest_in_place" style="color:'+o.color+'">'+o.text+'</p>');					
 		
 		var _div_delete = 	$(document.createElement('div'))
 							.addClass('jSticky-delete');
@@ -84,6 +84,13 @@
 					$(this).parent().append($(this));
 			}});	
 		}
-		$('#content').append(_div_wrap);
+
+		if (o.container) {
+		    $(o.container).append(_div_wrap);
+		} else if (o.containment) {
+		    $(o.containment).append(_div_wrap);
+		} else {
+		    $('#content').append(_div_wrap);
+		}
 	};
 })(jQuery);
