@@ -26,13 +26,16 @@ namespace eval Human {
 	set ipaddr [dict get $r -ipaddr]
 
 	# try to find the human cookie
-	set cdict [dict get $r -cookies]
-	set cl [Cookies match $cdict -name $cookie]
+	set cl [Cookies Match $r -name $cookie]
+	Debug.human {cookie list: $cl}
 	if {[llength $cl]} {
 	    # we know they're human - they return cookies (?)
-	    set human [dict get [Cookies fetch $cdict -name $cookie] -value]
+	    set human [dict get [Cookies Fetch $r -name $cookie] -value]
+	    Debug.human {cookie: $human}
 	    set human [lindex [split $human =] end]
-
+	    if {$human eq ""} {
+		return $r	;# this is a bogus cookie
+	    }
 	    # record human's ip addresses
 	    if {[info exists tracker($human)]} {
 		if {[lsearch -exact $tracker($human) $ipaddr] < 0} {
@@ -43,8 +46,8 @@ namespace eval Human {
 		set tracker($human) $ipaddr
 		::fileutil::appendToFile [file join $logdir human] "$human [list $ipaddr]\n"
 	    }
-
-	    if {[info exists tracker($ipaddr)] && [lindex $tracker($ipaddr) 0]} {
+	    
+	    if {[info exists tracker($ipaddr)] && [lindex $tracker($ipaddr) 0] ne "" && [lindex $tracker($ipaddr) 0]} {
 		if {[lsearch -exact $tracker($ipaddr) $human] < 0} {
 		    lappend tracker($ipaddr) $human	;# only add new ipaddrs
 		    ::fileutil::appendToFile [file join $logdir human] "$ipaddr [list $tracker($ipaddr)]\n"
@@ -56,10 +59,10 @@ namespace eval Human {
 
 	    dict set r -human $human		;# record supposition that they're human
 	    dict set r -ua_class browser	;# classify the agent
-
+	    
 	    return $r
 	}
-
+	
 	# track the cookie-behaviour of our IP address
 	if {[info exists tracker($ipaddr)]} {
 	    # we've seen them, and they haven't returned the cookie robot?
