@@ -24,7 +24,9 @@ set API(Domains/Nub) {
     {
 	The Nub module controls the dispatch function of Wub.  Nub allows you to configure server's response to requests by defining a mapping from request-URLs to [http:. Domain] handlers.
 
-	The dispatch mapping is defined by a collection of nubs, where a nub is a mapping from a URL glob to content or to a [http:. Domain] handler, listed below.  Nubs may be collected together in configuration files, or updated online via the Nub domain.
+	Dispatch is controlled by a collection of nubs, which are mappings from a URL glob to content or to a [http:. Domain] handler.  Nubs may be collected together in configuration files, or updated online via the Nub domain.
+
+	Note that the URLs associated with nubs may contain host components.  If they do, the nub will match only requests directed to that host.  This is how 'virtual domains' can be implemented.  The host component (and the path component) may also contain * as wildcards.
 
 	== Defining Nubs ==
 	Nubs may be defined with the [[Nub domain]] command in the following form:
