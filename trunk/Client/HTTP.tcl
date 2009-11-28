@@ -356,6 +356,7 @@ class create HTTP {
 	} else {
 	    catch {after 1 {*}$consumer $close}
 	}
+	catch {chan close $socket}
     }
 
     constructor {url _consumer args} {
