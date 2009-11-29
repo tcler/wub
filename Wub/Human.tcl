@@ -115,8 +115,8 @@ namespace eval Human {
 
 	# add the human cookie
 	set value [clock microseconds]
-	Debug.human {created human cookie $value}
 	set cdict [Cookies add $cdict -path $path -name $cookie -value $value {*}$expiresC]
+	Debug.human {created human cookie $cdict}
 
 	dict set r -cookies $cdict
 	return $r
