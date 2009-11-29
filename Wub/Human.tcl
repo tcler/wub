@@ -33,11 +33,11 @@ namespace eval Human {
 	}
 	
 	# try to find the human cookie
-	set cl [Cookies Match $r -name $cookie]
+	set cl [Cookies Match $r -path $path -name $cookie]
 	Debug.human {cookie list: $cl}
 	if {[llength $cl]} {
 	    # we know they're human - they return cookies (?)
-	    set human [dict get [Cookies Fetch $r -name $cookie] -value]
+	    set human [dict get [Cookies Fetch $r -path $path -name $cookie] -value]
 	    Debug.human {cookie: $human}
 	    set human [lindex [split $human =] end]
 	    if {$human eq ""} {
