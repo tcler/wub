@@ -318,6 +318,7 @@ namespace eval Repo {
 	dict set args mount /[string trim [dict get $args mount] /]/
 	set args [dict merge [list icons $icons expires 0 tar 0 index index.html max [expr {1024 * 1024}] titleURL "" title Repo] $args]
 	set cmd [uplevel 1 namespace current]::$cmd
+	Debug.repo {create: $args}
 	namespace ensemble create \
 	    -command $cmd -subcommands {} \
 	    -map [list do [list _do $args]]
