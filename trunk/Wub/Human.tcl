@@ -124,7 +124,7 @@ namespace eval Human {
 
     variable tracker	;# array of ip->human human->ip
     variable path /	;# which url paths are to be detected/protected?
-    variable cookie who	;# name of the cookie to plant
+    variable cookie human	;# name of the cookie to plant
     variable expires "next year"	;# how long to leave the cookie in.
     variable logdir ""
 
