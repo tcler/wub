@@ -188,6 +188,7 @@ namespace eval Repo {
     proc _do {inst r} {
 	dict with inst {}	;# instance vars
 
+	Debug.repo {do: $mount [dict get $r -path]}
 	lassign [Url urlsuffix $r $mount] result r suffix path
 	if {!$result} {
 	    return $r	;# the URL isn't in our domain
