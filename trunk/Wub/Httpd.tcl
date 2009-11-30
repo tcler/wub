@@ -738,16 +738,14 @@ namespace eval Httpd {
 			chan copy $fd $socket -command [list ::coroshim_fcopy [info coroutine] FCOPY $fd $bytes]
 		    }
 		    break	;# we don't process any more i/o on $socket
-		} else {
+		} elseif {[llength $range]} {
 		    # send literal content
-		    if {[llength $range]} {
-			lassign $range from to
-			chan puts -nonewline $socket [string range $content $from $to]
-			Debug.Httpd {[info coroutine] SENT RANGE: bytes $from-$to/[string length $content] bytes} 8
-		    } else {
-			chan puts -nonewline $socket $content	;# send the content
-			Debug.Httpd {[info coroutine] SENT ENTITY: [string length $content] bytes} 8
-		    }
+		    lassign $range from to
+		    chan puts -nonewline $socket [string range $content $from $to]
+		    Debug.Httpd {[info coroutine] SENT RANGE: bytes $from-$to/[string length $content] bytes} 8
+		} else {
+		    chan puts -nonewline $socket $content	;# send the content
+		    Debug.Httpd {[info coroutine] SENT ENTITY: [string length $content] bytes} 8
 		}
 	    }
 	    #chan flush $socket
@@ -1177,7 +1175,7 @@ namespace eval Httpd {
 	    if {$maxfield
 		&& [string length [dict get $r $key]] > $maxfield
 	    } {
-		handle [Http Bad $r "Illegal header: '[string range 0 20 $line]...' [string length $dict get $r $key] is too long"] "Illegal Header - [string length $dict get $r $key] is too long"
+		handle [Http Bad $r "Illegal header: '[string range $line 0 20]...' [string length $dict get $r $key] is too long"] "Illegal Header - [string length $dict get $r $key] is too long"
 	    }
 	}
 
