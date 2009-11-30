@@ -13,6 +13,21 @@ set API(Domains/Sticky) {
     }
 }
 
+if {[catch {
+    package require sqlite3 3.6.19
+    package require tdbc::sqlite3
+} e eo]} {
+    puts stderr "Sticky Domain requires sqlite3 to be installed.  Creating dummy. (error: $e)"
+    class create Sticky {
+	method loader {r args} {
+	    return $r
+	}
+	constructor {args} {
+	}
+    }
+    return
+}
+
 class create Sticky {
     # add a loader to the page
     method loader {r args} {
