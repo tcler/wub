@@ -49,7 +49,7 @@ if {[catch {set response [::sticky loader $response hotzone #sticky event click]
     
     <div id='sidebar'>
       <p class='list1'>Control/Status</p>
-      <p class='list2'><a href='/nub/nubs'>Server configuration</a></p>
+      <!-- <p class='list2'><a href='/nub/nubs'>Server configuration</a></p> -->
       <p class='list2'><a href='http:/_stats/'>Server stats</a></p>
       <!-- <p class='list2last'><a href='#'>Control panel</a></p> -->
       <p class='list1'><a href='docs/'>Documentation</a></p>
