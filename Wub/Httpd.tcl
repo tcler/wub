@@ -742,7 +742,7 @@ namespace eval Httpd {
 		    # send literal content
 		    if {[llength $range]} {
 			lassign $range from to
-			chan puts -nonewline $socket [string range $from $to]
+			chan puts -nonewline $socket [string range $content $from $to]
 			Debug.Httpd {[info coroutine] SENT RANGE: bytes $from-$to/[string length $content] bytes} 8
 		    } else {
 			chan puts -nonewline $socket $content	;# send the content
