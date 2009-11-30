@@ -202,14 +202,22 @@ namespace eval Cache {
 	return [expr {int(100 * ($weight_b - $weight_a))}]
     }
 
+    variable uniq
     # etag - generate an etag for content
     proc etag {req} {
 	# use MD5 of content for etag
-	if {[dict exists $req -file]} {
-	    return "WUB[::md5::md5 -hex -file [dict get $req -file]]"
-	} else {
-	    return "WUB[::md5::md5 -hex [dict get $req -content]]"
+	if {[catch {
+	    if {[dict exists $req -file]} {
+		set result "WUB[::md5::md5 -hex -file [dict get $req -file]]"
+	    } else {
+		set result "WUB[::md5::md5 -hex [dict get $req -content]]"
+	    }
+	} e eo]} {
+	    Debug.error {etag: $e ($eo)}
+	    variable uniq
+	    set result "wub[incr uniq]"
 	}
+	return $result
     }
 
     # put - insert request into cache
