@@ -8,7 +8,7 @@ A request/response dict resembles a whiteboard upon which Domains and Utilities 
 
 One convention which is rigorously enforced is that non-protocol fields in request/response dicts have names of the form '-*', distinguishing them from HTTP fields which will eventually be sent to the client.
 
-[image:Server/arch.png]
+[image:arch.png]
 
 == Workflow ==
 
