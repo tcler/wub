@@ -132,10 +132,11 @@ namespace eval Httpd {
 
     # rdump - return a stripped request for printing
     proc rdump {req} {
-	dict set req -content <ELIDED>
-	dict set req -entity <ELIDED>
-	dict set req -gzip <ELIDED>
-	return $req
+	dict set req -content "<ELIDED [string length [dict get? $req -content]]>"
+	dict set req -entity "<ELIDED [string length [dict get? $req -entity]]>"
+	dict set req -gzip "<ELIDED [string length [dict get? $req -gzip]]>"
+	
+	return [regsub {([^[:print:]])} $req .]
     }
 
     # wrapper for chan ops - alert on errors
@@ -345,7 +346,7 @@ namespace eval Httpd {
 		# SHOULD respond with a 304 (Not Modified) response, including
 		# the cache-related header fields (particularly ETag) of one 
 		# of the entities that matched.
-		Debug.cache {unmodified $uri}
+		Debug.cache {unmodified [dict get $r -uri]}
 		#counter $cached -unmod	;# count unmod hits
 		return [Http NotModified $r]
 		# NB: the expires field is set in $r
