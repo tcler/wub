@@ -341,7 +341,7 @@ namespace eval Httpd {
 	    # requested method, unless required to do so because the 
 	    # resource's modification date fails to match that
 	    # supplied in an If-Modified-Since header field in the request.
-	    if {[dict get $r -method] in {"GET" "HEAD"}} {
+	    if {[string toupper [dict get $r -method]] in {"GET" "HEAD"}} {
 		# if the request method was GET or HEAD, the server 
 		# SHOULD respond with a 304 (Not Modified) response, including
 		# the cache-related header fields (particularly ETag) of one 
@@ -357,7 +357,7 @@ namespace eval Httpd {
 	    }
 	} elseif {![Http if-match $r $etag]} {
 	    return [Http PreconditionFailed $r]
-	} elseif {![Http if-range $r]} {
+	} elseif {![Http if-range $r $etag]} {
 	    catch {dict unset r range}
 	    # 14.27 If-Range
 	    # If the entity tag given in the If-Range header matches the current
@@ -366,6 +366,7 @@ namespace eval Httpd {
 	    # response. If the entity tag does not match, then the server SHOULD
 	    # return the entire entity using a 200 (OK) response.
 	}
+	return $r
     }
 
     # format4send - format up a reply for sending.
@@ -389,6 +390,7 @@ namespace eval Httpd {
 
 	    # make reply conditional
 	    set reply [conditional $reply]
+	    set code [dict get $reply -code]
 
 	    # Deal with content data
 	    set range {}	;# default no range
