@@ -353,10 +353,10 @@ namespace eval Httpd {
 	    } else {
 		# For all other request methods, the server MUST respond with
 		# a status of 412 (Precondition Failed).
-		return [Http PreconditionFailed $r]
+		#return [Http PreconditionFailed $r]
 	    }
 	} elseif {![Http if-match $r $etag]} {
-	    return [Http PreconditionFailed $r]
+	    #return [Http PreconditionFailed $r]
 	} elseif {![Http if-range $r $etag]} {
 	    catch {dict unset r range}
 	    # 14.27 If-Range
@@ -405,7 +405,6 @@ namespace eval Httpd {
 		    set content ""
 		    set cache 0	;# can't cache these
 		    set empty 1
-		    #puts stderr "NOCACHE on code $code: $cache"
 		}
 
 		default {
@@ -427,7 +426,6 @@ namespace eval Httpd {
 			set file [dict get $reply -file]
 			dict set reply content-length [file size $file]
 			set content ""
-			#set cache 0	;# can't cache these - TODO: maybe later
 		    } else {
 			Debug.HttpdLow {format4write: response empty - no content in reply}
 			set content ""	;# there is no content
@@ -523,7 +521,6 @@ namespace eval Httpd {
 
 	    # now attend to caching generated content.
 	    if {$empty || [dict get $reply content-length] == 0} {
-		#puts stderr "NOCACHE empty1 $code: $cache"
 		set cache 0	;# don't cache no content
 	    } elseif {$cache} {
 		# use -dynamic flag to avoid caching even if it was requested
@@ -532,7 +529,6 @@ namespace eval Httpd {
 				 || ![dict get $reply -dynamic]
 			     }]
 
-		#puts stderr "CACHE? -dynamic $code: $cache"
 		if {$cache && [dict exists $reply cache-control]} {
 		    set cacheable [split [dict get $reply cache-control] ,]
 		    foreach directive $cacheable {
@@ -559,16 +555,8 @@ namespace eval Httpd {
 		set content ""
 	    }
 
-	    #if {!$cache} {
-	    # dynamic stuff - no caching!
-	    #set reply [Http NoCache $reply]
-	    #}
-
-	    #Debug.log {Sending: [dump $reply]}
-
 	    if {$code >= 500} {
 		# Errors are completely dynamic - no caching!
-		#puts stderr "NOCACHE error $code: $cache"
 		set cache 0
 	    }
 
@@ -587,7 +575,6 @@ namespace eval Httpd {
 	} r eo]} {
 	    if {![info exists code] || $code >= 500} {
 		# Errors are completely dynamic - no caching!
-		#puts stderr "NOCACHE error1 $code: $cache"
 		set cache 0
 	    }
 
