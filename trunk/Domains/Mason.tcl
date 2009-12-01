@@ -58,7 +58,7 @@ set API(Domains/Mason) {
     auth {template sought and evaluated before processing requested file (default .auth)}
     nodir {don't allow the browsing of directories (default: 0 - browsing allowed.)}
     dateformat {a tcl clock format for displaying dates in directory listings}
-    stream {files above this size will be streamed using fcopy, not loaded and sent}
+    stream {files above this size will be streamed using fcopy, not loaded and sent.  Note: streaming a file prevents *any* post-processing on is, so [Convert] for example will be ineffective.}
 }
 
 class create Mason {
@@ -308,11 +308,12 @@ class create Mason {
 		    set r [Http Cache $req $expires]
 		}
 
-		set ctype [Mime magic path $path]
+		set ct [Mime magic path $path]
 		set mtime [file mtime $path]
+		Debug.mason {file: $path of ctype: $ct}
 
 		# decide whether this file can be streamed
-		if {![string match x-*/* $ctype]
+		if {![string match x-*/* $ct]
 		    && [file size $path] > $stream
 		} {
 		    # this is a large, ordinary file - stream it using fcopy
@@ -326,7 +327,8 @@ class create Mason {
 		chan close $fd
 
 		# return the content after conversion
-		return [Http CacheableContent $req $mtime $content $ctype]
+		Debug.mason {returning file: $path of ctype: $ct}
+		return [Http CacheableContent $req $mtime $content $ct]
 	    }
 	    
 	    directory {
