@@ -96,7 +96,7 @@ class create ReCAPTCHA {
     }
 
     method / {r} {
-	error "Called /"
+	error "Called / in ReCAPTCHA.  This is not useful."
     }
 
     mixin Direct
