@@ -826,7 +826,7 @@ namespace eval Httpd {
 	variable log
 	if {$log ne "" && [catch {
 	    puts $log [Http clf $r]	;# generate a log line
-	    flush $log
+	    chan flush $log
 	} le leo]} {
 	    Debug.error {log error: $le ($leo)}
 	}
