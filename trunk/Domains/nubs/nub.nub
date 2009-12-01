@@ -14,7 +14,7 @@ literal /robots.txt "User-agent: *\nDisallow: /" text/plain
 # The /wub/ domain is a Mason domain, handled by the Mason package.
 # The Mason object created by this nub will be called 'wub' and may
 # be referenced in other nubs.  The remaining arguments are passed to Mason's constructor
-domain /wub/ {Mason wub} auth .before wrapper .after root $::Site::docroot
+domain /wub/ {Mason ::wub} auth .before wrapper .after root $::Site::docroot
 domain /sticky/ {Sticky ::sticky} file ./sticky.db hotzone #sticky 
 
 # The /nub/ domain is handled by the Nub package.  It's unnambed
