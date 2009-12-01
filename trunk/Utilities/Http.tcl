@@ -268,12 +268,6 @@ namespace eval Http {
 	set path [file normalize $path]
 	dict set rsp -file $path
 
-	# read the file
-	set fd [::open $path r]
-	chan configure $fd -translation binary
-	dict set rsp -content [read $fd]
-	close $fd
-
 	# set the file mod time
 	set mtime [file mtime $path]
 	dict set rsp -modified $mtime
@@ -283,7 +277,7 @@ namespace eval Http {
 	if {$ctype eq ""} {
 	    # calculate content-type using mime guessing
 	    if {[dict get? $rsp content-type] eq ""} {
-		dict set rsp content-type [Mime type $path]
+		dict set rsp content-type [Mime magic path $path]
 	    }
 	} else {
 	    dict set rsp content-type $ctype
