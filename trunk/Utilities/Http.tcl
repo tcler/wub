@@ -159,7 +159,13 @@ namespace eval Http {
     # clf - common log format
     proc clf {r} {
 	lappend line [dict get $r -ipaddr]	;# remote IP
-	lappend line - -	;# we don't do user names
+	lappend line -	;# RFC 1413 identity of the client.  'sif
+	set user [dict get $r -user]	;# is there a user identity?
+	if {$user ne ""} {
+	    lappend line $user
+	} else {
+	    lappend line -
+	}
 
 	# receipt time of connection
 	lappend line \[[clock format [dict get $r -received_seconds] -format "%d/%b/%Y:%T %Z"]\]
@@ -242,7 +248,6 @@ namespace eval Http {
     # modify response to indicate that content is a file (NB: not working)
     proc File {rsp path {ctype ""}} {
 	set path [file normalize $path]
-	#dict set rsp -fd [::open $path r]
 	dict set rsp -file $path
 
 	if {$ctype eq ""} {
@@ -943,7 +948,7 @@ namespace eval Http {
     # find etag in if-match field
     proc if-match {req etag} {
 	if {![dict exists $req if-match]} {
-	    return 0
+	    return 1
 	}
 	set etag \"[string trim $etag \"]\"
 
@@ -972,7 +977,7 @@ namespace eval Http {
 	set etag \"[string trim $etag \"]\"
 	set im [split [dict get $req if-none-match] ","]
 	set result [expr {$etag ni $im}]
-	Debug.cache {any-match: $result - $etag in $im}
+	Debug.cache {if-none-match: $result - $etag in $im}
 	return $result
     }
 
