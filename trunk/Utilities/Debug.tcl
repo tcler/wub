@@ -83,7 +83,8 @@ namespace eval Debug {
 		} else {
 		    set time ""
 		}
-		puts $fd "$time$tag @@[regsub {([^[:print:]])} $result .]"
+		#puts $fd "$time$tag @@[regsub {([^[:print:]])} $result .]"
+		puts $fd "$time$tag @@[string map {\n \\n} $result]"
 	    }
 	} else {
 	    #puts stderr "$tag @@@ $detail($tag) >= $level"
