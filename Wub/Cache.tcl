@@ -258,6 +258,15 @@ namespace eval Cache {
 		return $req
 	    }
 	}
+	if {[dict exists $req -content]} {
+	    set len [string length [dict get $req -content]]
+	} elseif {[dict exists $req -file]} {
+	    set len [file size [dict get $req -file]]
+	}
+	if {$len == 0} {
+	    # we don't cache empty stuff
+	    return $req
+	}
 
 	# we don't cache custom mime-typed content
 	set ctype [dict get $req content-type]
@@ -296,7 +305,7 @@ namespace eval Cache {
 	    dict set cached -modified [clock seconds]
 	}
 
-	Debug.cache {cache entry: [set x $cached; dict set x -gzip <ELIDED>; dict set x -content <ELIDED>; return $x]} 4
+	Debug.cache {cache entry: [Httpd rdump $cached]} 4
 
 	variable cache; variable high; variable low
 	# ensure cache size is bounded
@@ -519,7 +528,7 @@ namespace eval Cache {
 	    counter $cached -hits	;# count individual entry hits
 	    set req [dict merge $req $cached]
 	    set req [Http CacheableContent $req [dict get $cached -modified]]
-	    Debug.cache {cached content for $uri ([set xx $req; dict set xx -entity <ELIDED>; dict set xx -content <ELIDED>; dict set xx -gzip <ELIDED>; return $xx])}
+	    Debug.cache {cached content for $uri ([Httpd rdump $req])}
 	    return $req
 	}
 
