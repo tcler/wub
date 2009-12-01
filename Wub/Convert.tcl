@@ -359,7 +359,7 @@ namespace eval Convert {
 	# condition 'content-type'
 	dict set rsp content-type [string tolower [dict get $rsp content-type]]
 
-	# perform any postprocessing on input type
+	# perform any preprocessing on input type
 	variable postprocess
 	set preprocessed ""
 	set ctype [dict get $rsp content-type]
