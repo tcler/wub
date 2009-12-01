@@ -3,12 +3,11 @@
 # A domain to emulate Mason (http://www.masonhq.com/)
 
 package require Html
-package require TclOO
-namespace import oo::*
+package require OO
 
 package require Report
 package require Debug
-Debug off mason 10
+Debug define mason
 
 package provide Mason 1.0
 
@@ -102,6 +101,8 @@ class create Mason {
 	    set enc [dict get? $req -encoding]
 	    if {$enc ne ""} {
 		chan configure $fd -encoding $enc
+	    } else {
+		chan configure $fd -encoding binary
 	    }
 	    set template [read $fd]
 	    close $fd
@@ -137,11 +138,14 @@ class create Mason {
 	}
 
 	# implicit return value - use the substitution
-	if {![dict exists $response -content] && ![dict exists $response -file]} {
+	if {![dict exists $response -content]
+	    && ![dict exists $response -file]
+	} {
+	    Debug.mason {setting implicit return value, '[string range $result 0 80]...[string range $result end-80 end]' of length [string length $result]}
 	    dict set response -content $result	;# fold subst result back into response
 	}
 
-	Debug.mason {Mason Template return code: $code dynamic: [dict get? $response -dynamic] content: '$result'}
+	Debug.mason {Mason Template '$fpath' return [Httpd rdump $response]}
 
 	return $response
     }
@@ -400,6 +404,7 @@ class create Mason {
 
 		# auth passed - remove any traces
 		catch {dict unset req -content}
+		catch {dict unset req -file}
 		catch {dict unset req content-type}
 	    }
 	} else {
@@ -415,6 +420,7 @@ class create Mason {
 	# calculate the suffix of the URL relative to $mount
 	lassign [Url urlsuffix $req $mount] result req suffix
 	if {!$result} {
+	    Debug.mason {do Suffix $suffix not in $mount: $result}
 	    return $req	;# the URL isn't in our domain
 	}
 
@@ -434,7 +440,9 @@ class create Mason {
 	    Debug.mason {wrapper $wrapper - $wrap}
 
 	    # run template over request
-	    set rsp [my template $rsp $wrap]
+	    if {[dict get $rsp -code] == 200} {
+		set rsp [my template $rsp $wrap]
+	    }
 	    catch {dict unset rsp -root}
 
 	    # determine whether content is dynamic or not
@@ -455,6 +463,7 @@ class create Mason {
     }
 
     constructor {args} {
+	Debug.mason {constructor: $args}
 	set mount ""	;# url for top of this domain
 	set root ""		;# file system domain root
 	set ctype x-text/html-fragment	;# default content type
