@@ -50,7 +50,7 @@ namespace eval About {
 		}
 		append result \n [<ul> [join $l]]
 		set r [Html style $r /css/style.css]
-		return [Http NotFound $r $result x-text/html-fragment]
+		return [Http Ok $r $result x-text/html-fragment]
 	    }
 
 	    set result ""
