@@ -13,23 +13,12 @@ set API(Domains/Sticky) {
     }
 }
 
-if {[catch {
-    package require tdbc
-} e eo]} {
-    puts stderr "Sticky Domain requires tdbc to be installed.  Creating dummy. (error: $e)"
-    class create Sticky {
-	method loader {r args} {
-	    return $r
-	}
-	constructor {args} {
-	}
-    }
-    return
-}
-
 class create Sticky {
     # add a loader to the page
     method loader {r args} {
+	if {!$running} {
+	    return $r
+	}
 	set p [dict merge $params $args]
 
 	dict with p {
@@ -139,9 +128,17 @@ class create Sticky {
 
     method db_load {} {
 	# load the tdbc drivers
-	package require $tdbc
-	package require tdbc::$tdbc
-
+	if {[catch {
+	    package require $tdbc
+	    package require tdbc::$tdbc
+	}]} {
+	    # we can't load the nominated driver
+	    set running 0
+	    return
+	} else {
+	    set running 1
+	}
+	
 	if {$db eq ""} {
 	    # create a local db
 	    set local 1
@@ -176,7 +173,7 @@ class create Sticky {
 
 	Debug.sticky {Database $db: tables:([$db tables])}
     }
-    variable mount postprocess params db tdbc file table stmt
+    variable mount postprocess params db tdbc file table stmt running
 
     mixin Direct	;# use Direct to map urls to /methods
     constructor {args} {
