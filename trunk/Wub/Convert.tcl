@@ -442,7 +442,11 @@ namespace eval Convert {
 
     # do - perform content negotiation and transformation
     proc do {rsp} {
-	if {![dict exists $rsp -content]} {
+	if {[dict exists $rsp -file]} {
+	    Debug.convert {request is a -file, return}
+	    return $rsp
+	} elseif {![dict exists $rsp -content]} {
+	    Debug.convert {request has no content, return}
 	    return $rsp
 	}
 	if {![dict exists $rsp content-type]} {
