@@ -300,18 +300,33 @@ class create Mason {
 	if {!$cnt} {
 	    return [Http NotFound $req "File path has too many symlinks"]
 	}
+
 	switch -- [file type $path] {
 	    file {
 		# allow client caching
 		if {[info exists expires] && $expires ne ""} {
 		    set r [Http Cache $req $expires]
 		}
-		if {[file size $path] > $stream} {
-		    # this is a large file - stream it using fcopy
+
+		set ctype [Mime magic path $path]
+		set mtime [file mtime $path]
+
+		# decide whether this file can be streamed
+		if {![string match x-*/* $ctype]
+		    && [file size $path] > $stream
+		} {
+		    # this is a large, ordinary file - stream it using fcopy
 		    return [Http File $req $path]
-		} else {
-		    return [Http CacheableFile $req $path [Mime type $path]]
 		}
+
+		# read the file content
+		set fd [open $path]
+		chan configure $fd -translation binary
+		set content [read $rd]
+		chan close $fd
+
+		# return the content after conversion
+		return [Http CacheableContent $req $mtime $content $ctype]
 	    }
 	    
 	    directory {
