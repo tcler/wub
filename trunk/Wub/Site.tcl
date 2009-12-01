@@ -62,7 +62,7 @@ package require Dict
 Debug on site 10
 package provide Site 1.0
 
-namespace eval Site {
+namespace eval ::Site {
     variable sourced [list [info script] [info script]]
 
     # record wub's home
@@ -623,7 +623,14 @@ namespace eval Site {
 
 	variable done 0
 	while {!$done} {
-	    vwait done
+	    rename ::vwait ::Site::vwait
+	    proc ::vwait {args} {
+		catch {
+		    info frame -1
+		} frame
+		puts stderr "Recursive VWAIT AAAARRRRRRGH! from '$frame'"
+	    }
+	    ::Site::vwait done
 	}
 
 	Debug.log {Shutdown top level}
