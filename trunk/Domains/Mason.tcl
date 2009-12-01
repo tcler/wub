@@ -322,7 +322,7 @@ class create Mason {
 		# read the file content
 		set fd [open $path]
 		chan configure $fd -translation binary
-		set content [read $rd]
+		set content [read $fd]
 		chan close $fd
 
 		# return the content after conversion
