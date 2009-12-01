@@ -106,6 +106,12 @@ namespace eval Httpd {
     variable maxconn		;# max connections
     variable generation		;# worker/connection association generation
 
+    # common log format log - per request, for log analysis
+    variable log ""	;# fd of open log file - default none
+    variable logfile ""	;# name of log file - "" means none
+    variable customize ""	;# file to source to customise Httpd
+
+
     # limits on header size
     variable maxline 2048	;# max request line length
     variable maxfield 4096	;# max request field length
@@ -820,6 +826,7 @@ namespace eval Httpd {
 	variable log
 	if {$log ne "" && [catch {
 	    puts $log [Http clf $r]	;# generate a log line
+	    flush $log
 	} le leo]} {
 	    Debug.error {log error: $le ($leo)}
 	}
@@ -1955,12 +1962,6 @@ namespace eval Httpd {
 	    Debug.Httpd {SOCK $op: $from $to -([trace info command $from]) ([trace info command $to])}
 	}
     }
-
-    # common log format log - per request, for log analysis
-    variable log ""	;# fd of open log file - default none
-    variable logfile ""	;# name of log file - "" means none
-
-    variable customize ""	;# file to source to customise Httpd
 
     # configure - set Httpd protocol defaults
     proc configure {args} {
