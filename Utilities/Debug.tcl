@@ -83,7 +83,7 @@ namespace eval Debug {
 		} else {
 		    set time ""
 		}
-		puts $fd "$time$tag @@[string map {\n \\n} $result]"
+		puts $fd "$time$tag @@[regsub {([^[:print:]])} $result .]"
 	    }
 	} else {
 	    #puts stderr "$tag @@@ $detail($tag) >= $level"
@@ -136,6 +136,13 @@ namespace eval Debug {
     proc off {tag {level ""} {fd stderr}} {
 	level $tag $level $fd
 	interp alias {} Debug.$tag {} ::Debug::noop
+    }
+
+    proc define {tag {level ""} {fd stderr}} {
+	variable detail
+	if {![info exists detail($tag)]} {
+	    return [off $tag $level $fd]
+	}
     }
 
     proc setting {args} {
