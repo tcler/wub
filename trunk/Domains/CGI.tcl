@@ -1,4 +1,6 @@
 # cgi interface.  Blerk.
+# TODO: make the post-header response go out as a -file
+
 package require TclOO
 namespace import oo::*
 
