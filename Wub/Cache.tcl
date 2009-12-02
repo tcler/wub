@@ -2,7 +2,7 @@
 # TODO: make Cache a direct domain for some introspection
 
 package require Debug
-package require md5
+package require Http
 package provide Cache 2.0
 
 set API(Server/Cache) {
@@ -208,7 +208,7 @@ namespace eval Cache {
 	# use MD5 of content for etag
 	if {[catch {
 	    if {[dict exists $req -file]} {
-		set result "WUB[::md5::md5 -hex -file [dict get $req -file]]"
+		set result "WUB[Http md5chan [dict get $req -file]]"
 	    } else {
 		set result "WUB[::md5::md5 -hex [dict get $req -content]]"
 	    }
