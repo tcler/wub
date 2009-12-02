@@ -6,6 +6,7 @@ package require ip
 package require Html
 package require Url
 package require Mime
+package require md5
 
 package provide Http 2.1
 
@@ -244,6 +245,15 @@ namespace eval Http {
     proc Now {} {
 	return [clock format [clock seconds] -format {%a, %d %b %Y %T GMT} -gmt true]
     }
+
+    proc md5chan {chan {bufsz 16384}} {
+	set tok [md5::MD5Init]
+	while {![chan eof $chan]} {
+	    md5::MD5Update $tok [read $chan $bufsz]
+	}
+	return [mdf::Hex [md5::MD5Final $tok]]
+    }
+
 
     # modify response to indicate that content is a file (NB: not working)
     proc File {rsp path {ctype ""}} {
