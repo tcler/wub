@@ -409,6 +409,8 @@ namespace eval Httpd {
 		    Debug.HttpdLow {format4write: code is $code}
 		    set reply [Http expunge $reply]
 		    set content ""
+		    catch {dict unset reply -content}
+		    catch {dict unset reply -file}
 		    set cache 0	;# can't cache these
 		    set empty 1
 		}
