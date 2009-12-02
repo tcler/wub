@@ -246,11 +246,14 @@ namespace eval Http {
 	return [clock format [clock seconds] -format {%a, %d %b %Y %T GMT} -gmt true]
     }
 
-    proc md5chan {chan {bufsz 16384}} {
+    proc md5file {path {bufsz 16384}} {
+	set chan [open $path]
+	fconfigure $chan -translation binary
 	set tok [md5::MD5Init]
 	while {![chan eof $chan]} {
 	    md5::MD5Update $tok [read $chan $bufsz]
 	}
+	close $chan
 	return [mdf::Hex [md5::MD5Final $tok]]
     }
 
