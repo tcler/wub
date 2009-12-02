@@ -346,7 +346,7 @@ class create Socket {
 	} else {
 	    Debug.connections {$ip connected from port $port ([dict size $x] connections) / [llength [chan names]] open fds}
 	}
-	if {[length [chan names]] > 400} {
+	if {[llength [chan names]] > 400} {
 	    Debug.error {Waaaay too many open fds:  [chan names]}
 	}
     }
