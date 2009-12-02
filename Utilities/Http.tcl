@@ -254,7 +254,7 @@ namespace eval Http {
 	    md5::MD5Update $tok [read $chan $bufsz]
 	}
 	close $chan
-	return [mdf::Hex [md5::MD5Final $tok]]
+	return [md5::Hex [md5::MD5Final $tok]]
     }
 
 
