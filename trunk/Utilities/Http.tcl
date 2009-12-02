@@ -160,7 +160,7 @@ namespace eval Http {
     proc clf {r} {
 	lappend line [dict get $r -ipaddr]	;# remote IP
 	lappend line -	;# RFC 1413 identity of the client.  'sif
-	set user [dict get $r -user]	;# is there a user identity?
+	set user [dict get? $r -user]	;# is there a user identity?
 	if {$user ne ""} {
 	    lappend line $user
 	} else {
