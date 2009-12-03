@@ -538,7 +538,7 @@ namespace eval Http {
 	    if {$eo ne ""} {
 		append table [<tr> [<th> "Error Info"]] \n
 		dict for {n v} $eo {
-		    append table [<tr> "[<td> $n] [<td> [armour $v]]"] \n
+		    append table [<tr> "[<td> $n] [<td> [<pre> [armour $v]]]"] \n
 		}
 		append content [<table> border 1 width 80% $table] \n
 	    }
