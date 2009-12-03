@@ -508,7 +508,7 @@ namespace eval Httpd {
 	    if {[dict exists $reply -cookies]} {
 		Debug.cookies {Http processing: [dict get $reply -cookies]}
 		set c [dict get $reply -cookies]
-		foreach cookie [Cookies format4send $c] {
+		foreach cookie [Cookies format4server $c] {
 		    Debug.cookies {Http set: '$cookie'}
 		    append header "set-cookie: $cookie\r\n"
 		}
