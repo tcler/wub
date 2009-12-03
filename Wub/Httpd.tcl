@@ -406,7 +406,7 @@ namespace eval Httpd {
 		    # 204 (no content),
 		    # and 304 (not modified)
 		    # responses MUST NOT include a message-body
-		    Debug.HttpdLow {format4write: code is $code}
+		    Debug.HttpdLow {format4send: code is $code}
 		    set reply [Http expunge $reply]
 		    set content ""
 		    catch {dict unset reply -content}
@@ -435,7 +435,7 @@ namespace eval Httpd {
 			dict set reply content-length [file size $file]
 			set content ""
 		    } else {
-			Debug.HttpdLow {format4write: response empty - no content in reply}
+			Debug.HttpdLow {format4send: response empty - no content in reply}
 			set content ""	;# there is no content
 			set file ""	;# this is not a file
 			set empty 1	;# it's empty
@@ -508,7 +508,7 @@ namespace eval Httpd {
 	    if {[dict exists $reply -cookies]} {
 		Debug.cookies {Http processing: [dict get $reply -cookies]}
 		set c [dict get $reply -cookies]
-		foreach cookie [Cookies format4server $c] {
+		foreach cookie [Cookies format4send $c] {
 		    Debug.cookies {Http set: '$cookie'}
 		    append header "set-cookie: $cookie\r\n"
 		}
@@ -588,7 +588,7 @@ namespace eval Httpd {
 
 	    Debug.error {Sending Error: '$r' ($eo) Sending Error}
 	} else {
-	    Debug.HttpdLow {format4server: ($header)}
+	    Debug.HttpdLow {format4send: ($header)}
 	}
 	return [list $reply $header $content $file $empty $cache $range]
     }
@@ -1975,7 +1975,7 @@ namespace eval Httpd {
 	if {$logfile ne "" && $log eq ""} {
 	    if {[catch {
 		open $logfile a
-	    } log] || [catch {
+	    } log] && [catch {
 		open [file join /tmp [file tail $logfile]] a
 	    } log]} {
 	    } else {
