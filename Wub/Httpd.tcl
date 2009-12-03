@@ -598,6 +598,9 @@ namespace eval Httpd {
 	corovars replies closing socket
 	Debug.Httpd {[info coroutine] fcopy_complete: $fd $bytes $written '$error'}
 	watchdog
+
+	catch {close $fd}	;# remove file descriptor
+
 	set gone [catch {chan eof $socket} eof]
 	if {$gone || $eof} {
 	    # detect socket closure ASAP in sending
