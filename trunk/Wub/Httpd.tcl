@@ -1975,7 +1975,7 @@ namespace eval Httpd {
 	if {$logfile ne "" && $log eq ""} {
 	    if {![catch {
 		open $logfile a
-	    } log] && ![catch {
+	    } log] || ![catch {
 		open [file join /tmp [file tail $logfile]] a
 	    } log]} {
 		# we want to try to make writes atomic
