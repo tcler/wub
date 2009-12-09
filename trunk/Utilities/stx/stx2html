@@ -1,7 +1,12 @@
 #!/usr/bin/env tclsh8.6
 
-lappend auto_path [file dirname [info script]] ../Utilities/ ../extensions/
-source safe.tcl
+set thisdir [file dirname [file normalize [info script]]]
+set topdir [file dirname [file dirname $thisdir]]
+lappend auto_path $thisdir \
+    [file join $topdir Utilities]\
+    [file dirname [info script]]\
+    [file join $topdir extensions]
+#source safe.tcl
 
 package require stx2html
 Debug off STX 100
