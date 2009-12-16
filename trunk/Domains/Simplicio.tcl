@@ -1,5 +1,5 @@
 package require Debug
-Debug off simplicio 10
+Debug define simplicio 10
 
 package require Url
 package require Query

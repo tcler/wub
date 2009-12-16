@@ -1,6 +1,6 @@
 package require fileutil
 package require Debug
-Debug off sinorca 10
+Debug define sinorca 10
 package require Html
 package require RAM
 package require Form

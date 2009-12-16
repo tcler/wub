@@ -5,7 +5,7 @@ package require TclOO
 namespace import oo::*
 
 package require Debug
-Debug off RAM 10
+Debug define RAM 10
 
 package provide RAM 2.0
 

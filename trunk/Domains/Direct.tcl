@@ -16,7 +16,7 @@ package require OO
 package require Query
 package require Url
 package require Debug
-Debug off direct 10
+Debug define direct 10
 
 package provide Direct 1.0
 
@@ -221,7 +221,7 @@ class create Direct {
 	    Debug.direct {error: $result ($eo)}
 	    return [Http ServerError $rsp $result $eo]
 	} else {
-	    Debug.direct {Content: [dict get $result -code] '[string range [dict get $result -content] 0 80]...'} 2
+	    Debug.direct {Content: [dict get $result -code] '[string range [dict get? $result -content] 0 80]...'} 2
 	    return $result
 	}
     }

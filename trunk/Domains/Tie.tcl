@@ -1,6 +1,6 @@
 # Tie domain - maps namespace variables to Urls
 package require Debug
-Debug off tie 10
+Debug define tie 10
 
 package require Report
 

@@ -6,7 +6,7 @@ package require TclOO
 namespace import oo::*
 
 package require Debug
-Debug off metakit 10
+Debug define metakit 10
 
 package require csv
 package require View

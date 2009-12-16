@@ -109,7 +109,7 @@ set API(Domains/Login) {
 }
 
 package require Debug
-Debug off login 10
+Debug define login 10
 
 package require md5
 package require Direct

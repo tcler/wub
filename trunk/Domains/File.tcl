@@ -2,7 +2,7 @@ package require TclOO
 namespace import oo::*
 
 package require Debug
-Debug off file 10
+Debug define file 10
 
 package provide File 2.0
 

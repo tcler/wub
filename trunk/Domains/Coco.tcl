@@ -2,7 +2,7 @@
 
 package require Http
 package require Debug
-Debug off coco 10
+Debug define coco 10
 
 package require md5
 

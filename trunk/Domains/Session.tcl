@@ -61,7 +61,7 @@
 #	return $rsp
 
 package require Debug
-Debug off session 10
+Debug define session 10
 package require md5
 package require View
 
