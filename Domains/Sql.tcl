@@ -17,7 +17,7 @@ package require Mime
 package require Convert
 package require Report
 package require Debug
-Debug off Sql 10
+Debug define Sql 10
 
 package provide Sql 1.0
 

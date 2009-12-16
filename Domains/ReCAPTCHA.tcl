@@ -4,7 +4,7 @@ package require TclOO
 namespace import oo::*
 
 package require Debug
-Debug off recaptcha 10
+Debug define recaptcha 10
 
 package require HTTP
 package provide ReCAPTCHA 1.0

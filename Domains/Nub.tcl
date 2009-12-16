@@ -5,7 +5,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 }
 
 package require Debug
-Debug off nub 10
+Debug define nub 10
 
 package require fileutil
 package require textutil
