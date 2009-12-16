@@ -124,13 +124,11 @@ namespace eval Sinorca {
 
     proc .style/sinorca.x-text/html-fragment {rsp} {
 	set page [dict get $rsp -content]
-	Debug.sinorca {[dict keys $page]}
+	Debug.sinorca {style/sinorca convert: [dict keys $page]}
 
 	variable mount
 	dict lappend rsp -headers [<stylesheet> [file join $mount screen.css]]
 	dict lappend rsp -headers [<stylesheet> [file join $mount print.css] print]
-	#puts stderr "SINORCA: [dict keys $page]"
-
 	# process singleton vara
 	foreach var {global header copyright footer navbox search} {
 	    set $var {}
@@ -170,7 +168,7 @@ namespace eval Sinorca {
 	}
 
 	dict with page {}
-	set rsp [dict replace $rsp -raw 1 content-type x-text/html-fragment]
+	set rsp [dict replace $rsp content-type x-text/html-fragment]
 	dict set rsp -content [subst {
 	    [<div> id mainlink [<a> href "\#main" "Skip to main content."]]
 	    [<div> id header [subst {
@@ -183,6 +181,7 @@ namespace eval Sinorca {
 	    [<footer> copyright $copyright links $footlinks $footer]
 	}]
 
+	dict set rsp content-type x-text/html-fragment
 	return $rsp
     }
 
@@ -319,7 +318,7 @@ namespace eval Sinorca {
 	    div.nb-htmlsampler-fixup  { margin-right: inherit }
 	}]]]
 
-	ram set "" index.html content-type x-system/redirect
+	ram set / index.html content-type x-system/redirect
 	return $cmd
 	return Sinorca
     }

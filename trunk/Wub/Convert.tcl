@@ -376,10 +376,12 @@ namespace eval Convert {
 	    # transform according to mime type
 	    # determine the current best path from the current content-type
 	    # and one of the acceptable types.
-	    Debug.convert {transforming from '[dict get $rsp content-type]' to one of these '[dict get $rsp accept]'}
+	    set oldct [dict get $rsp content-type]
+	    Debug.convert {transforming from '$oldct' to one of these '[dict get $rsp accept]'}
 	    lassign [transform $rsp] state rsp
-	    Debug.convert {transformed to '[dict get $rsp content-type]' STATE: $state}
+	    Debug.convert {transformed from $oldct to '[dict get $rsp content-type]'}
 
+	    Debug.convert {STATE: $state RAW: '[dict get? $rsp -raw]'}
 	    switch -- $state {
 		complete -
 		none -
@@ -408,14 +410,12 @@ namespace eval Convert {
 		changed {
 		    # the transformation path took us in an unexpected direction
 		}
-
 		suspended {
 		    # a transformer has suspended
 		    # the content will be returned later
 		    break
 		}
 	    }
-	    Debug.convert {converted ($ctype [dict get $rsp content-type]): [dumpMsg $rsp]}
 	}
 
 	Debug.convert {conversion complete: [dumpMsg $rsp]}
