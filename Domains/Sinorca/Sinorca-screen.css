@@ -35,7 +35,8 @@ body {
   font-family:     Verdana, "DejaVu Sans", "Bitstream Vera Sans", "Lucida Sans", Arial, Helvetica, sans-serif;
   font-size:       90%;	/* Allow IE/Win to resize the document */
   color:           %BODY_FG;
-  background:      %HIGHLIGHT_BG;
+//  background:      %HIGHLIGHT_BG;
+  background:      %BODY_BG;
   margin:          0;
   padding:         0;
   border:          none;
@@ -58,6 +59,7 @@ body {
              background:      transparent;
              }
 .fade {color: %FADE;}
+.high {color: %HIGH;}
 .blur {font-weight: italic; color: %BLUR;}
 
 /* Headings */
@@ -214,6 +216,11 @@ ins * {				/* Required for Mozilla */
 
 
 /* Block elements */
+
+#main p {
+    margin:          1em 0;
+    padding:         0;
+    }
 
 p {
     margin:          1em 0;
@@ -807,6 +814,7 @@ table.formtable fieldset th {
            border-right:    1px solid %BORDER;
            float:           left;
            clear:           both;
+           background:      %HIGHLIGHT_BG;
            }
 
 #sidebar div {
