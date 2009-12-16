@@ -6,7 +6,6 @@ lappend auto_path $thisdir \
     [file join $topdir Utilities]\
     [file dirname [info script]]\
     [file join $topdir extensions]
-#source safe.tcl
 
 package require stx2html
 Debug off STX 100
