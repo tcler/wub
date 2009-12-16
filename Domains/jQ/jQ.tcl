@@ -1,7 +1,7 @@
 package require Html
 
 package require Debug
-Debug off jq 10
+Debug define jq 10
 
 package provide jQ 1.0
 package provide JQ 1.0
