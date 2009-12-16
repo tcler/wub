@@ -714,7 +714,9 @@ table.formtable fieldset th {
                    }
 
 #header div.left img {
-                       display:         block;	/* Otherwise IMG is an inline, causing gaps */
+                       /*display:         block;	Otherwise IMG is an inline, causing gaps */
+                       display:         inline;
+                       vertical-align:  middle;
                        }
 
 #header div.left,

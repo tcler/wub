@@ -92,7 +92,7 @@ namespace eval Sinorca {
 
 	set result "${breadcrumbs}\n${navbox}"
 	append result $content \n
-	append result [<br> id endmain]
+	#append result [<br> id endmain]
 
 	return [<div> id main {*}$args $result]
     }

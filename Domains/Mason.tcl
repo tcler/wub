@@ -218,6 +218,44 @@ class create Mason {
 	return $req
     }
 
+    method root {} {
+	return $root
+    }
+    method mount {} {
+	return $mount
+    }
+
+    method sendfile {r path} {
+	# allow client caching
+	if {[info exists expires] && $expires ne ""} {
+	    set r [Http Cache $r $expires]
+	}
+
+	set ct [Mime magic path $path]
+	set mtime [file mtime $path]
+	Debug.mason {file: $path of ctype: $ct}
+
+	# decide whether this file can be streamed
+	if {![string match x-*/* $ct]
+	    && [file size $path] > $stream
+	} {
+	    # this is a large, ordinary file - stream it using fcopy
+	    return [Http File $r $path]
+	}
+
+	# read the file content
+	set fd [open $path]
+	chan configure $fd -translation binary
+	set content [read $fd]
+	chan close $fd
+
+	dict set r -path $path	;# remember the path
+
+	# return the content after conversion
+	Debug.mason {returning file: $path of ctype: $ct}
+	return [Http CacheableContent $r $mtime $content $ct]
+    }
+
     method mason {req} {
 	Debug.mason {Mason: [dumpMsg $req]}
 	
@@ -303,32 +341,7 @@ class create Mason {
 
 	switch -- [file type $path] {
 	    file {
-		# allow client caching
-		if {[info exists expires] && $expires ne ""} {
-		    set r [Http Cache $req $expires]
-		}
-
-		set ct [Mime magic path $path]
-		set mtime [file mtime $path]
-		Debug.mason {file: $path of ctype: $ct}
-
-		# decide whether this file can be streamed
-		if {![string match x-*/* $ct]
-		    && [file size $path] > $stream
-		} {
-		    # this is a large, ordinary file - stream it using fcopy
-		    return [Http File $req $path]
-		}
-
-		# read the file content
-		set fd [open $path]
-		chan configure $fd -translation binary
-		set content [read $fd]
-		chan close $fd
-
-		# return the content after conversion
-		Debug.mason {returning file: $path of ctype: $ct}
-		return [Http CacheableContent $req $mtime $content $ct]
+		return [my sendfile $req $path]
 	    }
 	    
 	    directory {
@@ -375,11 +388,7 @@ class create Mason {
 			    dict set req -dynamic 1	;# functionals are dynamic by default
 			    return [my functional $req $fpath]	;# invoke the functional
 			}
-
-			if {[info exists expires] && $expires ne ""} {
-			    set r [Http Cache $req $expires]
-			}
-			return [Http CacheableFile $req $fpath]
+			return [my sendfile $req $fpath]
 		    } else {
 			Debug.mason {didn't find index candidate $path/$indexfile}
 			if {$nodir} {

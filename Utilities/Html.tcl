@@ -144,6 +144,12 @@ namespace eval Html {
 	return $r
     }
 
+    # add a script to the response
+    proc postscript {r script} {
+	dict set r -postscript ![clock microseconds] [<script> $script]
+	return $r
+    }
+
     # add style to the response
     proc style {r url args} {
 	dict set r -style $url $args
