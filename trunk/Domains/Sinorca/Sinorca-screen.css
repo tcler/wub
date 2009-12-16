@@ -872,6 +872,10 @@ table.formtable fieldset th {
           padding:         0.5em 1.0em 0.5em 1.0em;
           clear:           both;
           }
+#footer p {
+    margin:          .25em 0;
+    padding:         0;
+}
 
 #footer a:link,
 #footer a:visited {
