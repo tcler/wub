@@ -101,6 +101,10 @@ namespace eval Sinorca {
 	Html argsplit
 	return [<span> class fade $content]
     }
+    proc <high> {args} {
+	Html argsplit
+	return [<span> class high $content]
+    }
 
     proc <footer> {args} {
 	Html argsplit
@@ -110,9 +114,8 @@ namespace eval Sinorca {
 	Html template links {[<span> class notprinted [Html links . {*}$links]][<br>]}
 
 	return [<div> id footer {*}$args [subst {
-	    [<hr>]
 	    $copyright
-	    [<br>] $links
+	    $links
 	    [uplevel 1 [list subst $content]]
 	}]]
     }
@@ -212,6 +215,7 @@ namespace eval Sinorca {
 
 	%FADE #c8c8c8
 	%BLUR #c8c8c8
+	%HIGH #003399
 
 	%TABLE_BG #CDCDCD
 	%TABLE_HBG #E6EEEE
