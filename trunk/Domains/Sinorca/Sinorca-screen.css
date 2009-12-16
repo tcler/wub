@@ -869,7 +869,7 @@ table.formtable fieldset th {
           background:      %FOOTER_BG;
           margin:          0;
           /*padding:         0.5em 1.67em 0.5em 15.25em;*/
-          padding:         0.5em 1.67em 0.5em 1.67em;
+          padding:         0.5em 1.0em 0.5em 1.0em;
           clear:           both;
           }
 
