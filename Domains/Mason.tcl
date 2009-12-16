@@ -163,7 +163,7 @@ class create Mason {
 	    #catch {dict unset rsp -dynamic}
 
 	    if {[info exists expires] && $expires ne ""} {
-		set r [Http Cache $req $expires]
+		set rsp [Http Cache $req $expires]
 	    }
 	    return [Http CacheableContent $rsp [clock seconds]]
 	}
@@ -249,7 +249,7 @@ class create Mason {
 	set content [read $fd]
 	chan close $fd
 
-	dict set r -path $path	;# remember the path
+	dict set r -fpath $path	;# remember the path
 
 	# return the content after conversion
 	Debug.mason {returning file: $path of ctype: $ct}
@@ -386,6 +386,7 @@ class create Mason {
 			    }
 
 			    dict set req -dynamic 1	;# functionals are dynamic by default
+			    dict set req -fpath $fpath	;# remember the path
 			    return [my functional $req $fpath]	;# invoke the functional
 			}
 			return [my sendfile $req $fpath]
