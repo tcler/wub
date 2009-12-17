@@ -225,7 +225,7 @@ class create ::Dhcpp {
     }
 
     method / {r} {
-	set mods [my parse]
+	set mods [my process]
 	if {![dict size $mods]} {
 	    #return [Http NotModified $r]
 	}
