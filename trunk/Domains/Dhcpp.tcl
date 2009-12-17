@@ -229,8 +229,8 @@ class create ::Dhcpp {
 	if {![dict size $mods]} {
 	    return [Http NotModified $r]
 	}
-
-	set content [Report html $leases headers {ip mac host vendor-string binding_state} {*}$rparams]
+	append content "[<a> href . all] [<a> href ip2mac ip2mac] [<a> href mac2ip mac2ip] [<a> href byhost byhost]"
+	append content [Report html $leases headers {ip mac host vendor-string binding_state} {*}$rparams]
 	dict set r -style $mount/css {}
 	return [Http Ok $r $content]
     }
@@ -242,7 +242,8 @@ class create ::Dhcpp {
 	}
 
 	variable ip2mac
-	set content [Report html $ip2mac headers {ip mac} {*}$rparams]
+	append content "[<a> href . all] [<a> href ip2mac ip2mac] [<a> href mac2ip mac2ip] [<a> href byhost byhost]"
+	append content [Report html $ip2mac headers {ip mac} {*}$rparams]
 	dict set r -style $mount/css {}
 	return [Http Ok $r $content]
     }
@@ -254,7 +255,8 @@ class create ::Dhcpp {
 	}
 
 	variable mac2ip
-	set content [Report html $mac2ip headers {mac ip} {*}$rparams]
+	append content "[<a> href . all] [<a> href ip2mac ip2mac] [<a> href mac2ip mac2ip] [<a> href byhost byhost]"
+	append content [Report html $mac2ip headers {mac ip} {*}$rparams]
 	dict set r -style $mount/css {}
 	return [Http Ok $r $content]
     }
@@ -266,7 +268,8 @@ class create ::Dhcpp {
 	}
 
 	variable byhost
-	set content [Report html [aray get bymac] headers {host ip} {*}$rparams]
+	append content "[<a> href . all] [<a> href ip2mac ip2mac] [<a> href mac2ip mac2ip] [<a> href byhost byhost]"
+	append content [Report html [aray get bymac] headers {host ip} {*}$rparams]
 	dict set r -style $mount/css {}
 	return [Http Ok $r $content]
     }
