@@ -232,6 +232,7 @@ class create ::Dhcpp {
 	append content "[<a> href . all] [<a> href ip2mac ip2mac] [<a> href mac2ip mac2ip] [<a> href byhost byhost]"
 	append content [Report html $leases headers {ip mac host vendor-string binding_state} {*}$rparams]
 	dict set r -style $mount/css {}
+	set r [jQ tablesorter $r .pretty]
 	return [Http Ok $r $content]
     }
 
