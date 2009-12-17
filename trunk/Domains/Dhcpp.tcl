@@ -269,7 +269,7 @@ class create ::Dhcpp {
 
 	variable byhost
 	append content "[<a> href . all] [<a> href ip2mac ip2mac] [<a> href mac2ip mac2ip] [<a> href byhost byhost]"
-	append content [Report html [aray get bymac] headers {host ip} {*}$rparams]
+	append content [Report html $byhost headers {host ip} {*}$rparams]
 	dict set r -style $mount/css {}
 	return [Http Ok $r $content]
     }
