@@ -332,7 +332,7 @@ class create ::Dhcpp {
 	    }
 	    proc client-hostname {value} {
 		variable lease
-		dict set lease hostname [string trim $value \"]
+		dict set lease host [string trim $value \"]
 	    }
 	    proc failover {args} {}
 	    foreach v {starts ends tstp tsfp cltt atsfp} {
