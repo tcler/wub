@@ -516,7 +516,7 @@ table.formtable fieldset th {
         }
 
 .inset {
-         margin:          0 0 0 12.5em;
+         margin:          0 0 0 15%;
          }
 
 #main h1 {			/* Should be used once, following navhead */
@@ -810,7 +810,7 @@ table.formtable fieldset th {
 /********** Styles for Left Sidebar **********/
 
 #sidebar {			/* Warning: not printed out on paper */
-           width:           12.5em;
+           width:           15%;
            border-right:    1px solid %BORDER;
            float:           left;
            clear:           both;
