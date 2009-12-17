@@ -227,7 +227,7 @@ class create ::Dhcpp {
     method / {r} {
 	set mods [my parse]
 	if {![dict size $mods]} {
-	    return [Http NotModified $r]
+	    //return [Http NotModified $r]
 	}
 	append content "[<a> href . all] [<a> href ip2mac ip2mac] [<a> href mac2ip mac2ip] [<a> href byhost byhost]"
 	append content [Report html $leases headers {ip mac host vendor-string binding_state} {*}$rparams]
@@ -238,7 +238,7 @@ class create ::Dhcpp {
     method /ip2mac {r} {
 	set mods [my process]
 	if {![dict size $mods]} {
-	    return [Http NotModified $r]
+	    //return [Http NotModified $r]
 	}
 
 	variable ip2mac
@@ -251,7 +251,7 @@ class create ::Dhcpp {
     method /mac2ip {r} {
 	set mods [my process]
 	if {![dict size $mods]} {
-	    return [Http NotModified $r]
+	    //return [Http NotModified $r]
 	}
 
 	variable mac2ip
@@ -264,7 +264,7 @@ class create ::Dhcpp {
     method /byhost {r} {
 	set mods [my process]
 	if {![dict size $mods]} {
-	    return [Http NotModified $r]
+	    //return [Http NotModified $r]
 	}
 
 	variable byhost
