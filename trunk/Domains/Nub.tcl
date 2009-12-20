@@ -940,7 +940,7 @@ namespace eval Nub {
 	# the code becomes a self-modifying proc within ::Httpd
 	# its function is to dispatch on URL
 	set p [string map [list %B% $blocking %RW% $rw %RD% $redirecting %D% $definitions %S $switch %AUTH% $au] {
-	    proc ::Httpd::do {op r} {
+	    proc ::Httpd::nub {} {
 		# this code generates definitions once, when invoked
 		# it then rewrites itself with code to use those definitions
 		variable defs
@@ -956,40 +956,38 @@ namespace eval Nub {
 		# Definitions
 		Debug.nub {Creating Defs}
 		%D%	;# this code generates definitions into defs()
+	    }
 
-		# this proc will replace the containing version after first run
-		proc ::Httpd::do {op r} {
-		    Debug.nub {RX: [dict get? $r -uri] - [dict get? $r -url] - ([Url parse [dict get? $r -url]]) }
-		    variable defs	;# functional definitions
-
-		    # get URL components to be used in URL switches
-		    set r [dict merge $r [Url parse [dict get $r -url]]]
-
-		    %RW%	;# apply rewrite rules
-
-		    # apply Blocks
-		    %B%
+	    # this proc processes requests
+	    proc ::Httpd::do {op r} {
+		Debug.nub {RX: [dict get? $r -uri] - [dict get? $r -url] - ([Url parse [dict get? $r -url]]) }
+		variable defs	;# functional definitions
+		
+		# get URL components to be used in URL switches
+		set r [dict merge $r [Url parse [dict get $r -url]]]
+		
+		%RW%	;# apply rewrite rules
+		
+		# apply Blocks
+		%B%
 		    
-		    # apply Redirects
-		    %RD%
+		# apply Redirects
+		%RD%
 
-		    # apply Auth rules
-		    %AUTH%
+		# apply Auth rules
+		%AUTH%
 
-		    Debug.nub {PX: [dict get $r -host],[dict get $r -path]}
-		    Debug.dispatch {[dict get $r -url]}
-		    # Processing rules
-		    switch -glob -- [dict get $r -host],[dict get $r -path] {
-			%S
-			default {
-			    # this is the default behaviour
-			    Http NotFound $r [<p> "page '[dict get $r -uri]' Not Found."]
-			}
+		Debug.nub {PX: [dict get $r -host],[dict get $r -path]}
+		Debug.dispatch {[dict get $r -url]}
+		# Processing rules
+		switch -glob -- [dict get $r -host],[dict get $r -path] {
+		    %S
+		    default {
+			# this is the default behaviour
+			Http NotFound $r [<p> "page '[dict get $r -uri]' Not Found."]
 		    }
-		    # nothing should be put here, as the above switch returns values
 		}
-
-		return [do $op $r]	;# call replacement [do] on first invocation
+		# nothing should be put here, as the above switch returns values
 	    }
 	}]
 	Debug.nub {GEN: $p}
@@ -1170,6 +1168,7 @@ namespace eval Nub {
 	set do [generate $urls]
 	Debug.nub {apply: $do}
 	eval $do
+	::Httpd::nub
     }
 
     proc init {args} {
