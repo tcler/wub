@@ -184,8 +184,12 @@ namespace eval Httpd {
 	# clean up on disconnect
 	variable connbyIP; catch {incr connbyIP($ipaddr) -1}
 
-	# clean up socket - the only point where we close
-	catch {chan close $socket}
+	# clean up all open files
+	# - the only point where we close $socket
+	variable files
+	foreach fd [dict keys [dict get? $files [info coroutine]]] {
+	    catch {chan close $fd}
+	}
 
 	# destroy reader - that's all she wrote
 	Debug.Httpd {reader [info coroutine]: terminated}
@@ -600,6 +604,8 @@ namespace eval Httpd {
 	watchdog
 
 	catch {close $fd}	;# remove file descriptor
+	variable files
+	dict unset files [info coroutine] $fd
 
 	set gone [catch {chan eof $socket} eof]
 	if {$gone || $eof} {
@@ -719,6 +725,7 @@ namespace eval Httpd {
 		if {$file ne ""} {
 		    # send content of file descriptor using fcopy
 		    set fd [open $file r]
+		    variable files; dict set files [info coroutine] $fd 1
 		    set bytes [file size $file]
 
 		    chan configure $socket -translation binary
@@ -1203,6 +1210,8 @@ namespace eval Httpd {
 	set transaction 0	;# count of incoming requests
 	set status INIT	;# record transitions
 	set closing 0	;# flag that we want to close
+	variable files
+	dict set files [info coroutine] $socket {}
 
 	# keep receiving input requests
 	while {1} {
@@ -1704,11 +1713,19 @@ namespace eval Httpd {
 
     proc kill {args} {
 	Debug.Watchdog {killing: "$args"}
+	variable files
 	foreach what $args {
 	    if {[catch {
 		rename $what {}	;# kill this coro right now
-	    } r eo]} {
+	    } e eo]} {
 		Debug.Watchdog {killed $what: '$r' ($eo)}
+	    }
+
+	    foreach fd [dict keys [dict get? $files $what]] {
+		if {[catch {chan close $fd} e eo]} {
+		    # close coro's file
+		    Debug.Watchdog {closing $what's $fd: '$e' ($eo)}
+		}
 	    }
 	}
     }
@@ -1720,14 +1737,7 @@ namespace eval Httpd {
 	set then [expr {$now - $timeout}]
 	Debug.Watchdog {Reaper Running [Http Now]}
 
-	foreach s [chan names] {
-	    catch {
-		if {[catch {chan eof $s} eof] || $eof} {
-		    close $s
-		}
-	    }
-	}
-
+	# kill any moribund coroutines
 	variable reaper
 	foreach {n v} [array get reaper] {
 	    unset reaper($n)
@@ -1736,6 +1746,18 @@ namespace eval Httpd {
 	    }
 	}
 
+	# close any files at EOF
+	foreach s [chan names] {
+	    catch {
+		if {[catch {chan eof $s} eof] || $eof} {
+		    if {[catch {chan close $s} e eo]} {
+			Debug.Watchdog {closing $s: $e ($eo)}
+		    }
+		}
+	    }
+	}
+
+	# schedule inactive coroutines for reaping
 	variable activity
 	foreach {n v} [array get activity] {
 	    catch {
@@ -1940,32 +1962,7 @@ namespace eval Httpd {
 	variable log
 	set result [coroutine $R ::Httpd::reader socket $sock prototype $args generation $gen cid $cid log $log]
 
-	#trace add command $cr {rename delete} [list ::Httpd::corogone $R]
-	#trace add command $R {rename delete} [list ::Httpd::sockgone $cr $sock]
-
 	return $result
-    }
-
-    # this is not used
-    proc corogone {match from to op} {
-	if {$op eq "delete"} {
-	    catch {$match TERMINATE}
-	    Debug.Httpd {CORO $op: $from}
-	} elseif {$op eq "rename"} {
-	    Debug.Httpd {CORO $op: $from $to ([trace info command $from]) ([trace info command $to])}
-	}
-    }
-
-    # this is not used
-    proc sockgone {match sock from to op} {
-	if {$op eq "delete"} {
-	    # clean up socket - the only point where we close
-	    catch {chan close $sock}
-	    catch {$match TERMINATE}
-	    Debug.Httpd {SOCK $op: $from $to}
-	} elseif {$op eq "rename"} {
-	    Debug.Httpd {SOCK $op: $from $to -([trace info command $from]) ([trace info command $to])}
-	}
     }
 
     # configure - set Httpd protocol defaults
