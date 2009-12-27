@@ -5,6 +5,7 @@ package require Query
 package require Url
 package require Debug
 package require Report
+package require Direct
 
 package provide Dhcpp 1.0
 
