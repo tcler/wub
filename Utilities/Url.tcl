@@ -43,8 +43,9 @@ namespace eval Url {
 	Debug.url {decode '$str'} 10
 	variable dmap
 	set str [string map $dmap $str]
+	Debug.url {mapped '$str' ([binary encode hex $str])} 10
 	set str [encoding convertfrom utf-8 $str]
-	Debug.url {decoded '$str'} 10
+	Debug.url {decoded '$str' ([binary encode hex $str])} 10
 
 	return $str
     }
