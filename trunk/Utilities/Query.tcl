@@ -59,6 +59,7 @@ namespace eval Query {
 	Debug.query {decode '$str' [2hex $str]} 10
 	variable dmap
 	set str [string map $dmap $str]
+	set str [encoding convertfrom utf-8 $str]
 	Debug.query {decode dmap '$str' [2hex $str]} 10
 
 	return $str
