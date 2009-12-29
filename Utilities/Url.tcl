@@ -43,16 +43,33 @@ namespace eval Url {
 	Debug.url {decode '$str'} 10
 	variable dmap
 	set str [string map $dmap $str]
+	set str [encoding convertfrom utf-8 $str]
 	Debug.url {decoded '$str'} 10
 
 	return $str
     }
 
+    # normalize -- 
+    #
+    #	collapse and normalize //, ../ and . components to avoid tricks
+    #	like //cgi-bin that fail to match the /cgi-bin prefix
+    #	and ../ that escape domains
+    #
+    # Arguments:
+    #	args	url to normalize
+    #
+    # Results:
+    #	normalized url
+    #
+    # Side Effects:
+    #	none
 
-    # flatten the -path into a -suffix
-    proc flatten {req} {
-	dict set req -suffix [file tail [dict get $req -path]]
-	return $req
+    proc normalize {url} {
+	set url [decode $url]
+	while {[set new [regsub -all {(/+)|(^[.][.]/)|(^/[.][.])|(/[^/]+/[.][.]$)|(/[^/]+/[.][.]/)|(^[.]/)|(/[.]$)|(/[.]/)|(^[.][.]$)|(^[.]$)} $url /]] ne $url} {
+	    set url $new
+	}
+	return "/[string trimleft $url /]"
     }
 
     # strip off path prefix - from ::fileutil
@@ -119,29 +136,6 @@ namespace eval Url {
 	}
 	dict set r -extension [file extension $suffix]
 	return [list 1 $r $suffix $path]
-    }
-
-    # normalize -- 
-    #
-    #	collapse and normalize //, ../ and . components to avoid tricks
-    #	like //cgi-bin that fail to match the /cgi-bin prefix
-    #	and ../ that escape domains
-    #
-    # Arguments:
-    #	args	url to normalize
-    #
-    # Results:
-    #	normalized url
-    #
-    # Side Effects:
-    #	none
-
-    proc normalize {url} {
-	#set url [decode $url]
-	while {[set new [regsub -all {(/+)|(^[.][.]/)|(^/[.][.])|(/[^/]+/[.][.]$)|(/[^/]+/[.][.]/)|(^[.]/)|(/[.]$)|(/[.]/)|(^[.][.]$)|(^[.]$)} $url /]] ne $url} {
-	    set url $new
-	}
-	return "/[string trimleft $url /]"
     }
 
     # parse -- 
@@ -273,6 +267,12 @@ namespace eval Url {
 	dict set req -path $path
 	dict set req -url [url $req]
 	dict set req -uri [uri $req]
+	return $req
+    }
+
+    # flatten the -path into a -suffix
+    proc flatten {req} {
+	dict set req -suffix [file tail [dict get $req -path]]
 	return $req
     }
 
