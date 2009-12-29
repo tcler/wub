@@ -1293,7 +1293,7 @@ namespace eval Httpd {
 	    Debug.Httpd {[info coroutine] reader got request: ($r)}
 
 	    # parse the URL
-	    set r [dict merge $r [Url parse [dict get $r -uri]]]
+	    set r [dict merge $r [Url parse [dict get $r -uri] 1]]
 
 	    # check the incoming ip for blockage
 	    if {[Block blocked? [dict get? $r -ipaddr]]} {
