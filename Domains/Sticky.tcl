@@ -90,7 +90,7 @@ class create Sticky {
     method /load {r {key ""} {content ""}} {
 	# if no key, use referer
 	if {$key eq ""} {
-	    set referer [Url parse [dict get? $r referer]]
+	    set referer [Url parse [dict get? $r referer] 1]
 	    set key [dict get? $referer -path]
 	}
 
