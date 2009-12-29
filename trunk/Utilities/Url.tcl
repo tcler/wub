@@ -152,7 +152,7 @@ namespace eval Url {
     # Side Effects:
     #	none
 
-    proc parse {url {normalize 1}} {
+    proc parse {url {normalize 0}} {
 	Debug.url {Url parse $url - norm? $normalize}
 	array set x {}
 	regexp {^(([^:/?\#]+):)?(//([^/?\#]*))?([^?\#]*)([?]([^\#]*))?(\#(.*))?$} $url \
@@ -162,6 +162,7 @@ namespace eval Url {
 
 	if {$normalize} {
 	    set x(-path) [normalize $x(-path)]	;# fix up oddities in URLs
+	    set x(-normalized) 1
 	}
 
 	foreach n [array names x] {
@@ -322,13 +323,16 @@ namespace eval Url {
 	} else {
 	    # local URL
 	    set npath [dict get $todict -path]
-	    if {[file pathtype $npath] eq "relative"} {
+	    if {[file pathtype $npath] eq "relative"
+		&& ![dict exists $dict -normalized]
+	    } {
 		set npath [normalize [file join [dict get $dict -path] $npath]]
 	    }
 
 	    set host [dict get $dict -host]
 	    set port [dict get $dict -port]
 	    set to [uri [dict replace $todict \
+			     -normalized 1 \
 			     -path $npath \
 			     -host $host \
 			     -port $port]]
