@@ -399,7 +399,7 @@ class create Dub {
     }
 
     method parse_referer {r} {
-	set referer [Url parse [Http Referer $r]]
+	set referer [Url parse [Http Referer $r] 1]
 	lassign [Url urlsuffix $referer $mount] result r suffix
 	if {!$result || $suffix eq "/"} {
 	    error "$referer can't use .next"
