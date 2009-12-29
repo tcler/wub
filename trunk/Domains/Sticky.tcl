@@ -72,7 +72,7 @@ class create Sticky {
     method /save {r {content ""} args} {
 	Debug.sticky {/save $args}
 	if {![dict exists $args key]} {
-	    set referer [Url parse [dict get $r referer]]
+	    set referer [Url parse [dict get $r referer] 1]
 	    set key [dict get $referer -path]
 	}
 	set id [::tcl::clock::microseconds]
