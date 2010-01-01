@@ -21,6 +21,12 @@ class create ::Dhcpp {
     method stanza {stanza} {
 	variable interp
 	set stanza [string map {$ \\\$ \[ \\\[ \] \\\]} $stanza]
+	if {[string match $stanza \nlease]} {
+	    error "Ill-formed stanza: $stanza"
+	}
+	if {[string length $stanza] > 300} {
+	    #error "stanza too long [string length $stanza] $stanza"
+	}
 	if {[catch {$interp eval $stanza} e eo]} {
 	    Debug.error {ERR over ($stanza): $e ($eo)}
 	}
@@ -39,6 +45,7 @@ class create ::Dhcpp {
 	set new {}
 	set changes {}
 	set lc 0
+	set stanzas 0
 	foreach line [string trim [split [::fileutil::cat $leasef] \n]] {
 	    incr lc
 	    if {$line eq ""} {
@@ -52,14 +59,18 @@ class create ::Dhcpp {
 	    if {$line ne "\}"} {
 		set line [string map {\} \\\}} $line]
 	    }
+	    if {![string match lease* $line]} {
+		set line [string map {\{ \\\{} $line]
+	    }
 
-	    Debug.dhcpp {$lc >$line}
+	    Debug.dhcpp {$lc >$line} 20
 	    append stanza \n $line
 	    if {[info complete $stanza]} {
-		Debug.dhcpp {parsing '$stanza'}
+		incr stanzas
+		Debug.dhcpp {parsing '$stanza' ($stanzas)}
 		set lease [my stanza $stanza]
 		if {[dict size $lease]} {
-		    Debug.dhcpp {parsing ($stanza)}
+		    Debug.dhcpp {analyzing #$stanzas ($stanza)}
 		    set ip [dict get $lease ip]
 		    if {[dict exists $leases $ip]} {
 			if {[dict get $leases $ip] eq $lease} {
@@ -396,7 +407,9 @@ class create ::Dhcpp {
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
     Debug on dhcpp 10
+    Debug on error 10
     Dhcpp create dhcpp leasef [lindex $argv 0]
     set mods [dhcpp parse]
-    puts $mods
+    lassign $mods new changed lc
+    puts "$lc lines, new:[dict size $new], changed:[dict size $changed]"
 }
