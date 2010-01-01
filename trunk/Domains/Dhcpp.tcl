@@ -129,6 +129,7 @@ class create ::Dhcpp {
 	dict for {ip lease} $new {
 	    if {![dict exists $lease mac]} {
 		Debug.error {No mac in lease ($lease)}
+		continue
 	    }
 	    set mac [dict get $lease mac]
 	    if {[dict exists $bymac $mac]} {
