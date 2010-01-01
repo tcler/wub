@@ -109,7 +109,7 @@ class create ::Dhcpp {
 	variable ip2mac {}
 
 	set mods [my parse]
-	if {![dict size $mods]} {
+	if {![llength $mods]} {
 	    return {}
 	}
 	lassign $mods new changed lc
@@ -241,7 +241,7 @@ class create ::Dhcpp {
 
     method / {r} {
 	set mods [my process]
-	if {![dict size $mods]} {
+	if {![llength $mods]} {
 	    #return [Http NotModified $r]
 	}
 	lassign $mods new changed lc
@@ -257,7 +257,7 @@ class create ::Dhcpp {
 
     method /ip2mac {r} {
 	set mods [my process]
-	if {![dict size $mods]} {
+	if {![llength $mods]} {
 	    #return [Http NotModified $r]
 	}
 
@@ -270,7 +270,7 @@ class create ::Dhcpp {
 
     method /mac2ip {r} {
 	set mods [my process]
-	if {![dict size $mods]} {
+	if {![llength $mods]} {
 	    #return [Http NotModified $r]
 	}
 
@@ -283,7 +283,7 @@ class create ::Dhcpp {
 
     method /byhost {r} {
 	set mods [my process]
-	if {![dict size $mods]} {
+	if {![llength $mods]} {
 	    #return [Http NotModified $r]
 	}
 
