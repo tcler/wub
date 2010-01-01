@@ -98,7 +98,7 @@ class create ::Dhcpp {
 	    }
 	    set last [clock seconds]
 	}
-	return [list new $new changed $changes lc $lc]
+	return [list $new $changes $lc]
     }
 
     method process {} {
