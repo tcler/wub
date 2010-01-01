@@ -1,11 +1,19 @@
 # Dhcpp.tcl - parse dhcpd's leases file, generate reports
+if {[info exists argv0] && ($argv0 eq [info script])} {
+    lappend auto_path ../Utilities ../extensions ../Domains
+}
 
 package require OO
 package require Query
 package require Url
 package require Debug
+Debug define dhcpp
 package require Report
 package require Direct
+package require jQ
+package require Http
+
+package require fileutil
 
 package provide Dhcpp 1.0
 
@@ -17,20 +25,22 @@ class create ::Dhcpp {
 	    Debug.error {ERR over ($stanza): $e ($eo)}
 	}
 	set result [$interp eval get_lease]
-	#puts stderr stanza:'$result'
+	Debug.dhcpp {stanza:'$result'}
 	return $result
     }
 
-    method parse {{leasef /var/lib/dhcp3/dhcpd.leases}} {
+    method parse {} {
 	variable last
 	if {[file mtime $leasef] <= $last} {
-	    #puts stderr "no changes to $leasef"
+	    Debug.dhcpp {no changes to $leasef}
 	    return {}	;# no change
 	}
 	set oldleases $leases
 	set new {}
 	set changes {}
+	set lc 0
 	foreach line [string trim [split [::fileutil::cat $leasef] \n]] {
+	    incr lc
 	    if {$line eq ""} {
 		#puts stderr ">"
 		continue
@@ -43,17 +53,17 @@ class create ::Dhcpp {
 		set line [string map {\} \\\}} $line]
 	    }
 
-	    #puts stderr ">$line"
+	    Debug.dhcpp {$lc >$line}
 	    append stanza \n $line
 	    if {[info complete $stanza]} {
-		#puts stderr "parsing '$stanza'"
+		Debug.dhcpp {parsing '$stanza'}
 		set lease [my stanza $stanza]
 		if {[dict size $lease]} {
-		    #puts stderr "parsing ($stanza)"
+		    Debug.dhcpp {parsing ($stanza)}
 		    set ip [dict get $lease ip]
 		    if {[dict exists $leases $ip]} {
 			if {[dict get $leases $ip] eq $lease} {
-			    #puts stderr "no change on '$lease'"
+			    Debug.dhcpp {no change on '$lease'}
 			    continue	;# no change for this lease
 			} else {
 			    set old [dict get $leases $ip]
@@ -88,21 +98,23 @@ class create ::Dhcpp {
 	    }
 	    set last [clock seconds]
 	}
-	return [list new $new changed $changes]
+	return [list new $new changed $changes lc $lc]
     }
 
-    method process {{file /var/lib/dhcp3/dhcpd.leases}} {
+    method process {} {
 	variable bymac {}
 	variable byhost {}
 	variable host2mac {}
 	variable mac2ip {}
 	variable ip2mac {}
 
-	set mods [my parse $file]
+	set mods [my parse]
 	if {![dict size $mods]} {
 	    return {}
 	}
-	lassign [my parse $file] new changed
+	lassign $mods new changed lc
+
+	# process new leases
 	dict for {ip lease} $new {
 	    set mac [dict get $lease mac]
 	    if {[dict exists $bymac $mac]} {
@@ -116,6 +128,7 @@ class create ::Dhcpp {
 	    }
 	}
 
+	# process changed leases
 	dict for {ip chset} $changed {
 	    dict with chset {
 		if {[dict exists $mod mac]} {
@@ -129,6 +142,7 @@ class create ::Dhcpp {
 		}
 	    }
 	}
+
 	return $mods
     }
 
@@ -230,8 +244,12 @@ class create ::Dhcpp {
 	if {![dict size $mods]} {
 	    #return [Http NotModified $r]
 	}
+	lassign $mods new changed lc
+
 	append content "[<a> href . all] [<a> href ip2mac ip2mac] [<a> href mac2ip mac2ip] [<a> href byhost byhost]"
 	append content [Report html $leases headers {ip mac host vendor-string binding_state} {*}$rparams]
+	append content "<p>Lines: $lc</p>"
+
 	dict set r -style $mount/css {}
 	set r [jQ tablesorter $r .pretty]
 	return [Http Ok $r $content]
@@ -363,6 +381,7 @@ class create ::Dhcpp {
 	    }
 	}
 
+	set leasef /var/lib/dhcp3/dhcpd.leases
 	set leases {}
 	foreach {n v} $args {
 	    set $n $v
@@ -373,4 +392,11 @@ class create ::Dhcpp {
 	    my every $every {my poll}
 	}
     }
+}
+
+if {[info exists argv0] && ($argv0 eq [info script])} {
+    Debug on dhcpp 10
+    Dhcpp create dhcpp leasef [lindex $argv 0]
+    set mods [dhcpp parse]
+    puts $mods
 }
