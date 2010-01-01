@@ -82,7 +82,7 @@ class create ::Dhcpp {
 				    lappend del $n $v
 				}
 			    }
-			    dict for {n v} $new {
+			    dict for {n v} $lease {
 				lappend add $n $v
 			    }
 			}
