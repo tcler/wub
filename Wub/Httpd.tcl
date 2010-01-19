@@ -1682,6 +1682,7 @@ namespace eval Httpd {
         # ask socket coro to send the response for us
 	# we inject the SEND event into the coro so Resume may be called from any
 	# event, thread or coroutine
+	set r [post $r]
 	return [catch {{*}[dict get $r -send] [list SEND $r]}]
     }
 
