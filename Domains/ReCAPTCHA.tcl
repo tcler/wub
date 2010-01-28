@@ -29,7 +29,7 @@ set API(Domains/ReCAPTCHA) {
 
 class create ReCAPTCHA {
     
-    method /validate {r id recaptcha_challenge_field recaptcha_response_field} {
+    method /validate {r id recaptcha_challenge_field recaptcha_response_field args} {
 	if {![dict exists $resumption $id]} {
 	    return [Http Ok $r "ReCAPTCHA is stale." text/plain]
 	}
