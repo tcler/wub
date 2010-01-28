@@ -84,16 +84,16 @@ class create ReCAPTCHA {
 
 	return [<form> recapture {*}$class action [file join $mount validate]/ [subst {
 	    [<hidden> id $id]
-	    [<script> type text/javascript "var RecaptchaOptions = \{theme : '$theme'\};"]
-	    [<script> type text/javascript src http://api.recaptcha.net/challenge?k=$public> {}]
-	    [<noscript> [subst {
-		[<iframe> src http://api.recaptcha.net/noscript?k=$public height 300 width 500 frameborder 0 {}]
-		[<br>]
-		[<textarea> recaptcha_challenge_field rows 3 cols 40 {}]
-		[<hidden> recaptcha_response_field manual_challenge]
-	    }]]
+	    <script type='text/javascript'> var RecaptchaOptions = {theme : '$theme'}; </script>
+	    <script type='text/javascript' src='http://api.recaptcha.net/challenge?k=$public'> </script>
 	}]]
     }
+    #[<noscript> [subst {
+    #		[<iframe> src http://api.recaptcha.net/noscript?k=$public height 300 width 500 frameborder 0 {}]
+    #		[<br>]
+    #		[<textarea> recaptcha_challenge_field rows 3 cols 40 {}]
+    #		[<hidden> recaptcha_response_field manual_challenge]
+    #	    }]]
 
     method / {r} {
 	error "Called / in ReCAPTCHA.  This is not useful."
