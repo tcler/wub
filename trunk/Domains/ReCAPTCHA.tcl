@@ -38,8 +38,9 @@ class create ReCAPTCHA {
 
 	set entity [Query encodeL privatekey $private remoteip [dict get $r -ipaddr] challenge $recaptcha_challenge_field response $recaptcha_response_field]
 
-	set V [HTTP new http://api-verify.recaptcha.net/ [lambda {v} [string map [list %PASS $pass %FAIL $fail %R $r] {
+	set V [HTTP new http://api-verify.recaptcha.net/ [lambda {v} [string map [list %PASS $pass %FAIL $fail %R $r %ARGS% $args] {
 	    set r [list %R]	;# our response
+	    set args [list %ARGS%]
 	    set result [split [dict get $v -content] \n]
 	    Debug.recaptcha {ReCAPTCHA validation: $result}
 
@@ -129,6 +130,21 @@ if {0} {
 	# everything from here is content:
 	<div> [subst {
 	    [[lindex [info class instances ::ReCAPTCHA] 0] form class autoform]
+	    [<div> id result {}]
+	}]
+    }
+
+    Nub code /recap1/ {
+	set r [jQ form $r .autoform target '#result']
+	set r [Http NoCache $r]
+
+	# everything from here is content:
+	<div> [subst {
+	    [[lindex [info class instances ::ReCAPTCHA] 0] form class autoform form [subst {
+		[<text> field default]
+	    }] pass {
+		set r [Http Ok $r "Passed ReCAPTCHA ($args)" text/plain]
+	    }]
 	    [<div> id result {}]
 	}]
     }
