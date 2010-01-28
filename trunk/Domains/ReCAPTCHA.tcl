@@ -65,6 +65,7 @@ class create ReCAPTCHA {
     method form {args} {
 	set theme white
 	set class {}
+	set form {}	;# the form content
 	set pass {
 	    set r [Http Ok $r "Passed ReCAPTCHA" text/plain]
 	}
@@ -83,6 +84,7 @@ class create ReCAPTCHA {
 	Debug.recaptcha {resumption: $resumption - [file join $mount validate]/}
 
 	return [<form> recapture {*}$class action [file join $mount validate]/ [subst {
+	    $form
 	    [<hidden> id $id]
 	    <script type='text/javascript'> var RecaptchaOptions = {theme : '$theme'}; </script>
 	    <script type='text/javascript' src='http://api.recaptcha.net/challenge?k=$public'> </script>
