@@ -117,7 +117,7 @@ class create ::Tiny {
     # set r [::tiny genref $r]
     # <div> id genref {}
     method /permalink {r {text Permalink} args} {
-	set url [Url uri [Url parse [Http Referer $r]]]	;# normalized referer
+	set url [Url uri [Url parse [Http Referer $r] 1]]	;# normalized referer
 	Debug.tiny {/ref: $url}
 	set durl [Url parse $url]
 
