@@ -247,7 +247,7 @@ class create CGI {
 		    my closed $r $pipe
 		    # cgi dead
 		} elseif {$n == 0} {
-		    Debug.cgi {end of headers}
+		    Debug.cgi {end of headers ($r)}
 		    fconfigure $pipe -translation {binary binary} -encoding binary
 		    fileevent $pipe readable [list [self] entity $r $pipe]
 		} elseif {[string index $line 0] ne " "} {
