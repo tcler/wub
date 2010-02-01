@@ -25,6 +25,7 @@ if {$::tcl_platform(os) eq "Linux"} {
     }
 }
 
+# this will make some necessary changes to auto_path so we find Wub
 proc findpaths {} {
     foreach el $::auto_path {
 	dict set apath [file normalize $el] {}
@@ -367,10 +368,10 @@ namespace eval ::Site {
     Debug on log 10
     Debug on block 10
 
-    proc start {args} {
-	Debug.site {start: $args}
-	init {*}$args
+    #### Load those modules needed for the server to run
+    proc modules {} {
 	variable docroot
+	package require Httpd
 
 	#### Load Convert module - content negotiation
 	variable convert
@@ -519,28 +520,6 @@ namespace eval ::Site {
 	    Debug.site {Module Shell: NO}
 	}
 
-	#### load the application
-	package require Httpd
-	variable application
-	if {[info exists application] && $application ne ""} {
-	    package require $application
-	    
-	    # install variables defined by local, argv, etc
-	    variable modules
-	    set app [string tolower $application]
-	    if {[info exists modules([string tolower $app])]} {
-		variable $app
-		Debug.site {starting application $application - [list variable {*}[set $app]]}
-		Debug.site {app ns: [info vars ::${application}::*]}
-		namespace eval ::$application [list variable {*}[set $app]]
-		Debug.site {app ns: [info vars ::${application}::*]}
-	    } else {
-		Debug.site {not starting application $application, no module in [array names modules]}
-	    }
-	} else {
-	    Debug.site {No application specified}
-	}
-
 	#### Load up nubs
 	package require Nub
 	variable nub
@@ -621,8 +600,52 @@ namespace eval ::Site {
 	    Debug.log {Listening on scgi $host [dict get $scgi -port] using docroot $docroot}
 	}
 
+    }
+
+    # this will shut down the whole system
+    proc shutdown {{reason "No Reason"}} {
+	variable done 1
+    }
+
+    # Load the application, on first call also starts the server
+    proc start {args} {
+	Debug.site {start: $args}
+	init {*}$args
+	modules	;# start the listeners etc
+
+	# can't run the whole start up sequence twice
+	# can initialize the application
+	proc start {args} {
+	    #### load the application
+	    set application [dict get? $args application]
+	    if {$application ne ""} {
+		package require $application
+		
+		# install variables defined by local, argv, etc
+		variable modules
+		set app [string tolower $application]
+		if {[info exists modules([string tolower $app])]} {
+		    variable $app
+		    Debug.site {starting application $application - [list variable {*}[set $app]]}
+		    Debug.site {app ns: [info vars ::${application}::*]}
+		    namespace eval ::$application [list variable {*}[set $app]]
+		    Debug.site {app ns: [info vars ::${application}::*]}
+		} else {
+		    Debug.site {not starting application $application, no module in [array names modules]}
+		}
+	    } else {
+		Debug.site {No application specified}
+	    }
+	}
+	if {[info exists application]} {
+	    start application $application	;# init the application
+	} else {
+	    start
+	}
+
 	variable done 0
 	while {!$done} {
+	    # redefine ::vwait so we don't get fooled again
 	    rename ::vwait ::Site::vwait
 	    proc ::vwait {args} {
 		catch {
@@ -630,6 +653,7 @@ namespace eval ::Site {
 		} frame
 		puts stderr "Recursive VWAIT AAAARRRRRRGH! from '$frame'"
 	    }
+	    Debug.site {entered event loop}
 	    ::Site::vwait done
 	}
 
