@@ -63,7 +63,7 @@ namespace eval Sinorca {
 
     proc <sidebox> {args} {
 	Html argsplit
-	Html template title {[<p> class title $title]}
+	Html template title {[<p> class highlight $title]}
 
 	return [<div> {*}$args "$title
 		[uplevel 1 [list subst $content]]
