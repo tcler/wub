@@ -142,6 +142,7 @@ if {0} {
 	<div> [subst {
 	    [[lindex [info class instances ::ReCAPTCHA] 0] form class autoform form [subst {
 		[<text> field default]
+		[<submit> ok]
 	    }] pass {
 		set r [Http Ok $r "Passed ReCAPTCHA ($args)" text/plain]
 	    }]
