@@ -316,7 +316,7 @@ class create Direct {
 	    set mixins [info class mixins $class]
 	    foreach m [lreverse [lsort -dictionary [info class methods $class -private -all]]] {
 		if {[string match /* $m]} {
-		    foreach class [list [info object class [self]] {*}$mixins] {
+		    foreach class [list [info object class $object] {*}$mixins] {
 			if {![set unfound [catch {
 			    lindex [info class definition $class $m] 0
 			} def eo]]} {
