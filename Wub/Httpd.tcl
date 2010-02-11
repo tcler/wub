@@ -1025,8 +1025,6 @@ namespace eval Httpd {
 
 	    # unpack event
 	    if {[catch {
-		set last [logtransition YIELD]
-
 		dict for {k v} $events {
 		    chan event $socket $k [list [info coroutine] $v]
 		}
@@ -1036,6 +1034,7 @@ namespace eval Httpd {
 		foreach k {readable writable} {
 		    chan event $socket $k ""
 		}
+
 		set last [logtransition $op]
 	    } e eo]} {
 		Debug.HttpdLow {yield crashed $e ($eo)}
