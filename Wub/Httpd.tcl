@@ -647,7 +647,7 @@ namespace eval Httpd {
 
 	set now [clock milliseconds]
 	lappend result "[<th> coro] [<th> activity] [<th> reaping] [<th> self] [<th> fd] [<th> peer] [<th> connections] [<th> transitions] [<th> files]"
-	dict for {coro v} [dict merge [array get crs] [array get activity] $files] {
+	foreach coro [info commands rc*] {
 	    set line [<th> [namespace tail $coro]]
 	    if {[info exists activity($coro)]} {
 		append line [<td> [expr {$now - $activity($coro)}]]
