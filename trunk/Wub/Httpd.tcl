@@ -645,7 +645,7 @@ namespace eval Httpd {
 	variable files	;# dict of open files per coroutine
 	set line "[<th> coro] [<th> activity] [<th> transitions] [<th> files]"
 	set result $line
-	foreach coro [dict merge [array names crs] [array names activity]] {
+	dict for {coro v} [dict merge [array get crs] [array get activity] $files] {
 	    set line [<th> $coro]
 	    if {[info exists activity($coro)]} {
 		append line $activity($coro)
