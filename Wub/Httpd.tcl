@@ -778,7 +778,7 @@ namespace eval Httpd {
 		    if {[llength $range]} {
 			lassign $range from to
 			chan seek $fd $from start
-			set bytes [expr {$to-$from}+1]
+			set bytes [expr {$to-$from+1}]
 			Debug.Httpd {[info coroutine] FCOPY RANGE: '$file' hytes $from-$to/$bytes} 8
 			chan copy $fd $socket -command [list ::coroshim_fcopy [info coroutine] FCOPY $fd $bytes]
 
