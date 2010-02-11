@@ -649,8 +649,9 @@ namespace eval Httpd {
 	    set line [<th> [namespace tail $coro]]
 	    lassign [split $coro _] conn
 	    set conn [namespace tail $conn]
-	    if {[llength [info commands $conn]] > 0} {
-		append line [<td> [chan configure ]]
+	    if {![catch {chan configure $conn} conf]} {
+		set conf [dict merge $conf [chan configure [dict get $conf -fd]]]
+		append line [<td> $conf]
 	    } else {
 		append line [<td> ""]
 	    }
@@ -672,6 +673,8 @@ namespace eval Httpd {
 	    lappend result $line
 	}
 	set result <tr>[join $result </tr><tr>]</tr>
+
+
 	return [<table> $result]
     }
 
