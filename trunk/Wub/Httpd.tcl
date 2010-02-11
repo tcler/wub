@@ -661,7 +661,7 @@ namespace eval Httpd {
 		set conf {}
 	    }
 	    foreach n {self fd peername connections} {
-		append line [<td> [dict get? conf -$n]
+		append line [<td> [dict get? conf -$n]]
 	    }
 
 	    if {[info exists crs($coro)]} {
