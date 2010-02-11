@@ -217,6 +217,15 @@ namespace eval Httpd {
 	dict set events readable $what
     }
 
+    # keep a log of a coroutine's transitions
+    proc logtransition {what} {
+	corovars last
+	variable crs
+	set now [::tcl::clock::milliseconds]
+	lappend crs([info coroutine])  [expr {$now - $last}] $what
+	return $now
+    }
+
     # close? - should we close this connection?
     proc close? {r} {
 	# don't honour 1.0 keep-alives - why?
@@ -235,9 +244,9 @@ namespace eval Httpd {
 	if {$close} {
 	    # we're not accepting more input but defer actually closing the socket
 	    # until all pending transmission's complete
-	    corovars status closing socket
+	    corovars closing socket
 	    set closing 1	;# flag the closure
-	    lappend status CLOSING
+	    logtransition CLOSING
 	    readable CLOSING
 	}
 
@@ -886,11 +895,8 @@ namespace eval Httpd {
 	}
 
 	# record the behaviour
-	variable crs
-	set now [::tcl::clock::milliseconds]
-	lappend crs([info coroutine])  [expr {$now - $last}] SENT
+	logtransition SENT
 	dict set r -behaviour $crs([info coroutine])
-	set crs([info coroutine]) {}
 
 	# generate a log line
 	variable log
@@ -929,8 +935,7 @@ namespace eval Httpd {
 	    readable
 	}
 
-	set now [::tcl::clock::milliseconds]
-	lappend crs([info coroutine])  [expr {$now - $last}] READY
+	logtransition READY
 
 	# having queued the response, we allow it to be sent on 'socket writable' event
 	writable
@@ -1004,7 +1009,7 @@ namespace eval Httpd {
 
     # yield wrapper with command dispatcher
     proc yield {{retval ""}} {
-	corovars cmd status unsatisfied socket last events
+	corovars cmd unsatisfied socket last events
 	if {![info exists last]} {
 	    set last [::tcl::clock::milliseconds]
 	}
@@ -1018,8 +1023,7 @@ namespace eval Httpd {
 
 	    # unpack event
 	    if {[catch {
-		set now [::tcl::clock::milliseconds]
-		lappend crs([info coroutine]) [expr {$now - $last}] YIELD; set last $now
+		set last [logtransition YIELD]
 
 		dict for {k v} $events {
 		    chan event $socket $k [list [info coroutine] $v]
@@ -1030,8 +1034,7 @@ namespace eval Httpd {
 		foreach k {readable writable} {
 		    chan event $socket $k ""
 		}
-		set now [::tcl::clock::milliseconds]
-		lappend crs([info coroutine]) [expr {$now - $last}] $op; set last $now
+		set last [logtransition $op]
 	    } e eo]} {
 		Debug.HttpdLow {yield crashed $e ($eo)}
 		terminate yieldcrash
@@ -1044,7 +1047,6 @@ namespace eval Httpd {
 		return
 	    }
 
-	    lappend status $op
 	    Debug.HttpdLow {back from yield [info coroutine] -> $op}
 
 	    # record a log of our activity to fend off the reaper
@@ -1108,7 +1110,7 @@ namespace eval Httpd {
 		REAPED {
 		    # we've been reaped
 		    corovars satisfied ipaddr closing headering
-		    Debug.Watchdog {[info coroutine] Reaped - status:($status) satisfied:($satisfied) unsatisfied:($unsatisfied) ipaddr:$ipaddr closing:$closing headering:$headering}
+		    Debug.Watchdog {[info coroutine] Reaped - satisfied:($satisfied) unsatisfied:($unsatisfied) ipaddr:$ipaddr closing:$closing headering:$headering}
 		    
 		    terminate {*}$args
 		}
@@ -1139,8 +1141,8 @@ namespace eval Httpd {
 	Debug.error {handle $reason: ([rdump $req])}
 
 	# we have an error, so we're going to try to reply then die.
-	corovars transaction generation status closing socket
-	lappend status ERROR
+	corovars transaction generation closing socket
+	logtransition "ERROR $reason"
 	if {[catch {
 	    dict set req connection close	;# we want to close this connection
 	    if {![dict exists $req -transaction]} {
@@ -1266,7 +1268,7 @@ namespace eval Httpd {
 
 	dict with args {}
 	set transaction 0	;# count of incoming requests
-	set status INIT	;# record transitions
+	logtransition INIT	;# record transitions
 	set closing 0	;# flag that we want to close
 	variable files; dict set files [info coroutine] $socket {}
 
@@ -1589,7 +1591,7 @@ namespace eval Httpd {
 		dict set cached -sent [clock microseconds]
 
 		Debug.Httpd {[info coroutine] sending cached [dict get $r -uri] ([rdump $cached])}
-		lappend status CACHED
+		logtransition CACHED
 		if {[catch {
 		    write [dict merge $r $cached] 0	;# write cached response directly into outgoing structs
 		} result eo]} {
@@ -1602,7 +1604,7 @@ namespace eval Httpd {
 
 	    # process the request
 	    dict set unsatisfied [dict get $r -transaction] {}
-	    lappend status PROCESS
+	    logtransition PROCESS
 
 	    dict set r -send [info coroutine]	;# remember the coroutine
 	    catch {
