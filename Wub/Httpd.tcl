@@ -649,7 +649,7 @@ namespace eval Httpd {
 	    set line [<th> [namespace tail $coro]]
 	    lassign [split $coro _] conn
 	    set conn [namespace tail $conn]
-	    if {[info exists command $conn]} {
+	    if {[llength [info commands $conn]] > 0} {
 		append line [<td> [chan configure ]]
 	    } else {
 		append line [<td> ""]
