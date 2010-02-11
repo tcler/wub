@@ -896,6 +896,7 @@ namespace eval Httpd {
 
 	# record the behaviour
 	logtransition SENT
+	variable crs
 	dict set r -behaviour $crs([info coroutine])
 
 	# generate a log line
