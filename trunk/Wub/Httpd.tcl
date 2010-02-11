@@ -644,9 +644,16 @@ namespace eval Httpd {
 	variable activity ;# array of coroutine activity
 	variable files	;# dict of open files per coroutine
 	set now [clock milliseconds]
-	lappend result "[<th> coro] [<th> activity] [<th> transitions] [<th> files]"
+	lappend result "[<th> coro] [<th> socket] [<th> activity] [<th> transitions] [<th> files]"
 	dict for {coro v} [dict merge [array get crs] [array get activity] $files] {
 	    set line [<th> [namespace tail $coro]]
+	    lassign [split $coro _] conn
+	    set conn [namespace tail $conn]
+	    if {[info exists command $conn]} {
+		append line [<td> [chan configure ]]
+	    } else {
+		append line [<td> ""]
+	    }
 	    if {[info exists activity($coro)]} {
 		append line [<td> [expr {$now - $activity($coro)}]]
 	    } else {
@@ -658,7 +665,7 @@ namespace eval Httpd {
 		append line [<td> ""]
 	    }
 	    if {[dict exists $files $coro]} {
-		append line [<td> [dict get $files $coro]]
+		append line [<td> [dict keys [dict get $files $coro]]]
 	    } else {
 		append line [<td> ""]
 	    }
