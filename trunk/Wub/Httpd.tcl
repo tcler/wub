@@ -187,8 +187,11 @@ namespace eval Httpd {
 	# clean up all open files
 	# - the only point where we close $socket
 	variable files
-	foreach fd [dict keys [dict get? $files [info coroutine]]] {
-	    catch {chan close $fd}
+	if {[dict exists $files [info coroutine]]} {
+	    foreach fd [dict keys [dict get $files [info coroutine]]] {
+		catch {chan close $fd}
+	    }
+	    dict unset files [info coroutine]
 	}
 
 	# destroy reader - that's all she wrote
@@ -1210,8 +1213,7 @@ namespace eval Httpd {
 	set transaction 0	;# count of incoming requests
 	set status INIT	;# record transitions
 	set closing 0	;# flag that we want to close
-	variable files
-	dict set files [info coroutine] $socket {}
+	variable files; dict set files [info coroutine] $socket {}
 
 	# keep receiving input requests
 	while {1} {
@@ -1722,11 +1724,14 @@ namespace eval Httpd {
 		Debug.Watchdog {killed $what: '$r' ($eo)}
 	    }
 
-	    foreach fd [dict keys [dict get? $files $what]] {
-		if {[catch {chan close $fd} e eo]} {
-		    # close coro's file
-		    Debug.Watchdog {closing $what's $fd: '$e' ($eo)}
+	    if {[dict exists $files $what]} {
+		foreach fd [dict keys [dict get $files $what]] {
+		    if {[catch {chan close $fd} e eo]} {
+			# close coro's file
+			Debug.Watchdog {closing $what's $fd: '$e' ($eo)}
+		    }
 		}
+		dict unset files $what
 	    }
 	}
     }
