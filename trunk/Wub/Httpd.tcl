@@ -898,6 +898,7 @@ namespace eval Httpd {
 	logtransition SENT
 	variable crs
 	dict set r -behaviour $crs([info coroutine])
+	unset crs([info coroutine])	;# we only want to remember last transaction
 
 	# generate a log line
 	variable log
