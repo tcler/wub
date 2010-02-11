@@ -643,12 +643,11 @@ namespace eval Httpd {
 	variable crs	;# array of running coroutine transitions
 	variable activity ;# array of coroutine activity
 	variable files	;# dict of open files per coroutine
-	set line [list [<th> coro] [<th> activity] [<th> transitions] [<th> files]]
-	set result $line
+	lappend result "[<th> coro] [<th> activity] [<th> transitions] [<th> files]"
 	dict for {coro v} [dict merge [array get crs] [array get activity] $files] {
 	    set line [<th> $coro]
 	    if {[info exists activity($coro)]} {
-		append line $activity($coro)
+		append line [<td> $activity($coro)]
 	    } else {
 		append line [<td> ""]
 	    }
@@ -658,7 +657,7 @@ namespace eval Httpd {
 		append line [<td> ""]
 	    }
 	    if {[dict exists $files $coro]} {
-		append line [dict get $files $coro]
+		append line [<td> [dict get $files $coro]]
 	    } else {
 		append line [<td> ""]
 	    }
