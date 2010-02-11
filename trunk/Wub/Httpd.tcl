@@ -1624,6 +1624,7 @@ namespace eval Httpd {
 			}
 			
 			Debug.Httpd {SUSPEND: $duration}
+			logtransition SUSPEND
 			grace $duration	;# response has been suspended
 			continue
 		    } elseif {[dict exists $rsp -passthrough]} {
@@ -1644,6 +1645,7 @@ namespace eval Httpd {
 	    }
 
 	    watchdog
+	    logtransition POSTPROCESS
 	    if {[catch {
 		post $rsp
 	    } rspp eo]} {
