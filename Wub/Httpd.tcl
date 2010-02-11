@@ -177,12 +177,10 @@ namespace eval Httpd {
 	    after cancel $reaper([info coroutine])
 	    unset reaper([info coroutine])
 	}
-	variable crs; unset crs([info coroutine])
+	variable crs; unset crs([info coroutine])	;# destroy the coroutine record
+
 	# forget whatever higher level connection info
 	corovars cid socket ipaddr
-
-	# clean up on disconnect
-	variable connbyIP; catch {incr connbyIP($ipaddr) -1}
 
 	# clean up all open files
 	# - the only point where we close $socket
@@ -638,6 +636,36 @@ namespace eval Httpd {
 
 	# see if the writer needs service
 	writable
+    }
+
+    # extract some information from Httpd to aid in debugging
+    proc status {} {
+	variable crs	;# array of running coroutine transitions
+	variable activity ;# array of coroutine activity
+	variable files	;# dict of open files per coroutine
+	set line "[<th> coro] [<th> activity] [<th> transitions] [<th> files]"
+	set result $line
+	foreach coro [dict merge [array names crs] [array names activity]] {
+	    set line [<th> $coro]
+	    if {[info exists activity($coro)]} {
+		append line $activity($coro)
+	    } else {
+		append line [<td> ""]
+	    }
+	    if {[info exists crs($coro)]} {
+		append line [<td> $crs($coro)]
+	    } else {
+		append line [<td> ""]
+	    }
+	    if {[dict exists $files $coro]} {
+		append line [dict get $files $coro]
+	    } else {
+		append line [<td> ""]
+	    }
+	    lappend result $line
+	}
+	set result <tr>[join $result </tr><tr>]</tr>
+	return [<table> $result]
     }
 
     # respond to client with as many consecutive responses as he can consume
@@ -1720,15 +1748,16 @@ namespace eval Httpd {
 	foreach what $args {
 	    if {[catch {
 		rename $what {}	;# kill this coro right now
+		unset crs($what) ;# remove record of coroutine activity
 	    } e eo]} {
-		Debug.Watchdog {killed $what: '$r' ($eo)}
+		Debug.error {killed $what: '$r' ($eo)}
 	    }
 
 	    if {[dict exists $files $what]} {
 		foreach fd [dict keys [dict get $files $what]] {
 		    if {[catch {chan close $fd} e eo]} {
 			# close coro's file
-			Debug.Watchdog {closing $what's $fd: '$e' ($eo)}
+			Debug.error {closing $what's $fd: '$e' ($eo)}
 		    }
 		}
 		dict unset files $what
