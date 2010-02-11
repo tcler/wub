@@ -643,7 +643,7 @@ namespace eval Httpd {
 	variable crs	;# array of running coroutine transitions
 	variable activity ;# array of coroutine activity
 	variable files	;# dict of open files per coroutine
-	set line "[<th> coro] [<th> activity] [<th> transitions] [<th> files]"
+	set line [list [<th> coro] [<th> activity] [<th> transitions] [<th> files]]
 	set result $line
 	dict for {coro v} [dict merge [array get crs] [array get activity] $files] {
 	    set line [<th> $coro]
