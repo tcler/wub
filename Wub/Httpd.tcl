@@ -647,7 +647,13 @@ namespace eval Httpd {
 
 	set now [clock milliseconds]
 	lappend result "[<th> coro] [<th> activity] [<th> reaping] [<th> self] [<th> fd] [<th> peer] [<th> connections] [<th> transitions] [<th> files]"
-	foreach coro [info commands ::Httpd::rc*] {
+	foreach socket [chan names rc*] {
+	    set coro [info commands ::Httpd::$socket*]
+	    if {[llength $coro] > 0} {
+		set coro [lindex $coro 0]
+	    } else {
+		set coro $socket
+	    }
 	    set line [<th> [namespace tail $coro]]
 	    if {[info exists activity($coro)]} {
 		append line [<td> [expr {$now - $activity($coro)}]]
