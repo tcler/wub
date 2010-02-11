@@ -643,12 +643,19 @@ namespace eval Httpd {
 	variable crs	;# array of running coroutine transitions
 	variable activity ;# array of coroutine activity
 	variable files	;# dict of open files per coroutine
+	variable reaper ;# when will this be reaped?
+
 	set now [clock milliseconds]
-	lappend result "[<th> coro] [<th> activity] [<th> self] [<th> fd] [<th> peer] [<th> connections] [<th> transitions] [<th> files]"
+	lappend result "[<th> coro] [<th> activity] [<th> reaping] [<th> self] [<th> fd] [<th> peer] [<th> connections] [<th> transitions] [<th> files]"
 	dict for {coro v} [dict merge [array get crs] [array get activity] $files] {
 	    set line [<th> [namespace tail $coro]]
 	    if {[info exists activity($coro)]} {
 		append line [<td> [expr {$now - $activity($coro)}]]
+	    } else {
+		append line [<td> ""]
+	    }
+	    if {[info exists reaper($coro)]} {
+		append line [<td> [expr {$reaper($coro) - now}]]
 	    } else {
 		append line [<td> ""]
 	    }
