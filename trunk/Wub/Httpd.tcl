@@ -1268,7 +1268,6 @@ namespace eval Httpd {
 
 	dict with args {}
 	set transaction 0	;# count of incoming requests
-	logtransition INIT	;# record transitions
 	set closing 0	;# flag that we want to close
 	variable files; dict set files [info coroutine] $socket {}
 
