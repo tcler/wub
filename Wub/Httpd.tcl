@@ -646,7 +646,7 @@ namespace eval Httpd {
 	set now [clock microseconds]
 	lappend result "[<th> coro] [<th> activity] [<th> transitions] [<th> files]"
 	dict for {coro v} [dict merge [array get crs] [array get activity] $files] {
-	    set line [<th> $coro]
+	    set line [<th> [namespace tail $coro]]
 	    if {[info exists activity($coro)]} {
 		append line [<td> [expr {$now - $activity($coro)}]]
 	    } else {
