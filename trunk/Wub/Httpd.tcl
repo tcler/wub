@@ -679,8 +679,7 @@ namespace eval Httpd {
 	}
 	set result <tr>[join $result </tr><tr>]</tr>
 
-
-	return [<table> $result]
+	return [<table> border 1 width 90% $result]
     }
 
     # respond to client with as many consecutive responses as he can consume
