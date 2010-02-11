@@ -656,7 +656,8 @@ namespace eval Httpd {
 
 	set now [clock milliseconds]
 	lappend result "[<th> coro] [<th> activity] [<th> reaping] [<th> self] [<th> fd] [<th> peer] [<th> connections] [<th> transitions] [<th> files]"
-	foreach socket [lsort -dictionary [chan names rc*]] {
+	set sockets [lsort -dictionary [chan names rc*]]
+	foreach socket $sockets {
 	    set coro [info commands ::Httpd::$socket*]
 	    if {[llength $coro] > 0} {
 		set coro [lindex $coro 0]
@@ -700,8 +701,8 @@ namespace eval Httpd {
 	    lappend result $line
 	}
 	set result <tr>[join $result </tr><tr>]</tr>
-
-	return [<table> border 1 width 90% $result]
+	set header [<h2> "Status of [llength $sockets] Sockets"]
+	return $header\n[<table> border 1 width 90% $result]
     }
 
     # respond to client with as many consecutive responses as he can consume
