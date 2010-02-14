@@ -74,6 +74,11 @@ namespace eval ::Site {
     # uncomment to turn off caching for testing
     # package provide Cache 2.0 ; proc Cache args {return {}}
 
+    # return a specific module Site var
+    proc var {module args} {
+	return [dict get $::Site::$module {*}$args]
+    }
+
     # return all the configuration state of Site in a handy form
     proc vars {args} {
 	set vars {}
