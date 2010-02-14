@@ -51,6 +51,7 @@ class create IChan {
 
     # Basic I/O
     method read {mychan n} {
+	set used [clock milliseconds]
 	if {[catch {::chan read $chan $n} result eo]} {
 	    Debug.chan {$mychan read $chan $n -> error $result ($eo)}
 	} else {
@@ -73,6 +74,7 @@ class create IChan {
 
     method write {mychan data} {
 	Debug.chan {$mychan write $chan [string length $data]}
+	set used [clock milliseconds]
 	::chan puts -nonewline $chan $data
 	return [string length $data]
     }
@@ -85,6 +87,9 @@ class create IChan {
     }
 
     method configure {mychan option value} {
+	if {$option eq "-user"} {
+	    set user $value
+	}
 	return [next $mychan $option $value]
     }
 
@@ -103,6 +108,15 @@ class create IChan {
 	    -fd {
 		return $chan
 	    }
+	    -used {
+		return $used
+	    }
+	    -created {
+		return $created
+	    }
+	    -user {
+		return $user
+	    }
 	}
 	if {[catch {next $mychan $option} result eo]} {
 	    #puts stderr "cget: $result ($eo)"
@@ -119,12 +133,12 @@ class create IChan {
 	    set result {}
 	}
 
-	lappend result -self [self] -fd $chan
+	lappend result -self [self] -fd $chan -used $used -created $created -user $user
 	Debug.chan {[self] cgetall $mychan -> $result}
 	return $result
     }
 
-    variable chan
+    variable chan used user created
     constructor {args} {
 	# Initialize the buffer, current read location, and limit
 	set chan ""
@@ -137,6 +151,11 @@ class create IChan {
 	    }
 	    set $n $v
 	}
+
+	# set some configuration data
+	set created [clock milliseconds]
+	set used 0
+	set user ""	;# user data - freeform
 
 	next {*}$args
 
@@ -214,11 +233,15 @@ class create Socket {
     method endpoints {} {return $endpoints}
 
     method configure {mychan option value} {
+	set others {}
 	switch -glob -- $option {
 	    max* {
 		set ip [dict get $endpoints peer ip]
 		classvar maxconnections
 		dict set $maxconnections $ip $value
+	    }
+	    default {
+		return [next $mychan $option $value]
 	    }
 	}
     }
