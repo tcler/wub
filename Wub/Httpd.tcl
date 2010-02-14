@@ -700,6 +700,7 @@ namespace eval Httpd {
 	    }
 	    lappend result $line
 	}
+
 	set result <tr>[join $result </tr><tr>]</tr>
 	set header [<h2> "Status of [llength $sockets] Sockets"]
 	return $header\n[<table> border 1 width 90% $result]
@@ -1366,11 +1367,15 @@ namespace eval Httpd {
 	    dict set r -ua_class [UA classify [dict get? $r user-agent]]	;# classify client by UA
 	    switch -- [dict get $r -ua_class] {
 		blank {
-		    handle [Http NotImplemented $r "Possible Spider Service - set your User-Agent"] "Spider"
+		    if {[dict get $r -uri] ne "/robots.txt"} {
+			handle [Http NotImplemented $r "Possible Spider Service - set your User-Agent"] "Spider"
+		    } else {
+			# allow anonymous people to collect robots.txt
+		    }
 		}
 		spammer {
 		    Block block [dict get $r -ipaddr] "spider UA ([dict get? $r user-agent])"
-		    handle [Http NotImplemented $r "Spider Service"] "Spider"
+		    handle [Http NotImplemented $r "Spammer"] "Spammer"
 		}
 
 		browser {
@@ -1829,6 +1834,7 @@ namespace eval Httpd {
 	foreach {n v} [array get activity] {
 	    catch {
 		if {[info commands $n] eq {}} {
+		    Debug.log {Bogus watchdog over $n}
 		    catch {unset activity($n)}	;# this is bogus
 		} elseif {$v < $then} {
 		    Debug.Watchdog {Reaping $n}
@@ -2013,22 +2019,15 @@ namespace eval Httpd {
 
 	# create reader coroutine
 	variable reader
-	set R ::Httpd::${sock}_[uniq]
-
-	# the old socket stuff hasn't yet been cleaned up.
-	# this is potentially very bad.
-	foreach n [info commands ::Httpd::${sock}_*] {
-	    Debug.log {reader $R not dead yet, rename to ${R}_DEAD to kill it.}
-	    catch {rename $n DEAD_$n}
-	    catch {DEAD_$n [list TERMINATE "socket's gone"]}	;# ensure the old reader's dead
-	    catch {rename DEAD_$n ""}
-	}
+	set R ::Httpd::${sock}_[uniq]	;# unique coro name per socket
+	chan configure $sock -user $R	;# record the coroutine as socket user data
 
 	# construct the reader
 	variable timeout
 	variable log
 	set result [coroutine $R ::Httpd::reader socket $sock prototype $args generation $gen cid $cid log $log]
-
+	set activity($R) [clock milliseconds]	;# make creation a sign of activity
+		# this accounts for sockets created but not used.
 	return $result
     }
 
