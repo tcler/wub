@@ -107,6 +107,14 @@ class create ReCAPTCHA {
     mixin Direct
     variable mount resumption id public private
 
+    method keys {args} {
+	foreach n {public private} {
+	    if {[dict exists $args $n]} {
+		set $n [dict get $args $n]
+	    }
+	}
+    }
+
     constructor {args} {
 	set resumption {}
 	set id 0
