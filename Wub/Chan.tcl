@@ -89,8 +89,9 @@ class create IChan {
     method configure {mychan option value} {
 	if {$option eq "-user"} {
 	    set user $value
+	} else {
+	    chan configure $fd $option $value
 	}
-	return [next $mychan $option $value]
     }
 
     method finalize {mychan} {
