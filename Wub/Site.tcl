@@ -76,7 +76,12 @@ namespace eval ::Site {
 
     # return a specific module Site var
     proc var {module args} {
-	return [dict get $::Site::$module {*}$args]
+	upvar 0 ::Site::$module modvars
+	return [dict get $modvars {*}$args]
+    }
+    proc var? {module args} {
+	upvar 0 ::Site::$module modvars
+	return [dict get? $modvars {*}$args]
     }
 
     # return all the configuration state of Site in a handy form
