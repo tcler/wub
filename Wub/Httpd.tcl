@@ -655,7 +655,7 @@ namespace eval Httpd {
 	variable reaper ;# when will this be reaped?
 
 	set now [clock milliseconds]
-	lappend result "[<th> coro] [<th> activity] [<th> reaping] [<th> self] [<th> fd] [<th> peer] [<th> connections] [<th> transitions] [<th> files]"
+	lappend result "[<th> coro] [<th> activity] [<th> reaping] [<th> self] [<th> fd] [<th> peer] [<th> connections] [<th> used] [<th> created] [<th> transitions] [<th> files]"
 	set sockets [lsort -dictionary [chan names rc*]]
 	foreach socket $sockets {
 	    set coro [info commands ::Httpd::$socket*]
@@ -683,7 +683,7 @@ namespace eval Httpd {
 	    } else {
 		set conf {}
 	    }
-	    foreach n {self fd peername connections} {
+	    foreach n {self fd peername connections used created} {
 		append line [<td> [dict get? $conf -$n]]
 	    }
 
@@ -698,6 +698,7 @@ namespace eval Httpd {
 	    } else {
 		append line [<td> ""]
 	    }
+
 	    lappend result $line
 	}
 
@@ -1730,8 +1731,10 @@ namespace eval Httpd {
 	variable activity
 	if {$grace < 0} {
 	    # take this coro off the reaper's list until next activity
+	    Debug.Watchdog {Giving [info coroutine] infinite grace}
 	    catch {unset activity([info coroutine])}
 	} else {
+	    Debug.Watchdog {Giving [info coroutine] $grace grace}
 	    set activity([info coroutine]) [expr {$grace + [clock milliseconds]}]
 	}
     }
@@ -2026,6 +2029,8 @@ namespace eval Httpd {
 	variable timeout
 	variable log
 	set result [coroutine $R ::Httpd::reader socket $sock prototype $args generation $gen cid $cid log $log]
+
+	variable activity
 	set activity($R) [clock milliseconds]	;# make creation a sign of activity
 		# this accounts for sockets created but not used.
 	return $result
