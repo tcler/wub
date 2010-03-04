@@ -803,17 +803,19 @@ namespace eval Httpd {
 		    unreadable	;# stop reading input while fcopying
 		    unwritable	;# stop writing while fcopying
 		    grace -1	;# stop the watchdog resetting the link
+		    set raw [chan configure $socket -fd]
 
 		    if {[llength $range]} {
 			lassign $range from to
 			chan seek $fd $from start
 			set bytes [expr {$to-$from+1}]
 			Debug.Httpd {[info coroutine] FCOPY RANGE: '$file' hytes $from-$to/$bytes} 8
-			chan copy $fd $socket -command [list ::coroshim_fcopy [info coroutine] FCOPY $fd $bytes]
+			chan copy $fd $raw -command [list ::coroshim_fcopy [info coroutine] FCOPY $fd $bytes]
 
 		    } else {
 			Debug.Httpd {[info coroutine] FCOPY ENTITY: '$file' $bytes bytes} 8
-			chan copy $fd $socket -command [list ::coroshim_fcopy [info coroutine] FCOPY $fd $bytes]
+			set raw [chan configure $socket -fd]
+			chan copy $fd $raw -command [list ::coroshim_fcopy [info coroutine] FCOPY $fd $bytes]
 		    }
 		    break	;# we don't process any more i/o on $socket
 		} elseif {[llength $range]} {
