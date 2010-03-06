@@ -38,13 +38,13 @@ class create IChan {
 
     # Internals. Methods. Event generation.
     method readable {mychan} {
-	Debug.chan {$mychan readable $chan}
+	Debug.chan {$mychan readable $chan - [chan pending input $chan]}
 	::chan postevent $mychan read
 	return
     }
 
     method writable {mychan} {
-	Debug.chan {$mychan writable $chan}
+	Debug.chan {$mychan writable $chan - [chan pending output $chan]}
 	::chan postevent $mychan write
 	return
     }
@@ -158,7 +158,7 @@ class create IChan {
 	set used 0
 	set user ""	;# user data - freeform
 
-	next {*}$args
+	catch {next {*}$args}
 
 	if {![llength $objargs]} {
 	    my destroy	;# this wasn't really a connected socket, just set classvars
