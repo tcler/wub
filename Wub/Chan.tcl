@@ -73,7 +73,7 @@ class create IChan {
     }
 
     method write {mychan data} {
-	Debug.chan {$mychan write $chan [string length $data]}
+	Debug.chan {$mychan write $chan [string length $data] / [chan pending output $chan] / [chan pending output $mychan]}
 	set used [clock milliseconds]
 	::chan puts -nonewline $chan $data
 	return [string length $data]
