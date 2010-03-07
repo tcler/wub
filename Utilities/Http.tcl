@@ -527,6 +527,32 @@ namespace eval Http {
 	dict set rsp content-type "x-text/system"
 	set rsp [title $rsp $title]
 	dict set rsp -content "[<h2> $title]\n$content"
+	dict lappend rsp -headers "[<style> type text/css {
+	  html * { padding:0; margin:0; }
+	  body * { padding:10px 20px; }
+	  body * * { padding:0; }
+	  body { font:small sans-serif; }
+	  body>div { border-bottom:1px solid #ddd; }
+	  h1 { font-weight:normal; }
+	  h2 { margin-bottom:.8em; }
+	  h2 span { font-size:80%; color:#666; font-weight:normal; }
+	  h3 { margin:1em 0 .5em 0; }
+	  table { 
+		  border:1px solid #ccc; border-collapse: collapse; background:white; }
+	  tbody td, tbody th { vertical-align:top; padding:2px 3px; }
+	  thead th { 
+		  padding:1px 6px 1px 3px; background:#fefefe; text-align:left; 
+		  font-weight:normal; font-size:11px; border:1px solid #ddd; }
+	  tbody th { text-align:right; color:#666; padding-right:.5em; }
+	  table.errorinfo { margin:5px 0 2px 40px; }
+	  table.errorinfo td, table.dict td { font-family:monospace; }
+	  #summary { background: #ffc; }
+	  #summary h2 { font-weight: normal; color: #666; }
+	  #errorinfo { background:#eee; }
+	  #details { background:#f6f6f6; padding-left:120px; }
+	  #details h2, #details h3 { position:relative; margin-left:-100px; }
+	  #details h3 { margin-bottom:-1em; }
+	}]"
 	return $rsp
     }
 
@@ -536,14 +562,17 @@ namespace eval Http {
 	set content ""
 	if {[catch {
 	    if {$eo ne ""} {
-		append table [<tr> [<th> "Error Info"]] \n
+		append table [<thead> "[<th> Variable] [<th> Value]"] \n
+		append table <tbody>
 		dict for {n v} $eo {
 		    append table [<tr> "[<td> $n] [<td> [<pre> [armour $v]]]"] \n
 		}
-		append content [<table> border 1 width 80% $table] \n
+		append table </tbody>
+		append content [<h2> "Error info"]
+		append content [<table> class errorinfo $table] \n
 	    }
 	    
-	    catch {append content [<p> "Caller: [armour [info level -1]]"]}
+	    catch {append content [<p> "Caller: [<code> [armour [info level -1]]]"]}
 	    set message [armour $message]
 	    catch {dict unset rsp expires}
 	    if {[string length $message] > 80} {
@@ -554,12 +583,11 @@ namespace eval Http {
 
 	    # make this an x-system type page
 	    set rsp [sysPage $rsp "Server Error: $tmessage" [subst {
-		[<p> [tclarmour $message]]
-		<hr>
-		[tclarmour $content]
-		<hr>
+		[<div> id summary [tclarmour $message]]
+		[<div> id errorinfo [tclarmour $content]]
 		[tclarmour [dump $rsp]]
 	    }]]
+		puts [dict get $rsp -content]
  
 	    dict set rsp -code 500
 	    dict set rsp -rtype Error
@@ -888,28 +916,37 @@ namespace eval Http {
     # dump the context
     proc dump {req {short 1}} {
 	catch {
-	    set table [<tr> [<th> Metadata]]\n
+	    set table [<thead> [<tr> "[<th> Variable] [<th> Value]"]]\n
+		append table <tbody>
 	    foreach n [lsort [dict keys $req -*]] {
 		if {$short && ($n eq "-content")} continue
 		append table [<tr> "[<td> $n] [<td> [armour [dict get $req $n]]]"] \n
 	    }
-	    append c [<table> border 1 width 80% $table] \n
+		append table </tbody>
+	    append c [<h3> Metadata] \n
+	    append c [<table> class dict $table] \n
 	    
-	    set table [<tr> [<th> HTTP]]\n
+	    set table [<thead> [<tr> "[<th> Variable] [<th> Value]"]]\n
+		append table <tbody>
 	    foreach n [lsort [dict keys $req {[a-zA-Z]*}]] {
 		append table [<tr> "[<td> $n] [<td> [armour [dict get $req $n]]]"] \n
 	    }
-	    append c [<table> border 1 width 80% $table] \n
+		append table </tbody>
+	    append c [<h3> HTTP] \n
+	    append c [<table> class dict $table] \n
 
-	    set table [<tr> [<th> Query]]\n
+	    set table [<thead> [<tr> "[<th> Variable] [<th> Value]"]]\n
 	    array set q [Query flatten [Query parse $req]]
 	    foreach {n} [lsort [array names q]] {
 		append table [<tr> "[<td> [armour $n]] [<td> [armour $q($n)]]"] \n
 	    }
-	    append c [<table> border 1 width 80% $table] \n
+		append table <tbody>
+		append table </tbody>
+	    append c [<h3> Query] \n
+	    append c [<table> class dict $table] \n
 	} r eo
 
-	return $c
+	return [<div> id details $c]
     }
 
     # add a Vary field
