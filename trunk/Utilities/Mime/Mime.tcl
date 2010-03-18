@@ -1,7 +1,7 @@
 # Mime - calculate the mime types of file
 package require WubUtils
 package require Debug
-Debug off mime 10
+Debug define mime 10
 
 package require mime-magic
 package provide Mime 1.0
@@ -128,7 +128,7 @@ namespace eval Mime {
 	}
 
 	Debug.mime {magic result: $result}
-	return $result
+	return [lindex [split $result] 0]
     }
 
     variable cache; array set cache {}
