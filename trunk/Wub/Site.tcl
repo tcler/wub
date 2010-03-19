@@ -76,11 +76,11 @@ namespace eval ::Site {
 
     # return a specific module Site var
     proc var {module args} {
-	upvar 0 ::Site::$module modvars
+	upvar 0 ::Site::[string tolower $module] modvars
 	return [dict get $modvars {*}$args]
     }
     proc var? {module args} {
-	upvar 0 ::Site::$module modvars
+	upvar 0 ::Site::[string tolower $module] modvars
 	return [dict get? $modvars {*}$args]
     }
 
