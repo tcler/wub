@@ -505,7 +505,7 @@ namespace eval ::Site {
 	} else {
 	    #### Null Cache
 	    package provide Cache 2.0
-	    proc Cache args {return {}}
+	    proc ::Cache args {return {}}
 	    Debug.site {Module Cache: NO}
 	}
 
