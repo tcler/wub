@@ -503,9 +503,15 @@ namespace eval ::Site {
 	    Cache new {*}$cache
 	    Debug.site {Module Cache: YES}
 	} else {
-	    #### Null Cache
+	    #### Null Cache - provide a minimal non-Cache interface
 	    package provide Cache 2.0
-	    proc ::Cache args {return {}}
+	    namespace eval ::Cache {
+		proc put {r} {return $r}
+		proc check {r} {return {}}
+		
+		namespace export -clear *
+		namespace ensemble create -subcommands {}
+	    }
 	    Debug.site {Module Cache: NO}
 	}
 
