@@ -26,6 +26,8 @@ set API(Domains/File) {
     dateformat {a tcl clock format for displaying dates in directory listings}
     nodir {don't allow the browsing of directories (default: 0 - browsing allowed.)}
     stream {files above this size will be streamed using fcopy, not loaded and sent}
+    followextlinks {follow external symlinks}
+    sortparam {parameters for tablesorter}
 }
 
 class create File {
@@ -56,7 +58,7 @@ class create File {
 
 	dict set req -content $content
 	dict set req content-type x-text/html-fragment
-	set req [jQ tablesorter $req .sortable]
+	set req [jQ tablesorter $req .sortable {*}$sortparam]
 
 	return $req
     }
@@ -107,7 +109,7 @@ class create File {
 		link {
 		    set lpath $path
 		    set path [file readlink $path]
-		    if {[file pathtype $path] eq "relative"} {
+		    if {([file pathtype $path] eq "relative") || $followextlinks} {
 			set path [file normalize [file join [file dirname $lpath] $path]]
 		    }
 		}
@@ -162,7 +164,7 @@ class create File {
 	return [Http NotFound $r "<p>File '$suffix' doesn't resolve to a file.</p>"]
     }
 
-    variable root indexfile mount hide redirdir expires dateformat dirparams nodir stream
+    variable root indexfile mount hide redirdir expires dateformat dirparams nodir stream followextlinks sortparam
 
     constructor {args} {
 	set indexfile "index.*"
@@ -190,6 +192,9 @@ class create File {
 	}
 	#set stream [expr {100 * 1024 * 1024}]	;# default streaming 100Mb
 	set stream [expr {1024 * 1024}]	;# default streaming 1Mb
+ 	set followextlinks no
+ 	set sortparam {}
+	variable {*}[Site var? File]	;# allow .ini file to modify defaults
 
 	foreach {n v} $args {
 	    set [string trimleft $n -] $v
