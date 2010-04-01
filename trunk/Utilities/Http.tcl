@@ -980,7 +980,8 @@ namespace eval Http {
     proc nonRouting? {ip} {
 	return [expr {$ip eq ""
 		      || $ip eq "unknown"
-		      || [::ip::type $ip] ne "normal"
+		      || [catch {::ip::type $ip} type]
+		      || $type ne "normal"
 		  }]
     }
 
