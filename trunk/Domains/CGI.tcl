@@ -377,6 +377,7 @@ class create CGI {
 	set maxcgi 10
 	set cgi 0
 	set whitelist {PATH LD_LIBRARY_PATH TZ}
+	variable {*}[Site var? CGI]	;# allow .ini file to modify defaults
 
 	foreach {n v} $args {
 	    set $n $v

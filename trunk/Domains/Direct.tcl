@@ -279,6 +279,7 @@ class create Direct {
 	    set [string trimleft $n -] $v
 	    Debug.direct {variable: $n $v}
 	}
+	variable {*}[Site var? Direct]	;# allow .ini file to modify defaults
 
 	# one or the other of namespace or object must exist
 	if {![info exist namespace] && ![info exists object]} {

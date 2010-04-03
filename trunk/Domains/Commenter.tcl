@@ -308,10 +308,10 @@ namespace eval Commenter {
     }
 
     proc new {args} {
-	return [Direct new {*}$args namespace ::Commenter]
+	return [Direct new {*}[Site var? Commenter] {*}$args namespace ::Commenter]
     }
     proc create {name args} {
-	return [Direct create $name {*}$args namespace ::Commenter]
+	return [Direct create $name {*}[Site var? Commenter] {*}$args namespace ::Commenter]
     }
 
     namespace export -clear *

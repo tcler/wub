@@ -368,6 +368,7 @@ namespace eval Session {
     # initialize the session accessor functions
     proc init {args} {
 	variable file [file join [file dirname [info script]] session.db]
+	variable {*}[Site var? Session]	;# allow .ini file to modify defaults
 	if {$args ne {}} {
 	    variable {*}$args
 	}
@@ -388,6 +389,7 @@ namespace eval Session {
     }
     proc new {args} {
 	init {*}$args
+
 	variable direct [Direct new {*}$args namespace ::Session]
 	return $direct
     }

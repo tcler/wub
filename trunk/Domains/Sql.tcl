@@ -54,6 +54,7 @@ namespace eval SqlConvert {
 	set params [dict merge $params $args]
     }
 
+    # convert synthetic TDBC type into a Sylk spreadsheet.
     proc .x-text/tdbc.application/x-sylk {r} {
 	package require Sylk
 
@@ -66,6 +67,7 @@ namespace eval SqlConvert {
 	return [dict merge $r [list -content $content content-type application/x-sylk]]
     }
 
+    # convert synthetic TDBC type into CSV.
     proc .x-text/tdbc.text/csv {r} {
 	package require csv
 
@@ -84,6 +86,7 @@ namespace eval SqlConvert {
 	return [dict merge $r [list -content $header$content content-type text/csv -raw 1]]
     }
 
+    # convert synthetic TDBC type into CSV.
     proc .x-text/tdbc.text/html {r} {
 	variable params
 	set p [dict merge $params [dict get? $r -params]]
@@ -95,7 +98,7 @@ namespace eval SqlConvert {
 	    dict set content $n $el
 	    incr n
 	}
-	Debug on Report 10
+	# Debug on Report 10
 	return [dict merge $r [list -content [Report html $content {*}$p] content-type x-text/html-fragment]]
     }
 
@@ -111,11 +114,11 @@ class create Sql {
 	set select_f {}
 	set flags {}
 
-	# get relevant field descriptors from the query
+	# get field descriptors from the query
 	set q [Query parse $r]
 	foreach {n v m} [Query nvmlist $q] {
 	    catch {unset meta}
-	    array set meta $m
+	    array set meta $m	;# field metadata from query
 	    Debug.Sql {parse args: $n '$v' ($m)}
 	    if {[info exists meta(-unassigned)]} {
 		if {[string match -* $n]} {
@@ -143,13 +146,13 @@ class create Sql {
 	    }
 	}
 
-	# get display fields in query order
+	# get display fields from query in query order
 	set display {}
 	foreach n [lsort -integer [dict keys $display_f]] {
 	    lappend display [dict get $display_f $n]
 	}
 
-	# get order fields in query order
+	# get order fields from query in query order
 	set order {}
 	foreach n [lsort -integer [dict keys $order_f]] {
 	    lappend order [dict get $order_f $n]
@@ -157,7 +160,7 @@ class create Sql {
 
 	Debug.Sql {Sql query: display:($display) order:($order) flags:($flags) select:($select_f)}
 	if {![llength $display]} {
-	    set display *
+	    set display *	;# there's no display, default to all
 	}
 
 	set select "SELECT [join $display ,]"
@@ -351,6 +354,7 @@ class create Sql {
 	set tdbc sqlite3	;# TDBC backend
 	set params {}	;# parameters for Report in html table generation
 	array set stmts {}
+	variable {*}[Site var? Sql]	;# allow .ini file to modify defaults
 
 	foreach {n v} $args {
 	    set [string trimleft $n -] $v

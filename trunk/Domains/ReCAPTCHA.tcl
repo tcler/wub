@@ -119,6 +119,8 @@ class create ReCAPTCHA {
 	set resumption {}
 	set id 0
 	set mount ""
+	variable {*}[Site var? ReCAPTCHA]	;# allow .ini file to modify defaults
+	
 	foreach {n v} $args {
 	    set $n $v
 	}

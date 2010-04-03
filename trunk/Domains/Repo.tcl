@@ -317,7 +317,7 @@ namespace eval Repo {
     proc create {cmd args} {
 	variable icons
 	dict set args mount /[string trim [dict get $args mount] /]/
-	set args [dict merge [list icons $icons expires 0 tar 0 index index.html max [expr {1024 * 1024}] titleURL "" title Repo] $args]
+	set args [dict merge [list icons $icons expires 0 tar 0 index index.html max [expr {1024 * 1024}] titleURL "" title Repo] [Site var? Repo] $args]
 	set cmd [uplevel 1 namespace current]::$cmd
 	Debug.repo {create: $args}
 	namespace ensemble create \

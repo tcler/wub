@@ -339,6 +339,8 @@ class create ::Dhcpp {
 	    eparam {}
 	}
 
+	variable {*}[Site var? Dhcpp]	;# allow .ini file to modify defaults
+
 	# construct a safe interpreter
 	variable interp [interp create -safe [self]_dhcp]
 	$interp eval {

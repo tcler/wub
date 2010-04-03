@@ -170,6 +170,9 @@ class create ::Tiny {
     constructor {args} {
 	set db tiny
 	set private 1
+
+	variable {*}[Site var? Tiny]	;# allow .ini file to modify defaults
+
 	# unpack the args as variables
 	foreach {n v} $args {
 	    variable $n $v

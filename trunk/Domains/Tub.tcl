@@ -257,6 +257,8 @@ class create Tub {
 	set key user
 	set cookie tub
 	set emptypass 0
+	variable {*}[Site var? Tub]	;# allow .ini file to modify defaults
+
 	dict for {n v} $args {
 	    set $n $v
 	}
