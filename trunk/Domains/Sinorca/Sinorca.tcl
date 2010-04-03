@@ -253,6 +253,7 @@ namespace eval Sinorca {
     variable expires "next week"
 
     proc init {name args} {
+	variable {*}[Site var? Sinorca]	;# allow .ini file to modify defaults
 	if {$args ne {}} {
 	    variable {*}$args
 	}
