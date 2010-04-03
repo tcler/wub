@@ -817,6 +817,7 @@ namespace eval jQ {
     }
 
     proc new {args} {
+	variable {*}[Site var? jQ]	;# allow .ini file to modify defaults
 	variable {*}$args
 	
 	# construct a File wrapper for the jscript dir
