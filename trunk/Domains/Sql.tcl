@@ -17,6 +17,7 @@ package require Mime
 package require Convert
 package require Report
 package require Debug
+
 Debug define Sql 10
 
 package provide Sql 1.0
@@ -86,12 +87,18 @@ namespace eval SqlConvert {
 	return [dict merge $r [list -content $header$content content-type text/csv -raw 1]]
     }
 
-    # convert synthetic TDBC type into CSV.
-    proc .x-text/tdbc.text/html {r} {
+    variable sortparam {}
+
+    # convert synthetic TDBC type into HTML.
+    proc .x-text/tdbc.x-text/html-fragment {r} {
 	variable params
+	variable sortparam
 	set p [dict merge $params [dict get? $r -params]]
 	Debug.Sql {Report: params:($p), [dict get? $p headers]}
-
+	if {[dict get? $p sortable] ne ""} {
+	    package require jQ
+	    set r [jQ tablesorter $r .sortable {*}$sortparam]
+	}
 	set content {}
 	set n 0
 	foreach el [dict get? $r -content] {
@@ -186,7 +193,6 @@ class create Sql {
 	}
 	
 	append select [join $vs ,]
-	
 
 	# calculate the selector from select clause elements
 	set selector {}
