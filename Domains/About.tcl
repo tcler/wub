@@ -91,6 +91,7 @@ namespace eval About {
     }
 
     proc new {args} {
+	variable {*}[Site var? About]	;# allow .ini file to modify defaults
 	dict for {n v} $args {
 	    variable $n $v
 	}
