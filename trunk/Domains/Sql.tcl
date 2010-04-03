@@ -22,7 +22,7 @@ Debug define Sql 10
 
 package provide Sql 1.0
 
-set API(Domains/Direct) {
+set API(Domains/Sql) {
     {
 	A domain to return contents of a tdbc by Sql SELECT
     }
@@ -272,6 +272,11 @@ class create Sql {
 	return $select
     }
 
+    method /_cass {r} {
+	variable css
+	return [Http Ok $r $css text/css]
+    }
+
     method /_tables {r {table {}}} {
 	set result {}
 	if {$table eq {}} {
@@ -360,6 +365,7 @@ class create Sql {
 	set tdbc sqlite3	;# TDBC backend
 	set params {}	;# parameters for Report in html table generation
 	array set stmts {}
+	variable css ""
 	variable {*}[Site var? Sql]	;# allow .ini file to modify defaults
 
 	foreach {n v} $args {
