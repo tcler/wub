@@ -6,7 +6,7 @@ if {0} {
     package require Package	;# start the cooption of [package]
 }
 #lappend auto_path [pwd]
-set auto_path [pwd] {*}$auto_path
+set auto_path [list [pwd] {*}$auto_path]
 package require Site
 
 # Initialize Site
