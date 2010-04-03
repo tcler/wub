@@ -5,7 +5,8 @@ if {0} {
     lappend auto_path [file dirname [pwd]]/Utilities/
     package require Package	;# start the cooption of [package]
 }
-lappend auto_path [pwd]
+#lappend auto_path [pwd]
+set auto_path [pwd] {*}$auto_path
 package require Site
 
 # Initialize Site
