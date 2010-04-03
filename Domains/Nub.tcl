@@ -1177,6 +1177,7 @@ namespace eval Nub {
 	    set args [lindex $args 0]
 	}
 	
+	variable {*}[Site var? Nub]	;# allow .ini file to modify defaults
 	foreach {n v} $args {
 	    variable [string trimleft $n -] $v
 	}

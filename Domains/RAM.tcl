@@ -128,6 +128,8 @@ class create RAM {
 	set content_type x-text/html-fragment
 	set mount /ram/
 	array set ram {}
+	variable {*}[Site var? RAM]	;# allow .ini file to modify defaults
+
 	foreach {n v} $args {
 	    set [string trimleft $n -] $v
 	}

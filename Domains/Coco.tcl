@@ -238,6 +238,7 @@ namespace eval Coco {
 
     # initialize ensemble for Coco
     proc new {args} {
+	variable {*}[Site var? Coco]	;# allow .ini file to modify defaults
 	return [create CoCo[uniq] {*}$args]
     }
 
@@ -246,6 +247,7 @@ namespace eval Coco {
 	    set args [lindex $args 0]
 	}
 
+	variable {*}[Site var? Coco]	;# allow .ini file to modify defaults
 	foreach {n v} $args {
 	    variable $n $v
 	}

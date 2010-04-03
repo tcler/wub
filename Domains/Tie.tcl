@@ -321,6 +321,8 @@ namespace eval Tie {
     }
 
     proc new {args} {
+	variable {*}[Site var? Tie]	;# allow .ini file to modify defaults
+
 	if {$args ne {}} {
 	    variable {*}$args
 	}

@@ -534,6 +534,7 @@ class create Login {
 	set autocommit 1	;# commit on each write
 	set new "new"		;# url to redirect to on new user creation request
 
+	variable {*}[Site var? Login]	;# allow .ini file to modify defaults
 	dict for {n v} $args {
 	    set $n $v
 	}

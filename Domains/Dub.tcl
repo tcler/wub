@@ -664,6 +664,7 @@ class create Dub {
 	foreach {n v} $args {
 	    set [string trimleft $n -] $v
 	}
+	variable {*}[Site var? Dub]	;# allow .ini file to modify defaults
 
 	::mk::file open $db $file {*}$flags
 

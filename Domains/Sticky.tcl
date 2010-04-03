@@ -182,6 +182,7 @@ class create Sticky {
 	set db ""		;# already open file
 	set file ""		;# db file
 	set table sticky	;# sticky table
+	set args [dict merge [Site var? File] $args]	;# allow .ini file to modify defaults
 	dict for {n v} $args {
 	    if {$n in {size text containment event color ontop}} {
 		dict set params $n v

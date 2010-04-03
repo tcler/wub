@@ -529,6 +529,8 @@ class create Mason {
 	# instruct Mason to memoize found files
 	set cache 1		;# cache file searches
 
+	variable {*}[Site var? Mason]	;# allow .ini file to modify defaults
+
 	foreach {n v} $args {
 	    set [string trimleft $n -] $v
 	}

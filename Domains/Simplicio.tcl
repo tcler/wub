@@ -142,6 +142,7 @@ namespace eval ::Simplicio {
     variable expires "next week"
     variable mount /simplicio/
     proc new {args} {
+	variable {*}[Site var? Simplicio]	;# allow .ini file to modify defaults
 	variable {*}$args
 	return ::Simplicio
     }

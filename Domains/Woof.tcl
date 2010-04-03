@@ -36,6 +36,7 @@ class create ::Woof {
     constructor {args} {
 	Debug.woof {Woof constructing [self] $args}
 
+	variable {*}[Site var? Woof]	;# allow .ini file to modify defaults
 	foreach {n v} $args {
 	    set [string trimleft $n -] $v
 	}
@@ -51,8 +52,6 @@ proc woofLoad {woofdir root mount} {
     ::woof::init wub_server	$root ;# start up woof
     ::woof::config set url_root [string trimright $mount /]
 }
-
-
 
 if {0} {
     package require Woof

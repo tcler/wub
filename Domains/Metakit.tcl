@@ -129,6 +129,7 @@ class create Metakit {
 	    footer {}
 	}
 	set limit 0
+	variable {*}[Site var? Metakit]	;# allow .ini file to modify defaults
 
 	foreach {n v} $args {
 	    set [string trimleft $n -] $v
