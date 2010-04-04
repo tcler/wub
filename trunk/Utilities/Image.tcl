@@ -166,6 +166,6 @@ namespace eval ::Image {
     namespace ensemble create -subcommands {}
 
     if {$conversions} {
-	Convert Namespace ::Image	;# register image conversions
+	::convert namespace ::Image	;# register image conversions
     }
 }
