@@ -260,7 +260,7 @@ namespace eval Sinorca {
 	variable mount
 
 	# add Sinorca conversions
-	Convert Namespace ::Sinorca
+	::convert namespace ::Sinorca
 
 	if {[info commands ::Sinorca::ram] eq ""} {
 	    set cmd [RAM create ::Sinorca::ram mount $mount]
