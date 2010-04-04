@@ -344,7 +344,7 @@ class create Sql {
 
 	dict set r -params $params	;# send parameters to conversion
 	Debug on convert 10
-	set r [Convert Convert! $r $mime]
+	set r [::convert convert! $r $mime]
 	return $r
     }
 
@@ -395,4 +395,4 @@ class create Sql {
 }
 
 # add the tdbc converters to Convert
-Convert Namespace ::SqlConvert
+::convert namespace ::SqlConvert
