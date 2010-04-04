@@ -25,36 +25,21 @@ set API(Domains/Convert) {
     }
 }
 
-namespace eval Convert {
-    variable conversions 1	;# include some default conversions
-    variable namespace
-
-    variable paths; array set paths {}
-    variable graph	;# transformation graph - all known transforms
-    variable transform	;# set of mappings from,to mime-types
-    array set transform {}
-
+class create Convert {
     # Transform - add a single transform to the transformation graph
-    proc Transform {from to args} {
+    method transform {from to args} {
 	set prefix ${from},$to
-	variable transform
-	set transform($prefix) $args
-	variable graph
-	dict lappend graph $from $to
+	variable transform; set transform($prefix) $args
+	variable graph; dict lappend graph $from $to
     }
-
-    # set of mappings mime-type to postprocess script
-    variable postprocess
-    array set postprocess {}
 
     # Postprocess - add a postprocessor to the set of postprocessors
-    proc Postprocess {from args} {
-	variable postprocess
-	set postprocess($from) $args
+    method postprocess {from args} {
+	variable postprocess; set postprocess($from) $args
     }
 
-    # Namespace - add all transformers and postprocessors from the object
-    proc Object {object} {
+    # object - add all transformers and postprocessors from the object
+    method object {object} {
 	# scan the object looking for translators
 	# which are methods of the form .mime/type.mime/type
 
@@ -68,7 +53,7 @@ namespace eval Convert {
 	    if {[string match */*.*/* $m]} {
 		lassign [split $m .] from to
 		lappend convertors "$from->($m)->$to"
-		Transform $from $to eval $object $m
+		my transform $from $to eval $object $m
 	    }
 	}
 
@@ -79,21 +64,21 @@ namespace eval Convert {
 	    if {[string match */* $m]} {
 		if {[string match */*.*/* $m]} continue
 		lappend convertors "$m->($m)->$m"
-		Postprocess $m eval $object $m
+		my postprocess $m eval $object $m
 	    }
 	}
 	Debug.convert {Object Convertors from $defclass: $convertors}
     }
 
-    # Namespace - add all transformers and postprocessors from the namespace
-    proc Namespace {ns} {
+    # namespace - add all transformers and postprocessors from the namespace
+    method namespace {ns} {
 	# scan the namespace looking for translators
 	# which are commands of the form .mime/type.mime/type
 	set candidates [namespace eval $ns info commands .*/*.*/*]
 	Debug.convert {Namespace '$ns' transformers - $candidates}
 	foreach candidate $candidates {
 	    lassign [split $candidate .] -> from to
-	    Transform $from $to namespace eval $ns $candidate
+	    my transform $from $to namespace eval $ns $candidate
 	}
 
 	# scan the namespace looking for postprocessors
@@ -104,13 +89,13 @@ namespace eval Convert {
 	foreach candidate $candidates {
 	    if {[string match .*/*.*/* $candidate]} continue
 	    if {[lassign [split $candidate .] x from] eq ""} {
-		Postprocess $from namespace eval $ns $candidate
+		my postprocess $from namespace eval $ns $candidate
 	    }
 	}
     }
 
     # perform applicable postprocess on content of given type
-    proc postprocess {rsp} {
+    method postprocessor {rsp} {
 	set ctype [dict get $rsp content-type]
 	variable postprocess
 	if {[info exists postprocess($ctype)]} {
@@ -131,7 +116,7 @@ namespace eval Convert {
 
     # path - return a path through the transformation graph
     # between source 'from' and sink 'to'
-    proc path {from to} {
+    method path {from to} {
 	Debug.convert {PATH: trying to find a path from '$from' to '$to'}
 	variable graph
 	variable paths
@@ -185,13 +170,11 @@ namespace eval Convert {
 	}
     }
 
-    variable tcache	;# cache of known transformations
-
     # Find a match for an acceptable type,
     # or calculate a path through the transformation graph
     # which will generate an acceptable type
 
-    proc tpath {rsp} {
+    method tpath {rsp} {
 	set ctype [dict get $rsp content-type]	;# what we have
 	set accept [dict get $rsp accept]	;# what we want
 
@@ -248,7 +231,7 @@ namespace eval Convert {
 	set found {}
 	foreach {a q} $acceptable {
 	    Debug.convert {trying '$ctype->$a' quality $q}
-	    lassign [path $ctype $a] path quality ;# find a conversion path
+	    lassign [my path $ctype $a] path quality ;# find a conversion path
 	    if {$path ne {}} {
 		# we found a path to the most acceptable available type
 		Debug.convert {possible path $path.  Quality $quality * $q}
@@ -272,8 +255,8 @@ namespace eval Convert {
 
     # Apply transformations to content
     # yielding a desired content-type
-    proc transform {rsp} {
-	set path [tpath $rsp]	;# find a transformation path
+    method transformer {rsp} {
+	set path [my tpath $rsp]	;# find a transformation path
 
 	if {$path eq "*"} {
 	    Debug.convert {transform identity}
@@ -331,8 +314,8 @@ namespace eval Convert {
 	return [list complete $rsp]
     }
 
-    # Convert - perform all content negotiation on a Wub response
-    proc Convert {rsp {to ""}} {
+    # convert - perform all content negotiation on a Wub response
+    method convert {rsp {to ""}} {
 	# raw responses get no conversion
 	if {[dict get? $rsp -raw] eq "1"} {
 	    return $rsp	;# this is raw - no conversion
@@ -365,7 +348,7 @@ namespace eval Convert {
 	set ctype [dict get $rsp content-type]
 	if {[dict exists $rsp content-type] && [info exists postprocess($ctype)]} {
 	    Debug.convert {Preprocess of [dict get $rsp content-type]}
-	    set rsp [postprocess $rsp]
+	    set rsp [my postprocessor $rsp]
 	    # remember we've preprocessed
 	    set preprocessed [dict get $rsp content-type]
 	}
@@ -378,7 +361,7 @@ namespace eval Convert {
 	    # and one of the acceptable types.
 	    set oldct [dict get $rsp content-type]
 	    Debug.convert {transforming from '$oldct' to one of these '[dict get $rsp accept]'}
-	    lassign [transform $rsp] state rsp
+	    lassign [my transformer $rsp] state rsp
 	    Debug.convert {transformed from $oldct to '[dict get $rsp content-type]'}
 
 	    Debug.convert {STATE: $state RAW: '[dict get? $rsp -raw]'}
@@ -396,7 +379,7 @@ namespace eval Convert {
 		    if {$preprocessed ne $ctype
 			&& [info exists postprocess($ctype)]
 		    } {
-			set rsp [postprocess $rsp]
+			set rsp [my postprocessor $rsp]
 		    }
 		    break
 		}
@@ -422,8 +405,8 @@ namespace eval Convert {
 	return $rsp
     }
 
-    # Convert! - perform a specified transformation on a Wub response
-    proc Convert! {rq to {mime ""} {content ""}} {
+    # convert! - perform a specified transformation on a Wub response
+    method convert! {rq to {mime ""} {content ""}} {
 	if {$mime ne ""} {
 	    dict set rq content-type $mime
 	}
@@ -433,7 +416,7 @@ namespace eval Convert {
 	if {[dict exists $rq accept]} {
 	    set oldaccept [dict get $rq accept]
 	}
-	set rq [Convert $rq $to]
+	set rq [my convert $rq $to]
 	if {[info exists oldaccept]} {
 	    dict set rq accept $oldaccept
 	}
@@ -441,9 +424,9 @@ namespace eval Convert {
     }
 
     # do - perform content negotiation and transformation
-    proc do {rsp} {
+    method do {rsp} {
 	if {[dict exists $rsp -file]} {
-	    Debug.convert {request is a -file, return}
+	    Debug.convert {request is a -file [dict get? $rsp content-type], return}
 	    return $rsp
 	} elseif {![dict exists $rsp -content]} {
 	    Debug.convert {request has no content, return}
@@ -463,13 +446,27 @@ namespace eval Convert {
 	}
 
 	# perform the content negotiation
-	set rsp [Convert $rsp]
+	set rsp [my convert $rsp]
 	Debug.convert {complete: [dumpMsg $rsp]}
 
 	return $rsp
     }
 
-    proc new {args} {
+    constructor {args} {
+	variable conversions 1	;# include some default conversions
+	variable namespace
+	
+	variable paths; array set paths {}
+	variable graph	;# transformation graph - all known transforms
+	variable transform	;# set of mappings from,to mime-types
+	array set transform {}
+
+	# set of mappings mime-type to postprocess script
+	variable postprocess
+	array set postprocess {}
+
+	variable tcache	;# cache of known transformations
+
 	if {$args ne {}} {
 	    variable {*}$args
 	}
@@ -477,19 +474,15 @@ namespace eval Convert {
 	variable conversions
 	if {$conversions} {
 	    package require conversions
-	    Namespace ::conversions
+	    my namespace ::conversions
 	}
 
 	foreach {n ns} $args {
 	    if {$n eq "namespace"} {
-		Namespace ::$ns
+		my namespace ::$ns
 	    }
 	}
-	return ::Convert
     }
-
-    namespace export -clear *
-    namespace ensemble create -subcommands {}
 }
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
@@ -528,7 +521,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     set collect [Compose %AUTO% -subdomains [list $sdom $fdom]]
     set convert [Convert %AUTO% -subdomain $collect]
 
-    #$convert Namespace ::conversions
+    #$convert namespace ::conversions
 
     localhost Register / $convert Dispatch
 
