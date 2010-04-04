@@ -1663,7 +1663,7 @@ namespace eval Httpd {
 		watchdog
 
 		# report error from post-processing
-		send [::Convert do [Http ServerError $r $rspp $eo]]
+		send [::convert do [Http ServerError $r $rspp $eo]]
 	    } else {
 		# send the response to client
 		Debug.Httpd {[info coroutine] postprocess: [rdump $rspp]} 10
@@ -1864,15 +1864,18 @@ namespace eval Httpd {
     }
 
     proc post {r} {
-	package require Convert
-	proc post {r} {
-	    if {[dict exists $r -postprocess]} {
-		set r [{*}[dict get $r -postprocess] $r]
-	    }
-	    set r [::Convert do $r]	;# got to do post-conversion
-	    return $r
+	# do per-connection postprocess (if any) 
+	foreach c [dict get? $r -postprocess] {
+	    set r [{*}$c $r]
 	}
-	return [post $r]
+
+	# do per-connection conversions (if any)
+	foreach c [dict get? $r -convert] {
+	    set r [$c do $r]
+	}
+	
+	# do default conversions
+	return [::convert do $r]
     }
 
     # Authorisation
