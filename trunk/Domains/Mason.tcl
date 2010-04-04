@@ -601,4 +601,4 @@ namespace eval ::MConvert {
     }
 }
 
-Convert Namespace ::MConvert	;# add Mason conversions
+::convert namespace ::MConvert	;# add Mason conversions
