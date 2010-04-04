@@ -383,6 +383,16 @@ namespace eval ::Site {
 	    }
 	}
 
+	#### Load Convert module - content negotiation
+	variable convert
+	if {![info exists convert]} {
+	    set convert {}
+	}
+
+	# install default conversions
+	package require Convert
+	Convert create ::convert {*}$convert
+
 	proc init {args} {}	;# ensure init can't be called twice
     }
 
@@ -395,20 +405,6 @@ namespace eval ::Site {
     proc modules {} {
 	variable docroot
 	package require Httpd
-
-	#### Load Convert module - content negotiation
-	variable convert
-	if {[info exists convert]
-	    && [dict get? $convert load] ne ""
-	    && [dict get? $convert load]
-	} {
-	    # install default conversions
-	    package require Convert
-	    Convert new {*}$convert
-	    Debug.site {Module Convert: YES}
-	} else {
-	    Debug.site {Module Convert: NO}
-	}
 
 	#### Load Block module - blocks incoming by ipaddress
 	variable block
@@ -640,6 +636,7 @@ namespace eval ::Site {
     proc start {args} {
 	Debug.site {start: $args}
 	init {*}$args
+
 	modules	;# start the listeners etc
 
 	# can't run the whole start up sequence twice
