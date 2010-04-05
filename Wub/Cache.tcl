@@ -251,6 +251,8 @@ namespace eval Cache {
 		set len [string length [dict get $req -content]]
 	    } elseif {[dict exists $req -file]} {
 		set len [file size [dict get $req -file]]
+	    } else {
+		set len 0
 	    }
 	    if {$maxsize < $len} {
 		# we can't store enormous entities in the cache
