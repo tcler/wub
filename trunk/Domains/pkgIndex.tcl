@@ -35,4 +35,4 @@ package ifneeded Tiny 1.0 [list source [file join $dir Tiny.tcl]]
 package ifneeded Sticky 1.0 [list source [file join $dir Sticky.tcl]]
 package ifneeded Dhcpp 1.0 [list source [file join $dir Dhcpp.tcl]]
 
-package ifneeded Model 1.0 [list source [file join $dir Model.tcl]]
+package ifneeded SqlQ 1.0 [list source [file join $dir SqlQ.tcl]]
