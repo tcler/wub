@@ -245,6 +245,11 @@ namespace eval Cache {
 	invalidate [dict get $req -uri]	;# invalidate by -uri
 	invalidate [dict get? $req etag] ;# invalidate by etag
 
+	if {![dict exists $req -content] && ![dict exists $req -file]} {
+	    Debug.cache {no content provided ... not caching $uri}
+	    return $req
+	}
+
 	variable maxsize
 	if {($maxsize > 0)} {
 	    if {[dict exists $req -content]} {
@@ -252,7 +257,8 @@ namespace eval Cache {
 	    } elseif {[dict exists $req -file]} {
 		set len [file size [dict get $req -file]]
 	    } else {
-		set len 0
+		Debug.cache {no content provided ... not caching $uri}
+		return $req
 	    }
 	    if {$maxsize < $len} {
 		# we can't store enormous entities in the cache
