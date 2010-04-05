@@ -49,8 +49,8 @@ class create Convert {
 
 	set convertors {}
 	foreach m $methods {
-	    if {[string match .*/*.*/* $m]} {
-		lassign [split $m .] -> from to
+	    if {[string match */*.*/* $m]} {
+		lassign [split $m .] from to
 		lappend convertors "$from->($m)->$to"
 		my transform $from $to eval $object $m
 	    }
@@ -60,8 +60,8 @@ class create Convert {
 	# which are methods of the form .mime/type
 	foreach m $methods {
 	    if {[string match /* $m]} continue
-	    if {[string match .*/* $m]} {
-		if {[string match .*/*.*/* $m]} continue
+	    if {[string match */* $m]} {
+		if {[string match */*.*/* $m]} continue
 		lappend convertors "$m->($m)->$m"
 		my postprocess $m eval $object $m
 	    }
