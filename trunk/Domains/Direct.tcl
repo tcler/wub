@@ -314,10 +314,11 @@ class create Direct {
 	    # construct a dict from method name to the formal parameters of the method
 	    set class [info object class $object]
 	    set methods {}
+	    set superclasses [info class superclasses $class]
 	    set mixins [info class mixins $class]
 	    foreach m [lreverse [lsort -dictionary [info class methods $class -private -all]]] {
 		if {[string match /* $m]} {
-		    foreach class [list [info object class $object] {*}$mixins] {
+		    foreach class [list [info object class $object] {*}$superclass {*}$mixins] {
 			if {![set unfound [catch {
 			    lindex [info class definition $class $m] 0
 			} def eo]]} {
