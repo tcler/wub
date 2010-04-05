@@ -50,8 +50,8 @@ class create Convert {
 
 	set convertors {}
 	foreach m $methods {
-	    if {[string match */*.*/* $m]} {
-		lassign [split $m .] from to
+	    if {[string match .*/*.*/* $m]} {
+		lassign [split $m .] -> from to
 		lappend convertors "$from->($m)->$to"
 		my transform $from $to eval $object $m
 	    }
@@ -455,7 +455,7 @@ class create Convert {
     constructor {args} {
 	variable conversions 1	;# include some default conversions
 	variable namespace
-	
+
 	variable paths; array set paths {}
 	variable graph	;# transformation graph - all known transforms
 	variable transform	;# set of mappings from,to mime-types
@@ -467,9 +467,9 @@ class create Convert {
 
 	variable tcache	;# cache of known transformations
 
-	if {$args ne {}} {
-	    variable {*}$args
-	}
+	# allow .ini file to modify defaults
+	variable {*}[Site var? Convert]
+	variable {*}$args
 
 	variable conversions
 	if {$conversions} {
