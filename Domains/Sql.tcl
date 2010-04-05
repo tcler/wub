@@ -1,4 +1,4 @@
-# Sql --
+# Sqlq --
 #
 # A Wub domain to return contents of a sqlite db
 
@@ -18,17 +18,17 @@ package require Convert
 package require Report
 package require Debug
 
-Debug define Sql 10
+Debug define Sqlq 10
 
-package provide Sql 1.0
+package provide Sqlq 1.0
 
-set API(Domains/Sql) {
+set API(Domains/Sqlq) {
     {
 	A domain to return contents of a tdbc by Sql SELECT
     }
 }
 
-namespace eval SqlConvert {
+namespace eval SqlqConvert {
     # parameters handed to Report for html table generation
     variable params {
 	sepchar ,
@@ -79,7 +79,7 @@ namespace eval SqlConvert {
 
 	set content ""
 	foreach record [dict get $r -content] {
-	    Debug.Sql {cvs line: $record}
+	    Debug.Sqlq {cvs line: $record}
 	    append content [::csv::join [dict values $record] $sepchar $delchar] \n
 	}
 	set header #[::csv::join [dict keys $record] $sepchar $delchar]\n
@@ -94,7 +94,7 @@ namespace eval SqlConvert {
 	variable params
 	variable sortparam
 	set p [dict merge $params [dict get? $r -params]]
-	Debug.Sql {Report: params:($p), [dict get? $p headers]}
+	Debug.Sqlq {Report: params:($p), [dict get? $p headers]}
 	if {[dict get? $p sortable] ne ""} {
 	    package require jQ
 	    set r [jQ tablesorter $r .sortable {*}$sortparam]
@@ -113,7 +113,7 @@ namespace eval SqlConvert {
     namespace ensemble create -subcommands {}
 }
 
-class create Sql {
+class create Sqlq {
     method selector {r vs} {
 	# use query to determine fieldset
 	set display_f {}
@@ -126,7 +126,7 @@ class create Sql {
 	foreach {n v m} [Query nvmlist $q] {
 	    catch {unset meta}
 	    array set meta $m	;# field metadata from query
-	    Debug.Sql {parse args: $n '$v' ($m)}
+	    Debug.Sqlq {parse args: $n '$v' ($m)}
 	    if {[info exists meta(-unassigned)]} {
 		if {[string match -* $n]} {
 		    # flag from &-field&
@@ -165,7 +165,7 @@ class create Sql {
 	    lappend order [dict get $order_f $n]
 	}
 
-	Debug.Sql {Sql query: display:($display) order:($order) flags:($flags) select:($select_f)}
+	Debug.Sqlq {Sqlq query: display:($display) order:($order) flags:($flags) select:($select_f)}
 	if {![llength $display]} {
 	    set display *	;# there's no display, default to all
 	}
@@ -268,7 +268,7 @@ class create Sql {
 	    dict unset flags -offset
 	}
 
-	Debug.Sql {select: $select}
+	Debug.Sqlq {select: $select}
 	return $select
     }
 
@@ -280,7 +280,7 @@ class create Sql {
     method /_tables {r {table {}}} {
 	set result {}
 	if {$table eq {}} {
-	    Debug.Sql {tables: [$db tables]}
+	    Debug.Sqlq {tables: [$db tables]}
 	    foreach {table v} [$db tables] {
 		set key [<a> href _tables?table=$table $table]
 		dict set v name $key
@@ -305,7 +305,7 @@ class create Sql {
 
 	# use suffix to determine which view
 	lassign [split $path .] -> ext
-	Debug.Sql {$path -> $view '$ext'}
+	Debug.Sqlq {$path -> $view '$ext'}
 
 	# determine which views must be joined
 	set view [split $view /]
@@ -336,7 +336,7 @@ class create Sql {
 	if {$mime eq "" || $mime eq "text/plain"} {
 	    set mime text/html
 	}
-	Debug.Sql {desired content type of '$ext': $mime}
+	Debug.Sqlq {desired content type of '$ext': $mime}
 
 	# generate and pre-convert the response
 	set r [Http Ok $r $content x-text/tdbc]
@@ -366,11 +366,11 @@ class create Sql {
 	set params {}	;# parameters for Report in html table generation
 	array set stmts {}
 	variable css ""
-	variable {*}[Site var? Sql]	;# allow .ini file to modify defaults
+	variable {*}[Site var? Sqlq]	;# allow .ini file to modify defaults
 
 	foreach {n v} $args {
 	    set [string trimleft $n -] $v
-	    Debug.Sql {variable: $n $v}
+	    Debug.Sqlq {variable: $n $v}
 	}
 
 	# load the tdbc drivers
@@ -381,7 +381,7 @@ class create Sql {
 	    # create a local db
 	    set local 1
 	    if {$file eq ""} {
-		error "Sql must specify an open db or a file argument"
+		error "Sqlq must specify an open db or a file argument"
 	    }
 	    set db [self]_db
 	    tdbc::${tdbc}::connection create $db $file 
@@ -390,9 +390,9 @@ class create Sql {
 	    set local 0
 	}
 
-	Debug.Sql {Database $db: tables:([$db tables])}
+	Debug.Sqlq {Database $db: tables:([$db tables])}
     }
 }
 
 # add the tdbc converters to Convert
-::convert namespace ::SqlConvert
+::convert namespace ::SqlqConvert
