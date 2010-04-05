@@ -1,18 +1,18 @@
-# Model.tcl - provide a model abstraction for TDBC databases
+# Sql.tcl - provide a model abstraction for TDBC databases
 
 package require OO
 
 package require Debug
-Debug define Model 10
+Debug define Sql 10
 
-package provide Model 1.0
-package provide ModelT 1.0
+package provide Sql 1.0
+package provide SqlT 1.0
 
 set API(Domains/Sql) {
     {
-	A domain to minimally implement the Model part of MVC, where the underlying model is an SQL database.
-	Model returns each resultset record [[subst]]ed over ''form'' to give html fragments.
-	ModelT converts the resultset into an HTML sortable table (default), a CSV file, or a Sylk spreadsheet, depending on the extension of the URL (.html, .csv or .sylk, respectively.)
+	A domain to minimally implement the Sql part of MVC, where the underlying model is an SQL database.
+	Sql returns each resultset record [[subst]]ed over ''form'' to give html fragments.
+	SqlT converts the resultset into an HTML sortable table (default), a CSV file, or a Sylk spreadsheet, depending on the extension of the URL (.html, .csv or .sylk, respectively.)
     }
     sql {the SQL command implementing the model (with :arg-substitution from the SQL query)}
     tdbc {the tdbc driver to use for SQL queries}
@@ -21,10 +21,10 @@ set API(Domains/Sql) {
     csv {optional dict of args to tcllib's csv}
     report {optional dict of args to Report utility}
     sort {optional dict of args to jQ sortable}
-    form {a Tcl script which will be [[subst]]ed for a Model, yielding an html fragment.}
+    form {a Tcl script which will be [[subst]]ed for a Sql, yielding an html fragment.}
 }
 
-class create Model {
+class create Sql {
 
     method enform {:rs :form} {
 	set :result ""
@@ -59,7 +59,7 @@ class create Model {
 
 	# use suffix to determine which view
 	lassign [split $path .] -> ext
-	Debug.Model {$path -> $view '$ext'}
+	Debug.Sql {$path -> $view '$ext'}
 
 	# calculate the desired content-type
 	set mime [Mime MimeOf [string tolower $ext]]
@@ -67,7 +67,7 @@ class create Model {
 	    set mime text/html
 	}
 	dict set r accept $mime
-	Debug.Model {desired content type of '$ext': $mime}
+	Debug.Sql {desired content type of '$ext': $mime}
 	return $r
     }
 
@@ -86,12 +86,12 @@ class create Model {
 
     # get editable forms for matching records
     method / {r args} {
-	Debug.Model {Model $args}
+	Debug.Sql {Sql $args}
 	set r [my mime $r]
 
 	# proces the SQL generating a result set
 	set rs [my exec {*}$args]
-	Debug.Model {generated [$rs rowcount] results}
+	Debug.Sql {generated [$rs rowcount] results}
 
 	dict lappend r -convert [self]	;# convert our result
 	return [Http Ok $r $rs x-tclobj/resultset]
@@ -114,7 +114,7 @@ class create Model {
 	variable sql
 
 	# allow .ini file to modify defaults
-	variable {*}[Site var? Model]
+	variable {*}[Site var? Sql]
 
 	if {[llength $args] == 1} {
 	    set args {*}$args
@@ -133,7 +133,7 @@ class create Model {
 	    # create a local db
 	    variable local 1
 	    if {$file eq ""} {
-		error "Model must specify an open db or a file argument"
+		error "Sql must specify an open db or a file argument"
 	    }
 	    set db [self]_db
 	    tdbc::${tdbc}::connection create $db $file 
@@ -147,10 +147,10 @@ class create Model {
     }
 }
 
-class create ModelT {
+class create SqlT {
     # convert synthetic TDBC type into CSV.
     method .x-text/dict.text/csv {r} {
-	Debug.Model {converting to text/csv}
+	Debug.Sql {converting to text/csv}
 	package require csv
 
 	variable csv
@@ -159,7 +159,7 @@ class create ModelT {
 
 	set content ""
 	foreach record [dict get $r -content] {
-	    Debug.Model {cvs line: $record}
+	    Debug.Sql {cvs line: $record}
 	    append content [::csv::join [dict values $record] $sepchar $delchar] \n
 	}
 
@@ -168,7 +168,7 @@ class create ModelT {
 
     # convert synthetic TDBC type into a Sylk spreadsheet.
     method .x-text/dict.application/x-sylk {r} {
-	Debug.Model {converting to x-sylk}
+	Debug.Sql {converting to x-sylk}
 	package require Sylk
 
 	variable csv
@@ -181,7 +181,7 @@ class create ModelT {
     }
 
     method .x-text/dict.x-text/html-fragment {r} {
-	Debug.Model {converting to html-fragment}
+	Debug.Sql {converting to html-fragment}
 
 	# handle sortable tables
 	variable report	;# report parameters
@@ -202,19 +202,19 @@ class create ModelT {
     }
 
     method / {r args} {
-	Debug.Model {ModelT $args}
-	set r [next $r {*}$args]	;# let Model process the SQL
+	Debug.Sql {SqlT $args}
+	set r [next $r {*}$args]	;# let Sql process the SQL
 
 	# transform the resultset into a dict
 	set rs [dict get $r -content]
 	set content [$rs allrows -as dicts]
-	Debug.Model {fetched [$rs rowcount] data results}
+	Debug.Sql {fetched [$rs rowcount] data results}
 	$rs close	;# close resultset
 
 	return [Http Pass $r $content x-text/dict]
     }
 
-    superclass Model
+    superclass Sql
     constructor {args} {
 	variable sort {}	;# parameters for jQ sortable
 	variable csv {sepchar , delchar \"}	;# parameters for csv
@@ -240,7 +240,7 @@ class create ModelT {
 	}
 
 	# allow .ini file to modify defaults
-	variable {*}[Site var? ModelT]
+	variable {*}[Site var? SqlT]
 	if {[llength $args] == 1} {
 	    set args {*}$args
 	}
@@ -260,6 +260,6 @@ if {0} {
     package require tdbc::sqlite3
     sqlite3 ::db_test $sqltestfile
     tdbc::sqlite3::connection create ::model $sqltestfile
-    Nub domain /model/all ModelT db ::model sql "SELECT * FROM sources"
-    Nub domain /model/big ModelT db ::model sql "SELECT * FROM sources WHERE size>:size"
+    Nub domain /model/all SqlT db ::model sql "SELECT * FROM sources"
+    Nub domain /model/big SqlT db ::model sql "SELECT * FROM sources WHERE size>:size"
 }
