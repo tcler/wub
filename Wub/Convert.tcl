@@ -45,7 +45,6 @@ class create Convert {
 
 	# construct a dict from method name to the formal parameters of the method
 	set defclass [info object class $object]
-	set mixins [info class mixins $defclass]
 	set methods [lreverse [lsort -dictionary [info class methods $defclass -private -all]]]
 
 	set convertors {}
@@ -61,13 +60,13 @@ class create Convert {
 	# which are methods of the form .mime/type
 	foreach m $methods {
 	    if {[string match /* $m]} continue
-	    if {[string match */* $m]} {
+	    if {[string match .*/* $m]} {
 		if {[string match .*/*.*/* $m]} continue
 		lappend convertors "$m->($m)->$m"
 		my postprocess $m eval $object $m
 	    }
 	}
-	Debug.convert {Object Convertors from $defclass: $convertors}
+	Debug.convert {Object Convertors from $defclass: $convertors over $object}
     }
 
     # namespace - add all transformers and postprocessors from the namespace
@@ -316,6 +315,17 @@ class create Convert {
 
     # convert - perform all content negotiation on a Wub response
     method convert {rsp {to ""}} {
+	if {[dict exists $rsp -file]} {
+	    Debug.convert {request is a -file [dict get? $rsp content-type], return}
+	    return $rsp
+	} elseif {![dict exists $rsp -content]} {
+	    Debug.convert {request has no content, return}
+	    return $rsp
+	}
+	if {![dict exists $rsp content-type]} {
+	    error "response has no content-type [dumpMsg $rsp]"
+	}
+
 	# raw responses get no conversion
 	if {[dict get? $rsp -raw] eq "1"} {
 	    return $rsp	;# this is raw - no conversion
@@ -424,34 +434,6 @@ class create Convert {
     }
 
     # do - perform content negotiation and transformation
-    method do {rsp} {
-	if {[dict exists $rsp -file]} {
-	    Debug.convert {request is a -file [dict get? $rsp content-type], return}
-	    return $rsp
-	} elseif {![dict exists $rsp -content]} {
-	    Debug.convert {request has no content, return}
-	    return $rsp
-	}
-	if {![dict exists $rsp content-type]} {
-	    error "response has no content-type [dumpMsg $rsp]"
-	}
-	variable transform
-	variable postprocess
-	Debug.convert {do: [dumpMsg $rsp] with: ([array get transform]) postproc: ([array get postprocess])}
-
-	# -raw overrides content negotiation
-	if {[dict exists $rsp -raw]} {
-	    Debug.convert {Respond Raw override}
-	    return $rsp
-	}
-
-	# perform the content negotiation
-	set rsp [my convert $rsp]
-	Debug.convert {complete: [dumpMsg $rsp]}
-
-	return $rsp
-    }
-
     constructor {args} {
 	variable conversions 1	;# include some default conversions
 	variable namespace
