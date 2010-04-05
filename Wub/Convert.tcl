@@ -482,6 +482,8 @@ class create Convert {
 		my namespace ::$ns
 	    }
 	}
+
+	my object [self]	;# add in any conversions by child instances
     }
 }
 
