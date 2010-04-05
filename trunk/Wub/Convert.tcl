@@ -62,7 +62,7 @@ class create Convert {
 	foreach m $methods {
 	    if {[string match /* $m]} continue
 	    if {[string match */* $m]} {
-		if {[string match */*.*/* $m]} continue
+		if {[string match .*/*.*/* $m]} continue
 		lappend convertors "$m->($m)->$m"
 		my postprocess $m eval $object $m
 	    }
