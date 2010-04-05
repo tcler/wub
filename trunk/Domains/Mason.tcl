@@ -578,7 +578,7 @@ namespace eval ::MConvert {
 
 	# use -thead as table headers, or if there is none use the dict keys
 	if {![dict exists $rsp -thead]} {
-	    set thead [lsort [dict keys [lindex [dict get $rsp -contents] 1]]]
+	    set thead [lsort [dict keys [lindex [dict get $rsp -content] 1]]]
 	} else {
 	    set thead [dict get $rsp -thead]
 	}
