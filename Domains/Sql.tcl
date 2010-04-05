@@ -343,7 +343,7 @@ class create Sql {
 	dict set r -content $content
 
 	dict set r -params $params	;# send parameters to conversion
-	Debug on convert 10
+	#Debug on convert 10
 	set r [::convert convert! $r $mime]
 	return $r
     }
