@@ -1663,7 +1663,7 @@ namespace eval Httpd {
 		watchdog
 
 		# report error from post-processing
-		send [::convert do [Http ServerError $r $rspp $eo]]
+		send [::convert convert [Http ServerError $r $rspp $eo]]
 	    } else {
 		# send the response to client
 		Debug.Httpd {[info coroutine] postprocess: [rdump $rspp]} 10
@@ -1871,11 +1871,11 @@ namespace eval Httpd {
 
 	# do per-connection conversions (if any)
 	foreach c [dict get? $r -convert] {
-	    set r [$c do $r]
+	    set r [$c convert $r]
 	}
 	
 	# do default conversions
-	return [::convert do $r]
+	return [::convert convert $r]
     }
 
     # Authorisation
