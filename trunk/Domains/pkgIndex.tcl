@@ -28,6 +28,7 @@ package ifneeded Sinorca 1.0 [list source [file join $dir Sinorca Sinorca.tcl]]
 package ifneeded Simplicio 1.0 [list source [file join $dir Simplicio.tcl]]
 
 package ifneeded Nub 1.0 [list source [file join $dir Nub.tcl]]
+package ifneeded BasicAuth 1.0 [list source [file join $dir BasicAuth.tcl]]
 package ifneeded Woof 1.0 [list source [file join $dir Woof.tcl]]
 
 package ifneeded ReCAPTCHA 1.0 [list source [file join $dir ReCAPTCHA.tcl]]
