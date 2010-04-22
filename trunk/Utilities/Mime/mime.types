@@ -5,6 +5,7 @@ multipart/x-aggregate
 
 application/x-sylk .sylk .slk
 text/csv .csv
+text/yaml .yaml
 
 application/x-characterspecial
 application/x-blockspecial
