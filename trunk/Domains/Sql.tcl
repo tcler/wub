@@ -66,7 +66,7 @@ class create Sql {
 	if {$mime eq "" || $mime eq "text/plain"} {
 	    set mime text/html
 	}
-	dict set r accept $mime
+	dict set r accept $mime	;# we coerce the acceptable types
 	Debug.Sql {desired content type of '$ext': $mime}
 	return $r
     }
@@ -103,6 +103,7 @@ class create Sql {
 	    variable db
 	    $db close
 	}
+	catch {next}
     }
 
     superclass Convert
