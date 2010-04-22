@@ -506,7 +506,8 @@ namespace eval Httpd {
 		append header "Date: [Http Now]" \r\n
 		set si [dict get? $reply -server_id]
 		if {$si eq ""} {
-		    set si "The Wub"
+		    variable server_id
+		    set si $server_id
 		}
 		append header "Server: $si" \r\n
 	    }
@@ -2025,9 +2026,12 @@ namespace eval Httpd {
 	# send that we accept ranges
 	dict set args accept-ranges bytes
 
-	# create reader coroutine
+	# create reader coroutine in a per-connection namespace
 	variable reader
-	set R ::Httpd::${sock}_[uniq]	;# unique coro name per socket
+	if {![namespace exists ::Httpd::$ipaddr]} {
+	    namespace eval ::Httpd::$ipaddr {}
+	}
+	set R ::Httpd::${ipaddr}::${sock}_[uniq]	;# unique coro name per socket
 	chan configure $sock -user $R	;# record the coroutine as socket user data
 
 	# construct the reader
