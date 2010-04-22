@@ -422,6 +422,27 @@ namespace eval ::conversions {
 	return $rsp
     }
 
+    proc .x-tclobj/resultset.x-tclobj/dict {r} {
+	set resultset [dict get $r -content]
+	set result [$resultset allrows -as dicts]
+	return [Http pass $r $result x-tclobj/dict]
+    }
+
+    proc .x-tclobj/huddle.application/json {r} {
+	set result [huddle jsondump [dict get $r -content]
+	return [Http pass $r $result application/json]
+    }
+
+    proc .x-tclobj/dict.x-tclobj/huddle {r} {
+	package require huddle
+	set huddle [dict get? $r -huddle]
+	if {$huddle eq ""} {
+	    set huddle dict
+	}
+	set result [huddle compile $huddle [dict get $r -content]]
+	return [Http pass $r $result x-tclobj/huddle]
+    }
+
     # convert a directory list
     proc .x-multipart/dirlist.x-text/system {rsp} {
 	set suffix [file dirname [dict get $rsp -suffix]]
