@@ -428,6 +428,12 @@ namespace eval ::conversions {
 	return [Http pass $r $result x-tclobj/dict]
     }
 
+    proc .x-tclobj/huddle.text/yaml {r} {
+	package require yaml
+	set result [::yaml::huddle2yaml [dict get $r -content]
+	return [Http pass $r $result text/yaml]
+    }
+
     proc .x-tclobj/huddle.application/json {r} {
 	set result [huddle jsondump [dict get $r -content]
 	return [Http pass $r $result application/json]
