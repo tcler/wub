@@ -22,6 +22,7 @@ set API(Domains/Sql) {
     report {optional dict of args to Report utility}
     sort {optional dict of args to jQ sortable}
     form {a Tcl script which will be [[subst]]ed for a Sql, yielding an html fragment.}
+    huddle {a Huddle descriptor for conversion to JSON}
 }
 
 class create Sql {
@@ -211,6 +212,12 @@ class create SqlT {
 	set content [$rs allrows -as dicts]
 	Debug.Sql {fetched [$rs rowcount] data results}
 	$rs close	;# close resultset
+
+	# support huddle conversion
+	variable huddle
+	if {[info exists huddle]} {
+	    dict set r -huddle $huddle
+	}
 
 	return [Http Pass $r $content x-text/dict]
     }
