@@ -62,6 +62,7 @@ text/rtf		       rtf
 application/slate
 application/x-mif      mif
 application/javascript	js
+application/jason	json
 application/wita
 application/wordperfect5.1
 application/x-cgi		cgi
