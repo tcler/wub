@@ -90,7 +90,7 @@ namespace eval Install {
 		    DIR {
 			incr loaded
 			incr loading -1
-			dict unset pending $path
+			dict unset pending [string map {" " %20} $path]
 			puts stderr "DONE $loaded: $op $path ($loading/$limit) queue: [llength $queue] pending: [dict keys $pending]"
 			set queue [lassign $queue op path]
 		    }
