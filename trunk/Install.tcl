@@ -17,76 +17,72 @@ namespace eval Install {
     proc gotfile {file token} {
 	if {[::http::status $token] ne "ok"} {
 	    puts stderr "Failed to fetch file $file"
-	    getter [list FILE $file]
-	    error "Failed to fetch file $file"
-	}
-	if {[catch {
+	} elseif {[catch {
+	    # copy file contents to $home 
 	    variable home
+	    set file [string map {%20 " "} $file]
 	    ::fileutil::writeFile -encoding binary [file join $home $file] [::http::data $token]
 	    ::http::cleanup $token
 	} e eo]} {
 	    puts stderr "gotfile error: $e ($eo)"
 	}
-	getter [list FILE $file]
+	getter [list FILE $file]	;# signal file completion
     }
 
     proc gotdir {dir token} {
+	variable home
+	set dirn [string map {%20 " "} $dir]
 	if {[::http::status $token] ne "ok"} {
 	    puts stderr "Failed to fetch dir $dir"
-	    getter [list DIR $file]
-	    error "Failed to fetch dir $dir"
-	}
-	if {[catch {
-	    variable home
-	    if {![file exists [file join $home $dir]]} {
-		puts stderr "Making directory '$dir' in '$home'([namespace current])"
-		if {[catch {file mkdir [file join $home $dir]} e eo]} {
-		    error $e
-		}
-	    }
-	    
+	} elseif {![file exists [file join $home $dirn]] && [catch {
+	    # create destination directory if needed
+	    file mkdir [file join $home $dirn]
+	} e eo]} {
+	    error $e
+	} elseif {[catch {
+	    # decode body as a <li> of <A> tags pointing to directory contents
 	    set body [::http::data $token]
 	    set urls [regexp -inline -all -- {href="([^\"]+)"} $body]
-	    puts "gotdir '$dir' URLS: $urls"
 	    set urls [dict values $urls]
 	    variable base
 	    foreach name $urls {
 		set name [string map [list $base/ ""] $name]
+		
 		switch -glob -- $name {
 		    http://* -
 		    .* {
-			puts "discarding $name"
+			#puts "discarding $name"
 			continue
 		    }
 		    */ {
-			puts "processing dir $name"
+			# initiate directory fetch of $name
 			getter [list dir [file join $dir $name]/]
 		    }
 		    default {
-			puts "processing file $name"
+			# initiate file fetch of $name
 			getter [list file [file join $dir $name]]
 		    }
 		}
 	    }
-	    puts "processed dir $dir"
-	    ::http::cleanup $token
+	    ::http::cleanup $token	;# finished dir page
 	} e eo]} {
 	    puts "gotdir error $e ($eo)"
 	}
-	getter [list DIR $dir]
+	getter [list DIR $dir]	;# signal dir completion
     }
 
+    # getter coroutine implementation
     proc getC {args} {
-	variable queue
-	variable base
-	variable limit
-	variable loading 0
-	variable loaded 0
-	variable pending {}
+	variable queue		;# queued fetches
+	variable base		;# base URL
+	variable limit		;# limit simultaneous fetches
+	variable loading 0	;# number of pending fetches
+	variable pending {}	;# dict of pending fetches
+	variable loaded 0	;# count of pages loaded
 
 	while {1} {
 	    if {[catch {
-		lassign $args op path
+		lassign $args op path	;# decode args
 
 		# first process any completed fetches
 		switch -- $op {
@@ -102,11 +98,13 @@ namespace eval Install {
 		
 		switch -- $op {
 		    "" {
-			# nothing more queued yet.
+			# nothing more queued yet, wait for completion
 		    }
 		    file -
 		    dir {
+			# requested a fetch
 			if {$loading < $limit} {
+			    # can fetch now
 			    incr loading 1
 			    variable base
 			    set cmd [list ::http::geturl $base/$path -command [namespace code [list got$op $path]]]
@@ -115,12 +113,11 @@ namespace eval Install {
 			    dict set pending $path $op
 			    {*}$cmd
 			} else {
+			    # fetching would exceed limit on simultaneous fetches
 			    lappend queue $op $path
-			    puts stderr "QUEUEING: $op $path $loading/$limit queued: [llength $queue] pending:[dict keys $pending]"
+			    puts stderr "QUEUEING: $op $path $loading/$limit queued: [llength $queue] pending: [dict keys $pending]"
 			}
 		    }
-		    op {}
-		    
 		    default {
 			error "getter doesn't do $op $path"
 		    }
@@ -132,6 +129,7 @@ namespace eval Install {
 	}	 
     }
 
+    # waiter - vwaits until all pages are fetched
     proc waiter {} {
 	variable queue
 	variable loading
@@ -145,16 +143,18 @@ namespace eval Install {
 	}
     }
 
+    # start recursive getter coro to fetch all files from a repo
     proc fetch {args} {
 	variable limit 10
 	variable {*}$args
 
 	variable home [file normalize $home]
 	variable base [string trimright $base /]
-	puts "Install fetch $base to $home"
+	puts "Install '$base' to '$home'"
 	coroutine ::Install::getter getC dir
+
 	if {[info exists wait] && $wait} {
-	    waiter
+	    waiter	;# caller asked us to vwait
 	}
     }
 
