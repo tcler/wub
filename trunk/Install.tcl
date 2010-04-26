@@ -1,6 +1,6 @@
 # Install.tcl -- download or update Wub from its svn repository
 
-# NB: uses old-style coro form
+# NB: uses old-style coro form so it can cope with older 8.6 beta versions
 
 if {[catch {package require Tcl 8.6}]} {
     puts stderr "Tcl 8.6 required, you have [package provide Tcl]"
