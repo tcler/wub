@@ -162,5 +162,5 @@ namespace eval Install {
     namespace ensemble create -subcommands {}
 }
 
-Install fetch {*}$argv
+Install fetch home [pwd] {*}$argv
 Install waiter
