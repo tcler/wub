@@ -1,5 +1,7 @@
 # Install.tcl -- download or update Wub from its svn repository
 
+# NB: uses old-style coro form
+
 if {[catch {package require Tcl 8.6}]} {
     puts stderr "Tcl 8.6 required, you have [package provide Tcl]"
 }
@@ -11,7 +13,8 @@ package require http
 package provide Install 1.0
 
 namespace eval Install {
-    variable base http://wub.googlecode.com/svn/trunk/
+    variable base http://wub.googlecode.com/svn/
+    variable version trunk
     variable home [file dirname [info script]]
 
     proc gotfile {file token} {
@@ -44,9 +47,9 @@ namespace eval Install {
 	    set body [::http::data $token]
 	    set urls [regexp -inline -all -- {href="([^\"]+)"} $body]
 	    set urls [dict values $urls]
-	    variable base
+	    variable dl
 	    foreach name $urls {
-		set name [string map [list $base/ ""] $name]
+		set name [string map [list $dl/ ""] $name]
 		
 		switch -glob -- $name {
 		    http://* -
@@ -74,7 +77,7 @@ namespace eval Install {
     # getter coroutine implementation
     proc getC {args} {
 	variable queue		;# queued fetches
-	variable base		;# base URL
+	variable dl		;# base URL
 	variable limit		;# limit simultaneous fetches
 	variable loading 0	;# number of pending fetches
 	variable pending {}	;# dict of pending fetches
@@ -106,8 +109,8 @@ namespace eval Install {
 			if {$loading < $limit} {
 			    # can fetch now
 			    incr loading 1
-			    variable base
-			    set cmd [list ::http::geturl $base/$path -command [namespace code [list got$op $path]]]
+			    variable dl
+			    set cmd [list ::http::geturl $dl/$path -command [namespace code [list got$op $path]]]
 			    puts stderr "GETTING: $op $path $loading/$limit ($cmd)"
 			    puts stderr "$cmd"
 			    dict set pending $path $op
@@ -146,11 +149,27 @@ namespace eval Install {
     # start recursive getter coro to fetch all files from a repo
     proc fetch {args} {
 	variable limit 10
-	variable {*}$args
+	variable version trunk
 
+	variable {*}$args	;# set variables passed in
+
+	# clean up directories and URLs
 	variable home [file normalize $home]
 	variable base [string trimright $base /]
-	puts "Install '$base' to '$home'"
+	variable version [string trimright $version /]
+
+	# work on release
+	switch -glob -- $version {
+	    trunk - head {
+		set version trunk
+	    }
+	    [2-9]* {
+		set version branches/RB-$version
+	    }
+	}
+	variable dl [string trimright $base/$version /]
+
+	puts "Install '$dl' to '$home'"
 	coroutine ::Install::getter getC dir
 
 	if {[info exists wait] && $wait} {
