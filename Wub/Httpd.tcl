@@ -2072,7 +2072,7 @@ namespace eval Httpd {
 
 	variable maxconn
 	if {[info exists maxconn]} {
-	    Socket new -maxconnections $maxconn
+	    #Socket new -maxconnections $maxconn
 	}
     }
 
