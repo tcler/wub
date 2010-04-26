@@ -9,7 +9,7 @@ set API(Domains/About) {
     {Domain for accessing API documentation of other domains.}
 }
 
-set APIDomains {File Repo Mason Direct Dub Commenter JQ CGI Icons Tub Login About RAM Tie Coco Sinorca Simplicio Nub}
+set APIDomains {File Repo Mason Direct Dub Commenter JQ CGI Icons Tub ReCAPTCHA About RAM Tie Coco Sinorca Simplicio Nub Sql SqlQ Sticky Tiny}
 
 namespace eval About {
     variable ctype x-text/html-fragment
