@@ -93,11 +93,6 @@ interp bgerror {} bgerror
 proc pest {req} {return 0}
 catch {source [file join [file dirname [info script]] pest.tcl]}
 
-# this is a shim for fcopy
-proc coroshim_fcopy {coro args} {
-    $coro $args
-}
-
 namespace eval Httpd {
     variable server_port ;# server's port (if different from Listener's)
     variable server_id "Wub/[package provide Httpd]"
@@ -194,9 +189,10 @@ namespace eval Httpd {
 
 	# destroy reader - that's all she wrote
 	Debug.Httpd {reader [info coroutine]: terminated}
-	rename [info coroutine] ""; ::yield	;# terminate coro
+	rename [info coroutine] ""; ::yieldm	;# terminate coro
     }
 
+    # control the writable state of $socket
     proc unwritable {} {
 	corovars socket events
 	chan event $socket writable ""
@@ -207,6 +203,7 @@ namespace eval Httpd {
 	dict set events writable $what
     }
 
+    # control the readable state of $socket
     proc unreadable {} {
 	corovars socket events
 	chan event $socket readable ""
@@ -811,12 +808,12 @@ namespace eval Httpd {
 			chan seek $fd $from start
 			set bytes [expr {$to-$from+1}]
 			Debug.Httpd {[info coroutine] FCOPY RANGE: '$file' hytes $from-$to/$bytes} 8
-			chan copy $fd $raw -command [list ::coroshim_fcopy [info coroutine] FCOPY $fd $bytes]
+			chan copy $fd $raw -command [list [info coroutine] FCOPY $fd $bytes]
 
 		    } else {
 			Debug.Httpd {[info coroutine] FCOPY ENTITY: '$file' $bytes bytes} 8
 			set raw [chan configure $socket -fd]
-			chan copy $fd $raw -command [list ::coroshim_fcopy [info coroutine] FCOPY $fd $bytes]
+			chan copy $fd $raw -command [list [info coroutine] FCOPY $fd $bytes]
 		    }
 		    break	;# we don't process any more i/o on $socket
 		} elseif {[llength $range]} {
@@ -1035,7 +1032,7 @@ namespace eval Httpd {
 		    chan event $socket $k [list [info coroutine] $v]
 		}
 
-		set args [lassign [::yield $retval] op]; set retval ""
+		set args [lassign [::yieldm $retval] op]; set retval ""
 
 		foreach k {readable writable} {
 		    chan event $socket $k ""
@@ -1271,6 +1268,7 @@ namespace eval Httpd {
 	set writing 0	;# we're not writing yet
 	set ipaddr 0	;# ip address
 	set events {}	;# readable/writable
+
 	readable	;# kick off the readable event
 
 	dict with args {}
