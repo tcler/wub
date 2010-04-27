@@ -60,20 +60,15 @@ set API(Domains/JQ) {
 	The following assume that the response ''r'' contains x-text/html-fragment style html
 
 	=== Example: arbitrary javascript over jQuery ===
-
+	
 	set r [jQ jquery $r]	;# load the jquery library
-	set r [jQ postscript $r {
-	    /* this is javascript */
-	}]
-	set r [jQ postscript $r [<ready> {
-	    /* this is javascript which will be run only when jQuery is ready */
-	}]]
-
+	set r [jQ postscript $r {/* this is javascript */}]
+	
 	=== Example: ajax form ===
 
 	# apply form plugin to ''formid''
 	set r [[jQ form $r "#formid" target \"#divid\"]]
-
+	
 	# emit a form with the id ''formid'' and a div with the id ''divid''
 	# the returned result of submitting ''formid'' will replace the content of ''divid''
 	return [Http Ok $r "[<form> formid {...}] [<div> divid {...}]" x-text/html-fragment]
@@ -239,7 +234,7 @@ namespace eval jQ {
 	    media_url '/icons/'
 	    content_css_url 'rte.css'
 	}
-	stickynote {
+	stickynotes {
 	    size 'large'
 	}
     }
@@ -796,11 +791,12 @@ namespace eval jQ {
     }
 
     # http://tympanus.net/codrops/2009/10/30/jstickynote-a-jquery-plugin-for-creating-sticky-notes/
+    # http://www.jquery-sticky-notes.com/
     proc stickynote {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.ui.js jquery.stickynote.js
-	} css stickynote.css %SEL $selector %OPTS [opts stickynote {*}$args] {
-	    $('%SEL').stickynote(%OPTS);
+	} css stickynote.css %SEL $selector %OPTS [opts stickynotes {*}$args] {
+	    $('%SEL').stickyNotes(%OPTS);
 	}]
     }
 
