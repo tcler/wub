@@ -19,7 +19,7 @@ Disallow:
 domain /wub/ {Mason ::wub} auth .before wrapper .after root $::Site::docroot
 domain /sticky/ {Sticky ::sticky} file ./sticky.db hotzone #sticky 
 
-# The /nub/ domain is handled by the Nub package.  It's unnambed
+# The /nub/ domain is handled by the Nub package.  It's unnamed
 domain /nub/ Nub
 
 # The /jquery/ domain is handled by the jQ package
