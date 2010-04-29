@@ -16,6 +16,7 @@ package ifneeded Tub 1.0 [list source [file join $dir Tub.tcl]]
 package ifneeded Login 1.0 [list source [file join $dir Login.tcl]]
 package ifneeded About 1.0 [list source [file join $dir About.tcl]]
 package ifneeded Sql 1.0 [list source [file join $dir Sql.tcl]]
+package ifneeded SqlT 1.0 [list source [file join $dir Sql.tcl]]
 
 #package ifneeded Host 2.0 [list source [file join $dir Host.tcl]]
 #package ifneeded Cache 1.0 [list source [file join $dir Cache.tcl]]
@@ -37,3 +38,4 @@ package ifneeded Sticky 1.0 [list source [file join $dir Sticky.tcl]]
 package ifneeded Dhcpp 1.0 [list source [file join $dir Dhcpp.tcl]]
 
 package ifneeded SqlQ 1.0 [list source [file join $dir SqlQ.tcl]]
+package ifneeded Alt 1.0 [list source [file join $dir Alt.tcl]]
