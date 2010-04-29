@@ -78,7 +78,7 @@ namespace eval About {
 		} res eo]} {
 		    append result $res \n
 		} else {
-		    #puts stderr "API ERR: $res ($eo) ($doc)"
+		    Debug.about {API ERR: $res ($eo) ($doc)}
 		    append result [<h2> $n] \n [<p> [<a> href .. (Parent)]] [<p> $v] \n
 		}
 	    } else {
