@@ -1,6 +1,12 @@
 # Alt.tcl - alternation wrapper around domains
 package provide Alt 1.0
 
+set API(Domains/Alt) {
+    {
+	A wrapper domain which iterates over other domains until a successful response is generated.
+    }
+}
+
 oo::class create Alt {
     # called as "do $request" checks Basic Auth on request
     method do {r} {
