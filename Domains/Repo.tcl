@@ -12,7 +12,6 @@ package require Query
 package require Report
 package require Form
 package require Mime
-package require jpeg
 package require jQ
 
 package provide Repo 1.0
