@@ -61,7 +61,7 @@ namespace eval ::Hello {
 	foreach {n v} $args {
 	    append vartable [<tr> "[<td> $n] [<td> $v]"] \n
 	}
-	append content [<table> class pretty $vartable]
+	append content [<table> border 1 class pretty $vartable]
 
 	if {$css} {
 	    set r [Html style $r css]	;# this adds a css styling to an html-fragment
