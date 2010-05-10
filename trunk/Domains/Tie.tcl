@@ -61,7 +61,7 @@ namespace eval Tie {
 
 	# get full URL of variable
 	set prefix [dict get? $args -prefix]
-	set fname [file join $prefix $name]
+	set fname $prefix/$name
 
 	# store args in vars against variable's full URL
 	variable vars
@@ -238,7 +238,7 @@ namespace eval Tie {
 	}
 
 	variable vars
-	set s [file split $suffix]
+	set s [split $suffix /]
 	if {[dict exists $vars [set el [join [lrange $s 0 1] /]]]} {
 	    # two element match
 	    set s [lrange $s 2 end]
