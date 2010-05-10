@@ -76,22 +76,22 @@ namespace eval Url {
     # strip off path prefix - from ::fileutil
     proc pstrip {prefix path} {
 	Debug.url {pstrip $prefix $path}
-	# [file split] is used to generate a canonical form for both
+	# [split] is used to generate a canonical form for both
 	# paths, for easy comparison, and also one which is easy to modify
 	# using list commands.
 	set trailing [expr {([string index $path end] eq "/")?"/":""}]
 
 	# canonicalise the paths: no bracketing /, no multiple /
-	set prefix [string trim [file join $prefix] /]
-	set path [string trim [file join $path] /]
+	set prefix [string trim [join $prefix /] /]
+	set path [string trim [join $path /] /]
 
 	if {[string equal $prefix $path]} {
 	    return "/"	;# if the paths are canonically string equal, we're sweet
 	}
 
 	# split the paths into components
-	set prefix [file split $prefix]
-	set npath [file split $path]
+	set prefix [split $prefix /]
+	set npath [split $path /]
 
 	# strip non-matching prolog
 	while {[llength $npath] && ![string match ${prefix}* $npath]} {
@@ -102,12 +102,12 @@ namespace eval Url {
 	# now check if there's a match
 	if {[llength $npath]} {
 	    # ergo there's a match - preserve dir suffix
-	    set match [file join {*}[lrange $npath [llength $prefix] end] {}]$trailing
-	    Debug.url {pstrip match [file join $prefix] + [file join $npath] -> $match}
+	    set match [join [lrange $npath [llength $prefix] end] /]$trailing
+	    Debug.url {pstrip match $npath - [join $prefix /] + [join $npath /] -> $match}
 	    return $match
 	} else {
 	    # the prefix doesn't match ... try stripping some leading prefix
-	    Debug.url {pstrip no match [file join $prefix] $path}
+	    Debug.url {pstrip no match [join $prefix /] $path}
 	    return /$path
 	}
     }
@@ -135,7 +135,16 @@ namespace eval Url {
 	    }
 	    dict set r -suffix $suffix
 	}
-	dict set r -extension [file extension $suffix]
+
+	# calculate .ext of URL
+	set ext [split $suffix .]
+	if {[llength $ext] == 1} {
+	    set ext ""
+	} else {
+	    set ext [lindex $ext end]
+	}
+	dict set r -extension $ext
+
 	return [list 1 $r $suffix $path]
     }
 
@@ -274,7 +283,7 @@ namespace eval Url {
 
     # flatten the -path into a -suffix
     proc flatten {req} {
-	dict set req -suffix [file tail [dict get $req -path]]
+	dict set req -suffix [lindex [split [string trimright [dict get $req -path] /] /] end]
 	return $req
     }
 
@@ -323,10 +332,10 @@ namespace eval Url {
 	} else {
 	    # local URL
 	    set npath [dict get $todict -path]
-	    if {[file pathtype $npath] eq "relative"
+	    if {![string match /* $npath]
 		&& ![dict exists $dict -normalized]
 	    } {
-		set npath [normalize [file join [dict get $dict -path] $npath]]
+		set npath [normalize [join [list {*}[dict get $dict -path] {*}$npath] /]]
 	    }
 
 	    set host [dict get $dict -host]
@@ -344,7 +353,7 @@ namespace eval Url {
     # change the suffix of a request
     proc suffix {x suffix} {
 	dict set x -suffix $suffix
-	dict set x -path [file join [dict get $x -prefix] $suffix]
+	dict set x -path [join [list {*}[dict get $x -prefix] {*}$suffix]]
 	dict set x -url [url $x]
 	dict set x -uri [uri $x]
 	return $x
