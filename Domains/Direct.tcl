@@ -22,7 +22,7 @@ package provide Direct 1.0
 
 set API(Domains/Direct) {
     {
-	A domain which dispatches URL requests to commands within a namespace or methods within an object.
+	A domain which dispatches URL requests to commands within a namespace or methods within an object.  Note that only commands whose name starts with '/' will be exported to the web.
 
 	== QuickStart ==
 	Create a namespace NS containing commands of the form [[proc /name {r arg1 arg2 ...} {}]]
@@ -56,7 +56,7 @@ class create Direct {
     variable namespace object class ctype mount wildcard trim methods
 
     method do_ns {rsp} {
-	Debug.direct {do direct $namespace $mount $ctype}
+	Debug.direct {do direct $namespace $mount $ctype [dict get $rsp -suffix]}
 	
 	# search for a matching command prefix
 	set cmd ""
