@@ -61,7 +61,7 @@ class create Direct {
 	# search for a matching command prefix
 	set cmd ""
 	set fn [dict get $rsp -suffix]; if {$fn eq ""} {set fn /}
-	set cprefix [file split [armour $fn]]
+	set cprefix [split [armour $fn] /]
 	set extra {}
 	while {$cmd eq "" && [llength $cprefix]} { 
 	    set probe [info commands ${namespace}::/[string trim [join $cprefix /] /]]
@@ -81,13 +81,13 @@ class create Direct {
 	if {$cmd eq ""} {
 	    Debug.direct {no match looking for '$fn' in '$namespace' ([info procs ${namespace}::/*])}
 	    set cmd ${namespace}::$wildcard
-	    dict set rsp -extra [file split [dict get $rsp -suffix]]
+	    dict set rsp -extra [split [dict get $rsp -suffix] /]
 	    if {[info commands $cmd] eq {}} {
 		Debug.direct {default not found looking for $cmd in ([info procs ${namespace}::/*])}
 		return [Http NotFound $rsp]
 	    }
 	} else {
-	    dict set rsp -extra [file join [lreverse $extra]]	;# record the extra parts of the domain
+	    dict set rsp -extra [join [lreverse $extra] /]	;# record the extra parts of the domain
 	}
 
 	set params [lrange [info args $cmd] 1 end]
@@ -149,7 +149,7 @@ class create Direct {
 	
 	# search for a matching command prefix
 	set fn [dict get $rsp -suffix]
-	set cprefix [file split [armour $fn]]
+	set cprefix [split [armour $fn] /]
 	set extra {}
 	set cmd ""
 	while {$cmd eq "" && [llength $cprefix]} { 
@@ -170,7 +170,7 @@ class create Direct {
 	if {$cmd eq ""} {
 	    Debug.direct {'$cmd' not found looking for '$fn' in '$object' ($methods)}
 	    set cmd $wildcard
-	    dict set rsp -extra [file split [dict get $rsp -suffix]]
+	    dict set rsp -extra [split [dict get $rsp -suffix] /]
 	    if {![dict exists $methods $cmd] eq {}} {
 		Debug.direct {default not found looking for $cmd in ($methods)}
 		return [Http NotFound $rsp]
@@ -243,8 +243,9 @@ class create Direct {
 	}
 
 	# remove suffix's extension and trim /s
-	Debug.direct {suffix: $suffix rootname: [file rootname $suffix]}
-	set fn [string trim [file rootname $suffix] /]
+	set rn [join [lrange [split $suffix /] 0 end-1] /]
+	Debug.direct {suffix: $suffix rootname: $rn}
+	set fn [string trim $rn /]
 	if {[info exists trim] && $trim ne ""} {
 	    if {[string match $trim* $fn]} {
 		set fn [string range $fn [string length $trim] end]
