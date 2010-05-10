@@ -154,7 +154,7 @@ class create Dub {
 	set subv ""
 	foreach s [$view subviews] {
 	    set id $v2n($view)_$s
-	    set url [file join . $rec $s]/
+	    set url ./$rec/$s/
 	    append subv [<div> id $id [<a> href $url $s]] \n
 
 	    set load [string map [list %ID #$id] {
@@ -619,8 +619,9 @@ class create Dub {
     }
 
     method parse {suffix} {
-	set fop /[string trim [file extension $suffix] .]
-	set path [split [file rootname $suffix] /]
+	set x [split $suffix .]
+	set fop /[string trim [lindex $x end] .]
+	set path [split [join [lrange $x 0 end-1]] /]
 	set parsed {}
 	Debug.dub {parse: fop:'$fop' path:'$path' suffix:'$suffix'}
 	while {[llength $path]} {
