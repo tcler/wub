@@ -9,8 +9,23 @@ oo::class create BasicAuth {
     }
 
     method password {user password} {
-	variable passwords
-	dict set passwords $user $password
+	variable permission
+	if {[dict exists $permission $user]} {
+	    if {![llength [dict get $permission $user]]%2} {
+		error "$user is already the name of a realm or group"
+	    }
+	}
+	dict set permission $user $password
+    }
+
+    method add {user password group} {
+	if {[dict exists $permission $user]} {
+	    if {[llength [dict get $permission $user]]%2} {
+		error "$user is already the name of a user"
+	    }
+	}
+	my password $user $password
+	dict set permission $group $user $password
     }
 
     # search the permission dict for a name and password matching those given
@@ -37,8 +52,13 @@ oo::class create BasicAuth {
 	    # $el is a dict.
 	    # traverse it looking for a match, or a group to search
 	    dict for {n v} $probe {
-		if {$n eq $userid && $v eq $pass} {return 1}
-		if {$v eq "" && ![dict exists $looked $n]} {
+		if {$n eq $userid && $v ne ""} {
+		    return [expr {$v eq $pass}]
+		}
+		if {$v eq ""
+		    && ![dict exists $looked $n]
+		    && [dict exists $permissions $n]
+		} {
 		    if {[my perms $userid $pass $n] > 0} {
 			return 1
 		    }
@@ -56,8 +76,8 @@ oo::class create BasicAuth {
 	Debug.basicauth {perms $prefix ($userid,$pass)}
 
 	# filter out evil chars
-	set userid [string map {/ ""} [string trim $userid]]
-	set pass [string trim $pass]
+	set userid [string map {/ "" " " ""} [string trim $userid]]
+	set pass [string map {" " ""} $pass]
 	if {$userid eq "" || $pass eq ""} {
 	    return 0	;# empty is no good
 	}
@@ -72,9 +92,9 @@ oo::class create BasicAuth {
 
 	variable check	;# lambda to actually check
 	
-	set prefix [file split $prefix]
+	set prefix [split $prefix /]
 	while {[llength $prefix]} {
-	    set realm [file join {*}$prefix]
+	    set realm [join $prefix /]
 	    lappend realms $realm
 	    set looked $realms	;# remember traversal
 	    switch -- [{*}$check $userid $pass $realm] {
