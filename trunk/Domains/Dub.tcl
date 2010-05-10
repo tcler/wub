@@ -620,7 +620,7 @@ class create Dub {
 
     method parse {suffix} {
 	set fop /[string trim [file extension $suffix] .]
-	set path [file split [file rootname $suffix]]
+	set path [split [file rootname $suffix] /]
 	set parsed {}
 	Debug.dub {parse: fop:'$fop' path:'$path' suffix:'$suffix'}
 	while {[llength $path]} {
