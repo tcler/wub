@@ -243,6 +243,7 @@ class create Direct {
 	}
 
 	# remove suffix's extension and trim /s
+	Debug.direct {suffix: $suffix rootname: [file rootname $suffix]}
 	set fn [string trim [file rootname $suffix] /]
 	if {[info exists trim] && $trim ne ""} {
 	    if {[string match $trim* $fn]} {
