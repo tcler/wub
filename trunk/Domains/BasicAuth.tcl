@@ -126,14 +126,14 @@ oo::class create BasicAuth {
 	}
 
 	# remove suffix's extension and trim /s
-	set fn /[string trim [file rootname $suffix] /]
+	set fn /[string trim [lindex [split $suffix .] 0] /]
 	if {[my cred $r $prefix]} {
 	    # now we can call the wrapped object
 	    return [{*}$wrapped do $r]
 	} else {
 	    # credentials not supplied, or didn't match - fail
 	    variable fail
-	    return [{*}$fail $r [file rootname $path]]
+	    return [{*}$fail $r [lindex [split $path .] 0]]
 	}
     }
 
