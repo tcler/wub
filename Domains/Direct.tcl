@@ -65,7 +65,7 @@ class create Direct {
 	set extra {}
 	while {$cmd eq "" && [llength $cprefix]} { 
 	    set probe [info commands ${namespace}::/[string trim [join $cprefix /] /]]
-	    Debug.direct {direct probe: ($probe)}
+	    Debug.direct {direct probe: ($probe) - ${namespace}::/[string trim [join $cprefix /] /]}
 	    if {[llength $probe] == 1} {
 		set cmd [lindex $probe 0]
 		break
