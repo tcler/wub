@@ -49,14 +49,13 @@ set API(Domains/Direct) {
     namespace {namespace in which to invoke commands}
     ctype {default content-type of returned values}
     wildcard {process to be used if a request doesn't match any proc in $namespace (default /)}
-    trim {a prefix which must be found at the beginning of, and will be removed from, the in-domain path component of any URL (default: none) not terribly useful.}
 }
 
 class create Direct {
-    variable namespace object class ctype mount wildcard trim methods
+    variable namespace object class ctype mount wildcard methods
 
     method do_ns {rsp} {
-	Debug.direct {do direct $namespace $mount $ctype [dict get $rsp -suffix]}
+	Debug.direct {do direct ns:$namespace mount:$mount ctype:$ctype suffix:[dict get $rsp -suffix]}
 	
 	# search for a matching command prefix
 	set cmd ""
@@ -243,17 +242,8 @@ class create Direct {
 	}
 
 	# remove suffix's extension and trim /s
-	set rn [join [lrange [split $suffix /] 0 end-1] /]
-	Debug.direct {suffix: $suffix rootname: $rn}
-	set fn [string trim $rn /]
-	if {[info exists trim] && $trim ne ""} {
-	    if {[string match $trim* $fn]} {
-		set fn [string range $fn [string length $trim] end]
-	    } else {
-		return [Http NotFound $r]
-	    }
-	}
-	dict set r -suffix $fn
+	Debug.direct {suffix: $suffix}
+	dict set r -suffix [string trim $suffix /]
 
 	# TODO: armour commands
 	dict set r content-type $ctype
