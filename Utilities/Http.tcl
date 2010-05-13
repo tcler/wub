@@ -12,7 +12,7 @@ package provide Http 2.1
 
 proc Trace {{skip 1}} {
     set result {}
-    for {set level [expr [info level] - $skip]} {$level >= 0} {incr level -1} {
+    for {set level [expr {[info level] - $skip}]} {$level >= 0} {incr level -1} {
 	lappend result [info level $level]
     }
     return $result
@@ -565,7 +565,17 @@ namespace eval Http {
 		append table [<thead> "[<th> Variable] [<th> Value]"] \n
 		append table <tbody>
 		dict for {n v} $eo {
-		    append table [<tr> "[<td> $n] [<td> [<pre> [armour $v]]]"] \n
+		    if {$n eq "-errorstack"} {
+			set st ""
+			foreach {n1 v1} $v {
+			    append st [<tr> "[<td> $n1] [<td> [armour $v1]]"] \n
+			}
+			set st [<table> border 1 $st]
+			append table [<tr> "[<td> $n] [<td> $st]"] \n
+		    } else {
+			append table [<tr> "[<td> $n] [<td> [<pre> [armour $v]]]"] \n
+		    }
+
 		}
 		append table </tbody>
 		append content [<h2> "Error info"]
