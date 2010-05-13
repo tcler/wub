@@ -266,9 +266,18 @@ oo::class create Tupler {
 		return [Http NotFound $r [subst $notfound] x-text/html-fragment]
 	    } else {
 		# found the user-defined page "Not Found"
-		Debug.tupler {NotFound Handler: $found}
-		set mime [my getmime $found]
-		return [Http Ok $r [subst [dict get $found content]] $mime]
+		dict with found {
+		    set mime [my getmime $found]
+		    Debug.tupler {NotFound Handler: $found $mime}
+		    if {$type eq ""} {
+			set type basic
+		    } else {
+			set type [string map {" " _} [string tolower $type]]
+		    }
+		    set content [subst $content]
+		    dict set r -tuple $found
+		    return [Http Ok $r $content tuple/html]
+		}
 	    }
 	}
     }
@@ -292,6 +301,7 @@ oo::class create Tupler {
     # view a tuple - giving it its most natural HTML presentation
     method /view {r args} {
 	set extra [Url decode [dict get $r -extra]]
+	dict set r -convert [self]
 	if {[catch {my fetch $extra} tuple eo]} {
 	    tailcall my bad $r $eo
 	} else {
@@ -303,7 +313,6 @@ oo::class create Tupler {
 		} else {
 		    set type [string map {" " _} [string tolower $type]]
 		}
-		dict set r -convert [self]
 		return [Http Ok $r $content tuple/$type]
 	    }
 	}
