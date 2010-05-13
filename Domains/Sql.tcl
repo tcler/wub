@@ -12,6 +12,17 @@ set API(Domains/Sql) {
     {
 	A domain to minimally implement the Sql part of MVC, where the underlying model is an SQL database.
 	Sql returns each resultset record [[subst]]ed over ''form'' to give html fragments.
+    }
+    sql {the SQL command implementing the model (with :arg-substitution from the SQL query)}
+    tdbc {the tdbc driver to use for SQL queries}
+    db {optional tdbc database connection}
+    maxrows {optional maximum number of rows which will be processed.}
+    form {a Tcl script which will be [[subst]]ed for each element of the tdbc resultset, yielding an html fragment.}
+    huddle {a Huddle descriptor for conversion to JSON}
+}
+set API(Domains/SqlT) {
+    {
+	A domain to minimally implement the Sql part of MVC, where the underlying model is an SQL database.
 	SqlT converts the resultset into an HTML sortable table (default), a CSV file, or a Sylk spreadsheet, depending on the extension of the URL (.html, .csv or .sylk, respectively.)
     }
     sql {the SQL command implementing the model (with :arg-substitution from the SQL query)}
@@ -21,12 +32,12 @@ set API(Domains/Sql) {
     csv {optional dict of args to tcllib's csv}
     report {optional dict of args to Report utility}
     sort {optional dict of args to jQ sortable}
-    form {a Tcl script which will be [[subst]]ed for a Sql, yielding an html fragment.}
+    form {a Tcl script which will be [[subst]]ed for each element of the tdbc resultset, yielding an html fragment.}
     huddle {a Huddle descriptor for conversion to JSON}
 }
 
 class create Sql {
-
+    # enform - convert resultset to html fragment in restricted scope
     method enform {:rs :form} {
 	set :result ""
 	set :cnt 0
@@ -88,7 +99,7 @@ class create Sql {
     # get editable forms for matching records
     method / {r args} {
 	Debug.Sql {Sql $args}
-	set r [my mime $r]
+	set r [my mime $r]	;# the caller can select a mime type
 
 	# proces the SQL generating a result set
 	set rs [my exec {*}$args]

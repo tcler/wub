@@ -291,7 +291,7 @@ class create CGI {
 	# derive a script path from the URL path fields
 	Debug.cgi {searching for [file join $root $suffix]}
 	set extlc [string tolower $ext]
-	set suff [file split $path.$ext]
+	set suff [file split [string map [list / [file separator]] $path].$ext]
 	dict set r -info {}
 	while {$suff ne {}} {
 	    set probe [file join $root {*}$suff]

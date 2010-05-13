@@ -82,7 +82,7 @@ namespace eval SqlQConvert {
 	    Debug.SqlQ {cvs line: $record}
 	    append content [::csv::join [dict values $record] $sepchar $delchar] \n
 	}
-	set header #[::csv::join [dict keys $record] $sepchar $delchar]\n
+	set header "#[::csv::join [dict keys $record] $sepchar $delchar]\n"
 
 	return [dict merge $r [list -content $header$content content-type text/csv -raw 1]]
     }
