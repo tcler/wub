@@ -51,3 +51,6 @@ rewrite {^(/[^/]+)[.]css$} -regsub {/css/\1.css}
 # The code domain evaluates its first argument as a tcl script, and returns it with the 
 # optional type specified by the second domain
 code /clock.txt {clock format [clock seconds]} text/plain
+
+# demo the tupler domain
+Nub domain /tuple/ {Tupler ::tupler}
