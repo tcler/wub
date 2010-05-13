@@ -174,7 +174,15 @@ Uppercase {
 }
 
 welcome {
-    content "Welcome to Tuple"
+    type "Tcl Script"
+    content {
+	[<h1> "Welcome to Tuple"]
+	[Html ulinks {*}[subst {
+	    "Test composition and Tcl Scripting" now
+	    "Test Tcl Variable and Tcl Dict rendering" reflect
+	    "Test Uppercase and text/plain" {Example Uppercase}
+	}]]
+    }
 }
 
 now {
