@@ -234,6 +234,6 @@ dict_err {
 	[<title> [string totitle "$kind error"]]
 	[<h1> [string totitle "$kind error"]]
 	[<p> "'$name' not found while looking for '$extra'"]
-	[<p> "(Generated from User Content)"]
+	[<p> "(Generated from [<a> href xray/Not%2BFound "Not Found"] page)"]
     }
 }
