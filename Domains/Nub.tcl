@@ -50,7 +50,7 @@ set API(Domains/Nub) {
     nubdir {directory for user-defined nubs}
     theme {jQuery theme for Nub web interaction}
     password {password for modifying nubs.}
-    docurl {url prefix for domain docs. (default /wub/docs/)}
+    docurl {url prefix for domain docs. (default /wub/docs/Domains)}
 }
 
 namespace eval Nub {
@@ -69,11 +69,16 @@ namespace eval Nub {
 	}
     }
 
-    variable docurl /wub/docs/	;# this interfaces to the Mason domain /wub, if it's there
+    variable docurl /wub/docs/Domains/	;# this interfaces to the Mason domain /wub, if it's there
 
     variable whatsthis [::textutil::undent [::textutil::untabify {
-	Nub allows you to change the URLs the server responds to, and to create new nubs, edit or delete existing nubs, and apply them to the currently running server.
-	
+	= Nub Domain =
+	Nubs define the mapping between URLs and Domains.
+
+	The nubs defining this site can be viewed and edited here: [nubs/]
+
+	Nub itself is a Domain which allows you to change the URLs the server responds to, and to create new nubs, edit or delete existing nubs, and apply them to the currently running server.
+
 	A nub is a mapping from a URL glob to content.  The content may be provided by domain handlers, listed below.
 	
 	== Synthetic Nubs ==
@@ -89,6 +94,7 @@ namespace eval Nub {
 	Domains are modules which generate content from URLs. This is the currently available collection of domain 'nubs':
     }]]
 
+    # create Nub options from the API documentation
     proc options {domain body} {
 	upvar count count
 	global API
@@ -97,44 +103,22 @@ namespace eval Nub {
 	}
 
 	set opts [lassign $API(Domains/$domain) about]
+	set extra ""
 	if {[llength $opts]} {
 	    foreach {opt text} $opts {
 		set val [tclarmour [armour [dict get? $body $opt]]]
 		set text [tclarmour [armour $text]]
 		if {[string match +* $text]} {
-		    append extra [<textarea> ${opt}_$count cols 80 class autogrow label "[string totitle $opt]: " title $text $val] \n
+		    append extra [<br>] [<textarea> ${opt}_$count cols 80 class autogrow label "[string totitle $opt]: " title $text $val] \n
 		} else {
-		    append extra [<text> ${opt}_$count label "[string totitle $opt]: " title $text $val] \n
+		    append extra [<br>] [<text> ${opt}_$count label "[string totitle $opt]: " title $text $val] \n
 		}
 	    }
-	    #puts stderr "EXTRA: $extra"
-	    set extra [Form <fieldset> vertical 1 $extra]
 	} else {
 	    set extra ""
 	}
 
-	if {[string index $about 0] eq "\n"} {
-	    set about [string trim $about "\n"]
-	}
-	set about [lindex [split $about] 0]
-	variable docurl
-	append extra [<p> [tclarmour "[<a> href [file join $docurl $domain] $domain] domain: $about"]]
-
 	return $extra
-    }
-
-    set showhide {
-	// http://www.learningjquery.com/2006/09/slicker-show-and-hide
-
-	// hides the slickbox as soon as the DOM is ready
-	// (a little sooner than page load)
-	$('#box').hide();
-	
-	// toggles the slickbox on clicking the noted link  
-	$('a#toggle').click(function() {
-	    $('#box').toggle(400);
-	    return false;
-	});
     }
 
     # construct an interaction form for each nub
@@ -142,47 +126,10 @@ namespace eval Nub {
 	set script [dict get $urls $key]
 	set extra ""
 	set disable 0
-	dict with script {
-	    lassign $domain domain name
-	    
-	    switch -- [string tolower $domain] {
-		redirect {
-		    set extra [Form <text> to_$count class autogrow size 80 label "To:" [tclarmour $body]]
-		    append extra [<p> "Redirect $section URL to the $body URL"]
-		} 
-		rewrite {
-		    set extra [Form <textarea> to_$count class autogrow cols 80 label "To:" [tclarmour $body]]
-		    append extra [<p> "Rewrite $section URL to $body"]
-		}
-		
-		block {
-		    set extra [Form <checkbox> block_$count label "Block?" checked 1 value 1]
-		    append extra [<p> "Block any client which accesses $section from this server."]
-		    set disable 1
-		}
-		literal {
-		    dict with body {
-			append extra [<br>]
-			append extra [Form <textarea> content_$count class autogrow cols 80 label "Content: " [tclarmour [armour $content]]]
-			append extra [Form <text> ctype_$count label "Mime Type: " [tclarmour $ctype]]
-		    }
-		    append extra [<p> "Return the literal content of the given mime type."]
-		}
-		code {
-		    dict with body {
-			append extra [<br>]
-			append extra [Form <textarea> content_$count class autogrow cols 80 label "Content: " [tclarmour [armour $content]]]
-			append extra [Form <text> ctype_$count label "Mime Type: " [armour $ctype]]
-		    }
-		    append extra [<p> "Return the result of evaluating content as a Tcl expression, with the given mime type."]
-		}
-		default {
-		    catch {package require $domain}
-		    set extra [<legend> "$domain parameters"]\n
-		    append extra [options $domain $body]
-		}
-	    }
+	set preamble ""
 
+	dict with script {
+	    # form URL for nub
 	    set path ""
 	    set path [join [lassign $key host] /]	;# get host/path
 	    if {$host ni {"" *}} {
@@ -191,19 +138,92 @@ namespace eval Nub {
 		set url $path
 	    }
 
+	    lassign $domain domain name
+	    
+	    switch -- [string tolower $domain] {
+		redirect {
+		    set extra [Form <text> to_$count class autogrow size 80 label "To:" [tclarmour $body]]
+		    set preamble [<p> "Redirect $section URL to the $body URL"]
+		} 
+
+		rewrite {
+		    set extra [Form <textarea> to_$count class autogrow cols 80 label "To:" [tclarmour $body]]
+		    set preamble [<p> "Rewrite $section URL to $body"]
+		}
+		
+		block {
+		    set extra [Form <checkbox> block_$count label "Block?" checked 1 value 1]
+		    set preamble [<p> "Block any client which accesses $section from this server."]
+		    set disable 1
+		}
+
+		literal {
+		    set section $url
+		    dict with body {
+			append extra [<br>]
+			append extra [Form <textarea> content_$count class autogrow cols 80 label "Content: " [tclarmour [armour $content]]]
+			append extra [Form <text> ctype_$count label "Mime Type: " [tclarmour $ctype]]
+		    }
+		    set preamble [<p> "Return the literal content of the given mime type."]
+		}
+
+		code {
+		    set section $url
+		    dict with body {
+			append extra [<br>]
+			append extra [Form <textarea> content_$count class autogrow cols 80 label "Content: " [tclarmour [armour $content]]]
+			append extra [Form <text> ctype_$count label "Mime Type: " [armour $ctype]]
+		    }
+		    set preamble [<p> "Return the result of evaluating content as a Tcl expression, with the given mime type."]
+		}
+
+		default {
+		    catch {package require $domain}
+		    set section $url
+		    append extra [options $domain $body]
+
+		    global API
+		    if {[info exists API(Domains/$domain)]} {
+			lassign $API(Domains/$domain) about
+
+			if {[string index $about 0] eq "\n"} {
+			    set about [string trim $about "\n"]
+			}
+			set about [lindex [split $about] 0]
+			variable docurl
+			set preamble [<p> [tclarmour "[<a> href [file join $docurl $domain] $domain] domain: $about"]]
+		    }
+		}
+	    }
+
 	    set form [<form> f$count action nubs {
+		$preamble
 		[<fieldset> {
-		    [<legend> [tclarmour "$domain $section"]]
+		    [<legend> [tclarmour "$domain $section parameters"]]
 		    [<text> url_$count disable $disable label "Url: " [tclarmour $url]]
-		    [<br>][tclarmour $extra]
+		    [tclarmour $extra]
 		    [<hidden> domain_$count $domain]
-		    [<submit> submit title "Change this Nub" style {float:right} value "edit $count" Change]
-		    [<submit> submit title "Delete this Nub" style {float:right} value "delete $count" Delete]
+		    [<hidden> el $count]
+		    [<submit> submit title "Change this Nub" style {float:right} value edit Change]
+		    [<submit> submit title "Delete this Nub" style {float:right} value delete Delete]
 		    [<reset> reset title "Reset" style {float:right} Reset]
 		}]
 	    }]\n
 	}
-	return [list "$domain $section" $form]
+
+	return [list $domain $section $form]
+    }
+
+    proc donubStyle {ordered style} {
+	variable urls
+	upvar count count
+	set acc {}
+	foreach key $ordered {
+	    if {[dict get $urls $key domain] ne $style} continue
+	    set keymap([incr count]) $key
+	    lappend acc {*}[donub $urls $key $count]
+	}
+	return $acc
     }
 
     variable password ""
@@ -229,165 +249,20 @@ namespace eval Nub {
     variable theme start
     variable keymap
 
-    proc /nubs {r {submit ""} args} {
-	Debug.nub {/nubs ($submit) $args}
+    # display all nubs
+    proc all {r {etitle ""} {error ""}} {
 	variable theme
 	dict lappend r -headers [<stylesheet> css]
 	set r [jQ theme $r $theme]
 
-	variable urls
-
-	variable keymap
-	set submit [split $submit]
-	set error ""
-	set etitle ""
-
-	
-	if {[lindex $submit 0] ne "" && [credentials $r] ne ""} {
-	    set challenge "Nub Modification"
-	    return [Http Unauthorized $r [Http BasicAuth $challenge]]
-	} else {
-	    switch -- [lindex $submit 0] {
-		edit {
-		    # edit this element
-		    set el [lindex $submit end]
-		    set url [dict get $args url_$el]; dict unset args url_$el
-		    set section [dict get $urls $keymap($el) section]
-		    if {$url ne $section} {
-			# they've changed the url - copy-edit its content
-			set nkey [parseurl $url]
-			set urls $nkey [dict merge [dict get $urls $keymap($el)] [list section [non_auth $url] auth [auth_part $url]]]
-			set keymap($el) $nkey
-			set section [non_auth $url]
-		    }
-		    
-		    set domain [dict get $args domain_$el]; dict unset args domain_$el
-		    switch -- $domain {
-			Redirect -
-			Rewrite {
-			    dict set urls $keymap($el) body [dict get $args to_$el]
-			}
-			
-			Block {
-			    if {![dict get $args block_$el]} {
-				dict unset urls $keymap($el)
-			    }
-			}
-
-			Literal -
-			Code {
-			    dict set urls $keymap($el) body content [dict get $args content_$el]
-			    dict set urls $keymap($el) body ctype [dict get $args ctype_$el]
-			}
-
-			default {
-			    # this is a proper domain
-			    global API
-			    if {[info exists API(Domains/$domain)]} {
-				set opts [lassign $API(Domains/$domain) about]
-
-				foreach {opt text} $opts {
-				    if {[dict exists $args ${opt}_$el]} {
-					dict set urls $keymap($el) body $opt [dict get $args ${opt}_$el]
-				    }
-				}
-			    }
-			}
-		    }
-		}
-
-		delete {
-		    # delete this element
-		    set el [lindex $submit end]
-		    dict unset urls $keymap($el)
-		}
-
-		add {
-		    # add a new element
-		    foreach v {host domain path} {
-			set $v [dict get $args ${v}_new]
-		    }
-		    set path /[string trimleft $path /]
-		    if {$host ni {"" *}} {
-			set section $host/$path
-		    } else {
-			set section $path
-		    }
-		    set key [parseurl $section]
-		    dict set urls $key [list domain $domain section $section body {}]
-		}
-		load {
-		    if {[catch {configF [dict get $args load_file]} result]} {
-			lappend error $result
-		    }
-		    set etitle "Loading"
-		}
-		save {
-		    variable urls
-		    generate $urls
-		    set etitle "Saving"
-		    if {![llength $error]} {
-			set result ""
-			foreach {key val} $urls {
-			    dict with val {
-				switch -- $domain {
-				    Literal -
-				    Code {
-					dict with body {
-					    set line "[string tolower $domain] $section [list $content] $ctype"
-					}
-				    }
-				    Redirect -
-				    Rewrite {
-					set line "[string tolower $domain] $section $body"
-				    }
-				    Block {
-					set line "[string tolower $domain] $section"
-				    }
-				    default {
-					set line "domain [list $domain] $section $body"
-				    }
-				}
-			    }
-			    append result $line \n
-			}
-			variable nubdir
-			set file [file rootname [file join $nubdir [file tail [dict get $args save_file]]]].nub
-			
-			if {[file exists $file]} {
-			    file rename -force $file $file.[clock seconds]
-			}
-			if {[catch {
-			    ::fileutil::writeFile $file $result
-			} e]} {
-			    set error "Failed to Save in $file: $e"
-			}
-			Debug.nub {SAVE: $file $e ($result)}
-			lappend error "Saved $file"
-		    } else {
-			lappend error "Refused to Save"
-		    }
-		}
-		apply {
-		    variable urls
-		    set do [generate $urls]
-		    if {$error eq ""} {
-			eval $do
-		    }
-		    set etitle "Applying"
-		}
-	    }
-	}
-
-	catch {unset keymap}
-
+	# construct New Nub section
 	global API
 	set domnames {}
 	foreach n [array names API Domains/*] {
 	    lappend domnames [file tail $n]
 	}
 	set selection [lsort -dictionary [list Rewrite Block Redirect {*}$domnames Literal Code]]
-	append content [<form> new style {float:left;} {
+	append content [<form> new action add style {float:left;} {
 	    [<fieldset> {
 		[<legend> "New Nub"]
 		[<selectlist> domain_new label "Type: " $selection]
@@ -396,7 +271,9 @@ namespace eval Nub {
 		[<p> "Create a new nub with the given type for the given path and host."]
 	    }]
 	}]
-	append content [<form> compile style {float:left;} {
+
+	# construct Apply Nubs section
+	append content [<form> compile action apply style {float:left;} {
 	    [<fieldset> {
 		[<legend> "Apply Nubs"]
 		[<submit> submit style {float:right} value apply Apply]
@@ -405,6 +282,7 @@ namespace eval Nub {
 	}]	
 	append content [<br> clear both]
 
+	# construct Load Nubs section
 	variable nubdirSys; variable nubdir
 	set selection {}
 	if {[info exists nubdir] && $nubdir ne ""} {
@@ -412,7 +290,7 @@ namespace eval Nub {
 	}
 	lappend selection {*}[glob -nocomplain -tails -directory $nubdirSys *.nub]
 	set selection [lsort -dictionary $selection]
-	append content [<form> save style {float:left;} {
+	append content [<form> load action load style {float:left;} {
 	    [<fieldset> {
 		[<legend> "Load Nubs"]
 		[<selectlist> load_file label "File: " $selection]
@@ -420,7 +298,9 @@ namespace eval Nub {
 		[<p> "Load nub file."]
 	    }]
 	}]
-	append content [<form> save style {float:left;} {
+
+	# construct Save Nubs section
+	append content [<form> save action save style {float:left;} {
 	    [<fieldset> {
 		[<legend> "Save Nubs"]
 		[<text> save_file label "Name: " ""]
@@ -430,13 +310,253 @@ namespace eval Nub {
 	}]
 	append content [<br> clear both][<hr>]
 
+	# header tells us whence the nubs were loaded
 	variable loaded
 	set header [<h3> "Nubs from $loaded"]
 
-	variable whatsthis; variable docurl
-	append header [<a> id toggle href # "What's this? ..."]
+	append header [<hr>]
 
-	set huh $whatsthis
+	set content "$header\n$content"
+
+	# construct error section
+	if {$error ne ""} {
+	    append content [<h3> "Result of $etitle:"]
+	    append content [<p> class message [join $error "</p><p class='message'>"]]
+	    append content [<hr>]
+	}
+
+	# construct Nub Bodies section - an accordion of nubs
+
+	# order urls by key length - longest first
+	variable urls
+	set ordered [lsort -command urlorder [dict keys $urls]]
+	Debug.nub {ORDERED $ordered}
+
+	set count 0
+	set nubs {}
+	set acc {}
+
+	foreach style {Rewrite Block Redirect} {
+	    foreach {h s f} [donubStyle $ordered $style] {
+		lappend acc [<h3> [<a> href # "$h $s"]] $f
+	    }
+	}
+
+	foreach key $ordered {
+	    if {[dict get $urls $key domain] in {Block Rewrite Redirect}} continue
+	    set keymap([incr count]) $key
+	    lassign [donub $urls $key $count] h s f
+	    lappend acc [<h3> [<a> href # "$h $s"]] $f
+	}
+
+	append content [<br>]
+	append content [<div> class accordion [join $acc \n]]
+	append content [<hr>]
+
+	set r [jQ accordion $r .accordion active false alwaysOpen false clearStyle true autoHeight false fillSpace false]
+	set r [jQ autogrow $r .autogrow]
+	return [Http Ok $r $content]
+    }
+
+    proc /nubs/edit {r args} {
+	if {[credentials $r] ne ""} {
+	    set challenge "Nub Modification"
+	    return [Http Unauthorized $r [Http BasicAuth $challenge]]
+	}
+
+	# edit this element
+	variable keymap
+	variable urls
+	set el [dict get $args el]
+	set url [dict get $args url_$el]; dict unset args url_$el
+	set section [dict get $urls $keymap($el) section]
+
+	if {$url ne $section} {
+	    # they've changed the url - copy-edit its content
+	    set nkey [parseurl $url]
+	    set urls $nkey [dict merge [dict get $urls $keymap($el)] [list section [non_auth $url] auth [auth_part $url]]]
+	    set keymap($el) $nkey
+	    set section [non_auth $url]
+	}
+	
+	set domain [dict get $args domain_$el]; dict unset args domain_$el
+	switch -- $domain {
+	    Redirect -
+	    Rewrite {
+		dict set urls $keymap($el) body [dict get $args to_$el]
+	    }
+	    
+	    Block {
+		if {![dict get $args block_$el]} {
+		    dict unset urls $keymap($el)
+		}
+	    }
+	    
+	    Literal -
+	    Code {
+		dict set urls $keymap($el) body content [dict get $args content_$el]
+		dict set urls $keymap($el) body ctype [dict get $args ctype_$el]
+	    }
+	    
+	    default {
+		# this is a proper domain
+		global API
+		if {[info exists API(Domains/$domain)]} {
+		    set opts [lassign $API(Domains/$domain) about]
+		    
+		    foreach {opt text} $opts {
+			if {[dict exists $args ${opt}_$el]} {
+			    dict set urls $keymap($el) body $opt [dict get $args ${opt}_$el]
+			}
+		    }
+		}
+	    }
+	}
+
+	return [all $r Editing]
+    }
+
+    proc /nubs/delete {r args} {
+	if {[credentials $r] ne ""} {
+	    set challenge "Nub Modification"
+	    return [Http Unauthorized $r [Http BasicAuth $challenge]]
+	}
+
+	# delete this element
+	variable keymap
+	variable urls
+	dict unset urls $keymap([dict get $args el])
+
+	return [all $r Deleting]
+    }
+
+    proc /nubs/add {r args} {
+	if {[credentials $r] ne ""} {
+	    set challenge "Nub Modification"
+	    return [Http Unauthorized $r [Http BasicAuth $challenge]]
+	}
+
+	# add a new element
+	foreach v {host domain path} {
+	    set $v [dict get $args ${v}_new]
+	}
+	set path /[string trimleft $path /]
+	if {$host ni {"" *}} {
+	    set section $host/$path
+	} else {
+	    set section $path
+	}
+	set key [parseurl $section]
+
+	variable urls
+	dict set urls $key [list domain $domain section $section body {}]
+
+	return [all $r Adding]
+    }
+
+    proc /nubs/load {r args} {
+	if {[credentials $r] ne ""} {
+	    set challenge "Nub Modification"
+	    return [Http Unauthorized $r [Http BasicAuth $challenge]]
+	}
+
+	if {![catch {configF [dict get $args load_file]} error]} {
+	    set error ""
+	}
+	return [all $r Loading $error]
+    }
+
+    proc /nubs/save {r args} {
+	if {[credentials $r] ne ""} {
+	    set challenge "Nub Modification"
+	    return [Http Unauthorized $r [Http BasicAuth $challenge]]
+	}
+
+	variable urls
+	generate $urls
+
+	if {![llength $error]} {
+	    set result ""
+	    foreach {key val} $urls {
+		dict with val {
+		    switch -- $domain {
+			Literal -
+			Code {
+			    dict with body {
+				set line "[string tolower $domain] $section [list $content] $ctype"
+			    }
+			}
+			Redirect -
+			Rewrite {
+			    set line "[string tolower $domain] $section $body"
+			}
+			Block {
+			    set line "[string tolower $domain] $section"
+			}
+			default {
+			    set line "domain [list $domain] $section $body"
+			}
+		    }
+		}
+		append result $line \n
+	    }
+	    variable nubdir
+	    set file [file rootname [file join $nubdir [file tail [dict get $args save_file]]]].nub
+	    
+	    if {[file exists $file]} {
+		file rename -force $file $file.[clock seconds]
+	    }
+	    if {[catch {
+		::fileutil::writeFile $file $result
+	    } e]} {
+		set error "Failed to Save in $file: $e"
+	    }
+	    Debug.nub {SAVE: $file $e ($result)}
+	    lappend error "Saved $file"
+	} else {
+	    lappend error "Refused to Save"
+	}
+
+	return [all $r Saving $error]
+    }
+
+    proc /nubs/apply {r args} {
+	if {[credentials $r] ne ""} {
+	    set challenge "Nub Modification"
+	    return [Http Unauthorized $r [Http BasicAuth $challenge]]
+	}
+
+	variable urls
+	set do [generate $urls]
+	if {$error eq ""} {
+	    eval $do
+	}
+	return [all $r Applying]
+    }
+
+    proc /nubs {r {submit ""} args} {
+	Debug.nub {/nubs ($submit) $args}
+
+	switch -- $submit {
+	    edit -
+	    delete {
+		return /$op $r {*}$args
+	    }
+	}
+
+	if {[lindex $submit 0] ne "" && [credentials $r] ne ""} {
+	    set challenge "Nub Modification"
+	    return [Http Unauthorized $r [Http BasicAuth $challenge]]
+	}
+
+	return [all $r]
+    }
+
+    proc / {r} {
+	# Nub documentation
+	variable whatsthis; variable docurl
+	append huh $whatsthis \n
+
 	foreach {n v} [array get ::API Domains/*] {
 	    append huh ";\[[file join $docurl $n] [file tail $n]\]: "
 	    set v [lindex $v 0]
@@ -448,67 +568,7 @@ namespace eval Nub {
 	}
 	set huh [stxify $huh]
 
-	append header \n [<div> id box style {display:none} $huh] \n
-	append header [<hr>]
-
-	set content "$header\n$content"
-
-	if {$error ne ""} {
-	    append content [<h3> "Result of $etitle:"]
-	    append content [<p> class message [join $error "</p><p class='message'>"]]
-	    append content [<hr>]
-	}
-
-	# order urls by key length - longest first
-	set ordered [lsort -command urlorder [dict keys $urls]]
-	Debug.nub {ORDERED $ordered}
-
-	set count 0
-	set nubs {}
-	foreach key $ordered {
-	    if {[dict get $urls $key domain] ne "Rewrite"} continue
-	    set keymap([incr count]) $key
-	    dict set nubs {*}[donub $urls $key $count]
-	}
-
-	foreach key $ordered {
-	    if {[dict get $urls $key domain] ne "Block"} continue
-	    set keymap([incr count]) $key
-	    dict set nubs {*}[donub $urls $key $count]
-	}
-
-	foreach key $ordered {
-	    if {[dict get $urls $key domain] ne "Redirect"} continue
-	    set keymap([incr count]) $key
-	    dict set nubs {*}[donub $urls $key $count]
-	}
-
-	foreach key $ordered {
-	    if {[dict get $urls $key domain] in {Block Rewrite Redirect}} continue
-	    set keymap([incr count]) $key
-	    dict set nubs {*}[donub $urls $key $count]
-	}
-	append content [<br>][jQ dict2accordion $nubs class accordion] \n
-	append content [<hr>]
-
-	set r [jQ accordion $r .accordion active false alwaysOpen false clearStyle true autoHeight false fillSpace false]
-	set r [jQ autogrow $r .autogrow]
-	variable showhide; set r [jQ postscript $r $showhide]
-	return [Http Ok $r $content]
-    }
-
-    proc / {r} {
-	variable urls
-	# order urls by key length - longest first
-	set ordered [lsort -command urlorder [dict keys $urls]]
-	foreach key $ordered {
-	    set script [dict get $urls $key]
-	    set section [dict get $script section]; dict unset script section
-	    set domain [dict get $script domain]; dict unset script domain
-	    set path [join [lassign $key host] /]
-	    lappend u [<li> "[<a> href url?host=$host&path=$path $section] $domain"]
-	}
-	return [Http Ok $r [<ul> [join $u \n]]]
+	return [Http Ok $r $huh]
     }
 
     proc urlorder {k1 k2} {
@@ -696,7 +756,7 @@ namespace eval Nub {
 	    # we consider it a reference to a named domain
 
 	    # TODO: this isn't used, or well defined.  Reconsider
-	    if {[info exists domains $domain] && [llength $dargs]} {
+	    if {0 && [info exists domains $domain] && [llength $dargs]} {
 		# domain references can't add arguments
 		lappend error "[dict get $dom section]: Can't specify named domain $domain (defined in [dict get $domains $domain section] with constructor arguments.  Try just domain=$domain"
 	    }
