@@ -268,7 +268,7 @@ oo::class create Tupler {
 		# found the user-defined page "Not Found"
 		Debug.tupler {NotFound Handler: $found}
 		set mime [my getmime $found]
-		return [Http NotFound $r [subst [dict get $found content]] $mime]
+		return [Http Ok $r [subst [dict get $found content]] $mime]
 	    }
 	}
     }
