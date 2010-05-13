@@ -222,7 +222,7 @@ namespace eval Repo {
 	    create {
 		# create a subdirectory
 		set subdir [::fileutil::jail $path [dict get $Q subdir]]
-		set relpath [file join [lrange [file split [::fileutil::relativeUrl $path $subdir]] 1 end]]/
+		set relpath [join [lrange [split [::fileutil::relativeUrl $path $subdir] /] 1 end] /]/
 		Debug.repo {create: $path $subdir - $relpath}
 		file mkdir $subdir
 		return [Http Redir $r $relpath]

@@ -277,7 +277,7 @@ class create Direct {
 	# one or the other of namespace or object must exist
 	if {![info exist namespace] && ![info exists object]} {
 	    # no namespace or object - must be a mixin
-	    next {*}$args mount $mount
+	    next? {*}$args mount $mount
 	    set object [self]
 	    Debug.direct {mixin Direct [self] class: '[info object class [self]]', mixins: '[info class mixins [info object class $object]]' methods: '[info class methods [info object class $object] -private -all]'}
 	}
@@ -347,5 +347,6 @@ class create Direct {
 		set namespace ::$namespace
 	    }
 	}
+	catch {next {*}$args}
     }
 }
