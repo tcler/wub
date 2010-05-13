@@ -177,11 +177,12 @@ welcome {
     type "Tcl Script"
     content {
 	[<h1> "Welcome to Tuple"]
-	[Html ulinks {*}[subst {
+	[Html ulinks {
 	    "Test composition and Tcl Scripting" now
 	    "Test Tcl Variable and Tcl Dict rendering" reflect
-	    "Test Uppercase and text/plain" {Example Uppercase}
-	}]]
+	    "Test Uppercase and text/plain" {Example+Uppercase}
+	    "Test page not found" nothere
+	}]
     }
 }
 
