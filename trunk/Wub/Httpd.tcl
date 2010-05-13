@@ -84,6 +84,7 @@ set API(Server/Httpd) {
     }
 }
 
+##nagelfar syntax catch c n? n?
 proc bgerror {args} {
     Debug.error {bgerror: $args}
 }
@@ -669,7 +670,7 @@ namespace eval Httpd {
 		append line [<td> ""]
 	    }
 	    if {[info exists reaper($coro)]} {
-		append line [<td> [expr {$reaper($coro) - now}]]
+		append line [<td> [expr {$reaper($coro) - $now}]]
 	    } else {
 		append line [<td> ""]
 	    }
@@ -1248,7 +1249,7 @@ namespace eval Httpd {
 	    if {$maxfield
 		&& [string length [dict get $r $key]] > $maxfield
 	    } {
-		handle [Http Bad $r "Illegal header: '[string range $line 0 20]...' [string length $dict get $r $key] is too long"] "Illegal Header - [string length $dict get $r $key] is too long"
+		handle [Http Bad $r "Illegal header: '[string range $line 0 20]...' [string length $dict get $r $key] is too long"] "Illegal Header - [string length [dict get $r $key]] is too long"
 	    }
 	}
 
