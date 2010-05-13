@@ -251,7 +251,7 @@ oo::class create Tupler {
     method bad {r eo} {
 	# failed to resolve name
 	set extra [Url decode [dict get $r -extra]]
-	set name [dict get? $eo -notfound]
+	set nfname [dict get? $eo -notfound]
 	set kind [dict get? $eo -kind]
 	
 	# just an error - rethrow it
