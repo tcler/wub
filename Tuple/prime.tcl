@@ -191,7 +191,9 @@ now {
     type "Tcl Script"
     content {
 	[<h1> Now]
-	[<p> [clock format [clock seconds]]]
+	[<p> "[clock format [clock seconds]] is the time"]
+	[<p> "This page is generated from a Tcl Script, and assembled from components for [<a> href xray/style style]."]
+	[<p> "The page may be viewed with the [<a> href xray/now "xray facility"]."]
     }
 }
 
