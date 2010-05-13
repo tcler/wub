@@ -11,13 +11,19 @@ proc ::oo::Helpers::classvar {name args} {
     }
 }
 
+proc ::oo::Helpers::next? {args} {
+    if {[llength [uplevel self next]]} {
+	uplevel 1 [list next {*}$args]
+    }
+}
+
 proc ::oo::define::classmethod {name {args {}} {body {}}} {
     set class [lindex [info level -1] 1]
     set classmy [info object namespace $class]::my
     if {[llength [info level 0]] == 4} {
         uplevel 1 [list self method $name $args $body]
     }
-    uplevel 1 forward $name $classmy $name
+    uplevel 1 [list forward $name $classmy $name]
 }
 
 proc oo::define::Variable args {
