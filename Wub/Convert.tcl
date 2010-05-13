@@ -30,12 +30,27 @@ class create Convert {
     method transform {from to args} {
 	set prefix ${from},$to
 	variable transform; set transform($prefix) $args
-	variable graph; dict lappend graph $from $to
+
+	# add (only) new outbound transition to graph
+	variable graph;
+	set out {}
+	foreach t [dict get? $graph $from] {
+	    dict set out $t {}
+	}
+	if {![dict exists $out $to]} {
+	    dict lappend graph $from $to
+	}
     }
 
     # Postprocess - add a postprocessor to the set of postprocessors
     method postprocess {from args} {
 	variable postprocess; set postprocess($from) $args
+    }
+
+    # graph - the graph structure
+    method graph {} {
+	variable graph
+	return $graph
     }
 
     # object - add all transformers and postprocessors from the object
@@ -103,10 +118,11 @@ class create Convert {
 
 	    #set rsp [Http loadContent $rsp] ;# read -fd content if any
 
-	    Debug.convert {postprocessing: $postprocess($ctype)}
-	    set rsp [{*}$postprocess($ctype) [list $rsp]]
+	    Debug.convert {postprocessing: '$postprocess($ctype)'}
+	    dict lappend rsp -transforms $ctype ;# record the transforms
+	    set rsp [{*}$postprocess($ctype) $rsp]
 	    catch {dict unset rsp -file}	;# forget that there's a file connected
-	    Debug.convert {postprocessed: $postprocess($ctype)}
+	    Debug.convert {postprocessed: '$postprocess($ctype)' -> [dict size $rsp] response}
 	} else {
 	    Debug.convert {there is no $ctype postprocessor}
 	}
@@ -132,16 +148,17 @@ class create Convert {
 	lassign [split $to /] tmajor
 
 	# generate transformer name pairs
-	foreach {accept possible} [subst {
-	    1.0 [list $from,$to]
-	    0.5 [list [array names paths -glob $fmajor/*,$to]]
-	    0.5 [list [array names paths -glob $from,$tmajor/*]]
-	    0.25 [list [array names paths -glob $fmajor/*,$tmajor/*]]
-	}] {
-	    if {![llength $possible]} continue
-	    lassign [split [lindex $possible 0] ,] from to
-	    Debug.convert {ESSAY $accept: '$from' '$to'}
-	    set path [::sgraph::path $graph $from $to]
+	set poss [list 1.0 $from,$to]
+	lappend poss 0.5 [lindex [array names paths -glob $fmajor/*,$to] 0]
+	lappend poss 0.5 [lindex [array names paths -glob $from,$tmajor/*] 0]
+	lappend poss 0.25 [lindex [array names paths -glob $fmajor/*,$tmajor/*] 0]
+	Debug.convert {POSSIBLE $from -> $to $poss}
+
+	foreach {accept possible} $poss {
+	    if {$possible eq ""} continue
+	    lassign [split $possible ,] from to
+	    Debug.convert {ESSAY accept:$accept possible:$possible from:'$from' to:'$to'}
+	    set path [sgraph path $graph $from $to]
 	    if {[llength $path]} {
 		Debug.convert {SUCCESS path $from -> $to via $path}
 		break
@@ -174,8 +191,8 @@ class create Convert {
     # which will generate an acceptable type
 
     method tpath {rsp} {
-	set ctype [dict get $rsp content-type]	;# what we have
-	set accept [dict get $rsp accept]	;# what we want
+	set ctype [string tolower [dict get $rsp content-type]]	;# what we have
+	set accept [string tolower [dict get $rsp accept]]	;# what we want
 
 	# check transformation cache first
 	variable tcache
@@ -193,7 +210,7 @@ class create Convert {
 	    # client will accept type $a with quality $q
 	    lassign [split [string trim $a] ";"] a q
 
-	    Debug.convert {tpath matching '$a' '$q' against '$ctype'}
+	    Debug.convert {tpath matching accept:'$a' quality:'$q' against '$ctype'}
 	    if {[string match $a $ctype]} {
 		# exact match - we have a direct conversion
 		Debug.convert {tpath: DIRECT conversion to '$a'}
@@ -267,35 +284,41 @@ class create Convert {
 	}
 
 	# a transforming path exists
-	Debug.convert {TRANSFORMING: [dict get $rsp -url] along path $path}
+	Debug.convert {TRANSFORMING: url:'[dict get? $rsp -url]' [dict size $rsp] along path $path}
 
 	# perform those transformations on the path
 	variable transform
 	set ctype [dict get $rsp content-type]
 	set oldel $ctype
 	foreach el $path {
-	    Debug.convert {transform element: $el with '$transform($el)'}
+	    Debug.convert {transform element: $el with '$transform($el)' accepting: '[dict get? $rsp accept]' / [dict size $rsp]}
+	    dict lappend rsp -transforms $el	;# record the transforms
+	    if {[lindex $transform($el) 0] eq "namespace"} {
+		set rsp [list $rsp]	;# namespace eval needs an extra level of quoting
+	    }
 	    if {![set code [catch {
-		{*}$transform($el) [list $rsp]	;# transform content
+		{*}$transform($el) $rsp	;# transform content
 	    } result eo]]} {
 		# transformation success - proceed
 		set rsp $result
+		Debug.convert {transformed accepting: '[dict get? $rsp accept]' / [dict size $rsp]}
 		if {[dict exists $rsp -suspend]} {
 		    # the transformer wants to suspend
+		    Debug.convert {Transformer suspended}
 		    return [list suspended $rsp]
 		}
 
 		# ensure the transformation is still on-path
 		set ctype [dict get $rsp content-type]
-		lassign [split $el .] -> oldtype expected
+		lassign [split $el .] -> oldtype expected ;# characterises the transformation
 		if {![string match $expected $ctype]} {
-		    # a transformer hasn't set the new mime type.
+		    # a transformer hasn't set a new mime type.
 		    if {[string match $oldtype $ctype]} {
 			dict set rsp content-type $expected
-			Debug.log {Transformer '$transform($el)' failed to set content type to $expected - FIX please}
+			Debug.error {Convert transformer '$transform($el)' failed to set content type to $expected (accepting: '[dict get? $rsp accept]') - FIX please}
 		    } else {
 			# restart the transformation with new content type
-			Debug.convert {Transformer '$transform($el)' $oldtype -> $ctype - expecting '$expected' CHANGED}
+			Debug.convert {Transformer '$transform($el)' from '$oldtype' -> '$ctype' - but were expecting '$oldtype' -> '$expected' accepting: '[dict get? $rsp accept]' ... target CHANGED}
 			return [list changed $rsp]
 		    }
 		}
@@ -303,13 +326,14 @@ class create Convert {
 		Debug.convert {transform Success: $transform($el)}
 	    } else {
 		# transformation failure - alert the caller
-		Debug.convert {transform Error: $result ($eo) ([dumpMsg $rsp])}
+		Debug.convert {transform Error over ($transform($el)): $result ($eo)}
 		return [list error [Http ServerError $rsp $result $eo]]
 	    }
 
 	    set oldtype $el
 	}
 
+	Debug.convert {transform accepting final: '[dict get? $rsp accept]'}
 	return [list complete $rsp]
     }
 
@@ -332,6 +356,7 @@ class create Convert {
 	}
 
 	# avoid identity conversions
+	set to [string tolower $to]
 	if {$to ne ""} {
 	    if {[dict get? $rsp content-type] eq $to} {
 		Debug.convert {Identity Conversion}
@@ -356,10 +381,12 @@ class create Convert {
 	variable postprocess
 	set preprocessed ""
 	set ctype [dict get $rsp content-type]
-	if {[dict exists $rsp content-type] && [info exists postprocess($ctype)]} {
-	    Debug.convert {Preprocess of [dict get $rsp content-type]}
+	if {[dict exists $rsp content-type]
+	    && [info exists postprocess($ctype)]
+	} {
+	    Debug.convert {Preprocess of '[dict get $rsp content-type]'}
 	    set rsp [my postprocessor $rsp]
-	    # remember we've preprocessed
+	    # remember what we've preprocessed
 	    set preprocessed [dict get $rsp content-type]
 	}
 
@@ -370,11 +397,11 @@ class create Convert {
 	    # determine the current best path from the current content-type
 	    # and one of the acceptable types.
 	    set oldct [dict get $rsp content-type]
-	    Debug.convert {transforming from '$oldct' to one of these '[dict get $rsp accept]'}
+	    Debug.convert {transforming from '$oldct' to one of these acceptable:'[dict get? $rsp accept]'}
 	    lassign [my transformer $rsp] state rsp
 	    Debug.convert {transformed from $oldct to '[dict get $rsp content-type]'}
+	    Debug.convert {accepting1: '[dict get? $rsp accept]'}
 
-	    Debug.convert {STATE: $state RAW: '[dict get? $rsp -raw]'}
 	    switch -- $state {
 		complete -
 		none -
@@ -385,12 +412,15 @@ class create Convert {
 
 		    # perform any postprocessing on *transformed* type
 		    # avoid doing this twice - if we've already preprocessed
+		    Debug.convert {conversion complete STATE: '$state' RAW? '[dict get? $rsp -raw]'}
 		    set ctype [dict get $rsp content-type]
 		    if {$preprocessed ne $ctype
 			&& [info exists postprocess($ctype)]
 		    } {
 			set rsp [my postprocessor $rsp]
 		    }
+		    Debug.convert {accepting2: '[dict get? $rsp accept]'}
+
 		    break
 		}
 
@@ -398,20 +428,24 @@ class create Convert {
 		    # a transformation error has occurred
 		    # we presume a ServerError has been generated
 		    # we will proceed with it as content
+		    Debug.convert {conversion ERROR:}
 		}
 
 		changed {
 		    # the transformation path took us in an unexpected direction
+		    Debug.convert {conversion CHANGED:}
 		}
 		suspended {
 		    # a transformer has suspended
 		    # the content will be returned later
+		    Debug.convert {conversion SUSPENDED:}
 		    break
 		}
 	    }
 	}
 
 	Debug.convert {conversion complete: [dumpMsg $rsp]}
+	Debug.convert {accepting final: '[dict get? $rsp accept]'}
 	return $rsp
     }
 
@@ -426,7 +460,7 @@ class create Convert {
 	if {[dict exists $rq accept]} {
 	    set oldaccept [dict get $rq accept]
 	}
-	set rq [my convert $rq $to]
+	set rq [my convert $rq [string tolower $to]]
 	if {[info exists oldaccept]} {
 	    dict set rq accept $oldaccept
 	}
@@ -439,7 +473,7 @@ class create Convert {
 	variable namespace
 
 	variable paths; array set paths {}
-	variable graph	;# transformation graph - all known transforms
+	variable graph {}	;# transformation graph - all known transforms
 	variable transform	;# set of mappings from,to mime-types
 	array set transform {}
 
@@ -456,6 +490,7 @@ class create Convert {
 	variable conversions
 	if {$conversions} {
 	    package require conversions
+	    Debug.convert {adding in default conversions}
 	    my namespace ::conversions
 	}
 
@@ -466,6 +501,7 @@ class create Convert {
 	}
 
 	my object [self]	;# add in any conversions by child instances
+	next? {*}$args
     }
 }
 
