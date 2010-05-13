@@ -111,7 +111,7 @@ namespace eval Query {
 	    set args [lindex $args 0]
 	}
 	set pairs {}
-	foreach n v $args {
+	foreach {n v} $args {
 	    lappend pairs "[encode $n]=[encode $v]"
 	}
 	return [join $pairs &]

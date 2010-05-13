@@ -8,8 +8,7 @@ package provide sgraph 1.0
 namespace eval sgraph {
     proc lpop _L {
 	upvar 1 $_L L
-	set res [lindex $L 0]
-	set L [lrange $L 1 end]
+	set L [lassign $L res]
 	set res
     }
 
@@ -29,10 +28,11 @@ namespace eval sgraph {
 	}
 
 	set length 999999	;# simulated infinity
-	set todo $from	;# list of things to try
+	set todo $from		;# list of things to try
 	while {[llength $todo]} {
 	    set try [lpop todo]	;# first thing to do
 	    set last [lindex $try end]
+	    #puts stderr "sgraph path: ($try) ($last)"
 	    foreach node [neighbors $g $last] {
 		if {($node eq $to)
 		    || [string match $to $node]

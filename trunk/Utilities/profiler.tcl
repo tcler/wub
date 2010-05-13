@@ -56,8 +56,8 @@ if { [info exists TimeProfilerMode] } {
 
  	# Intialize the elapsed time counters if needed...
  	if { ![info exists ProfilerArray(ElapsedClicks)] } {
- 	    set ProfilerArray(ElapsedClicks) [expr double([clock clicks])]
- 	    set ProfilerArray(Elapsedms) [expr double([clock clicks -milliseconds])]
+ 	    set ProfilerArray(ElapsedClicks) [expr {double([clock clicks])}]
+ 	    set ProfilerArray(Elapsedms) [expr {double([clock clicks -milliseconds])}]
  	}
 
  	set fun [lindex [lindex $args 0] 0]
@@ -77,14 +77,14 @@ if { [info exists TimeProfilerMode] } {
  	    if { $fi == $ProfilerArray(funcount) } {
  		# Yes, function first time visit, add...
  		set ProfilerArray($fi) $fun
- 		set ProfilerArray(funcount) [expr $fi + 1]
+ 		set ProfilerArray(funcount) [expr {$fi + 1}]
  	    }
 
  	    # Intialize the "EnterStack" if needed...
  	    if { ![info exists ProfilerArray(ES0)] } {
  		set esi 1
  	    } else {
- 		set esi [expr $ProfilerArray(ES0) + 1]
+ 		set esi [expr {$ProfilerArray(ES0) + 1}]
  	    }
  	    # Append a "enter clicks" and "enter function name index" to the EnterStack...
  	    set ProfilerArray(ES0) $esi
@@ -100,7 +100,7 @@ if { [info exists TimeProfilerMode] } {
  	    if { [info exists ProfilerArray(ES0)] } {
  		# Pull an "enter clicks" off the EnterStack...
  		set esi $ProfilerArray(ES0)
- 		set deltaclicks [expr $deltaclicks - $ProfilerArray(ES$esi)]
+ 		set deltaclicks [expr {$deltaclicks - $ProfilerArray(ES$esi)}]
  		incr esi -1
  		set ProfilerArray(ES0) $esi
 
@@ -108,7 +108,7 @@ if { [info exists TimeProfilerMode] } {
  		if { $esi } {
  		    # Add our elapsed clicks to the previous stacked values to compensate...
  		    for { set fix $esi } { $fix > 0 } { incr fix -1 } {
- 			set ProfilerArray(ES$fix) [expr $ProfilerArray(ES$fix) + $deltaclicks]
+ 			set ProfilerArray(ES$fix) [expr {$ProfilerArray(ES$fix) + $deltaclicks}]
  		    }
  		}
 
@@ -116,7 +116,7 @@ if { [info exists TimeProfilerMode] } {
  		if { ![info exists ProfilerArray($fun,0)] } {
  		    set cai 1
  		} else {
- 		    set cai [expr $ProfilerArray($fun,0) + 1]
+ 		    set cai [expr {$ProfilerArray($fun,0) + 1}]
  		}
 
  		# Add another "delta clicks" reading...
@@ -132,7 +132,7 @@ if { [info exists TimeProfilerMode] } {
  	# Stop timing elapsed time and calculate conversion factor for clicks to ms...
  	set EndClicks [expr {double([clock clicks]) - $ProfilerArray(ElapsedClicks)}]
  	set Endms [expr {double([clock clicks -milliseconds]) - $ProfilerArray(Elapsedms)}]
- 	set msPerClick [expr $Endms / $EndClicks]
+ 	set msPerClick [expr {$Endms / $EndClicks}]
 
  	# Visit each function and generate the statistics for it...
  	for { set fi 0 ; set PerfList "" } { $fi < $ProfilerArray(funcount) } { incr fi } {
@@ -151,11 +151,11 @@ if { [info exists TimeProfilerMode] } {
  		}
  	    }
  	    set cavg [expr {$ctotal / double($ProfilerArray($fun,0))}]
- 	    set ProfilerArray($fun,avgms) [expr $cavg * $msPerClick]
- 	    set ProfilerArray($fun,totalms) [expr $ctotal * $msPerClick]
+ 	    set ProfilerArray($fun,avgms) [expr {$cavg * $msPerClick}]
+ 	    set ProfilerArray($fun,totalms) [expr {$ctotal * $msPerClick}]
  	    set ProfilerArray($fun,ratio) [expr {double($ctotal / $EndClicks) * 100.0}]
- 	    set ProfilerArray($fun,max) [expr $max * $msPerClick]
- 	    set ProfilerArray($fun,min) [expr $min * $msPerClick]
+ 	    set ProfilerArray($fun,max) [expr {$max * $msPerClick}]
+ 	    set ProfilerArray($fun,min) [expr {$min * $msPerClick}]
 
  	    # Append to the sorting list the pairs of ratio values and function indexes...
  	    lappend PerfList [list $ProfilerArray($fun,ratio) $fi]

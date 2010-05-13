@@ -202,9 +202,7 @@ namespace eval Sylk {
 	}
 
 	if {[dict exists $sylk widths]} {
-	    dict set out widths \
-		[linsert [dict get $sylk widths] \
-		     $col {expand}[string repeat {{} } $ix]]
+	    dict set out widths [linsert [dict get $sylk widths] $col {*}[string repeat {{} } $ix]]
 	}
 
 	return $out
