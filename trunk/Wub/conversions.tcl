@@ -22,83 +22,103 @@ namespace eval ::conversions {
 	    # the content is already fully HTML
 	    set content $rspcontent
 	} else {
-	    variable htmlhead
-	    set content "${htmlhead}\n"
+	    # if response is wrapped HTML fragment
+	    # (signified by existence of a -wrapper element)
+	    # then run an extra conversion phase over it.
+	    set wrapper [dict get? $rsp -wrapper]
+	    if {$wrapper ne ""} {
+		set wtype [dict get? $wrapper -type]
+		if {$wtype eq ""} {
+		    set wtype .style/sinorca.x-text/html-fragment
+		}
+		dict set wrapper content $rspcontent
+		dict set rsp -content $wrapper
+		dict set rsp content-type $wtype
 
-	    append content <html> \n
-	    append content <head> \n
-
-	    if {[dict exists $rsp -title]} {
-		append content [<title> [armour [dict get $rsp -title]]] \n
+		# expect there's a conversion from $wtype to html-fragment
+		set rsp [::convert convert $rsp]
+		set content [dict get $rsp -content]
 	    }
 
-	    if {[dict exists $rsp -headers]} {
-		append content [join [dict get $rsp -headers] \n] \n
-	    }
+	    if {![string match "<!DOCTYPE*" [dict get $rsp -content]]} {
+		variable htmlhead
+		set content "${htmlhead}\n"
 
-	    # add script and style preloads
-	    set preloads {}
-	    if {[dict exists $rsp -script]} {
-		dict for {n v} [dict get $rsp -script] {
-		    if {[string match !* $n]} {
-			lappend preloads $v
-		    } else {
-			lappend preloads [<script> src $n {*}$v]
-			Debug.jsloader {$n $v}
+		append content <html> \n
+		append content <head> \n
+
+		if {[dict exists $rsp -title]} {
+		    append content [<title> [armour [dict get $rsp -title]]] \n
+		}
+
+		if {[dict exists $rsp -headers]} {
+		    append content [join [dict get $rsp -headers] \n] \n
+		}
+
+		# add script and style preloads
+		set preloads {}
+		if {[dict exists $rsp -script]} {
+		    dict for {n v} [dict get $rsp -script] {
+			if {[string match !* $n]} {
+			    lappend preloads $v
+			} else {
+			    lappend preloads [<script> src $n {*}$v]
+			    Debug.jsloader {$n $v}
+			}
 		    }
 		}
-	    }
-	    if {[dict exists $rsp -style]} {
-		dict for {n v} [dict get $rsp -style] {
-		    if {[string match !* $n]} {
-			lappend preloads $v
-		    } else {
-			lappend preloads [<stylesheet> $n {*}$v]
-			Debug.cssloader {$n $v}
+		if {[dict exists $rsp -style]} {
+		    dict for {n v} [dict get $rsp -style] {
+			if {[string match !* $n]} {
+			    lappend preloads $v
+			} else {
+			    lappend preloads [<stylesheet> $n {*}$v]
+			    Debug.cssloader {$n $v}
+			}
 		    }
 		}
-	    }
-	    if {$preloads ne {}} {
-		append content [join $preloads \n] \n
-	    }
-	    
-	    # add script preloads
-	    if {[dict exists $rsp -preload]} {
-		append content [join [dict get $rsp -preload] \n] \n
-	    }
+		if {$preloads ne {}} {
+		    append content [join $preloads \n] \n
+		}
+		
+		# add script preloads
+		if {[dict exists $rsp -preload]} {
+		    append content [join [dict get $rsp -preload] \n] \n
+		}
 
-	    append content </head> \n
+		append content </head> \n
+		
+		append content <body> \n
+		append content $rspcontent
 
-	    append content <body> \n
-	    append content $rspcontent
-
-	    # add script postscripts
-	    if {[dict exists $rsp -postscript]} {
-		dict for {n v} [dict get $rsp -postscript] {
-		    if {[string match !* $n]} {
-			append content \n $v \n
-		    } else {
-			append content \n [<script> src $n {*}$v] \n
-			Debug.jsloader {$n $v}
+		# add script postscripts
+		if {[dict exists $rsp -postscript]} {
+		    dict for {n v} [dict get $rsp -postscript] {
+			if {[string match !* $n]} {
+			    append content \n $v \n
+			} else {
+			    append content \n [<script> src $n {*}$v] \n
+			    Debug.jsloader {$n $v}
+			}
 		    }
 		}
+		
+		# stuff to start on google api
+		if {[dict exists $rsp -google]} {
+		    append google "google.setOnLoadCallback(function() \{" \n
+		    append google [join [dict get $rsp -google] \n] \n
+		    append google "\});" \n
+		    append content [<script> $google]
+		}
+		
+		# add script postloads
+		if {[dict exists $rsp -postload]} {
+		    append content \n [join [dict get $rsp -postload] \n] \n
+		}
+		
+		append content </body> \n
+		append content </html> \n
 	    }
-
-	    # stuff to start on google api
-	    if {[dict exists $rsp -google]} {
-		append google "google.setOnLoadCallback(function() \{" \n
-		append google [join [dict get $rsp -google] \n] \n
-		append google "\});" \n
-		append content [<script> $google]
-	    }
-
-	    # add script postloads
-	    if {[dict exists $rsp -postload]} {
-		append content \n [join [dict get $rsp -postload] \n] \n
-	    }
-
-	    append content </body> \n
-	    append content </html> \n
 	}
 	dict set rsp -raw 1
 
@@ -430,7 +450,7 @@ namespace eval ::conversions {
 
     proc .x-tclobj/huddle.text/yaml {r} {
 	package require yaml
-	set result [::yaml::huddle2yaml [dict get $r -content]
+	set result [::yaml::huddle2yaml [dict get $r -content]]
 	return [Http pass $r $result text/yaml]
     }
 
