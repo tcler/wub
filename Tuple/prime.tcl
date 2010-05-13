@@ -6,6 +6,17 @@ Type {
     type Type
 }
 
+Basic {
+    type Type
+}
+Basic+Html {
+    type Conversion
+    content {
+	# at the moment, we'll assume Basic is Html
+	return [Http Ok $r [dict get $r -content] tuple/html]
+    }
+}
+
 "Tcl Script" {
     type Type
     mime "Tcl Script"
