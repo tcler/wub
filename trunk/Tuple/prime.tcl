@@ -192,8 +192,8 @@ now {
     content {
 	[<h1> Now]
 	[<p> "[clock format [clock seconds]] is the time"]
-	[<p> "This page is generated from a Tcl Script, and assembled from components for [<a> href xray/now%2Bstyle style] and [<a> href xray/now%2Btitle title]."]
-	[<p> "The page may be viewed with the [<a> href xray/now "xray facility"]."]
+	[<p> "This page is generated from a Tcl Script, and assembled from components for [<a> href xray/now%2Bstyle style] (which makes the header red) and [<a> href xray/now%2Btitle title] (which gives the page a title.)"]
+	[<p> "The tuple underlying this may be viewed with the [<a> href xray/now "xray facility"]."]
 
 	[<p> "Next step - Creole and Transclusion"]
     }
