@@ -10,7 +10,7 @@ if {[catch {package require fileutil}]} {
 }
 
 package require http
-package provide Install 1.0
+package provide Install 1.1
 
 namespace eval Install {
     variable base http://wub.googlecode.com/svn/
