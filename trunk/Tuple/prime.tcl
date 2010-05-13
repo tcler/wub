@@ -182,6 +182,7 @@ welcome {
 	    "Test Tcl Variable and Tcl Dict rendering" reflect
 	    "Test Uppercase and text/plain" {Example+Uppercase}
 	    "Test page not found" nothere
+	    "XRay of Now page" xray/now
 	}]
     }
 }
