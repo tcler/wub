@@ -49,7 +49,7 @@ proc findpaths {} {
 
 	# find Wub stuff
 	set top [file dirname $home]
-	foreach lib {extensions Wub Domains Utilities Client} {
+	foreach lib {extensions Wub Domains Utilities Client Tuple} {
 	    dict set apath [file join $top $lib] {}
 	}
     } else {
@@ -94,6 +94,7 @@ namespace eval ::Site {
 	    return $modvars
 	}
     }
+
     proc var? {module args} {
 	upvar 0 ::Site::[string tolower $module] modvars
 	if {[info exists modvars]} {
@@ -146,9 +147,14 @@ namespace eval ::Site {
 	uplevel variable $name
     }
 
+    variable modules; array set modules {}
+    variable sections; array set sections {}
+
     # read the site ini file
     proc do_ini {file} {
 	variable modules
+	variable sections
+
 	Debug.site {INI file: $file [file exists $file]}
 	if {![file exists $file]} return
 	package require inifile
@@ -156,35 +162,51 @@ namespace eval ::Site {
 
 	foreach sect [::ini::sections $ini] {
 	    set cs [string tolower $sect]	;# section name
-	    set modules($cs) {}			;# record the elements
-	    foreach key [::ini::keys $ini $sect] {
-		set v [::ini::value $ini $sect $key]
-		if {$cs eq "wub"} {
+	    if {$cs eq $sect} {
+		# this is a nub definition
+		foreach key [::ini::keys $ini $sect] {
+		    set v [::ini::value $ini $sect $key]
+		    Debug.site {INI nub $sect: $key $v}
+		    dict lappend sections($sect) $key $v
+		}
+	    } elseif {$cs eq "wub"} {
+		set modules($cs) {}			;# record the elements
+		foreach key [::ini::keys $ini $sect] {
+		    set v [::ini::value $ini $sect $key]
 		    # global config file
 		    Debug.site {INI global: $key $v}
 		    set ::Site::$key $v
-		} else {
+		}
+	    } else {
+		set modules($cs) {}			;# record the elements
+		foreach key [::ini::keys $ini $sect] {
+		    set v [::ini::value $ini $sect $key]
 		    Debug.site {INI module $cs: $key $v}
 		    dict set ::Site::$cs $key $v
 		}
 	    }
 	}
+
 	::ini::close $ini
     }
 
     proc write_ini {file} {
 	variable modules
+	variable sections
 	set ini [::ini::open $file w]
 	foreach var [info vars ::Site::*] {
 	    if {[catch {
 		set val [set $var]
 		set vvar [namespace tail $var]
+		set name [dict get $val name]
 	    }]} continue
 
 	    if {[info exists modules($vvar)]} {
 		# it's a module
 		dict for {k v} $val {
-		    ::ini::set $ini $vvar $k $v
+		    if {$k ne "name"} {
+			::ini::set $ini $name $k $v
+		    }
 		}
 	    } else {
 		# it's in wub
@@ -318,6 +340,7 @@ namespace eval ::Site {
 	# configuration variable contains defaults
 	# set some default configuration flags and values
 	variable modules
+	variable sections
 	variable configuration
 	foreach {name val} [namespace eval ::Site [list rc $configuration]] {
 	    if {[string match @* $name]} {
@@ -630,11 +653,63 @@ namespace eval ::Site {
 	#### start scgi Listener
 	variable scgi
 	if {[dict exists $scgi -port] && ([dict get $scgi -port] > 0)} {
-	    package require scgi
+	    package require Scgi
 	    Listener listen -host $host -httpd scgi {*}$scgi
 	    Debug.log {Listening on scgi $host [dict get $scgi -port] using docroot $docroot}
 	}
 
+    }
+
+    proc section {sect section} {
+	if {[dict exists $section domain]} {
+	    if {![dict exists $section url]} {
+		error "nub '$sect' declared in .ini must have a url value"
+	    }
+	    set args [lassign [dict get $section domain] cmd]
+	    dict unset section domain
+	    set url [dict get $section url]
+	    Nub domain $url [list $cmd ::Domains::$sect] {*}$section {*}$args
+	} elseif {[dict exists $section block]} {
+	    dict with section {
+		Nub block $block
+	    }
+	} elseif {![dict exists $section url]} {
+	    error "nub '$sect' declared in .ini must have a url value"
+	} elseif {[dict exists $section code]} {
+	    dict with section {
+		if {![info exists mime]} {
+		    set mime x-text/html-fragment
+		}
+		Nub code $url $code $mime
+	    }
+	} elseif {[dict exists $section literal]} {
+	    dict with section {
+		if {![info exists mime]} {
+		    set mime x-text/html-fragment
+		}
+		Nub literal $url $literal $mime
+	    }
+	} elseif {[dict exists $section redirect]} {
+	    dict with section {
+		Nub redirect $url {*}$redirect
+	    }
+	} elseif {[dict exists $section rewrite]} {
+	    dict with section {
+		Nub rewrite $url {*}$rewrite
+	    }
+	} elseif {[dict exists $section auth]} {
+	    dict with section {
+		Nub auth $url {*}$auth
+	    }
+	}
+    }
+
+    proc sections {} {
+	variable sections
+	foreach {sect section} [array get sections] {
+	    Debug.site {processing section: $sect ($section)}
+	    section $sect $section
+	}
     }
 
     # this will shut down the whole system
@@ -647,7 +722,8 @@ namespace eval ::Site {
 	Debug.site {start: $args}
 	init {*}$args
 
-	modules	;# start the listeners etc
+	modules		;# start the listeners etc
+	sections	;# initialize the nubs
 
 	# can't run the whole start up sequence twice
 	# can initialize the application
@@ -659,6 +735,7 @@ namespace eval ::Site {
 		
 		# install variables defined by local, argv, etc
 		variable modules
+		variable sections
 		set app [string tolower $application]
 		if {[info exists modules([string tolower $app])]} {
 		    variable $app
