@@ -121,7 +121,7 @@ oo::class create Tupler {
 	    } else {
 		set tag {<div> class article}
 	    }
-	    append body [{*}$tag id [armour $id] [subst {
+	    append body [{*}$tag id T_[armour $id] [subst {
 		<!-- name:'[armour $name]' left:[armour $_left] right:[armour $_right] -->
 		[dict get $r -content]
 		<!-- transforms [armour [dict get? $r -transforms]] -->
@@ -131,7 +131,7 @@ oo::class create Tupler {
 		set cm [my component $r $name $el]
 		if {[llength $cm]} {
 		    lassign $cm r cid cc
-		    append body [<$el> id $cid $cc] \n
+		    append body [<$el> id T_$cid $cc] \n
 		}
 	    }
 
@@ -363,7 +363,7 @@ oo::class create Tupler {
     mixin Direct Convert
 
     constructor {args} {
-	Debug.tupler {Constructing $args}
+	Debug.tupler {Creating Tupler [self] $args}
 	variable welcome welcome
 	variable primer prime.tcl		;# primer for Tupler
 	variable doctype "<!DOCTYPE html>"	;# HTML5 doctype
