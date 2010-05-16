@@ -53,4 +53,4 @@ rewrite {^(/[^/]+)[.]css$} -regsub {/css/\1.css}
 code /clock.txt {clock format [clock seconds]} text/plain
 
 # demo the tupler domain
-Nub domain /tuple/ {Tupler ::tupler}
+domain /tuple/ {Tupler ::tupler}
