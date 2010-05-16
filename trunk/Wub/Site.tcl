@@ -7,6 +7,11 @@ namespace eval ::Site {}
 if {![llength info commands ::yieldm]} {
     # this is the older coroutine implementation
     interp alias {} ::yieldm {} ::yield
+
+    proc ::delshim {name x y op} {
+	catch {::rename $name {}}	;# delete shim
+    }
+
     proc ::Coroutine {name command args} {
 	set ns [uplevel 1 namespace current]
 	if {$ns eq ""} {
@@ -16,6 +21,11 @@ if {![llength info commands ::yieldm]} {
 	proc ${ns}::$name {args} [string map [list $x %N%] {
 	    tailcall %N% $args
 	}]
+
+	# the two commands need to be paired
+	trace add command $x delete ::delshim ${ns}::$name
+	trace add command ${ns}::$name ::delshim $x
+
 	return $x
     }
 } else {
