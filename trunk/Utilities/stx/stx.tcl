@@ -422,7 +422,8 @@ namespace eval stx {
 		    # add linecount setter
 		    lassign [$tree get $node lc] s e
 		    dict set line2node [list $s $e] $node
-		    set lines [$tree set $node raw [lrange $original $s $e]]
+		    #set lines [$tree set $node raw [lrange $original $s $e]]
+		    set lines {}
 		    set lc [list $node {*}[$tree get $node lc] $lines]
 		    Debug.STX {"lc [$tree get $node type] - [$tree get $node lc]"}
 		} else {
@@ -440,7 +441,8 @@ namespace eval stx {
 			    }
 			}
 		    }
-		    set lines [$tree set $node raw [lrange $original $ls $le]]
+		    #set lines [$tree set $node raw [lrange $original $ls $le]]
+		    set lines {}
 		    set lc [list $node $ls $le $lines]
 		    Debug.STX {"lc synthetic [$tree get $node type] - $ls $le '$lines'"}
 		    set lines [$tree set $node raw $lines]
