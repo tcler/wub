@@ -97,14 +97,14 @@ namespace eval Html {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
-	return [<ul> [<li> [links </li><li> {*}$args]]]
+	return [<ul> [<li> [links </li>\n<li> {*}$args]]]
     }
 
     proc olinks {args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
-	return [<ol> [<li> [links </li><li> {*}$args]]]
+	return [<ol> [<li> [links </li>\n<li> {*}$args]]]
     }
 
 
