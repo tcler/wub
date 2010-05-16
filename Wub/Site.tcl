@@ -3,6 +3,25 @@ package require Tcl 8.6	;# minimum version of tcl required
 
 namespace eval ::Site {}
 
+# temporary compatibility shim for coroutines
+if {![llength info commands ::yieldm]} {
+    # this is the older coroutine implementation
+    interp alias {} ::yieldm {} ::yield
+    proc ::Coroutine {name command args} {
+	set ns [uplevel 1 namespace current]
+	if {$ns eq ""} {
+	    set ns ::
+	}
+	set x [uplevel 1 [list ::coroutine ${ns}::_$name $command {*}$args]]
+	proc ${ns}::$name {args} [string map [list $x %N%] {
+	    tailcall %N% $args
+	}]
+	return $x
+    }
+} else {
+    interp alias {} ::Coroutine {} ::coroutine
+}
+
 # keep track of sourced files
 if {$::tcl_platform(os) eq "Linux"} {
     rename source source_org
