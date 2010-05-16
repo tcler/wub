@@ -59,26 +59,40 @@ oo::class create Tuple {
 	    set left [join $args +]
 	    if {[dict exists $name2id $left]} {
 		set rest [join $rest +]
-		Debug.tuple {rightish found a prefix '$left' with a remainder '$rest'}
-		return [list [dict get $name2id $left] $left $rest]	;# axiom N1
+		set id [dict get $name2id $left]
+		Debug.tuple {rightish found a prefix '$left' at #$id [expr {($rest eq "")?"":"with a remainder '$rest'"}]}
+		return [list $id $left $rest]	;# axiom N1
 	    } else {
 		set rest [list [lindex $args end] {*}$rest]
 		set args [lrange $args 0 end-1]
-		Debug.tuple {rightish didn't find '$left' - try again with '$args' remainder [join $rest +]}
+		Debug.tuple {rightish didn't find '$left' - try again with '$args' remainder '[join $rest +]'}
 	    }
 	}
 
 	# we couldn't find any existing prefix
-	Debug.tuple {rightish couldn't find any existing prefix for $name}
+	Debug.tuple {rightish couldn't find any existing prefix for '$name'}
 	return -code error -kind name -notfound $name "find: '$name' doesn't exist"
     }
 
     # find - turn a name into a tuple id.
     method find {name {referer ""}} {
-	Debug.tuple {find $name}
 	variable tuples
 	variable name2id
 
+	# do trivial case
+	if {[string match #* $name]
+	    && [string is integer [string range $name 1 end]]
+	} {
+	    set id [string trimleft $name #]
+	    if {[info exists tuples($id)]} {
+		Debug.tuple {found $name trivially}
+		return $id
+	    } else {
+		return -code error -kind simple -notfound $a "find $name: tuple($id) does not exist"
+	    }
+	}
+
+	Debug.tuple {find '$name'}
 	# convert name to a list of elements axioms R7 and R3
 	if {[string match +* $name]} {
 	    set name $referer$name	;# axiom R7
@@ -94,7 +108,7 @@ oo::class create Tuple {
 		if {[info exists tuples($aid)]} {
 		    lappend rest [string tolower [dict get $tuples($aid) name]]
 		} else {
-		    return -code error -kind simple -notfound $a "find $name: $a does not exist"
+		    return -code error -kind simple -notfound $a "find $name: tuple($a) does not exist"
 		}
 	    } elseif {[dict exists $name2id $a]} {
 		lappend rest $a
@@ -110,11 +124,11 @@ oo::class create Tuple {
 	# prefix is $left and its id is $id
 	# any remaining unmatched elements are in $right
 	if {$right eq ""} {
-	    Debug.tuple {find $name => $id $left}
+	    Debug.tuple {find found a '$name' at #$id}
 	    return [list $id $left ""]	;# we have a complete match
 	}
 
-	Debug.tuple {find failed to match '$name', longest prefix '$left'}
+	Debug.tuple {find failed to match '$name', longest prefix '$left' at #$id}
 
 	# partial match with a single remaining right suffix
 	# we know that $left exists and $left+$right doesn't exist
@@ -122,16 +136,16 @@ oo::class create Tuple {
 	    set type [join [split [dict get $tuples($id) type] /] +]
 	    set essay $type+$right
 	    if {$essay eq $name} error
-	    Debug.tuple {find seeking '$essay'}
+	    Debug.tuple {find composite '$essay'}
 	    my find $essay	;# find the type equivalent
 	} found] && [catch {
 	    set essay *rform+$right
 	    if {$essay eq $name} error
-	    Debug.tuple {find seeking '$essay'}
+	    Debug.tuple {find composite '$essay'}
 	    my find $essay	;# find the *rform equivalent
 	} found]} {
 	    # axiom C3 (field as pseudo tuple)
-	    Debug.tuple {find didn't find composite form}
+	    Debug.tuple {find didn't find composite formd '$type+$right' or '*rform+$right'}
 	    if {[string match {[*]*} $right]} {
 		# construct a synthetic tuple whose content is the tuple's field contents
 		# and whose types etc are either derived from the tuple itself or
@@ -178,15 +192,47 @@ oo::class create Tuple {
 	    }
 
 	    # give up - there's no such tuple
-	    return -code error -kind compound -notfound [list $left $right] "find: $name - found $left, but can't find '$type+$right' or '*rform+$right'"
+	    return -code error -kind compound -notfound [list $left $right] "find: $name - found '$left' at #$id, but can't find '$type+$right' or '*rform+$right'"
 	} else {
 	    # found the named tuple
 	    lassign $find found l r
-	    Debug.tuple {find found $essay [dict get $found id] ($left)+($right)}
+	    Debug.tuple {find found $essay at #[dict get $found id] for $name at #$id as ($left)+($right)}
 	    return [list $found $left $right]
 	}
     }
 
+    # return a list of indices whose name matches the regexp
+    method regexpByName {regexp} {
+	variable name2id
+	set result [dict values [dict filter $name2id script {name id} {
+	    regexp ^$regexp\$ $name
+	}]]
+	Debug.tuple {regexpByName $glob ($result)}
+
+	set names {}
+	foreach n $result {
+	    lappend names #$n
+	}
+	return $names
+    }
+
+    # return a list of indices whose name matches the glob
+    method globByName {glob} {
+	variable name2id
+	set result [dict values [dict filter $name2id script {name id} {
+	    #Debug.tuple {globByName pername: '$glob $name'}
+	    string match $glob $name
+	}]]
+	Debug.tuple {globByName $glob ($result)}
+
+	set names {}
+	foreach n $result {
+	    lappend names #$n
+	}
+	return $names
+    }
+
+    # return a tuple given an id
     method id2tuple {id} {
 	variable tuples
 	return $tuples($id)
@@ -235,7 +281,24 @@ oo::class create Tuple {
 	    }
 	}
 
+	# lowercase some fields
+	foreach n {type mime} {
+	    if {[dict exists $tuple $n]} {
+		set v [dict get $tuple $n]
+		set tlv [string tolower $v]
+		if {$tlv ne $v} {
+		    dict set tuple $n $tlv
+		    dict unset tuple $n
+		}
+	    }
+	}
+	Debug.tuple {Tuple fixed up ($tuple)}
 	return $tuple
+    }
+
+    method set {id args} {
+	variable tuples
+	dict set tuples($id) {*}$args
     }
 
     # store values in a tuple or a field
@@ -310,11 +373,18 @@ oo::class create Tuple {
     }
 
     method New {args} {
-	# generate unique id - axiom T1
-	if {![dict exists $args id]} {
-	    dict set args id [set id [my newid]]
+	Debug.tuple {New Tuple ($args)}
+
+	# index lowercase name
+	variable name2id
+	set nname [string tolower [dict get $args name]]
+
+	# ensure name isn't reused
+	if {[dict exists $name2id $nname]} {
+	    dict set args id [set id [dict get $name2id $nname]]
 	} else {
-	    set id [dict get $args id]
+	    # generate unique id - axiom T1
+	    dict set args id [set id [my newid]]
 	}
 
 	# remove immutable and synthesised fields before storage
@@ -338,22 +408,19 @@ oo::class create Tuple {
 	} else {
 	    set tuple $args	;# create tuple
 	}
-
+	
 	set tuples($id) [my fixup $tuple]
+	
+	dict set name2id $nname $id	;# this is the only place we set name
 
-	# index lowercase name
-	variable name2id
-	set nname [string tolower [dict get $tuples($id) name]]
-	dict set name2id $nname $id
-
-	Debug.tuple {New $tuples($id) with name '$nname' and id $id}
+	Debug.tuple {New Tuple: ($tuples($id)) with name '$nname' and id $id}
 
 	return $id	;# return tuple's id
     }
 
     # create a new tuple
     method new {args} {
-	variable name2id
+	Debug.tuple {new tuple $args}
 
 	# ensure all field names are lowercase
 	dict for {n v} $args {
@@ -369,23 +436,25 @@ oo::class create Tuple {
 	    error "create failed: name not given"
 	}
 	set name [string tolower [dict get $args name]]
+
+	variable name2id
 	if {[dict exists $name2id $name]} {
 	    error "create failed: name $name already exists"
 	}
 
-	variable name2id
-	variable tuples
-
 	# ensure type consistency
+	variable tuples
 	if {[dict exists $args type]} {
 	    # types must exist, and must be of type Type
 	    set t [string tolower [dict get $args type]]
 	    if {![dict exists $name2id $t]} {
-		error "type [dict get $args type] does not exist"
+		return -code error -kind type "type [dict get $args type] does not exist"
 	    } else {
 		set tid [dict get $name2id $t]
-		if {[string tolower [dict get $tuples($tid) type]] ne "type"} {
-		    error "type '[dict get $args type]' is not of type Type"
+		if {[string tolower [dict get $tuples($tid) name]] ne "basic"
+		    && [string tolower [dict get $tuples($tid) type]] ne "type"
+		} {
+		    return -code error -kind type "type '[dict get $args type]' is not of type Type"
 		}
 	    }
 	}
@@ -411,14 +480,16 @@ oo::class create Tuple {
 	return [array get tuples {*}$args]
     }
 
-    # full rendering of all matching tuples
+    # full resolution of all matching tuples
     # this differs from [all] because its result
     # contains synthetic fields
     method full {args} {
 	variable tuples
 	set result {}
-	foreach n [array names tuples {*}$args] {
-	    lappend result $n [my find [dict get $tuples($n) name]]
+	set names [array names tuples {*}$args]
+	Debug.tuple {Full ([lsort -dictionary $names]) from '$args'}
+	foreach n $names {
+	    lappend result $n [my fetch [dict get $tuples($n) name]]
 	}
 	return $result
     }
@@ -437,28 +508,24 @@ oo::class create Tuple {
 	    }
 
 	    # decode the dict key as an id or a name
-	    if {[string match #* $n]
-		|| [string is integer -strict $n]
-	    } {
-		dict set v id [string trimleft $n #]
-	    } else {
-		dict set v name $n
+	    if {[string match #* $n]} {
+		error "Prime can't specify id"
 	    }
+	    dict set v name $n
 
-	    if {![dict exists $v id]} {
-		if {[dict exists $v name]} {
-		    set name [dict get $v name]
-		    if {[dict exists $name2id $name]} {
-			dict set v id [dict get $name2id $name]
-		    } else {
-			# no existing tuple with this name - New will create it
-			#dict set v id [my newid]
-		    }
+	    if {[dict exists $v name]} {
+		set name [dict get $v name]
+		if {[dict exists $name2id $name]} {
+		    dict set v id [dict get $name2id $name]
 		} else {
-		    # no id, no name - this has to be an error
-		    error "prime: must supply name or existing id ($v)"
+		    # no existing tuple with this name - New will create it
+		    #dict set v id [my newid]
 		}
+	    } else {
+		# no id, no name - this has to be an error
+		error "prime: must supply name or existing id ($v)"
 	    }
+	    Debug.tuple {Prime $v}
 
 	    # fixup and store the new tuple
 	    my New {*}$v
@@ -470,16 +537,77 @@ oo::class create Tuple {
 	return $metadata
     }
 
+    method traceN {var id op args} {
+	variable name2id
+	variable old
+	#set from  "from '[info frame [expr {[info frame] -1}]]'"
+	#set from  "from '[info frame -1]'"
+	set from  "from '[info level -1]'"
+	if {[info exists old]} {
+	    dict for {n v} $name2id {
+		if {$n ne [string tolower $n]} {
+		    error "CASE '$n' $from"
+		}
+		if {[dict exists $old $n]} {
+		    if {[dict get $old $n] eq $v} {
+			puts stderr "NAME CHANGED $op '$n': [dict get $old $n] -> $v $from"
+		    } else {
+			error "RENAMED $op '$n': [dict get $old $n] -> $v $from"
+		    }
+		}
+	    }
+	}
+	set old $name2id
+    }
+
+    method traceT {var id op args} {
+	variable tuples
+	variable name2id
+	switch -- $op {
+	    write {
+		set tuple $tuples($id)
+		#set detail "id:([dict merge $tuple {content ...}]) from '[info frame [expr {[info frame] -1}]]'"
+		#set detail "id:([dict merge $tuple {content ...}]) from '[info frame -1]'"
+		set detail "id:([dict merge $tuple {content ...}]) from '[info level -1]'"
+		if {[catch {
+		    dict size $tuple
+		}]} {
+		    error "NOT A DICT $detail"
+		}
+
+		dict with tuple {
+		    set nname [string tolower $name]
+		    if {[dict exists $name2id $nname]
+			&& $id != [dict get $name2id $nname]
+		    } {
+			error "DUPLICATE: [dict get $name2id $nname] $detail"
+		    }
+		}
+
+		#puts stderr "WRITE: $detail"
+	    }
+	}
+    }
+
     constructor {args} {
 	variable tuples
 	array set tuples {}	;# tuples array permits traces
 	variable name2id {}
+	variable trace 0
+	#variable nextid -1
+
 	if {[llength $args]%2} {
 	    set content [lindex $args end]
 	    set args [lrange $args 0 end-1]
 	}
+
 	variable {*}$args
 	next? {*}$args
+
+	if {$trace} {
+	    trace add variable tuples {array write unset} [list [self] traceT]
+	    trace add variable name2id {write} [list [self] traceN]
+	}
 
 	# metadata for each tuple field as if it were itself a tuple
 	variable metadata {
