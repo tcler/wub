@@ -46,6 +46,19 @@ oo::class create Tupler {
     }
     set ::Tuple_home [file dirname [info script]]
 
+    method tuRConvert {tuple to {from ""}} {
+	dict with tuple {
+	    if {$from eq ""} {
+		set from tuple/$type
+	    }
+	    set r [list content-type $from -content $content -tuple $tuple]
+	}
+	return [my convert! $r $to]
+    }
+    method tuConvert {args} {
+	return [dict get [my tuRConvert {*}$args] -content]
+    }
+
     method component {r name el {type html}} {
 	Debug.tupler {component $name+$el $type}
 	if {[catch {my fetch $name+$el} c]} {
@@ -54,7 +67,7 @@ oo::class create Tupler {
 	}
 
 	Debug.tupler {component convert tuple/[dict get $c type] to tuple/$type}
-	set cpp [my convert! [list content-type tuple/[dict get $c type] -content [dict get $c content]] tuple/$type]
+	set cpp [my tuRConvert $c tuple/$type]
 
 	# conversion of components may generate more header components
 	# these must be added to the response
@@ -102,8 +115,13 @@ oo::class create Tupler {
 		    append body [<$el> id $cid $cc] \n
 		}
 	    }
-	    
-	    append body [<article> id [armour $id] [subst {
+	    variable html5
+	    if {$html5} {
+		set tag <article>
+	    } else {
+		set tag {<div> class article}
+	    }
+	    append body [{*}$tag id [armour $id] [subst {
 		<!-- name:'[armour $name]' left:[armour $_left] right:[armour $_right] -->
 		[dict get $r -content]
 		<!-- transforms [armour [dict get? $r -transforms]] -->
@@ -137,9 +155,8 @@ oo::class create Tupler {
 		    }
 		    if {![dict exists [set $el] $cid]} {
 			# convert metadata component to expected type
-			set cpp [my convert! [list content-type tuple/$ct -tuple $c -content $cc] tuple/$cto]
 			# index component by appropriate id
-			dict set $el $cid [dict get $cpp -content]
+			dict set $el $cid [my tuConvert $c tuple/$cto tuple/$ct]
 		    } else {
 			# don't bother converting if we already have the component
 		    }
@@ -174,11 +191,19 @@ oo::class create Tupler {
 	if {[catch {
 	    my fetch $name
 	} tuple]} {
-	    set id [my new name $name type $type]
-	    Debug.tupler {mktype $id -> [my id2tuple $id]}
+	    Debug.tupler {mktype did not find '$name'}
+	    set id [my New name $name type $type]
+	    Debug.tupler {mktype created $id -> ([my id2tuple $id])}
 	    return [my id2tuple $id]
-	} elseif {[string tolower [dict get? $tuple type]] ne $type} {
-	    return -code error -kind type -notfound $name "'$name' must be of type 'Type'"
+	}
+	set tt [string tolower [dict get? $tuple type]]
+	if {$tt ne $type} {
+	    if {0 && $tt eq ""} {
+		# it's empty type, we can coerce it
+		my set [dict get $tuple id] type [string tolower $type]
+	    } else {
+		return -code error -kind type -notfound $name "'$name' must be of type '$type' but is of type '[dict get? $tuple type]' ($tuple)"
+	    }
 	} else {
 	    return $tuple
 	}
@@ -191,6 +216,7 @@ oo::class create Tupler {
 
 	dict with tuple {
 	    set type [string tolower $type]
+
 	    # check for conversions and Types
 	    switch -- $type {
 		type {
@@ -198,7 +224,9 @@ oo::class create Tupler {
 		    if {[info exists content]
 			&& $content ne ""
 		    } {
-			dict set tuple mime "Tcl Script"
+			if {![info exists mime]} {
+			    dict set tuple mime "Tcl Script"
+			}
 		
 			# (re)define the postprocess method
 			set mname tuple/[string map {_ / " " _} [string tolower $name]]
@@ -236,6 +264,7 @@ oo::class create Tupler {
 	    }
 	}
 
+	Debug.tupler {Tupler fixed up ($tuple)}
 	return [next $tuple]
     }
 
@@ -308,7 +337,9 @@ oo::class create Tupler {
 	    # resolved name
 	    dict with tuple {
 		dict set r -tuple $tuple
-		if {$type eq ""} {
+		if {![info exists type]
+		    || $type eq ""
+		} {
 		    set type basic
 		} else {
 		    set type [string map {" " _} [string tolower $type]]
@@ -340,6 +371,7 @@ oo::class create Tupler {
 	    [<h1> [string totitle "$kind error"]]
 	    [<p> "'$name' not found while looking for '$extra'"]
 	}
+	variable html5 0
 	variable {*}$args
 
 	if {![info exists prime]} {
@@ -382,12 +414,26 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 
     if {0} {
 	puts [string repeat = 80]
+	puts "check:"
+	foreach {i} [$ts ids] {
+	    set tuple [$ts fetch #$i]
+	    dict with tuple {
+		if {$i != $id} {
+		    error "ID MISMATCH: ($tuple) found by #$i"
+		}
+	    }
+	}
+    }
+
+    if {0} {
+	puts [string repeat = 80]
 	puts "test 'full' method:"
 	foreach {n v} [$ts full] {
-	    if {[lindex [$ts find #$n] 0] != $n} {
+	    set x [$ts find #$n]
+	    if {[lindex $x 0] != $n} {
 		error "Couldn't find $n"
 	    }
-	    puts "$n: $v"
+	    puts "$n: ($v)"
 	}
     }
 
@@ -415,7 +461,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	puts [$ts convert! $fetched text/html]
     }
 
-    if {1} {
+    if {0} {
 	puts [string repeat = 80]
 	puts "test Text type"
 	set fetched [$ts /view {-extra "Example Text"}]
@@ -423,7 +469,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	puts [$ts convert! $fetched text/plain]
     }
 
-    if {1} {
+    if {0} {
 	puts [string repeat = 80]
 	puts "test Reflect Text"
 	set fetched [$ts /view {-extra "Reflect Text"}]
@@ -431,11 +477,19 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	puts [$ts convert! $fetched text/plain]
     }
 
-    if {1} {
+    if {0} {
 	puts [string repeat = 80]
 	puts "test Example Uppercase"
 	set fetched [$ts /view {-extra "Example Uppercase"}]
 	puts "Example Uppercase fetched: $fetched"
 	puts [$ts convert! $fetched text/plain]
+    }
+
+    if {1} {
+	puts [string repeat = 80]
+	puts "test Glob"
+	set fetched [$ts /view {-extra "Glob Test"}]
+	puts "test Glob fetched: $fetched"
+	puts [$ts convert! $fetched text/html]
     }
 }
