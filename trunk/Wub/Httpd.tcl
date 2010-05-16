@@ -334,7 +334,9 @@ namespace eval Httpd {
 	    dict set reply -charset $charset
 	    dict set reply -chconverted $charset
 	    dict set reply content-type "$ct; charset=$charset"
-	    dict set reply -content [encoding convertto $charset [dict get $reply -content]]
+	    if {[string tolower $charset] ne [encoding system]} {
+		dict set reply -content [encoding convertto $charset [dict get $reply -content]]
+	    }
 	}
 	return $reply
     }
@@ -2036,7 +2038,7 @@ namespace eval Httpd {
 	# construct the reader
 	variable timeout
 	variable log
-	set result [coroutine $R ::Httpd::reader socket $sock prototype $args generation $gen cid $cid log $log]
+	set result [::Coroutine $R ::Httpd::reader socket $sock prototype $args generation $gen cid $cid log $log]
 
 	variable activity
 	set activity($R) [clock milliseconds]	;# make creation a sign of activity
