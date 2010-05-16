@@ -17,7 +17,7 @@ namespace eval stx2html {
     proc id {lc} {
 	variable exclude
 	lassign $lc id start end data
-	if {[info exists start]
+	if {0 && [info exists start]
 	    && [lindex [info level -1] 0] ni $exclude
 	} {
 	    variable class
