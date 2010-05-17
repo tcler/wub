@@ -4,7 +4,7 @@ package require Tcl 8.6	;# minimum version of tcl required
 namespace eval ::Site {}
 
 # temporary compatibility shim for coroutines
-if {![llength info commands ::yieldm]} {
+if {![llength [info commands ::yieldm]]} {
     # this is the older coroutine implementation
     interp alias {} ::yieldm {} ::yield
 
