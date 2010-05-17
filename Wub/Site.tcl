@@ -4,7 +4,13 @@ package require Tcl 8.6	;# minimum version of tcl required
 namespace eval ::Site {}
 
 # temporary compatibility shim for coroutines
-if {![llength [info commands ::yieldm]]} {
+# handle new coro interface
+if {[llength [info command ::tcl::unsupported::yieldm]]} {
+    namespace eval tcl::unsupported namespace export yieldm
+    namespace import tcl::unsupported::yieldm
+    interp alias {} ::Coroutine {} ::coroutine
+} else {
+    # the new yieldm multi-arg coro call does not exist.
     # this is the older coroutine implementation
     interp alias {} ::yieldm {} ::yield
 
@@ -28,8 +34,6 @@ if {![llength [info commands ::yieldm]]} {
 
 	return $x
     }
-} else {
-    interp alias {} ::Coroutine {} ::coroutine
 }
 
 # keep track of sourced files
@@ -54,15 +58,6 @@ if {$::tcl_platform(os) eq "Linux"} {
     }
 }
 
-
-# handle new coro interface
-if {[llength [info command ::tcl::unsupported::yieldm]]} {
-    namespace eval tcl::unsupported namespace export yieldm
-    namespace import tcl::unsupported::yieldm
-} else {
-    # the new yieldm multi-arg coro call does not exist.
-    error "No \[yieldm\] command.  You need a newer 8.6 beta.  Try Wub-2.0.0 release."
-}
 
 # this will make some necessary changes to auto_path so we find Wub
 proc findpaths {} {
