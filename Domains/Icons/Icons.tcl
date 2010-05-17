@@ -93,9 +93,9 @@ namespace eval Icons {
 	set icons($name$ext) [list [::fileutil::cat -translation binary [file join $home images $icon]] image/[string trim $ext .]]
     }
 
-    foreach file [glob [file join $home images *]] {
+    foreach file [glob [file join $home images *.*]] {
 	set icon [file tail $file]
-	if {[string match .* $icon]} continue
+
 	if {![string match 001* $icon]} {
 	    set ext [file extension $icon]
 	    set icons($icon) [list [::fileutil::cat -translation binary $file] image/[string trim $ext .]]
