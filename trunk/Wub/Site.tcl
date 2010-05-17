@@ -19,18 +19,20 @@ if {[llength [info command ::tcl::unsupported::yieldm]]} {
     }
 
     proc ::Coroutine {name command args} {
-	set ns [uplevel 1 namespace current]
-	if {$ns eq ""} {
-	    set ns ::
+	set ns [namespace qualifiers $name]
+	if {![string match ::* $ns]} {
+	    set ns [uplevel 1 namespace current]::$ns
 	}
-	set x [uplevel 1 [list ::coroutine ${ns}::_$name $command {*}$args]]
-	proc ${ns}::$name {args} [string map [list $x %N%] {
+	set name [namespace tail $name]
+
+	set x [uplevel 1 [list ::coroutine ${ns}_$name $command {*}$args]]
+	proc ${ns}$name {args} [string map [list $x %N%] {
 	    tailcall %N% $args
 	}]
 
 	# the two commands need to be paired
-	trace add command $x delete ::delshim ${ns}::$name
-	trace add command ${ns}::$name ::delshim $x
+	trace add command $x delete ::delshim ${ns}$name
+	trace add command ${ns}$name ::delshim $x
 
 	return $x
     }
