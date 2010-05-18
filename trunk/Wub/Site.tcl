@@ -19,22 +19,27 @@ if {[llength [info command ::tcl::unsupported::yieldm]]} {
     }
 
     proc ::Coroutine {name command args} {
+	# determine the appropriate namespace for coro creation
 	set ns [namespace qualifiers $name]
 	if {![string match ::* $ns]} {
 	    set ns [uplevel 1 namespace current]::$ns
 	}
 	set name [namespace tail $name]
 
+	# create a like-named coro
 	set x [uplevel 1 [list ::coroutine ${ns}_$name $command {*}$args]]
+
+	# wrap the coro in a shim
 	proc ${ns}$name {args} [string map [list $x %N%] {
-	    tailcall %N% $args
+	    tailcall %N% $args	;# wrap the args into a list for the old-style coro
 	}]
 
-	# the two commands need to be paired
+	# the two commands need to be paired for destruction
 	trace add command $x delete ::delshim ${ns}$name
-	trace add command ${ns}$name ::delshim $x
+	trace add command ${ns}$name delete ::delshim $x
 
-	return $x
+	# tell it we created the one they requested
+	return ${ns}$name
     }
 }
 
