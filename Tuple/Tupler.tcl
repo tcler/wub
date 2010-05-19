@@ -287,7 +287,7 @@ oo::class create Tupler {
 	
 	# just an error - rethrow it
 	if {$kind eq ""} {
-	    return -options $tuple
+	    return -options $eo
 	} else {
 	    if {[catch {
 		my fetch "Not Found"
@@ -339,6 +339,7 @@ oo::class create Tupler {
 	    # resolved name
 	    dict with tuple {
 		dict set r -tuple $tuple
+
 		if {![info exists type]
 		    || $type eq ""
 		} {
@@ -346,6 +347,7 @@ oo::class create Tupler {
 		} else {
 		    set type [string map {" " _} [string tolower $type]]
 		}
+
 		return [Http Ok $r $content tuple/$type]
 	    }
 	}
