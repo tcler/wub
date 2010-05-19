@@ -186,8 +186,13 @@ namespace eval ::Site {
 	variable modules
 	variable sections
 
-	Debug.site {INI file: $file [file exists $file]}
-	if {![file exists $file]} return
+	if {![file exists $file]} {
+	    Debug.log {INI file: '$file' does not exist.}
+	    return
+	} else {
+	    Debug.log {INI file: [file normalize $file] [file exists $file]}
+	}
+
 	package require inifile
 	set ini [::ini::open $file r]
 
@@ -351,7 +356,7 @@ namespace eval ::Site {
     }
 
     proc init {args} {
-	# can pass in 'configuration' dict like above
+	# can pass in 'configuration' dict
 	variable configuration
 	if {[dict exists $args configuration]} {
 	    set configuration [dict merge $configuration [dict get $args configuration]]
@@ -371,16 +376,14 @@ namespace eval ::Site {
 	# configuration variable contains defaults
 	# set some default configuration flags and values
 	variable modules
-	variable sections
-	variable configuration
 	foreach {name val} [namespace eval ::Site [list rc $configuration]] {
 	    if {[string match @* $name]} {
 		set name [string tolower [string trim $name @]]
 		set modules($name) {}
 	    }
-	    Variable $name $val
+	    Variable $name $val	;# install the named variable
 	}
-	unset configuration
+	unset configuration	;# done with configuration var
 
 	variable home	;# application's home
 	if {[dict exists $::argv home]} {
@@ -395,7 +398,8 @@ namespace eval ::Site {
 	    do_ini $i
 	}
 
-	# load site configuration script vars.tcl (not under SVN control)
+	# load site configuration script vars.tcl
+	# (not under SVN control, for local site configuration)
 	variable vars
 	if {$vars ne ""} {
 	    if {[file exists $vars] && [catch {
@@ -407,7 +411,7 @@ namespace eval ::Site {
 	    }
 	}
 
-	# command-line configuration of vars
+	# process command-line configuration of vars
 	foreach {name val} $::argv {
 	    variable $name $val	;# set global config vars
 	}
@@ -422,7 +426,7 @@ namespace eval ::Site {
 	variable host; variable listener
 	Variable url "http://$host:[dict get $listener -port]/"
 
-	# now we're configured set some derived values
+	# now we're configured, set some derived values
 	if {[info exists ::starkit::topdir]} {
 	    # starkit startup
 	    Variable topdir $::starkit::topdir
@@ -430,7 +434,7 @@ namespace eval ::Site {
 	} else {
 	    # unpacked startup
 	    lappend ::auto_path $home	;# add the app's home dir to auto_path
-	    
+
 	    # find Wub stuff
 	    variable wubdir; variable topdir
 	    Variable topdir [file normalize $wubdir]
