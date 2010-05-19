@@ -1,7 +1,3 @@
-package require OO
-
-package provide Tuple 1.0
-
 # AXIOMS
 
 # TUPLES
@@ -22,6 +18,14 @@ package provide Tuple 1.0
 #* R4: a reference /n.ext is a request to convert the tuple n to the mime type of the extension, and is otherwise equivalent to /n (see P1)
 #* R7: a reference /+n is resolved as ${referer}+n
 
+#* Summary on compounding:
+#  A compound is found by finding the longest prefix which names an existing entity (called 'left',) then if the residual ('right') is not empty, searching for type(left)+fn(right) or *rform+fn(right).
+#  A question arises as to what 'fn' should be.
+#  Currently, it is implemented as 'first_element(right)'
+#  it could be implemented as 'left_of(right)' ie: longest existant prefix,
+#  or 'compound_of(right)' (ie: the resolution process is repeated on right)
+#  or it could be selectable by left.
+
 # TRANSCLUSION
 #* Tc1: a reference /+n is a transclusion in the context of ${referer}
 #* Tc2: a reference /n or /+n/ is a top level fetch
@@ -40,6 +44,13 @@ package provide Tuple 1.0
 # OWNERSHIP and permissions
 #* O1: tuples are owned by a user and a group, which have distinct permissions
 #* O2: users and groups are themselves tuples named *user+n and *group+n
+
+if {[info exists argv0] && ($argv0 eq [info script])} {
+    # this is being invoked in test mode.
+} else {
+    package require OO
+}
+package provide Tuple 1.0
 
 if {[catch {package require Debug}]} {
     #proc Debug.tuple {args} {}
@@ -590,6 +601,7 @@ oo::class create Tuple {
     }
 
     constructor {args} {
+	Debug.tuple {Creating Tuple [self] $args}
 	variable tuples
 	array set tuples {}	;# tuples array permits traces
 	variable name2id {}
@@ -618,6 +630,18 @@ oo::class create Tuple {
 	    mime {type text}
 	}
 
+	if {[catch {
+	    # create an interpreter for Basic subst
+	    set basicI [interp create basicI]
+	    basicI eval set ::auto_path [list $::auto_path]
+	    basicI eval {
+		puts stderr "MOOP"
+		package require Html
+	    }
+	} e eo]} {
+	    puts stderr "BASICI $e ($eo)"
+	}
+
 	if {[info exists prime]} {
 	    my prime $prime
 	}
@@ -625,6 +649,9 @@ oo::class create Tuple {
 }
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
+    lappend auto_path ../Utilities/
+    package require OO
+
     set ts [Tuple new]
     $ts prime {
 	0 {
