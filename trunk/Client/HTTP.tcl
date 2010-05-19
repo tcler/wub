@@ -67,6 +67,10 @@ package require Tcl 8.6	;# minimum version of tcl required
 package require TclOO
 namespace import oo::*
 
+# use the new coro functionality
+namespace eval tcl::unsupported namespace export yieldm
+namespace import tcl::unsupported::yieldm
+
 # import the relevant commands from WubUtils package
 if {[catch {package require WubUtils}]} {
     proc corovars {args} {
@@ -167,12 +171,12 @@ if {[catch {package require Url}]} {
 	}
 
 	proc http {x args} {
+	    set result ""
 	    foreach {part pre post} {
 		-path "" ""
 		-fragment \# ""
 		-query ? ""
 	    } {
-		set result ""
 		if {[dict exists $x $part]} {
 		    append result "${pre}[dict get $x $part]${post}"
 		}
@@ -305,7 +309,7 @@ class create HTTP {
 	       && [chan gets $socket line] != -1
 	       && [chan blocked $socket]
 	   } {
-	    yield
+	    ::yieldm
 	    set gone [catch {chan eof $socket} eof]
 	}
 
@@ -326,7 +330,7 @@ class create HTTP {
 	set chunk ""
 	set gone [catch {chan eof $socket} eof]
 	while {$size && !$gone && !$eof} {
-	    ::yield	;# wait for read event
+	    ::yieldm	;# wait for read event
 	    set chunklet [chan read $socket {*}[expr {$size>0?$size:""}]]	;# get some
 	    append chunk $chunklet			;# remember it
 	    incr size -[string length $chunklet]	;# how much left?
@@ -372,6 +376,7 @@ class create HTTP {
 	set spawn 1		;# create a new instance for changed hosts (NYI)
 	set notify ";#"		;# notify close to consumer?
 	set justcontent 0	;# the consumer only wants content
+	set sockopts {}
 
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
@@ -396,13 +401,21 @@ class create HTTP {
 	if {[dict exists $urld -port]} {
 	    set port [dict get $urld -port]
 	} else {
-	    set port 80 
+	    if {[dict get $urld -scheme] ne "https"} {
+		set port 80
+	    } else {
+		set port 443
+	    }
 	}
 
 	# connect socket to host
 	set socket ""
 	if {[catch {
-	    set socket [socket -async $host $port]	;# create the socket
+	    if {[dict get $urld -scheme] ne "https"} {
+		socket -async {*}$sockopts $host $port	;# create the socket
+	    } else {
+		::tls::socket -async {*}$sockopts $host $port  ;# create SSL socket
+	    }
 	} socket eo] || [catch {
 	    # condition the socket
 	    chan configure $socket -blocking 0 -buffering none -encoding binary -translation {crlf binary}
@@ -418,7 +431,7 @@ class create HTTP {
 
 	    # unpack all the passed-in args
 	    dict with args {}
-	    yield
+	    ::yieldm
 
 	    variable self;
 	    # keep receiving input resulting from our requests
@@ -559,7 +572,7 @@ class create HTTP {
 		    chan event $socket readable {}
 		}
 		Debug.HTTP {reader: sent response, waiting for next}
-		yield
+		::yieldm
 		set gone [catch {chan eof $socket} eof]
 	    }
 	    catch {chan close $socket}
@@ -624,7 +637,7 @@ class create HTTP {
 	    while {!$closing} {
 		# unpack event
 		if {[catch {
-		    set args [lassign [::yield $self] op]; set retval ""
+		    set args [lassign [::yieldm $self] op]; set retval ""
 		} e eo]} {
 		    Debug.HTTP {[info coroutine] yield: $e ($eo)}
 		    return
@@ -661,7 +674,7 @@ class create HTTP {
 	    variable writer
 	    if {[llength $args]} {
 		set args [lassign $args op url]
-		$writer [list $op $url {*}$args]
+		$writer $op $url {*}$args
 		return $self
 	    } else {
 		return $writer
