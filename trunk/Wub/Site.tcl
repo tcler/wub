@@ -35,8 +35,8 @@ if {[llength [info command ::tcl::unsupported::yieldm]]} {
 	}]
 
 	# the two commands need to be paired for destruction
-	trace add command $x delete [list ::delshim ${ns}$name]
-	trace add command ${ns}$name delete [list ::delshim $x]
+	trace add command ${ns}_$name delete [list ::delshim ${ns}$name]
+	trace add command ${ns}$name delete [list ::delshim ${ns}_$name]
 
 	# tell it we created the one they requested
 	return ${ns}$name
