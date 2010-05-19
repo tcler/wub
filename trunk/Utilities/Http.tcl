@@ -560,25 +560,31 @@ namespace eval Http {
     proc ServerError {rsp message {eo ""}} {
 	Debug.error {Server Error: '$message' ($eo) [dumpMsg $rsp]} 2
 	set content ""
+
+	dict set rsp -code 500
+	dict set rsp -rtype Error
+	dict set rsp -dynamic 1
+	    
 	if {[catch {
 	    if {$eo ne ""} {
-		append table [<thead> "[<th> Variable] [<th> Value]"] \n
-		append table <tbody>
-		dict for {n v} $eo {
-		    if {$n eq "-errorstack"} {
-			set st ""
-			foreach {n1 v1} $v {
-			    append st [<tr> "[<td> $n1] [<td> [armour $v1]]"] \n
-			}
-			set st [<table> border 1 $st]
-			append table [<tr> "[<td> $n] [<td> $st]"] \n
-		    } else {
-			append table [<tr> "[<td> $n] [<td> [<pre> [armour $v]]]"] \n
-		    }
+		append content [<h2> "Error Code '[dict get? $eo -errorcode]'"]
+		append content [<pre> [armour [dict get? $eo -errorinfo]]]
+		dict unset eo -errorcode
+		dict unset eo -errorinfo
 
+		#append table [<thead> "[<th> Variable] [<th> Value]"] \n
+		append table <tbody>
+
+		foreach {n1 v1} [dict get? $eo -errorstack] {
+		    append table [<tr> "[<td> $n1] [<td> [armour $v1]]"] \n
+		}
+
+		dict unset eo -errorstack
+
+		dict for {n v} $eo {
+		    append table [<tr> "[<td> $n] [<td> [<pre> [armour $v]]]"] \n
 		}
 		append table </tbody>
-		append content [<h2> "Error info"]
 		append content [<table> class errorinfo $table] \n
 	    }
 	    
@@ -597,12 +603,7 @@ namespace eval Http {
 		[<div> id errorinfo [tclarmour $content]]
 		[tclarmour [dump $rsp]]
 	    }]]
-		puts [dict get $rsp -content]
  
-	    dict set rsp -code 500
-	    dict set rsp -rtype Error
-	    dict set rsp -dynamic 1
-	    
 	    # Errors are completely dynamic - no caching!
 	    set rsp [NoCache $rsp]
 	} r1 eo1]} {
