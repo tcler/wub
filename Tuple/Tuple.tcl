@@ -145,19 +145,25 @@ oo::class create Tuple {
 	# we know that $left exists and $left+$right doesn't exist
 	if {[catch {
 	    set type [join [split [dict get $tuples($id) type] /] +]
-	    set essay $type+$right
-	    if {$essay eq $name} error
+	    set essay ${type}+$right
+	    Debug.tuple {finding composite '$essay' - from $id's [dict get $tuples($id) type]}
+	    if {$essay eq $name} {
+		error "composite '$essay' is degenerate"
+	    }
 	    Debug.tuple {find composite '$essay'}
 	    my find $essay	;# find the type equivalent
 	} found] && [catch {
 	    set essay *rform+$right
-	    if {$essay eq $name} error
+	    Debug.tuple {finding composite '$essay'}
+	    if {$essay eq $name} {
+		error "composite '$essay' is degenerate"
+	    }
 	    Debug.tuple {find composite '$essay'}
 	    my find $essay	;# find the *rform equivalent
 	} found]} {
 	    # axiom C3 (field as pseudo tuple)
 	    Debug.tuple {find didn't find composite formd '$type+$right' or '*rform+$right'}
-	    if {[string match {[*]*} $right]} {
+	    if {0 && [string match {[*]*} $right]} {
 		# construct a synthetic tuple whose content is the tuple's field contents
 		# and whose types etc are either derived from the tuple itself or
 		# are constants provided by tuple metadata.  axiom C3
@@ -206,8 +212,8 @@ oo::class create Tuple {
 	    return -code error -kind compound -notfound [list $left $right] "find: $name - found '$left' at #$id, but can't find '$type+$right' or '*rform+$right'"
 	} else {
 	    # found the named tuple
-	    lassign $find found l r
-	    Debug.tuple {find found $essay at #[dict get $found id] for $name at #$id as ($left)+($right)}
+	    lassign $found found l r
+	    #Debug.tuple {find found $essay at #[dict get $found id] for $name at #$id as ($left)+($right)}
 	    return [list $found $left $right]
 	}
     }
@@ -269,7 +275,7 @@ oo::class create Tuple {
 	# record the actual name we're fetching
 	dict set tuple _left $left
 	dict set tuple _right $right
-
+	Debug.tuple {fetch '$name' -> ($tuple)}
 	return $tuple
     }
 
@@ -505,6 +511,7 @@ oo::class create Tuple {
 	return $result
     }
 
+    # prime the tuple space with $content dict
     method prime {content} {
 	variable tuples
 	variable name2id
@@ -543,11 +550,13 @@ oo::class create Tuple {
 	}
     }
 
+    # metadata for fields
     method metadata {args} {
 	variable metadata
 	return $metadata
     }
 
+    # consistency checker for name2id
     method traceN {var id op args} {
 	variable name2id
 	variable old
@@ -571,6 +580,7 @@ oo::class create Tuple {
 	set old $name2id
     }
 
+    # consistency checker for tuples
     method traceT {var id op args} {
 	variable tuples
 	variable name2id
