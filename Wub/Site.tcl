@@ -94,7 +94,7 @@ proc findpaths {} {
 
     set ::auto_path [dict keys $apath]
 
-    puts stderr "AUTOPATH: $::auto_path"
+    #Debug.log {AUTOPATH: $::auto_path}
 }
 findpaths
 
