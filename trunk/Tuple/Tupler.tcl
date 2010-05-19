@@ -147,12 +147,14 @@ oo::class create Tupler {
 		    set ct [string tolower [dict get $c type]]
 		    set cc [dict get $c content]
 		    set cid [dict get $c id]	;# default - index by component id
-		    set cto html
+		    set cto head
+
 		    if {$ct ni $et} {
 			set cto [lindex $et 0]	;# convert to first expected type
 		    } elseif {$ct eq "ref"} {
 			set cid [lindex $cc 0]	;# index refs by URL component of ref
 		    }
+
 		    if {![dict exists [set $el] $cid]} {
 			# convert metadata component to expected type
 			# index component by appropriate id
