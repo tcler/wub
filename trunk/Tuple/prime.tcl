@@ -9,6 +9,7 @@ Type {
 Basic {
     type Type
 }
+
 Basic+Html {
     type Conversion
     content {
@@ -22,6 +23,7 @@ Basic+Html {
     mime "Tcl Script"
     content {
 	# evaluate tuple of "Tcl Script" as the result of its tcl evaluation
+	Debug.tupler {tcl script preprocessing ([dict get $r -content])}
 	set result [subst [dict get $r -content]]
 
 	# determine the mime type of result
@@ -30,6 +32,7 @@ Basic+Html {
 	} else {
 	    set mime [my getmime [dict get? $r -tuple]]
 	}
+
 	Debug.tupler {tcl script to '$mime' mime type content:($result)}
 	return [Http Ok $r $result $mime]
     }
@@ -38,20 +41,25 @@ Basic+Html {
 *rform+edit {
     type "Tcl Script"
     content {
-	set tuple [dict get $r -tuple]
-	dict with tuple {
-	    [<title> [string totitle "Editing $name"]]
-	    [<form> Edit_$id action save/ {
-		[<fieldset> Details_$id title $name {
-		    [<text> name label "Type:" $type]
-		    [<textarea> content $content]
-		    [<legend> $name]
-		    [hidden id $id]
-		}]
-	    }
-	    [<h1> [string totitle "Editing $name"]]
-	    
-	}
+	[
+	 ::set T [my fetch [dict get $r -tuple _left]]
+	 Debug.tupler {*rform+edit: ($T)}
+	 dict with T {
+	     set content [::textutil::undent [::textutil::untabify $content]]
+	     set result [subst {
+		 [<title> [string totitle "Editing $name"]]
+		 [<form> Edit_$id action save/ {
+		     [<fieldset> Details_$id title $name {
+			 [<legend> $name]
+			 [<text> name label "Type:" $type][<br>]
+			 [<textarea> content style {width:100%} $content]
+			 [<hidden> id $id]
+		     }]
+		 }]
+	     }]
+	 }
+	 set result
+	 ]
     }
 }
 
