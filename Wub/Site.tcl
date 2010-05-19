@@ -187,7 +187,7 @@ namespace eval ::Site {
 	variable sections
 
 	if {![file exists $file]} {
-	    Debug.log {INI file: '$file' does not exist.}
+	    error "Can't proceed: site initialization file '$file' does not exist."
 	    return
 	} else {
 	    Debug.log {INI file: [file normalize $file] [file exists $file]}
