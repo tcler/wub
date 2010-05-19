@@ -41,7 +41,7 @@ Basic+Html {
 	[<title> [string totitle "$kind error"]]
 	[<h1> [string totitle "$kind error"]]
 	[<p> "'$nfname' not found while looking for '$extra'"]
-	[<p> "(Generated from [<a> href xray/Not%2BFound "Not Found"] page)"]
+	[<p> "(Generated from [<a> href "xray/Not Found" "Not Found"] page)"]
     }
 }
 
@@ -106,7 +106,8 @@ CSS+Html {
     type Conversion
     mime "Tcl Script"
     content {
-	return [Http Ok $r [<style> type text/css [dict get $r -content]] tuple/html]
+	set c [dict get $r -content]
+	return [Http Ok $r [<pre> "&lt;style&gt;\n$c\n&lt;/style&gt;"] tuple/html]
     }
 }
 
@@ -114,7 +115,8 @@ CSS+Head {
     type Conversion
     mime "Tcl Script"
     content {
-	return [Http Ok $r [<style> type text/css [dict get $r -content]] tuple/head]
+	set c [dict get $r -content]
+	return [Http Ok $r [<style> type text/css $c] tuple/head]
     }
 }
 
@@ -125,6 +127,8 @@ ref+html {
 	set content [dict get $r -content]
 	set mime [dict get $r -tuple mime]
 	set id [dict get $r -tuple id]
+
+	set c [my tuConvert [dict get $r -content] tuple/text]
 
 	# each ref determines its referenced content's type
 	switch -glob -- $mime {
@@ -140,15 +144,15 @@ ref+html {
 	    }
 
 	    transclude/* {
-		set content [<div> id $id class transclude href {*}$content]
+		set content [<div> id T_$id class transclude href {*}$content]
 	    }
 
 	    image/* {
-		set content [<img> id $id src {*}$content]
+		set content [<img> id T_$id src {*}$content]
 	    }
 
 	    default {
-		set content [<a> id $id href {*}$content]
+		set content [<a> id T_$id href {*}$content]
 	    }
 	}
 	return [Http Ok $r $content tuple/html]
@@ -226,10 +230,10 @@ List+Html {
 	    set v [my fetch $v]
 	    set c [my tuConvert $v tuple/html]
 	    Debug.tupler {List to Html: converted $v to ($c)}
-	    append result [<li> id [dict get $v id] $c] \n
+	    append result [<li> id T_[dict get $v id] $c] \n
 	}
 	if {$result ne ""} {
-	    set result [<ol> \n$result]\n
+	    set result [<ul> \n$result]\n
 	}
 	return [Http Ok $r $result tuple/html]
     }
