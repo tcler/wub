@@ -35,6 +35,26 @@ Basic+Html {
     }
 }
 
+*rform+edit {
+    type "Tcl Script"
+    content {
+	set tuple [dict get $r -tuple]
+	dict with tuple {
+	    [<title> [string totitle "Editing $name"]]
+	    [<form> Edit_$id action save/ {
+		[<fieldset> Details_$id title $name {
+		    [<text> name label "Type:" $type]
+		    [<textarea> content $content]
+		    [<legend> $name]
+		    [hidden id $id]
+		}]
+	    }
+	    [<h1> [string totitle "Editing $name"]]
+	    
+	}
+    }
+}
+
 "Not Found" {
     type "Tcl Script"
     content {
@@ -390,6 +410,7 @@ welcome {
 	    "Test Uppercase and text/plain" {Example+Uppercase}
 	    "Test page not found" nothere
 	    "XRay of Now page" xray/now
+	    "Glob Test" {glob+test}
 	}]
     }
 }
