@@ -376,7 +376,7 @@ oo::class create Tupler {
 
     method /save {r args} {
 	Debug.tupler {/save $args}
-	return [Http Ok $r [<p> style {color:red;} "Save Not Yet Implemented"]]
+	return [Http Ok $r [<p> class error "Save Not Yet Implemented"]]
     }
 
     # view a tuple - giving it its most natural HTML presentation
