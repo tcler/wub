@@ -22,7 +22,27 @@ Basic+Html {
     type Type
     mime "Tcl Script"
     content {
-	# evaluate tuple of "Tcl Script" as the result of its tcl evaluation
+	# evaluate tuple of Template as the result of its tcl evaluation
+	Debug.tupler {tcl script preprocessing ([dict get $r -content])}
+	set content [eval [dict get $r -content]]
+	
+	# determine the mime type of result
+	if {[dict exists $r -mime]} {
+	    set mime [string map {_ /} [dict get? $r -mime]]
+	} else {
+	    set mime [my getmime [dict get? $r -tuple]]
+	}
+	
+	Debug.tupler {tcl script to '$mime' mime type content:($result)}
+	return [Http Ok $r $result $mime]
+    }
+}
+
+Template {
+    type Type
+    mime "Tcl Script"
+    content {
+	# evaluate tuple of Template as the result of its tcl evaluation
 	Debug.tupler {tcl script preprocessing ([dict get $r -content])}
 	set result [subst [dict get $r -content]]
 
@@ -41,30 +61,28 @@ Basic+Html {
 *rform+edit {
     type "Tcl Script"
     content {
-	[
-	 ::set T [my fetch [dict get $r -tuple _left]]
-	 Debug.tupler {*rform+edit: ($T)}
-	 dict with T {
-	     set content [::textutil::undent [::textutil::untabify $content]]
-	     set result [subst {
-		 [<title> [string totitle "Editing $name"]]
-		 [<form> Edit_$id action save/ {
-		     [<fieldset> Details_$id title $name {
-			 [<legend> $name]
-			 [<text> name label "Type:" $type][<br>]
-			 [<textarea> content style {width:100%} $content]
-			 [<hidden> id $id]
-		     }]
-		 }]
-	     }]
-	 }
-	 set result
-	 ]
+	::set T [my fetch [dict get $r -tuple _left]]
+	Debug.tupler {*rform+edit: ($T)}
+	dict with T {
+	    set content [::textutil::undent [::textutil::untabify $content]]
+	    set result [subst {
+		[<title> [string totitle "Editing $name"]]
+		[<form> Edit_$id action save/ {
+		    [<fieldset> Details_$id title $name {
+			[<legend> $name]
+			[<text> name label "Type:" $type][<br>]
+			[<textarea> content style {height:10em; width:100%} $content]
+			[<hidden> id $id]
+		    }]
+		}]
+	    }]
+	}
+	set result
     }
 }
 
 "Not Found" {
-    type "Tcl Script"
+    type Template
     content {
 	[<title> [string totitle "$kind error"]]
 	[<h1> [string totitle "$kind error"]]
@@ -409,7 +427,7 @@ Uppercase {
 }
 
 welcome {
-    type "Tcl Script"
+    type Template
     content {
 	[<h1> "Welcome to Tuple"]
 	[Html ulinks {
@@ -424,7 +442,7 @@ welcome {
 }
 
 now {
-    type "Tcl Script"
+    type Template
     content {
 	[<h1> Now]
 	[<p> "[clock format [clock seconds]] is the time"]
