@@ -58,6 +58,13 @@ Template {
     }
 }
 
+*rform+jQ {
+    type Text
+    content {
+	inc
+    }
+}
+
 *rform+style {
     type css
     content {
@@ -556,7 +563,9 @@ now {
 	[<p> "This page is generated from a Tcl Script, and assembled from components for [<a> href xray/now+style style] (which makes the header red) and [<a> href xray/now+title title] (which gives the page a title.)"]
 	[<p> "The tuple underlying this may be viewed with the [<a> href xray/now "xray facility"]."]
 
-	[<p> "Next step - Creole and Transclusion"]
+	[<p> "Next step - Creole"]
+	[<p> "The following is a transclusion of xray/now - the syntax will improve"]
+	[<div> {*}[jQ tc xray/now]]
     }
 }
 
