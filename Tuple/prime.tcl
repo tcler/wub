@@ -67,17 +67,27 @@ Template {
 	    set content [::textutil::undent [::textutil::untabify $content]]
 	    set result [subst {
 		[<title> [string totitle "Editing $name"]]
-		[<form> Edit_$id action save/ {
+		[<form> Edit_$id class autoform action /save/ {
 		    [<fieldset> Details_$id title $name {
 			[<legend> $name]
-			[<text> name label "Type:" $type][<br>]
-			[<textarea> content style {height:10em; width:100%} $content]
+			[<text> name label "Type:" [string totitle $type]][<br>]
+			[<textarea> content class autogrow style {width:99%} [string trim $content]]
 			[<hidden> id $id]
+			[<submit> submit]
 		    }]
+		    [<div> id result {}]
 		}]
 	    }]
 	}
 	set result
+    }
+}
+
+*rform+edit+jQ {
+    type text
+    content {
+	form .autoform target '#result'
+	autogrow .autogrow
     }
 }
 
@@ -446,7 +456,7 @@ now {
     content {
 	[<h1> Now]
 	[<p> "[clock format [clock seconds]] is the time"]
-	[<p> "This page is generated from a Tcl Script, and assembled from components for [<a> href xray/now%2Bstyle style] (which makes the header red) and [<a> href xray/now%2Btitle title] (which gives the page a title.)"]
+	[<p> "This page is generated from a Tcl Script, and assembled from components for [<a> href xray/now+style style] (which makes the header red) and [<a> href xray/now+title title] (which gives the page a title.)"]
 	[<p> "The tuple underlying this may be viewed with the [<a> href xray/now "xray facility"]."]
 
 	[<p> "Next step - Creole and Transclusion"]
