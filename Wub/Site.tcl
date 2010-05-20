@@ -699,6 +699,7 @@ namespace eval ::Site {
 
     }
     proc sectvar {expr} {
+	set expr [lindex $expr 0]
 	if {[string match {$*} $expr]} {
 	    return [subst -nocommands $expr]
 	} else {
