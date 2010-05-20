@@ -115,6 +115,7 @@ oo::class create Tupler {
 		    append body [<$el> id $cid $cc] \n
 		}
 	    }
+
 	    variable html5
 	    if {$html5} {
 		set tag <article>
@@ -133,6 +134,18 @@ oo::class create Tupler {
 		    lassign $cm r cid cc
 		    append body [<$el> id T_$cid $cc] \n
 		}
+	    }
+
+	    # process dependent jQ file as text
+	    if {![catch {my fetch $name+jq} c]} {
+		foreach l [split [my tuConvert $c tuple/text] \n] {
+		    set l [string trim $l]
+		    if {[string match #* $l] || $l eq ""} continue
+		    set a [lassign [split $l] jq]
+		    Debug.tupler {jQ $jq .. $a}
+		    set r [jQ $jq $r {*}$a]
+		}
+		Debug.tupler {post-jQ: ($r)}
 	    }
 
 	    # check for body and header components of document and assemble them
@@ -171,11 +184,43 @@ oo::class create Tupler {
 	    } else {
 		set head [<title> [armour [dict get $r -tuple name]]]
 	    }
+
+	    # add jQ script and style preloads
+	    set preloads ""
+	    dict for {n v} [dict get? $r -script] {
+		if {[string match !* $n]} {
+		    append preloads $v \n
+		} else {
+		    append preloads [<script> src $n {*}$v] \n
+		}
+	    }
+	    dict for {n v} [dict get? $r -style] {
+		if {[string match !* $n]} {
+		    append preloads $v \n
+		} else {
+		    append preloads [<stylesheet> $n {*}$v] \n
+		}
+	    }
+
+	    append head $preloads \n			;# add jQ script preloads
 	    append head \n [join [dict values $load] \n]	;# add script preloads
 	    append head \n [join [dict values $style] \n]	;# add style preloads
 	    
 	    # add scripts to <body> part
 	    append body [join [dict values $script] \n] ;# add script postscripts
+
+	    # add jQ postscripts
+	    dict for {n v} [dict get? $r -postscript] {
+		if {[string match !* $n]} {
+		    append body \n $v \n
+		    Debug.tupler {jsloader $n $v}
+		} else {
+		    append body \n [<script> src $n {*}$v] \n
+		    Debug.tupler {jsloader $n $v}
+		}
+	    }
+
+	    append body [join [dict get? $r -postload] \n] \n	;# add jQ script postscripts
 
 	    # construct the final HTML text
 	    variable doctype	;# html doctype from Tupler instance
@@ -332,6 +377,7 @@ oo::class create Tupler {
     # view a tuple - giving it its most natural HTML presentation
     method /view {r args} {
 	set extra [Url decode [dict get $r -extra]]
+	puts stderr "TUPLER [lindex [split [dict get $r -header]] 1] - $extra"
 	dict set r -convert [self]
 	if {[catch {my fetch $extra} tuple eo]} {
 	    tailcall my bad $r $eo
