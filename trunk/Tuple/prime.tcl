@@ -148,6 +148,10 @@ Template {
 	.changed {
 	    background-color: gainsboro;
 	}
+
+	.error {
+	    color: red;
+	}
     }
 }
 
