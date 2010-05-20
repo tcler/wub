@@ -339,7 +339,8 @@ namespace eval ::Site {
 	}]
 
 	@nub [rc {
-	    nubs {nub.nub bogus.nub}
+	    nubs {}
+	    # nub.nub bogus.nub
 	}]
 
 	# Httpd protocol engine configuration
@@ -511,7 +512,7 @@ namespace eval ::Site {
 	    Debug.site {Module Human: NO}
 	    namespace eval ::Human {
 		proc track {r args} {return $r}
-		namespace export -clear *
+		namespace export -clear *nub/nubs/
 		namespace ensemble create -subcommands {}
 	    }
 	}
@@ -617,6 +618,7 @@ namespace eval ::Site {
 	package require Nub
 	variable nub
 	variable nubs
+	variable sections
 	if {[info exists nubs] && [llength $nubs]} {
 	    dict set nub nubs $nubs
 	}
@@ -627,6 +629,8 @@ namespace eval ::Site {
 	    foreach file [dict get $nub nubs] {
 		Nub configF $file
 	    }
+	} elseif {[array names sections {[a-z]*}] ne {}} {
+	    sections	;# initialize the nubs
 	} else {
 	    # no nubs supplied
 	    Nub config	;# start with the builtin
@@ -700,10 +704,17 @@ namespace eval ::Site {
 	    if {![dict exists $section url]} {
 		error "nub '$sect' declared in .ini must have a url value"
 	    }
-	    set args [lassign [dict get $section domain] cmd]
+
+	    set domain [dict get $section domain]
 	    dict unset section domain
+	    if {![string match {[A-Z]*} $domain]
+		|| [string map {" " ""} $domain] ne $domain} {
+		error "Nub '$sect' domain arg '$domain' is badly formed."
+	    }
 	    set url [dict get $section url]
-	    Nub domain $url [list $cmd ::Domains::$sect] {*}$section {*}$args
+	    dict unset section url
+
+	    Nub domain $url [list $domain ::Domains::$sect] {*}$section
 	} elseif {[dict exists $section block]} {
 	    dict with section {
 		Nub block $block
@@ -758,7 +769,6 @@ namespace eval ::Site {
 	init {*}$args
 
 	modules		;# start the listeners etc
-	sections	;# initialize the nubs
 
 	# can't run the whole start up sequence twice
 	# can initialize the application
