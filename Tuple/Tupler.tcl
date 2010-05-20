@@ -358,9 +358,25 @@ oo::class create Tupler {
 	}
     }
 
+    method getname {r} {
+	set extra [dict get $r -extra]
+	Debug.tupler {getname extra: $extra}
+
+	if {[string match +* $extra]} {
+	    # + prefix means relative to referer
+	    variable mount
+	    lassign [Url urlsuffix [Http Referer $r] $mount] meh rn suffix path
+	    Debug.tupler {urlsuffix: $suffix $path}
+	    set extra $suffix$extra
+	}
+
+	Debug.tupler {getname got: $extra}
+	return $extra
+    }
+
     # xray a tuple - presenting it as a dict
     method /xray {r args} {
-	set extra [Url decode [dict get $r -extra]]
+	set extra [my getname $r]
 	if {[catch {my fetch $extra} tuple eo]} {
 	    tailcall my bad $r $eo
 	} else {
@@ -381,8 +397,7 @@ oo::class create Tupler {
 
     # view a tuple - giving it its most natural HTML presentation
     method /view {r args} {
-	set extra [Url decode [dict get $r -extra]]
-	puts stderr "TUPLER [lindex [split [dict get $r -header]] 1] - $extra"
+	set extra [my getname $r]
 	dict set r -convert [self]
 	if {[catch {my fetch $extra} tuple eo]} {
 	    tailcall my bad $r $eo
@@ -419,6 +434,7 @@ oo::class create Tupler {
 
     constructor {args} {
 	Debug.tupler {Creating Tupler [self] $args}
+	variable mount
 	variable welcome welcome
 	variable primer prime.tcl		;# primer for Tupler
 	variable doctype "<!DOCTYPE html>"	;# HTML5 doctype
