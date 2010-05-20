@@ -67,10 +67,10 @@ Template {
 	    set content [::textutil::undent [::textutil::untabify $content]]
 	    set result [subst {
 		[<title> [string totitle "Editing $name"]]
-		[<form> Edit_$id class autoform action /save/ {
+		[<form> Edit_$id class autoform action save/ {
 		    [<fieldset> Details_$id title $name {
 			[<legend> $name]
-			[<text> name label "Type:" [string totitle $type]][<br>]
+			[<text> type label "Type:" [string totitle $type]][<br>]
 			[<textarea> content class autogrow style {width:99%} [string trim $content]]
 			[<hidden> id $id]
 			[<submit> submit]
