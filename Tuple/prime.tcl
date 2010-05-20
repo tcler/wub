@@ -564,8 +564,8 @@ now {
 	[<p> "The tuple underlying this may be viewed with the [<a> href xray/now "xray facility"]."]
 
 	[<p> "Next step - Creole"]
-	[<p> "The following is a transclusion of xray/now - the syntax will improve"]
-	[<div> {*}[jQ tc xray/now]]
+	[<p> "The following is a transclusion of xray/now:"]
+	[<inc> xray/now]
     }
 }
 
