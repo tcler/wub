@@ -533,6 +533,7 @@ namespace eval jQ {
     proc dict2accordion {dict args} {
 	set result {}
 	foreach {n v} $dict {
+	    set n [armour $n]
 	    lappend result [<div> "[<a> href #$n $n]\n[<div> $v]"]
 	}
 	return [<div> {*}$args [join $result \n]]
@@ -824,6 +825,10 @@ namespace eval jQ {
 	    File create ::jQ::fs {*}$args root $root mount $mount expires $expires
 	}
 	return jQ
+    }
+
+    proc create {junk args} {
+	return [new {*}$args]
     }
 
     namespace export -clear *
