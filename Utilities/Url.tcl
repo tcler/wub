@@ -18,7 +18,8 @@ namespace eval Url {
     # The spec says: "non-alphanumeric characters are replaced by '%HH'"
     variable dmap
 
-    set dmap {+ " " %0D%0A \n %0d%0a \n %% %}
+    #set dmap {+ " " %0D%0A \n %0d%0a \n %% %}
+    set dmap {%0D%0A \n %0d%0a \n %% %}
 
     # set up non-alpha map
     for {set i 1} {$i <= 256} {incr i} {
