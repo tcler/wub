@@ -5,6 +5,7 @@
 # provides subst-versions of if, while, foreach and switch commands
 
 package require WubUtils
+package require Query
 package require know
 package provide Html 1.0
 
@@ -442,6 +443,10 @@ proc <div> {args} {
 	lappend result "class='[join $class]'"
     }
     return "<[join ${result}]>$content</div>"
+}
+
+proc <inc> {what} {
+    return [<div> {*}[jQ tc $what] {}]
 }
 
 # return a nested set of HTML <divs>
