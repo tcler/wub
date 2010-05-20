@@ -58,6 +58,99 @@ Template {
     }
 }
 
+*rform+style {
+    type css
+    content {
+	* {zoom: 1.0;}
+
+	input.blur {
+	    color:lightgray;
+	}
+	img.icon {
+	    border:0px;
+	    width:25px
+	}
+
+	div.nav {
+	    float:right;
+	    background: whitesmoke;
+	    padding: 0.3em 0.7em;
+	    -moz-border-radius-topleft:5px;
+	    -moz-border-radius-topright:5px;
+	    -moz-border-radius-bottomleft:5px;
+	    -moz-border-radius-bottomright:5px;
+	}
+	h1.pretty, h2.pretty, h3.pretty, h4.pretty, h5.pretty, h6.pretty {
+	    background: darkslategray;
+	    color: whitesmoke;
+	    padding: 0.2em 0.5em;
+	    -moz-border-radius-topleft:7px;
+	    -moz-border-radius-topright:7px;
+	    -moz-border-radius-bottomleft:7px;
+	    -moz-border-radius-bottomright:7px;
+	}
+	table.pretty {
+	    margin: 1em 1em 1em 2em;
+	    background: whitesmoke;
+	    border-collapse: collapse;
+	}
+	table.pretty td {
+	    border: 1px silver solid;
+	    padding: 0.2em;
+	}
+	table.pretty th {
+	    border: 1px silver solid;
+	    padding: 0.2em;
+	    background: darkslategray;
+	    color: white;
+	    text-align: left;
+	    -moz-border-radius-topleft:7px;
+	    -moz-border-radius-topright:7px;
+	    -moz-border-radius-bottomleft:7px;
+	    -moz-border-radius-bottomright:7px;
+	}
+	table.pretty tr.family {
+	    background: gainsboro;
+	}
+	table.pretty caption {
+	    margin-left: inherit;
+	    margin-right: inherit;
+	    font-size: 150%;
+	}
+
+	fieldset {
+	    background: whitesmoke;
+
+	    -moz-border-radius-topleft:7px;
+	    -moz-border-radius-topright:7px;
+	    -moz-border-radius-bottomleft:7px;
+	    -moz-border-radius-bottomright:7px;
+	}
+
+	fieldset > legend {
+	    background: darkslategray;
+	    color: white;
+	    -moz-border-radius-topleft:5px;
+	    -moz-border-radius-topright:5px;
+	    -moz-border-radius-bottomleft:5px;
+	    -moz-border-radius-bottomright:5px;
+	}
+
+	.button {
+	    border: 1px solid #aaa;
+	    -webkit-border-radius: 5px;
+	    -moz-border-radius: 5px;
+	    padding: 2px 5px;
+	    margin: 0 3px;
+	    cursor: pointer;
+	    background: gainsboro;
+	}
+	.changed {
+	    background-color: gainsboro;
+	}
+    }
+}
+
 *rform+edit {
     type "Tcl Script"
     content {
