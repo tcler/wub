@@ -17,11 +17,11 @@ namespace eval Query {
 	variable map
 	variable dmap
 
-	set dmap {+ " " %0D%0A \n %0d%0a \n %% %}
+	set dmap {%0D%0A \n %0d%0a \n %% %}
 	set map {% %% = = & & - -}
 
 	# set up non-alpha map
-	for {set i 1} {$i <= 256} {incr i} {
+	for {set i 0} {$i < 256} {incr i} {
 	    set c [format %c $i]
 	    if {![string match {[a-zA-Z0-9]} $c]} {
 		if {![dict exists $map $c]} {
