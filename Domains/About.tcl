@@ -97,6 +97,9 @@ namespace eval About {
 	}
 	return ::About
     }
+    proc create {ignore args} {
+	return [new {*}$args]
+    }
 
     namespace export -clear *
     namespace ensemble create -subcommands {}
