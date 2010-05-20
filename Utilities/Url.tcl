@@ -208,9 +208,17 @@ namespace eval Url {
 	Debug.url {Url url $args}
 
 	# minimize -port
-	if {[dict exists $args -port]
-	    && ([dict get $args -port] eq "" || [dict get $args -port] eq "80")} {
-	    dict unset args -port
+	if {[dict exists $args -port]} {
+	    if {[dict get $args -port] eq ""} {
+		dict unset args -port
+	    }
+	    if {[dict get $args scheme] eq "http" && [dict get $args -port] eq "80")} {
+		dict unset args -port
+	    } elseif {[dict get $args scheme] eq "https" && [dict get $args -port] eq "443")} {
+		dict unset args -port
+	    } elseif {[dict get $args scheme] eq "ftp" && [dict get $args -port] eq "21")} {
+		dict unset args -port
+	    }
 	}
 
 	foreach {part pre post} {
