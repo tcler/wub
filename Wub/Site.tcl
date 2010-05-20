@@ -698,7 +698,13 @@ namespace eval ::Site {
 	}
 
     }
-
+    proc sectvar {expr} {
+	if {[string match {$*} $expr]} {
+	    return [subst -nocommands $expr]
+	} else {
+	    return $expr
+	}
+    }
     proc section {sect section} {
 	if {[dict exists $section domain]} {
 	    if {![dict exists $section url]} {
@@ -714,7 +720,11 @@ namespace eval ::Site {
 	    set url [dict get $section url]
 	    dict unset section url
 
-	    Nub domain $url [list $domain ::Domains::$sect] {*}$section
+	    set a {}
+	    foreach {n v} $section {
+		lappend a $n [sectvar $v]
+	    }
+	    Nub domain $url [list $domain ::Domains::$sect] {*}$a
 	} elseif {[dict exists $section block]} {
 	    dict with section {
 		Nub block $block
@@ -725,15 +735,19 @@ namespace eval ::Site {
 	    dict with section {
 		if {![info exists mime]} {
 		    set mime x-text/html-fragment
+		} else {
+		    set mime [sectvar $mime]
 		}
-		Nub code $url $code $mime
+		Nub code $url [lindex $code 0] $mime
 	    }
 	} elseif {[dict exists $section literal]} {
 	    dict with section {
 		if {![info exists mime]} {
 		    set mime x-text/html-fragment
+		} else {
+		    set mime [sectvar $mime]
 		}
-		Nub literal $url $literal $mime
+		Nub literal $url [lindex $literal 0] $mime
 	    }
 	} elseif {[dict exists $section redirect]} {
 	    dict with section {
