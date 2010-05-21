@@ -188,7 +188,7 @@ Template {
 }
 
 *rform+edit+jQ {
-    type text
+    type Text
     content {
 	form .autoform target '#result'
 	autogrow .autogrow
@@ -561,7 +561,7 @@ now {
 	[<h1> Now]
 	[<p> "[clock format [clock seconds]] is the time"]
 	[<p> "This page is generated from a Tcl Script, and assembled from components for [<a> href xray/now+style style] (which makes the header red) and [<a> href xray/now+title title] (which gives the page a title.)"]
-	[<p> "This page may be edited with [<a> href +edit +edit]"]
+	[<p> "This (or any) page may be edited with [<a> href +edit +edit]"]
 	[<p> "Next step - Creole"]
 	[<p> "The following is a transclusion of xray/now:"]
 	[<inc> xray/now]
@@ -602,5 +602,34 @@ reflect {
     mime text
     content {
 	now+*
+    }
+}
+
+Creole+Html {
+    type Conversion
+    content {
+	set r [jQ jquery $r]	;# critical that we load jquery first
+	set r [jQ script $r creole.js]
+	dict lappend r -postscript js/js {}	;# then the local js
+	dict lappend r -postscript !tupler [<script> {
+	    $(document).Tuple();
+	}]
+	return [Http Ok $r [<div> class creole [dict get $r -content]] tuple/html]
+    }
+}
+
+"creole test" {
+    type Creole
+    content {
+	[[WikiCreole:Creole1.0|{{http://www.wikicreole.org/attach/LeftMenu/viki.png|Creole 1.0}}]]\\
+	    What you see is a **live** demonstration of [[WikiCreole:Creole1.0|Creole 1.0]] parser, written entirely in [[Wikipedia:JavaScript|JavaScript]]. Creole is a wiki markup language, intended to be a cross standard for various wiki markup dialects.
+
+	[[http://www.ivan.fomichev.name/2008/04/javascript-creole-10-wiki-markup-parser.html | Ivan Fomichev]]'s parser is used to render Creole in-client.
+
+	See [[WikiCreole:CheatSheet|Creole 1.0 Cheat Sheet]] for editing tips.
+
+	The following is a local transclusion from Creole:
+
+	{{+edit}}
     }
 }

@@ -233,6 +233,13 @@ oo::class create Tupler {
 	return [Http Ok $r $html text/html]
     }
 
+    # /js - return the pre-canned javascript for Tupler
+    method /js/js {r args} {
+	variable js
+	# TODO - caching and expiry stuff
+	return [Http Ok $r $js application/javascript]
+    }
+
     # mktype - creates a bare-bones Type tuple 
     method mktype {name {type type}} {
 	if {[catch {
@@ -359,7 +366,7 @@ oo::class create Tupler {
     }
 
     method getname {r} {
-	set extra [dict get $r -extra]
+	set extra [Url decode [dict get $r -extra]]
 	Debug.tupler {getname extra: $extra}
 
 	if {[string match +* $extra]} {
@@ -367,7 +374,7 @@ oo::class create Tupler {
 	    variable mount
 	    lassign [Url urlsuffix [Http Referer $r] $mount] meh rn suffix path
 	    Debug.tupler {urlsuffix: $suffix $path}
-	    set extra $suffix$extra
+	    set extra [Url decode $suffix]$extra
 	}
 
 	Debug.tupler {getname got: $extra}
@@ -444,6 +451,7 @@ oo::class create Tupler {
 	}
 	variable html5 0
 	variable {*}$args
+	variable js [::fileutil::cat [file join $::Tuple_home Tupler.js]]
 
 	if {![info exists prime]} {
 	    # always prime the Tuple with something
