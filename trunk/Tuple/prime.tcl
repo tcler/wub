@@ -162,6 +162,12 @@ Template {
     }
 }
 
+*rform+styleR {
+    type ref
+    mime css
+    content {*rform+css}
+}
+
 *rform+edit {
     type "Tcl Script"
     content {
