@@ -118,6 +118,13 @@ namespace eval Url {
 	# remember which mount we're using - this allows several
 	# domains to share the same namespace, differentiating by
 	# reference to -prefix value.
+	if {[catch {dict size $r}]} {
+	    # accept a single URL instead of a request
+	    if {[llength $r] != 1} {
+		error "Url urlsuffix requires a request dict or a URL as a first arg"
+	    }
+	    set r [list -path $r]	;# pretend it's a request
+	}
 	dict set r -prefix $mount
 	set path [dict get $r -path]
 
