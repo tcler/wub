@@ -29,6 +29,14 @@ $.fn.transclude = function (options) {
 			    $(this.target).removeAttr("src");
 			    $(this.target).transclude({url:url, args:$(this).attr("args")});
 			});
+
+		    try {
+			$('.autoform').ajaxForm({target:'#result'});
+		    } catch (e) {}
+		    try {
+			$('.autogrow').autogrow({maxHeight:1000,minHeight:100});
+		    } catch (e) {}
+
 		} catch (e) {
 		    alert("transclusion error: " + e);
 		}
