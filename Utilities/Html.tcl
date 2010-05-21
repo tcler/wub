@@ -86,7 +86,7 @@ namespace eval Html {
 	set content {}
 	foreach {n url} $args {
 	    if {[llength $url] == 1} {
-		lappend content [<a> href $url $n]
+		lappend content [<a> href [lindex $url 0] $n]
 	    } else {
 		lappend content [<a> {*}$url $n]
 	    }
