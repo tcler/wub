@@ -31,7 +31,7 @@ if (!Parse) { var Parse = {}; }
 if (!Parse.Simple) { Parse.Simple = {}; }
 
 // remove multiple, leading or trailing spaces
-function trim(s) {
+function trim4creole(s) {
 	s = s.replace(/(^\s*)|(\s*$)/gi,"");
 	s = s.replace(/[ ]{2,}/gi," ");
 	s = s.replace(/\n /,"\n");
@@ -99,7 +99,7 @@ Parse.Simple.Base.Rule.prototype = {
         var target;
         if (this.tag) {
             target = document.createElement(this.tag);
-            node.appendChild(target);
+            $(node).append(target);
         }
         else { target = node; }
 
@@ -177,7 +177,7 @@ Parse.Simple.Base.Rule.prototype = {
                 // workaround for bad IE
                 data = data.replace(/\n/g, ' \r');
             }
-            node.appendChild(document.createTextNode(data));
+            $(node).append(document.createTextNode(data));
         }
     }    
 };
@@ -257,32 +257,24 @@ Parse.Simple.Creole = function(options) {
 		/* {{}} can be used for transclusion of non-images */
 		if (r[1].match(/(gif|jpg|png|svg)/i)) {
 		    var img = document.createElement('img');
-		    img.src = trim(r[1]);
+		    img.src = trim4creole(r[1]);
 		    img.alt = r[2] === undefined
                     	? (options && options.defaultImageText ? options.defaultImageText : '')
-                    	: trim(r[2]).replace(/~(.)/g, '$1');
-		    node.appendChild(img);
+                    	: trim4creole(r[2]).replace(/~(.)/g, '$1');
+		    $(node).append(img);
 		} else {
-		    // transclusion: insert a span marked with a loader
+		    // transclusion: insert an image with an onload
 		    var span = $("<span><img src='/icons/bigrotation.gif'></span>");
-		    r[1] = trim(r[1]);
+
+		    // record the transclusion in the span
+		    $(span).attr("src", trim4creole(r[1]));	// record the URL
 		    if (r[2] != undefined) {
 			// get transclusion modifiers
-			r[2]=trim(r[2]);
-			if (r[2].match(/\\|[ ]*close/)) {
-			    // Don't load a closed card
-			    // record its data for later
-			    $(span).attr("closed", r[1]);
-			    $(span).attr("args", r[2]);
-			} else {
-			    // load the card
-			    $(span).attr("loader", r[1]+"?trargs="+r[2]);
-			}
-		    } else {
-			$(span).attr("loader", r[1]);
+			r[2]=trim4creole(r[2]);
+			$(span).attr("args", r[2]);
 		    }
 
-		    node.appendChild(span);
+		    $(node).append(span);
 		}
             } },
 
@@ -291,12 +283,12 @@ Parse.Simple.Creole = function(options) {
                 var link = document.createElement('a');
                 link.href = r[1];
                 if (options && options.isPlainUri) {
-                    link.appendChild(document.createTextNode(r[2]));
+                    $(link).append(document.createTextNode(r[2]));
                 }
                 else {
                     this.apply(link, r[2], options);
                 }
-                node.appendChild(link);
+                $(node).append(link);
             } },
 
         namedLink: { regex: '\\[\\[(' + rx.link + ')\\|(' + rx.linkText + ')\\]\\]',
@@ -308,7 +300,7 @@ Parse.Simple.Creole = function(options) {
                     : r[1].replace(/~(.)/g, '$1');
                 this.apply(link, r[2], options);
                 
-                node.appendChild(link);
+                $(node).append(link);
             } },
 
         unnamedUri: { regex: '\\[\\[(' + rx.uri + ')\\]\\]',
@@ -355,7 +347,7 @@ Parse.Simple.Creole = function(options) {
             
             this.apply(link, r[2], options);
             
-	    node.appendChild(link);
+	    $(node).append(link);
         }
     };
     g.unnamedInterwikiLink.build = function(node, r, options) {
