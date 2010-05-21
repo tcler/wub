@@ -115,7 +115,7 @@ $.fn.Tuple = function (value) {
     if (value == undefined) {
 	value = $(this)
     }
-    alert("Tuple: "+value);
+    //alert("Tuple: "+value);
     var count = 1;
     while (count) {
 	// recursively creolize and transclude until no changes
