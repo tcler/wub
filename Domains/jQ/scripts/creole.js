@@ -25,6 +25,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 /* http://www.ivan.fomichev.name/2008/04/javascript-creole-10-wiki-markup-parser.html */
+/* http://jscreole.svn.sourceforge.net/viewvc/jscreole/ */
+
 if (!Parse) { var Parse = {}; }
 if (!Parse.Simple) { Parse.Simple = {}; }
 
@@ -57,7 +59,7 @@ Parse.Simple.Base.prototype = {
         } else {
             options = this.options;
         }
-	
+
         data = data.replace(/\r\n?/g, '\n');
         this.grammar.root.apply(node, data, options);
         if (options && options.forIE) { node.innerHTML = node.innerHTML.replace(/\r?\n/g, '\r\n'); }
@@ -97,7 +99,7 @@ Parse.Simple.Base.Rule.prototype = {
         var target;
         if (this.tag) {
             target = document.createElement(this.tag);
-            $(node).append(target);
+            node.appendChild(target);
         }
         else { target = node; }
 
@@ -175,7 +177,7 @@ Parse.Simple.Base.Rule.prototype = {
                 // workaround for bad IE
                 data = data.replace(/\n/g, ' \r');
             }
-            $(node).append(document.createTextNode(data));
+            node.appendChild(document.createTextNode(data));
         }
     }    
 };
@@ -252,21 +254,24 @@ Parse.Simple.Creole = function(options) {
 
         img: { regex: rx.img,
             build: function(node, r, options) {
+		/* {{}} can be used for transclusion of non-images */
 		if (r[1].match(/(gif|jpg|png|svg)/i)) {
 		    var img = document.createElement('img');
 		    img.src = trim(r[1]);
 		    img.alt = r[2] === undefined
-                    ? (options && options.defaultImageText ? options.defaultImageText : '')
-                    : trim(r[2]).replace(/~(.)/g, '$1');
-		    $(node).append(img);
+                    	? (options && options.defaultImageText ? options.defaultImageText : '')
+                    	: trim(r[2]).replace(/~(.)/g, '$1');
+		    node.appendChild(img);
 		} else {
+		    // transclusion: insert a span marked with a loader
 		    var span = $("<span><img src='/icons/bigrotation.gif'></span>");
-
 		    r[1] = trim(r[1]);
 		    if (r[2] != undefined) {
+			// get transclusion modifiers
 			r[2]=trim(r[2]);
 			if (r[2].match(/\\|[ ]*close/)) {
 			    // Don't load a closed card
+			    // record its data for later
 			    $(span).attr("closed", r[1]);
 			    $(span).attr("args", r[2]);
 			} else {
@@ -277,7 +282,7 @@ Parse.Simple.Creole = function(options) {
 			$(span).attr("loader", r[1]);
 		    }
 
-		    $(node).append(span);
+		    node.appendChild(span);
 		}
             } },
 
@@ -286,12 +291,12 @@ Parse.Simple.Creole = function(options) {
                 var link = document.createElement('a');
                 link.href = r[1];
                 if (options && options.isPlainUri) {
-                    $(link).append(document.createTextNode(r[2]));
+                    link.appendChild(document.createTextNode(r[2]));
                 }
                 else {
                     this.apply(link, r[2], options);
                 }
-                $(node).append(link);
+                node.appendChild(link);
             } },
 
         namedLink: { regex: '\\[\\[(' + rx.link + ')\\|(' + rx.linkText + ')\\]\\]',
@@ -303,7 +308,7 @@ Parse.Simple.Creole = function(options) {
                     : r[1].replace(/~(.)/g, '$1');
                 this.apply(link, r[2], options);
                 
-                $(node).append(link);
+                node.appendChild(link);
             } },
 
         unnamedUri: { regex: '\\[\\[(' + rx.uri + ')\\]\\]',
@@ -350,7 +355,7 @@ Parse.Simple.Creole = function(options) {
             
             this.apply(link, r[2], options);
             
-		$(node).append(link);
+	    node.appendChild(link);
         }
     };
     g.unnamedInterwikiLink.build = function(node, r, options) {
