@@ -22,7 +22,13 @@ $.fn.transclude = function (options) {
 		    } else {
 			$(this.target).html(data);
 		    }
-		    Tuple($(this.target));	// recursively process transclusion
+
+		    // recursively creolize and transclude until no changes
+		    $(this.target).find("span[src]").each(function(i) {
+			    var url = $(this.target).attr("src");
+			    $(this.target).removeAttr("src");
+			    $(this.target).transclude({url:url, args:$(this).attr("args")});
+			});
 		} catch (e) {
 		    alert("transclusion error: " + e);
 		}
