@@ -175,7 +175,7 @@ Template {
 		    [<fieldset> Details_$id title $name {
 			[<legend> $name]
 			[<text> type label "Type:" [string totitle $type]][<br>]
-			[<textarea> content class autogrow style {width:99%} [string trim $content]]
+			[<textarea> content class autogrow style {width:99%; height:10em;} [string trim $content]]
 			[<hidden> id $id]
 			[<submit> submit]
 		    }]
@@ -545,10 +545,10 @@ welcome {
     content {
 	[<h1> "Welcome to Tuple"]
 	[Html ulinks {
-	    "Test composition and Tcl Scripting" now
+	    "Tcl Scripting and component architecture" now
 	    "Test Tcl Variable and Tcl Dict rendering" reflect
 	    "Test Uppercase and text/plain" {{Example Uppercase}}
-	    "Test page not found" nothere
+	    "Test 'page not found' page" nothere
 	    "XRay of Now page" xray/now
 	    "Glob Test" {{glob test}}
 	    "Creole Test" {{creole test}}
@@ -562,10 +562,10 @@ now {
 	[<h1> Now]
 	[<p> "[clock format [clock seconds]] is the time"]
 	[<p> "This page is generated from a Tcl Script, and assembled from components for [<a> href xray/now+style style] (which makes the header red) and [<a> href xray/now+title title] (which gives the page a title.)"]
+	[<p> "The page itself is described using Tcl commands which generate HTML."]
 	[<p> "This (or any) page may be edited with [<a> href +edit +edit]"]
-	[<p> "Next step - Creole"]
-	[<p> "The following is a transclusion of xray/now:"]
-	[<inc> xray/now]
+	[<p> "The following is a transclusion of +edit using the &lt;inc&gt; pseudo-tag:"]
+	[<inc> +edit]
     }
 }
 
