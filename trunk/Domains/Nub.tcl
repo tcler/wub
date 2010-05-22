@@ -178,7 +178,9 @@ namespace eval Nub {
 		}
 
 		default {
-		    catch {package require $domain}
+		    if {[catch {package require $domain} e eo]} {
+			Debug.error {Couldn't load package '$domain': $e ($eo)}
+		    }
 		    set section $url
 		    append extra [options $domain $body]
 
