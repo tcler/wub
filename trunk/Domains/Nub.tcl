@@ -653,7 +653,7 @@ namespace eval Nub {
 	    if {![info exists defined($domain)]} {
 		# emit a single "package require" per domain.
 		incr defined($domain)
-		append definitions "package require $domain" \n
+		append definitions "catch {package require $domain}" \n
 	    }
 
 	    # generate code to construct the domain
