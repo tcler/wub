@@ -666,7 +666,9 @@ namespace eval Nub {
 	    } else {
 		# named domain definition
 		append definitions [string trim [string map [list %N $n %D $domain %A $body] {
-		    if {[catch {set defs(%N) [%D create %N %A]} e eo]} {
+		    if {[catch {
+			set defs(%N) [%D create %N %A]
+		    } e eo]} {
 			Debug.error {Nub Definition Error: '$e' in running "%D create %N %A".  ($eo)}
 			set defs(%N) [Nub failed %N $e $eo]
 		    }
