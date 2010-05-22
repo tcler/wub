@@ -16,7 +16,7 @@ if {[catch {package require Debug}]} {
     #proc Debug.tupler {args} {}
     proc Debug.tupler {args} {puts stderr HTTP@[uplevel subst $args]}
 } else {
-    Debug on tupler 10
+    Debug define tupler 10
 }
 
 package require OO
@@ -247,8 +247,8 @@ oo::class create Tupler {
 	} tuple]} {
 	    Debug.tupler {mktype did not find '$name'}
 	    set id [my New name $name type $type]
-	    Debug.tupler {mktype created $id -> ([my id2tuple $id])}
-	    return [my id2tuple $id]
+	    Debug.tupler {mktype created $id -> ([my get $id])}
+	    return [my get $id]
 	}
 	set tt [string tolower [dict get? $tuple type]]
 	if {$tt ne $type} {
