@@ -30,6 +30,7 @@ $.fn.transclude = function (options) {
 			    $(this.target).transclude({url:url, args:$(this).attr("args")});
 			});
 
+		    // perform low-level transforms if necessary
 		    try {
 			$('.autoform').ajaxForm({target:'#result'});
 		    } catch (e) {}
