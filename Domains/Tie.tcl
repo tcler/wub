@@ -320,6 +320,7 @@ namespace eval Tie {
 	}
     }
 
+    proc create {junk args} {return [new {*}$args]}
     proc new {args} {
 	variable {*}[Site var? Tie]	;# allow .ini file to modify defaults
 
