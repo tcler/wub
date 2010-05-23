@@ -174,18 +174,19 @@ oo::class create TupleStore {
 
 	if {[info exists tuples($id)]} {
 	    return 1
-	} else{
-	    set tuple [dict merge {
-		type Basic
-		mime Text
-	    } [my stmt {SELECT * FROM tuples WHERE id = :id} id $id]]
-	    if {[llength ]} {
+	} else {
+	    set tuple [my stmt {SELECT * FROM tuples WHERE id = :id} id $id]
+	    if {[llength $tuple]} {
 		# we fill the cache on [exists] predicate
 		if {[llength $tuple] != 1} {
 		    # must have unique id->tuple
 		    error "Non-unique id->tuple map!"
 		}
-		set tuples($id) [my fixup [lindex $tuple 0]]
+		set tuple [dict merge {
+		    type Basic
+		    mime Text
+		} [lindex $tuple 0]]
+		set tuples($id) [my fixup $tuple]
 		return 1
 	    } else {
 		return 0
