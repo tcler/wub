@@ -416,7 +416,7 @@ namespace eval Dict {
 	    }
 	}
 
-	return [list $change $add $d2]
+	return [list $change $del $d2]
     }
 
     namespace export -clear *
