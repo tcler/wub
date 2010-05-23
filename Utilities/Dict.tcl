@@ -168,6 +168,30 @@ namespace eval ::tcl::dict {
 	}]
     }
 
+    # return three dicts:
+    # values unchanged between d1 and d2
+    # values deleted from d1 by d2
+    # values added by d2
+    proc diff {d1 d2} {
+	::set del {}
+	dict for {n v} $d1 {
+	    if {[dict exists $d2 $n]} {
+		if {[dict get $d2 $n] ne $v} {
+		    # record new value
+		    dict set del $n $v
+		    dict unset d1 $n	;# it changed
+		} else {
+		    # leave it in d1, it's unchanged
+		    dict unset d2 $n
+		}
+	    } else {
+		dict set del $n $v
+		dict unset d1 $n	;# it changed
+	    }
+	}
+	return [::list $d1 $del $d2]
+    }
+
     if {0} {
 	# [dict_project $keys $dict] extracts the specified keys in $args from the $dict
 	# and returns a plain old list-of-values.
@@ -185,7 +209,7 @@ namespace eval ::tcl::dict {
 	}
     }
 
-    foreach x {get? witharray equal apply capture nlappend in ni list} {
+    foreach x {get? witharray equal apply capture nlappend in ni list diff} {
 	namespace ensemble configure dict -map [linsert [namespace ensemble configure dict -map] end $x ::tcl::dict::$x]
     }
     ::unset x
@@ -393,31 +417,6 @@ namespace eval Dict {
 	    lappend script $a $a
 	}
 	uplevel 1 $script {{}}
-    }
-
-    # return three dicts:
-    # values changed from d1 to d2
-    # values unchanged from d1 to d2
-    # values deleted from d1 in d2
-    # values added to d1 by d2
-    proc diff {d1 d2} {
-	set del {}
-	set change {}
-
-	dict for {n v} $d1 {
-	    dict unset d1 $n
-	    if {[dict exists $d2 $n]} {
-		if {[dict get $d2 $n] ne $v} {
-		    # record new value
-		    dict set change $n [dict get $d2 $n]
-		}
-		dict unset $d2 $n
-	    } else {
-		dict set del $n $v
-	    }
-	}
-
-	return [list $change $d1 $del $d2]
     }
 
     namespace export -clear *
