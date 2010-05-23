@@ -100,20 +100,20 @@ oo::class create TupleStore {
 	    dict set stmts $stmt $s
 	}
 
-	Debug.tuplesql {stmtL '$stmt'}
 	set result [$s allrows -as lists $args]
 	Debug.tuplesql {stmtL result: '$stmt' -> ($result)}
 	return $result
     }
 
+    # indices of tuples of given type
     method oftype {type} {
 	set stmt "SELECT id FROM tuples WHERE type == :type"
-	Debug.tuplestore {oftype '$type'}
 	set result [my stmtL $stmt [list type $type]]
 	Debug.tuplestore {oftype '$type' -> ($result)}
 	return $result
     }
 
+    # match tuples
     method match {args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
@@ -139,11 +139,10 @@ oo::class create TupleStore {
 		% {
 		    set op LIKE
 		}
+
 		>= - <= - > - < -
-		== - != - = -
-		! {
-		}
-		>=* { }
+		== - != - = {}
+
 		default {
 		    set op ==
 		}
@@ -151,6 +150,7 @@ oo::class create TupleStore {
 	    lappend where "$n $op :$n"
 	    dict set alist $n $v
 	}
+
 	set where [join $where ,]
 	set stmt "SELECT id FROM tuples WHERE $where"
 	Debug.tuplesql {matching '$stmt'}
@@ -174,16 +174,22 @@ oo::class create TupleStore {
 
 	if {[info exists tuples($id)]} {
 	    return 1
-	} elseif {[llength [set tuple [my stmt {SELECT * FROM tuples WHERE id = :id} id $id]]]} {
-	    # we fill the cache on [exists] predicate
-	    if {[llength $tuple] != 1} {
-		# must have unique id->tuple
-		error "Non-unique id->tuple map!"
+	} else{
+	    set tuple [dict merge {
+		type Basic
+		mime Text
+	    } [my stmt {SELECT * FROM tuples WHERE id = :id} id $id]]
+	    if {[llength ]} {
+		# we fill the cache on [exists] predicate
+		if {[llength $tuple] != 1} {
+		    # must have unique id->tuple
+		    error "Non-unique id->tuple map!"
+		}
+		set tuples($id) [my fixup [lindex $tuple 0]]
+		return 1
+	    } else {
+		return 0
 	    }
-	    set tuples($id) [my fixup [lindex $tuple 0]]
-	    return 1
-	} else {
-	    return 0
 	}
     }
 
@@ -638,7 +644,6 @@ oo::class create Tuple {
 		set tlv [string tolower $v]
 		if {$tlv ne $v} {
 		    dict set tuple $n $tlv
-		    dict unset tuple $n
 		}
 	    }
 	}
