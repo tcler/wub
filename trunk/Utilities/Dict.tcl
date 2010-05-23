@@ -397,6 +397,7 @@ namespace eval Dict {
 
     # return three dicts:
     # values changed from d1 to d2
+    # values unchanged from d1 to d2
     # values deleted from d1 in d2
     # values added to d1 by d2
     proc diff {d1 d2} {
@@ -416,7 +417,7 @@ namespace eval Dict {
 	    }
 	}
 
-	return [list $change $del $d2]
+	return [list $change $d1 $del $d2]
     }
 
     namespace export -clear *
