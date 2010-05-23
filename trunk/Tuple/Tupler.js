@@ -1,9 +1,6 @@
 // transclude <span>s with src links
 $.fn.transclude = function (options) {
-    //options.url = escape(options.url);
-    options.args = escape(options.args);
-
-    //alert("transcluding: '" + options.url + "' '" + options.arg+"'");
+    //alert("transcluding: '" + options.url + "' '" + options.data+"'");
     var empty = {};
     options = $.extend(empty, {
 	    type: "GET",
@@ -13,10 +10,6 @@ $.fn.transclude = function (options) {
 	    success: function (data, status) {
 		//alert("success "  + $(this.target).attr("id") + " " + data);
 		try {
-		    if (this.post != undefined) {
-			data = this.post(data);
-		    }
-
 		    if (this.merge == "overwrite") {
 			$(this.target).replaceWith(data);
 		    } else {
@@ -27,7 +20,7 @@ $.fn.transclude = function (options) {
 		    $(this.target).find("span[src]").each(function(i) {
 			    var url = $(this.target).attr("src");
 			    $(this.target).removeAttr("src");
-			    $(this.target).transclude({url:url, args:$(this).attr("args")});
+			    $(this.target).transclude({url:url, data:$(this.target).attr("data")});
 			});
 
 		    // perform low-level transforms if necessary
@@ -61,11 +54,6 @@ $.fn.transclude = function (options) {
 		}
 	    }
 	}, options || {});
-    
-    if (options.args != undefined) {
-	// add args to the options
-	options.url = options.url + "?trargs=" + options.args;
-    }
     
     //alert("ajax: '" + options.url + "' '" + options.arg+"'");
     $.ajax(options);
@@ -120,7 +108,7 @@ $.fn.transcludeAll = function () {
     $(this).find("span[src]").each(function(i) {
 	    var url = $(this).attr("src");
 	    $(this).removeAttr("src");
-	    $(this).transclude({url:url, args:$(this).attr("args")});
+	    $(this).transclude({url:url, data:$(this).attr("data")});
 	    count = count+1;
 	});
     return count;	// how many transclusions have we processed?
