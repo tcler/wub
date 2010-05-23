@@ -1,4 +1,4 @@
-# Extra useful dict commands
+# Extra useful dict commands - a dict enhancer, if you will
 # code from patthoyts and nem (http://wiki.tcl.tk/17686)
 
 package provide Dict 1.0
@@ -393,6 +393,30 @@ namespace eval Dict {
 	    lappend script $a $a
 	}
 	uplevel 1 $script {{}}
+    }
+
+    # return three dicts:
+    # values changed from d1 to d2
+    # values deleted from d1 in d2
+    # values added to d1 by d2
+    proc diff {d1 d2} {
+	set del {}
+	set change {}
+
+	dict for {n v} $d1 {
+	    dict unset d1 $n
+	    if {[dict exists $d2 $n]} {
+		if {[dict get $d2 $n] ne $v} {
+		    # record new value
+		    dict set change $n [dict get $d2 $n]
+		}
+		dict unset $d2 $n
+	    } else {
+		dict set del $n $v
+	    }
+	}
+
+	return [list $change $add $d2]
     }
 
     namespace export -clear *
