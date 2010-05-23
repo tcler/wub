@@ -263,11 +263,10 @@ oo::class create Tupler {
 	}
     }
 
-    # fixup - consistency and semantic supplements to tuples on their way to the store.
+    # fixup - consistency and semantic supplements to tuples
+    # on their way to and from the store.
     method fixup {tuple} {
-	set type Basic
-	set t1 {}
-
+	set type Basic	;# default type
 	dict with tuple {
 	    set type [string tolower $type]
 
@@ -281,7 +280,7 @@ oo::class create Tupler {
 			if {![info exists mime]} {
 			    dict set tuple mime "Tcl Script"
 			}
-		
+			
 			# (re)define the postprocess method
 			set mname tuple/[string map {_ / " " _} [string tolower $name]]
 			oo::objdefine [self] [string map [list %N% $mname %C% $content] {
@@ -420,7 +419,7 @@ oo::class create Tupler {
 		} else {
 		    set type [string map {" " _} [string tolower $type]]
 		}
-
+		Debug.tupler {/view -> tuple/$type, [dict get? -$r -convert]}
 		return [Http Ok $r $content tuple/$type]
 	    }
 	}
@@ -436,8 +435,8 @@ oo::class create Tupler {
 	tailcall my /view $r {*}$args
     }
 
-    superclass Tuple
-    mixin Direct Convert
+    superclass Tuple Convert Direct
+    #mixin 
 
     constructor {args} {
 	Debug.tupler {Creating Tupler [self] $args}
@@ -454,12 +453,21 @@ oo::class create Tupler {
 	variable js [::fileutil::cat [file join $::Tuple_home Tupler.js]]
 
 	if {![info exists prime]} {
-	    # always prime the Tuple with something
+	    # always try to prime the Tuple with something
 	    variable prime [::fileutil::cat [file join $::Tuple_home $primer]]
 	    dict set args prime $prime
 	}
 
+	set args [dict merge [Site var? Tupler] $args]	;# allow .ini file to modify defaults
 	next? {*}$args conversions 0
+
+	# we have to instantiate all type and convert tuples, so their conversions are known
+	foreach id [my oftype conversion] {
+	    my exists $id
+	}
+	foreach id [my oftype type] {
+	    my exists $id
+	}
 
 	# add special transformations between native Types and mime types
 	foreach {f t} {
@@ -470,6 +478,8 @@ oo::class create Tupler {
 	} {
 	    my transform tuple/$f $t [self] tuple/$f.$t
 	}
+
+	Debug.tupler {Conversion Graph: [my graph]}
     }
 }
 
