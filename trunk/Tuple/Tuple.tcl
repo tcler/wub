@@ -57,9 +57,108 @@ if {[catch {package require Debug}]} {
     proc Debug.tuple {args} {puts stderr "tuple @ [uplevel subst $args]"}
 } else {
     Debug define tuple 10
+    Debug define tuplestore 10
+    Debug define tupleprime 10
+    Debug define tuplesql 10
 }
 
-oo::class create Tuple {
+# TupleStore is a cache of named tuples
+oo::class create TupleStore {
+    # stmt - evaluate tdbc statement
+    # caches prepared statements
+    method stmt {stmt args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+
+	variable stmts	;# here are some statements we prepared earlier
+	if {[dict exists $stmts $stmt]} {
+	    set s [dict get $stmts $stmt]
+	} else {
+	    set s [db prepare $stmt]
+	    dict set stmts $stmt $s
+	}
+
+	Debug.tuplesql {stmt '$stmt'}
+	set result [$s allrows -as dicts $args]
+	Debug.tuplesql {stmt result: '$stmt' -> ($result)}
+	return $result
+    }
+
+    # stmtL - evaluate tdbc statement
+    # caches prepared statements
+    method stmtL {stmt args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+
+	variable stmts	;# here are some statements we prepared earlier
+	if {[dict exists $stmts $stmt]} {
+	    set s [dict get $stmts $stmt]
+	} else {
+	    set s [db prepare $stmt]
+	    dict set stmts $stmt $s
+	}
+
+	Debug.tuplesql {stmtL '$stmt'}
+	set result [$s allrows -as lists $args]
+	Debug.tuplesql {stmtL result: '$stmt' -> ($result)}
+	return $result
+    }
+
+    method oftype {type} {
+	set stmt "SELECT id FROM tuples WHERE type == :type"
+	Debug.tuplestore {oftype '$type'}
+	set result [my stmtL $stmt [list type $type]]
+	Debug.tuplestore {oftype '$type' -> ($result)}
+	return $result
+    }
+
+    method match {args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	set keys [dict keys $args]
+	set where {}
+	set alist {}
+	dict for {n v} $args {
+	    set op ""
+	    while {$n ne "" && ![string is alnum -strict $n]} {
+		append op [string index $n 0]
+		set n [string range $n 1 end]
+	    }
+	    if {$n eq ""} continue
+
+	    switch -- $op {
+		** {
+		    set op REGEXP
+		}
+		* {
+		    set op GLOB
+		}
+		% {
+		    set op LIKE
+		}
+		>= - <= - > - < -
+		== - != - = -
+		! {
+		}
+		>=* { }
+		default {
+		    set op ==
+		}
+	    }
+	    lappend where "$n $op :$n"
+	    dict set alist $n $v
+	}
+	set where [join $where ,]
+	set stmt "SELECT id FROM tuples WHERE $where"
+	Debug.tuplesql {matching '$stmt'}
+	set result [my stmtL $stmt $alist]
+	Debug.tuplesql {matched '$stmt' -> ($result)}
+	return $result
+    }
+
     # named - find the tuple id named $name
     method named {name} {
 	variable name2id
@@ -70,9 +169,18 @@ oo::class create Tuple {
     method exists {id} {
 	variable tuples
 	if {$id eq ""} {
-	    return 0
+	    return 0	;# this form never exists
 	}
+
 	if {[info exists tuples($id)]} {
+	    return 1
+	} elseif {[llength [set tuple [my stmt {SELECT * FROM tuples WHERE id = :id} id $id]]]} {
+	    # we fill the cache on [exists] predicate
+	    if {[llength $tuple] != 1} {
+		# must have unique id->tuple
+		error "Non-unique id->tuple map!"
+	    }
+	    set tuples($id) [my fixup [lindex $tuple 0]]
 	    return 1
 	} else {
 	    return 0
@@ -85,6 +193,7 @@ oo::class create Tuple {
 	if {![my exists $id]} {
 	    error "Tuple get: '$id' not found"
 	}
+
 	if {[llength $args]} {
 	    return [dict get $tuples($id) {*}$args]
 	} else {
@@ -92,14 +201,26 @@ oo::class create Tuple {
 	}
     }
 
-    # generate a unique id - axiom T1
-    # (this may be overridden by a different storage mechanism)
-    method newid {} {
-	variable nextid
-	return [incr nextid]
+    method saveDB {tuple} {
+
+	set values {}
+	foreach n [set names [dict keys $tuple]] {
+	    lappend values :$n
+	}
+	set stmt [string map [list %N [join $names ,] %V [join $values ,]] {REPLACE INTO tuples (%N) VALUES (%V)}]
+	my stmt $stmt {*}$tuple
     }
 
-    # set a tuple's values
+    method maxid {} {
+	set result [my stmtL {SELECT MAX(id) FROM tuples}]
+	if {$result eq "{{}}"} {
+	    return 0
+	} else {
+	    return $result
+	}
+    }
+
+    # set a tuple's values, creating it if it doesn't exist, returning its id
     method set {id args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
@@ -108,22 +229,213 @@ oo::class create Tuple {
 	variable tuples
 	if {$id eq ""} {
 	    # generate unique id - axiom T1
-	    set id [my newid]
+	    set name [string tolower [dict get $args name]]
+	    dict set args name $name
+	    set x [my stmt {INSERT INTO tuples (name) VALUES (:name); SELECT MAX(id) FROM tuples} name $name]
+	    set id [dict get [lindex $x 0] MAX(id)]	;# get the id
 
 	    # this is the only place we set name
 	    variable name2id
-	    dict set name2id [string tolower [dict get $args name]] $id
+	    dict set name2id $name $id
 	    dict set args id $id
+
 	    set tuples($id) $args
+	    my saveDB $args
 	} elseif {![info exists tuples($id)]} {
 	    error "Tuple set: tuple '$id' not found"
 	} else {
 	    dict set args id $id
-	    set tuples($id) [dict merge $tuples($id) $args]
+	    set tuple [dict merge $tuples($id) $args]
+	    dict set tuple name [string tolower [dict get $tuple name]]
+	    set tuples($id) $tuple
+	    my saveDB $args
 	}
+
 	return $id
     }
 
+    # return a list of indices whose name matches the regexp
+    method regexpByName {regexp} {
+	variable name2id
+	set result [dict values [dict filter $name2id script {name id} {
+	    regexp ^$regexp\$ $name
+	}]]
+	Debug.tuplestore {regexpByName $glob ($result)}
+
+	set names {}
+	foreach n $result {
+	    lappend names #$n
+	}
+	return $names
+    }
+
+    # return a list of indices whose name matches the glob
+    method globByName {glob} {
+	variable name2id
+	set result [dict values [dict filter $name2id script {name id} {
+	    #Debug.tuplestore {globByName pername: '$glob $name'}
+	    string match $glob $name
+	}]]
+	Debug.tuplestore {globByName $glob ($result)}
+
+	set names {}
+	foreach n $result {
+	    lappend names #$n
+	}
+	Debug.tuplestore {globByName $glob -> ($names)}
+	return $names
+    }
+
+    # ids of matching tuples
+    method ids {args} {
+	variable tuples
+	return [array names tuples {*}$args]
+    }
+
+    # all matching tuples
+    method all {args} {
+	set all {}
+	foreach v [my stmt {SELECT id FROM tuples}] {
+	    lappend all [lindex $v 1]
+	}
+	return $all
+    }
+
+    method dump {args} {
+	set all {}
+	return [my stmt {SELECT * FROM tuples}]
+    }
+
+    # full resolution of all matching tuples
+    # this differs from [all] because its result
+    # contains synthetic fields
+    method full {args} {
+	variable tuples
+	set result {}
+	set names [array names tuples {*}$args]
+	Debug.tuplestore {Full ([lsort -dictionary $names]) from '$args'}
+	foreach n $names {
+	    lappend result $n [my fetch [my get $n name]]
+	}
+	return $result
+    }
+
+    # consistency checker for name2id
+    method traceN {var id op args} {
+	variable name2id
+	variable old
+	#set from  "from '[info frame [expr {[info frame] -1}]]'"
+	#set from  "from '[info frame -1]'"
+	set from  "from '[info level -1]'"
+	if {[info exists old]} {
+	    dict for {n v} $name2id {
+		if {$n ne [string tolower $n]} {
+		    error "CASE '$n' $from"
+		}
+		if {[dict exists $old $n]} {
+		    if {[dict get $old $n] eq $v} {
+			puts stderr "NAME CHANGED $op '$n': [dict get $old $n] -> $v $from"
+		    } else {
+			error "RENAMED $op '$n': [dict get $old $n] -> $v $from"
+		    }
+		}
+	    }
+	}
+	set old $name2id
+    }
+
+    # consistency checker for tuples
+    method traceT {var id op args} {
+	variable tuples
+	variable name2id
+	switch -- $op {
+	    write {
+		set tuple [my get $id]
+		#set detail "id:([dict merge $tuple {content ...}]) from '[info frame [expr {[info frame] -1}]]'"
+		#set detail "id:([dict merge $tuple {content ...}]) from '[info frame -1]'"
+		set detail "id:([dict merge $tuple {content ...}]) from '[info level -1]'"
+		if {[catch {
+		    dict size $tuple
+		}]} {
+		    error "NOT A DICT $detail"
+		}
+
+		dict with tuple {
+		    set nname [string tolower $name]
+		    if {[my named $nname] ne ""
+			&& $id != [my $nname]
+		    } {
+			error "DUPLICATE: [dict get $name2id $nname] $detail"
+		    }
+		}
+	    }
+	}
+    }
+
+    method Db_load {} {
+	# load the tdbc drivers
+	variable tdbc
+	package require $tdbc
+	package require tdbc::$tdbc
+	
+	variable file
+	variable opts
+	variable db [tdbc::${tdbc}::connection create [info object namespace [self]]::db $file {*}$opts]
+
+	if {![llength [db tables tuples]]} {
+	    # we don't have a stick table - make one
+	    db allrows {
+		CREATE TABLE tuples (
+				     id INTEGER PRIMARY KEY AUTOINCREMENT,
+				     name TEXT UNIQUE NOT NULL COLLATE NOCASE,
+				     type TEXT COLLATE NOCASE,
+				     mime TEXT COLLATE NOCASE,
+				     content TEXT
+				     );
+		CREATE UNIQUE INDEX names ON tuples(name);
+		CREATE INDEX types ON tuples(type);
+		CREATE INDEX mimes ON tuples(mime);
+	    }
+	}
+
+	Debug.tuplestore {Database tables:([$db tables])}
+    }
+
+    destructor {
+	catch {db close}
+	next?
+    }
+
+    constructor {args} {
+	Debug.tuple {Creating TupleStore [self] $args}
+	variable tuples; array set tuples {}	;# tuples array permits traces
+	variable trace 0
+	variable tdbc sqlite3	;# TDBC backend
+	variable file tuples.db	;# db file
+	variable opts {}
+
+	variable {*}$args
+	variable stmts {}
+
+	next? {*}$args
+
+	my Db_load	;# create the db
+
+
+	# need to fill name2id with all names
+	variable name2id {}
+	foreach n [my stmt {SELECT name,id FROM tuples}] {
+	    lappend name2id [string tolower [dict get $n name]] [dict get $n id]
+	}
+	
+	if {$trace} {
+	    trace add variable tuples {array write unset} [list [self] traceT]
+	    trace add variable name2id {write} [list [self] traceN]
+	}
+    }
+}
+
+oo::class create Tuple {
     # rightish - find the longest existing name-prefix
     method rightish {args} {
 	set name [join $args +]
@@ -277,37 +589,6 @@ oo::class create Tuple {
 	}
     }
 
-    # return a list of indices whose name matches the regexp
-    method regexpByName {regexp} {
-	variable name2id
-	set result [dict values [dict filter $name2id script {name id} {
-	    regexp ^$regexp\$ $name
-	}]]
-	Debug.tuple {regexpByName $glob ($result)}
-
-	set names {}
-	foreach n $result {
-	    lappend names #$n
-	}
-	return $names
-    }
-
-    # return a list of indices whose name matches the glob
-    method globByName {glob} {
-	variable name2id
-	set result [dict values [dict filter $name2id script {name id} {
-	    #Debug.tuple {globByName pername: '$glob $name'}
-	    string match $glob $name
-	}]]
-	Debug.tuple {globByName $glob ($result)}
-
-	set names {}
-	foreach n $result {
-	    lappend names #$n
-	}
-	return $names
-    }
-
     # fetch a tuple
     method fetch {name} {
 	if {[string match +* $name]} {
@@ -361,6 +642,7 @@ oo::class create Tuple {
 		}
 	    }
 	}
+
 	Debug.tuple {Tuple fixed up ($tuple)}
 	return $tuple
     }
@@ -454,6 +736,7 @@ oo::class create Tuple {
 	    dict set args id $id
 
 	    # a tuple already exists with that id, update it
+	    puts stderr "GET: ([my get $id]) ($args)"
 	    set tuple [dict merge [my get $id] $args]
 	} else {
 	    # this is a new tuple
@@ -463,7 +746,7 @@ oo::class create Tuple {
 
 	set id [my set $id [my fixup $tuple]]
 	
-	Debug.tuple {New Tuple: ([my get $id]) with name '$nname' and id $id}
+	Debug.tuple {New Tuple: ([my get $id]) with name '$name' and id $id}
 
 	return $id	;# return tuple's id
     }
@@ -516,34 +799,9 @@ oo::class create Tuple {
 	tailcall my new $args name $name
     }
 
-    # ids of matching tuples
-    method ids {args} {
-	variable tuples
-	return [array names tuples {*}$args]
-    }
-
-    # all matching tuples
-    method all {args} {
-	variable tuples
-	return [array get tuples {*}$args]
-    }
-
-    # full resolution of all matching tuples
-    # this differs from [all] because its result
-    # contains synthetic fields
-    method full {args} {
-	variable tuples
-	set result {}
-	set names [array names tuples {*}$args]
-	Debug.tuple {Full ([lsort -dictionary $names]) from '$args'}
-	foreach n $names {
-	    lappend result $n [my fetch [my get $n name]]
-	}
-	return $result
-    }
-
     # prime the tuple space with $content dict
     method prime {content} {
+	Debug.tupleprime {Priming space with [dict size $content] tuple definitions}
 	foreach {n v} $content {
 	    # ensure all field names are lowercase
 	    dict for {tn tv} $v {
@@ -572,7 +830,7 @@ oo::class create Tuple {
 		# no id, no name - this has to be an error
 		error "prime: must supply name or existing id ($v)"
 	    }
-	    Debug.tuple {Prime $v}
+	    Debug.tupleprime {Prime $v}
 
 	    # fixup and store the new tuple
 	    my New {*}$v
@@ -585,79 +843,19 @@ oo::class create Tuple {
 	return $metadata
     }
 
-    # consistency checker for name2id
-    method traceN {var id op args} {
-	variable name2id
-	variable old
-	#set from  "from '[info frame [expr {[info frame] -1}]]'"
-	#set from  "from '[info frame -1]'"
-	set from  "from '[info level -1]'"
-	if {[info exists old]} {
-	    dict for {n v} $name2id {
-		if {$n ne [string tolower $n]} {
-		    error "CASE '$n' $from"
-		}
-		if {[dict exists $old $n]} {
-		    if {[dict get $old $n] eq $v} {
-			puts stderr "NAME CHANGED $op '$n': [dict get $old $n] -> $v $from"
-		    } else {
-			error "RENAMED $op '$n': [dict get $old $n] -> $v $from"
-		    }
-		}
-	    }
-	}
-	set old $name2id
-    }
-
-    # consistency checker for tuples
-    method traceT {var id op args} {
-	variable tuples
-	variable name2id
-	switch -- $op {
-	    write {
-		set tuple [my get $id]
-		#set detail "id:([dict merge $tuple {content ...}]) from '[info frame [expr {[info frame] -1}]]'"
-		#set detail "id:([dict merge $tuple {content ...}]) from '[info frame -1]'"
-		set detail "id:([dict merge $tuple {content ...}]) from '[info level -1]'"
-		if {[catch {
-		    dict size $tuple
-		}]} {
-		    error "NOT A DICT $detail"
-		}
-
-		dict with tuple {
-		    set nname [string tolower $name]
-		    if {[my named $nname] ne ""
-			&& $id != [my $nname]
-		    } {
-			error "DUPLICATE: [dict get $name2id $nname] $detail"
-		    }
-		}
-
-		#puts stderr "WRITE: $detail"
-	    }
-	}
-    }
+    superclass TupleStore
 
     constructor {args} {
 	Debug.tuple {Creating Tuple [self] $args}
-	variable tuples; array set tuples {}	;# tuples array permits traces
-	variable name2id {}
-	variable trace 0
-	#variable nextid -1
 
 	if {[llength $args]%2} {
 	    set content [lindex $args end]
 	    set args [lrange $args 0 end-1]
 	}
 
+	set args [dict merge [Site var? Tuple] $args]	;# allow .ini file to modify defaults
 	variable {*}$args
 	next? {*}$args
-
-	if {$trace} {
-	    trace add variable tuples {array write unset} [list [self] traceT]
-	    trace add variable name2id {write} [list [self] traceN]
-	}
 
 	# metadata for each tuple field as if it were itself a tuple
 	variable metadata {
@@ -673,15 +871,18 @@ oo::class create Tuple {
 	    set basicI [interp create basicI]
 	    basicI eval set ::auto_path [list $::auto_path]
 	    basicI eval {
-		puts stderr "MOOP"
 		package require Html
 	    }
 	} e eo]} {
 	    puts stderr "BASICI $e ($eo)"
 	}
-
-	if {[info exists prime]} {
+	Debug.tuplestore {MAXID: [my maxid]}
+	if {[my maxid] == 0
+	    && [info exists prime]
+	} {
+	    Debug.tuple {Priming space with [dict size $prime] tuple definitions}
 	    my prime $prime
+	    #puts stderr DUMP:[my dump]
 	}
     }
 }
