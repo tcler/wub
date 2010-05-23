@@ -101,7 +101,12 @@ namespace eval Icons {
 	    set icons($icon) [list [::fileutil::cat -translation binary $file] image/[string trim $ext .]]
 	}
     }
+
     #Debug.icons {Icons: [array names icons]}
+    proc add {name icon mime} {
+	variable icons
+	set icons($name) [list $icon $mime]
+    }
 
     variable dirparams {
 	sortable 1
@@ -135,6 +140,7 @@ namespace eval Icons {
 
     proc do {rsp} {
 	variable mount
+
 	# compute suffix
 	if {[dict exists $rsp -suffix]} {
 	    # caller has munged path already
@@ -172,10 +178,12 @@ namespace eval Icons {
 	dict set rsp accept image/*
 	lassign $icons($suffix) icon mime
 
-	return [Http Ok [Http Cache $rsp "next week"] $icon $mime]
+	variable expires
+	return [Http Ok [Http Cache $rsp $expires] $icon $mime]
     }
 
     proc new {args} {
+	variable expires "next week"
 	variable {*}$args
 	variable {*}[Site var? Icons]	;# allow .ini file to modify defaults
 	return ::Icons
