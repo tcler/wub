@@ -20,18 +20,13 @@ Basic+Html {
 
 "Tcl Script" {
     type Type
-    mime "Tcl Script"
     content {
 	# evaluate tuple of Template as the result of its tcl evaluation
 	Debug.tupler {tcl script preprocessing ([dict get $r -content])}
 	set content [eval [dict get $r -content]]
 	
 	# determine the mime type of result
-	if {[dict exists $r -mime]} {
-	    set mime [string map {_ /} [dict get? $r -mime]]
-	} else {
-	    set mime [my getmime [dict get? $r -tuple]]
-	}
+	set mime [my getmime [dict get? $r -tuple]]
 	
 	Debug.tupler {tcl script to '$mime' mime type content:($result)}
 	return [Http Ok $r $result $mime]
@@ -40,20 +35,17 @@ Basic+Html {
 
 Template {
     type Type
-    mime "Tcl Script"
     content {
 	# evaluate tuple of Template as the result of its tcl evaluation
-	Debug.tupler {tcl script preprocessing ([dict get $r -content])}
+	Debug.tupler {Template processing ([dict get $r -content])}
 	set result [subst [dict get $r -content]]
 
 	# determine the mime type of result
-	if {[dict exists $r -mime]} {
-	    set mime [string map {_ /} [dict get? $r -mime]]
-	} else {
-	    set mime [my getmime [dict get? $r -tuple]]
+	set mime [my getmime [dict get? $r -tuple]]
+	if {$mime eq "tuple/template"} {
+	    set mime tuple/html
 	}
-
-	Debug.tupler {tcl script to '$mime' mime type content:($result)}
+	Debug.tupler {Template to '$mime' mime type content:($result)}
 	return [Http Ok $r $result $mime]
     }
 }
@@ -87,7 +79,8 @@ Template {
 	    -moz-border-radius-bottomleft:5px;
 	    -moz-border-radius-bottomright:5px;
 	}
-	h1.pretty, h2.pretty, h3.pretty, h4.pretty, h5.pretty, h6.pretty {
+
+	h1, h2, h3, h4, h5, h6 {
 	    background: darkslategray;
 	    color: whitesmoke;
 	    padding: 0.2em 0.5em;
@@ -96,16 +89,17 @@ Template {
 	    -moz-border-radius-bottomleft:7px;
 	    -moz-border-radius-bottomright:7px;
 	}
-	table.pretty {
+
+	table {
 	    margin: 1em 1em 1em 2em;
 	    background: whitesmoke;
 	    border-collapse: collapse;
 	}
-	table.pretty td {
+	table td {
 	    border: 1px silver solid;
 	    padding: 0.2em;
 	}
-	table.pretty th {
+	table th {
 	    border: 1px silver solid;
 	    padding: 0.2em;
 	    background: darkslategray;
@@ -116,10 +110,10 @@ Template {
 	    -moz-border-radius-bottomleft:7px;
 	    -moz-border-radius-bottomright:7px;
 	}
-	table.pretty tr.family {
+	table tr.family {
 	    background: gainsboro;
 	}
-	table.pretty caption {
+	table caption {
 	    margin-left: inherit;
 	    margin-right: inherit;
 	    font-size: 150%;
@@ -152,6 +146,7 @@ Template {
 	    cursor: pointer;
 	    background: gainsboro;
 	}
+
 	.changed {
 	    background-color: gainsboro;
 	}
@@ -213,7 +208,6 @@ Template {
 
 Glob {
     type Type
-    mime "Tcl Script"
     content {
 	# search tuples for name matching glob, return a List
 	set tuple [dict get $r -tuple]
@@ -233,9 +227,43 @@ Glob {
     }
 }
 
+Match {
+    type Type
+    content {
+	# search tuples for name matching glob, return a List
+	set tuple [dict get $r -tuple]
+	Debug.tupler {Match: [dict size $r] ($tuple)}
+	dict with tuple {
+	    if {$mime ne "text"} {
+		set search [my tuConvert $tuple tuple/text tuple/$mime]
+	    } else {
+		set search [dict get $r -content]
+	    }
+	    if {[catch {
+		dict size $search
+	    }]} {
+		error "Match $name - content is not a Tcl Dict"
+	    }
+	}
+	set result {}
+	foreach i [my match $search] {
+	    lappend result #$i
+	}
+	Debug.tupler {Match: '$search' -> ($result)}
+	return [Http Ok $r $result tuple/list]
+    }
+}
+
+"Match Test" {
+    type Match
+    mime Text
+    content {
+	%name Named%
+    }
+}
+
 Named+List {
     type Conversion
-    mime "Tcl Script"
     content {
 	# search tuples for name matching regexp, return a List
 	set tuple [dict get $r -tuple]
@@ -254,7 +282,6 @@ Named+List {
 
 Javascript+Html {
     type Conversion
-    mime "Tcl Script"
     content {
 	return [Http Ok $r [<script> [dict get $r -content]]] tuple/html]
     }
@@ -262,7 +289,6 @@ Javascript+Html {
 
 Javascript+Head {
     type Conversion
-    mime "Tcl Script"
     content {
 	return [Http Ok $r [<script> [dict get $r -content]]] tuple/head]
     }
@@ -270,7 +296,6 @@ Javascript+Head {
 
 CSS+Html {
     type Conversion
-    mime "Tcl Script"
     content {
 	set c [dict get $r -content]
 	return [Http Ok $r [<pre> "&lt;style&gt;\n$c\n&lt;/style&gt;"] tuple/html]
@@ -279,16 +304,13 @@ CSS+Html {
 
 CSS+Head {
     type Conversion
-    mime "Tcl Script"
     content {
-	set c [dict get $r -content]
-	return [Http Ok $r [<style> type text/css $c] tuple/head]
+	return [Http Ok $r [<stylesheet> [dict get $r -tuple name]] tuple/head]
     }
 }
 
 ref+html {
     type Conversion
-    mime "Tcl Script"
     content {
 	set content [dict get $r -content]
 	set mime [dict get $r -tuple mime]
@@ -327,7 +349,6 @@ ref+html {
 
 ref+head {
     type Conversion
-    mime "Tcl Script"
     content {
 	set content [dict get $r -content]
 	set mime [dict get $r -tuple mime]
@@ -373,7 +394,6 @@ Dict {
 
 List+Dict {
     type Conversion
-    mime "Tcl Script"
     content {
 	Debug.tupler {list conversion: [dict size $r] ($r)}
 	# make a list into a Dict by making tuple name the key
@@ -388,7 +408,6 @@ List+Dict {
 
 List+Html {
     type Conversion
-    mime "Tcl Script"
     content {
 	Debug.tupler {List to Html conversion: ([dict get $r -content])}
 	set result ""
@@ -407,7 +426,6 @@ List+Html {
 
 Dict+Head {
     type Conversion
-    mime "Tcl Script"
     content {
 	Debug.tupler {Dict to Head conversion: [dict size $r] ($r)}
 	set result {}
@@ -428,7 +446,6 @@ Dict+Head {
 
 Dict+Html {
     type Conversion
-    mime "Tcl Script"
     content {
 	Debug.tupler {Dict to Html conversion: [dict size $r] ($r)}
 	# we prefer a tabular form, but could use dl instead
@@ -448,7 +465,6 @@ Dict+Html {
 
 "Tcl Variable" {
     type Type
-    mime "Tcl Script"
     content {
 	# evaluate tuple of "Tcl Script" as the result variable resolution
 	set mime [my getmime [dict get? $r -tuple]]
@@ -479,7 +495,6 @@ Dict+Html {
 
 "Tcl Dict+Head" {
     type Conversion
-    mime "Tcl Script"
     content {
 	Debug.tupler {Tcl Dict to Head conversion: [dict size $r] ($r)}
 	set result {}
@@ -495,7 +510,6 @@ Dict+Html {
 
 "Tcl Dict+Html" {
     type Conversion
-    mime "Tcl Script"
     content {
 	Debug.tupler {Tcl Dict to Html conversion: [dict size $r] ($r)}
 	# we prefer a tabular form, but could use dl instead
@@ -516,7 +530,6 @@ Text {
 
 Text+Html {
     type Conversion
-    mime "Tcl Script"
     content {
 	return [Http Ok $r [<pre> [dict get $r -content]] tuple/html]
     }
@@ -572,6 +585,7 @@ now {
 	[<p> "This (or any) page may be edited with [<a> href +edit +edit]"]
 	[<p> "The following is a transclusion of +edit using the &lt;inc&gt; pseudo-tag:"]
 	[<inc> +edit]
+	[<p> "Note that the transclusion does not bring with it any scripts or stylesheets"]
     }
 }
 
@@ -617,11 +631,22 @@ Creole+Html {
     content {
 	set r [jQ jquery $r]	;# critical that we load jquery first
 	set r [jQ script $r creole.js]
-	dict lappend r -postscript js/js {}	;# then the local js
-	dict lappend r -postscript !tupler [<script> {
+	set r [Html script $r js/js]	;# then the local js
+	set r [Html postscript $r {
 	    $(document).Tuple();
 	}]
-	return [Http Ok $r [<div> class creole [dict get $r -content]] tuple/html]
+
+	set tuple [dict get $r -tuple]
+	set mime [my getmime $tuple]
+	if {$mime ni {tuple/html tuple/text}} {
+	    Debug.tupler {Creole+Html convert from $mime ($tuple)}
+	    set content [my tuConvert $tuple tuple/html $mime]
+	} else {
+	    set content [dict get $r -content]
+	}
+	Debug.tupler {Creole+Html converted from $mime ($content)}
+ 
+	return [Http Ok $r [<div> class creole $content] tuple/html]
     }
 }
 
@@ -638,5 +663,35 @@ Creole+Html {
 	The following is a local transclusion from Creole:
 
 	{{+edit}}
+    }
+}
+
+"component test" {
+    type Creole
+    content {
+	This is a test of Component assembly
+    }
+}
+
+"component test+header" {
+    type Creole
+    content {
+	== Header Component
+    }
+}
+
+"component test+footer" {
+    type Creole
+    mime Template
+    content {
+	----
+	//This is the footer ([clock format [clock seconds]])//
+    }
+}
+
+*rform+mmmheader {
+    type Creole
+    mime "Tcl Script"
+    content {
     }
 }
