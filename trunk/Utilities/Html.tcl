@@ -140,14 +140,17 @@ namespace eval Html {
     }
 
     # add a script to the response
-    proc script {r url args} {
-	dict set r -script $url $args
+    proc script {r url {script ""}} {
+	if {$script ne ""} {
+	    set script [<script> $script]
+	}
+	dict set r -script $url $script
 	return $r
     }
 
     # add a script to the response
     proc postscript {r script} {
-	dict set r -postscript ![clock microseconds] [<script> $script]
+	dict set r -script !$script [<script> $script]
 	return $r
     }
 
@@ -373,6 +376,10 @@ foreach tag {link meta} {
 
 proc <stylesheet> {url {media screen}} {
     return [<link> rel StyleSheet type text/css media $media href $url]
+}
+
+proc <load> {url} {
+    return "<[Html::attr script src $url]></script>"
 }
 
 proc <script> {args} {
