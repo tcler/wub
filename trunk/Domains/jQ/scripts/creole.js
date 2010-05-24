@@ -271,7 +271,7 @@ Parse.Simple.Creole = function(options) {
 		    if (r[2] != undefined) {
 			// get transclusion modifiers
 			r[2]=trim4creole(r[2]);
-			$(span).attr("args", r[2]);
+			$(span).attr("data", r[2]);
 		    }
 
 		    $(node).append(span);
