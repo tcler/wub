@@ -162,26 +162,10 @@ namespace eval Coco {
 	return [::md5::md5 -hex [incr uniq]]
     }
 
-    # yield wrapper with command dispatcher
-    proc yield {{retval ""}} {
-	set yield [::yield $retval]
-	Debug.coco {yield ($retval) -> ($yield)}
-	lassign $yield cmd args
-	switch -- $cmd {
-	    kill {
-		return -level [expr {[info level] - 1}] $args	;# return to the top coro level
-	    }
-	    call -
-	    default {
-		return $args
-	    }
-	}
-    }
-
     # process request helper
     proc process {mount lambda r} {
 	dict set r -rest [lassign [split [dict get? $r -suffix] /] suffix]
-	Debug.coco {process '$suffix' over $mount with ($lambda)}
+	Debug.coco {process '$suffix' over $mount}
 	
 	if {$suffix eq "/" || $suffix eq ""} {
 	    # this is a new call - create the coroutine
@@ -195,7 +179,7 @@ namespace eval Coco {
 		Debug.coco {coroutine initialised - ($r) reply}
 		return $result	;# allow coroutine lambda to reply
 	    } else {
-		# otherwise redirect to coroutine lambda
+		# otherwise simply redirect to coroutine lambda
 		Debug.coco {coroutine initialised - redirect to $mount/$cmd}
 		return [Http Redirect $r $mount/$cmd/]
 	    }
@@ -203,10 +187,10 @@ namespace eval Coco {
 
 	set extra [lassign [split $suffix /] cmd]
 	dict set r -extra $extra
-	
-	if {[llength [info commands ::Coco::@$cmd]]} {
+
+	if {[namespace which -command ::Coco::@$cmd] ne ""} {
 	    # this is an existing coroutine - call it and return result
-	    Debug.coco {calling coroutine $cmx with $extra}
+	    Debug.coco {calling coroutine '@$cmd' with extra '$extra'}
 	    if {[catch {
 		@$cmd [list call $r]
 	    } result eo]} {
@@ -216,7 +200,8 @@ namespace eval Coco {
 	    Debug.coco {coroutine yielded: ($result)}
 	    return $result
 	} else {
-	    return ""
+	    Debug.coco {coroutine gone: @$cmd}
+	    return [Http NotFound $r [<p> "Coco '$cmd' has terminated."]]
 	}
     }
 
@@ -239,7 +224,7 @@ namespace eval Coco {
     # initialize ensemble for Coco
     proc new {args} {
 	variable {*}[Site var? Coco]	;# allow .ini file to modify defaults
-	return [create CoCo[uniq] {*}$args]
+	return [create CoCo_[uniq] {*}$args]
     }
 
     proc create {cmd args} {
