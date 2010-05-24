@@ -182,10 +182,7 @@ oo::class create TupleStore {
 		    # must have unique id->tuple
 		    error "Non-unique id->tuple map!"
 		}
-		set tuple [dict merge {
-		    type Basic
-		    mime Text
-		} [lindex $tuple 0]]
+		set tuple [lindex $tuple 0]
 		set tuples($id) [my fixup $tuple]
 		return 1
 	    } else {
