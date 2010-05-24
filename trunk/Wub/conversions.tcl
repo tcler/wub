@@ -20,107 +20,95 @@ namespace eval ::conversions {
 
 	if {[string match "<!DOCTYPE*" $rspcontent]} {
 	    # the content is already fully HTML
-	    set content $rspcontent
-	} else {
-	    # if response is wrapped HTML fragment
-	    # (signified by existence of a -wrapper element)
-	    # then run an extra conversion phase over it.
-	    set wrapper [dict get? $rsp -wrapper]
-	    if {$wrapper ne ""} {
-		set wtype [dict get? $wrapper -type]
-		if {$wtype eq ""} {
-		    set wtype .style/sinorca.x-text/html-fragment
-		}
-		dict set wrapper content $rspcontent
-		dict set rsp -content $wrapper
-		dict set rsp content-type $wtype
+	    return [Http Ok $r $rspcontent text/html]	;# content is already fully HTML
+	}
 
-		# expect there's a conversion from $wtype to html-fragment
-		set rsp [::convert convert $rsp]
-		set content [dict get $rsp -content]
+	# if response is wrapped HTML fragment
+	# (signified by existence of a -wrapper element)
+	# then run an extra conversion phase over it.
+	set wrapper [dict get? $rsp -wrapper]
+	if {$wrapper ne ""} {
+	    set wtype [dict get? $wrapper -type]
+	    if {$wtype eq ""} {
+		set wtype .style/sinorca.x-text/html-fragment
 	    }
-
-	    if {![string match "<!DOCTYPE*" [dict get $rsp -content]]} {
-		variable htmlhead
-		set content "${htmlhead}\n"
-
-		append content <html> \n
-		append content <head> \n
-
-		if {[dict exists $rsp -title]} {
-		    append content [<title> [armour [dict get $rsp -title]]] \n
-		}
-
-		if {[dict exists $rsp -headers]} {
-		    append content [join [dict get $rsp -headers] \n] \n
-		}
-
-		# add script and style preloads
-		set preloads {}
-		if {[dict exists $rsp -script]} {
-		    dict for {n v} [dict get $rsp -script] {
-			if {[string match !* $n]} {
-			    lappend preloads $v
-			} else {
-			    lappend preloads [<script> src $n {*}$v]
-			    Debug.jsloader {$n $v}
-			}
-		    }
-		}
-		if {[dict exists $rsp -style]} {
-		    dict for {n v} [dict get $rsp -style] {
-			if {[string match !* $n]} {
-			    lappend preloads $v
-			} else {
-			    lappend preloads [<stylesheet> $n {*}$v]
-			    Debug.cssloader {$n $v}
-			}
-		    }
-		}
-		if {$preloads ne {}} {
-		    append content [join $preloads \n] \n
-		}
-		
-		# add script preloads
-		if {[dict exists $rsp -preload]} {
-		    append content [join [dict get $rsp -preload] \n] \n
-		}
-
-		append content </head> \n
-		
-		append content <body> \n
-		append content $rspcontent
-
-		# add script postscripts
-		if {[dict exists $rsp -postscript]} {
-		    dict for {n v} [dict get $rsp -postscript] {
-			if {[string match !* $n]} {
-			    append content \n $v \n
-			} else {
-			    append content \n [<script> src $n {*}$v] \n
-			    Debug.jsloader {$n $v}
-			}
-		    }
-		}
-		
-		# stuff to start on google api
-		if {[dict exists $rsp -google]} {
-		    append google "google.setOnLoadCallback(function() \{" \n
-		    append google [join [dict get $rsp -google] \n] \n
-		    append google "\});" \n
-		    append content [<script> $google]
-		}
-		
-		# add script postloads
-		if {[dict exists $rsp -postload]} {
-		    append content \n [join [dict get $rsp -postload] \n] \n
-		}
-		
-		append content </body> \n
-		append content </html> \n
+	    dict set wrapper content $rspcontent
+	    dict set rsp -content $wrapper
+	    dict set rsp content-type $wtype
+	    
+	    # expect there's a conversion from $wtype to html-fragment
+	    set rsp [::convert convert $rsp]
+	    set content [dict get $rsp -content]
+	    if {[string match "<!DOCTYPE*" $content]} {
+		return [Http Ok $r $content text/html]	;# content is already fully HTML
 	    }
 	}
+
 	dict set rsp -raw 1
+
+	variable htmlhead
+	set content "${htmlhead}\n"
+	    
+	append content <html> \n
+	append content <head> \n
+	
+	if {[dict exists $rsp -title]} {
+	    append content [<title> [armour [dict get $rsp -title]]] \n
+	}
+
+	if {[dict exists $rsp -headers]} {
+	    append content [join [dict get $rsp -headers] \n] \n
+	}
+
+	# add script and style preloads
+	set preloads {}
+
+	if {[dict exists $rsp -style]} {
+	    dict for {n v} [dict get $rsp -style] {
+		if {[string match !* $n]} {
+		    lappend preloads $v
+		} else {
+		    lappend preloads [<stylesheet> $n {*}$v]
+		    Debug.cssloader {$n $v}
+		}
+	    }
+	}
+	if {$preloads ne {}} {
+	    append content [join $preloads \n] \n
+	}
+	
+	append content </head> \n
+	
+	append content <body> \n
+	append content $rspcontent
+	
+	# stuff to start on google api
+	if {[dict exists $rsp -google]} {
+	    append google "google.setOnLoadCallback(function() \{" \n
+	    append google [join [dict get $rsp -google] \n] \n
+	    append google "\});" \n
+	    append content [<script> $google]
+	}
+	
+	# add script postscripts
+	if {[dict exists $rsp -script]} {
+	    dict for {n v} [dict get $rsp -script] {
+		if {[string match !* $n]} {
+		    append content \n $v \n
+		} else {
+		    append content \n [<script> src $n {*}$v] \n
+		    Debug.jsloader {$n $v}
+		}
+	    }
+	}
+
+	# add script postloads - can't remove this until WubWikit's fixed
+	if {[dict exists $rsp -postload]} {
+	    append content \n [join [dict get $rsp -postload] \n] \n
+	}
+		
+	append content </body> \n
+	append content </html> \n
 
 	Debug.convert {x-text/html-fragment DONE: $rsp}
 	#puts stderr "FRAGMENT done: $rsp"
