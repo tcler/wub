@@ -588,12 +588,13 @@ namespace eval ::MConvert {
 	if {[dict exists $rsp -title]} {
 	    dict lappend rsp -headers [<title> [string trim [dict get $rsp -title]]]
 	}
+
 	set uroot [dict get? $rsp -urlroot]
 	foreach js {common css standardista-table-sorting} {
-	    dict set rsp -script $uroot/scripts/$js.js {}
+	    set rsp [Html script $r $uroot/scripts/$js.js]
 	}
 
-	dict set rsp -style $uroot/css/sorttable.css) {}
+	set rsp [Html style $rsp $uroot/css/sorttable.css]
 	dict set rsp content-type x-text/html-fragment
 
 	Debug.convert {x-text/dict.x-text/html-fragment conversion: $rsp}
