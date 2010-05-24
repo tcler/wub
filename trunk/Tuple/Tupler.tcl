@@ -44,6 +44,13 @@ oo::class create Tupler {
 	    }
 	}]
     }
+    method x-text/system.tuple/html {r} {
+	return [Http Pass $r [dict get $r -content] tuple/html]
+    }
+    method x-text/system.tuple/text {r} {
+	return [Http Pass $r [dict get $r -content] tuple/html]
+    }
+
     set ::Tuple_home [file dirname [info script]]
 
     method tuRConvert {tuple to {from ""}} {
@@ -51,186 +58,204 @@ oo::class create Tupler {
 	    if {$from eq ""} {
 		set from tuple/$type
 	    }
+	    Debug.tupler {tuRConvert '[dict get $tuple name]' '$from->$to'}
 	    set r [list content-type $from -content $content -tuple $tuple]
 	}
-	return [my convert! $r $to]
+	set result [my convert! $r $to]
+	Debug.tupler {tuRConverted '[dict get $tuple name]' '$from->$to' => ($result)}
+	return $result
     }
+
     method tuConvert {args} {
-	return [dict get [my tuRConvert {*}$args] -content]
+	Debug.tupler {tuConvert ($args)}
+	set result [dict get [my tuRConvert {*}$args] -content]
+	Debug.tupler {tuConverted ($result)}
+	return $result
     }
 
     method component {r name el {type html}} {
-	Debug.tupler {component $name+$el $type}
 	if {[catch {my fetch $name+$el} c]} {
-	    Debug.tupler {component $name $el => NONE}
+	    Debug.tupler {'$name+$el' => NONE}
 	    return {}
 	}
 
-	Debug.tupler {component convert tuple/[dict get $c type] to tuple/$type}
+	Debug.tupler {component convert '$name+$el' ($c) 'tuple/[dict get $c type]->tuple/$type'}
 	set cpp [my tuRConvert $c tuple/$type]
+	Debug.tupler {component conversion 'tuple/[dict get $c type]->tuple/$type' -> ($cpp)}
 
 	# conversion of components may generate more header components
 	# these must be added to the response
-	foreach sub {script load style} {
+	foreach sub {script style} {
 	    upvar $sub $sub
 	    if {[dict exists $cpp -$sub]} {
 		set $sub [dict merge [set $sub] [dict get $cpp -$sub]]
-		Debug.tupler {component subcomponent $name -$sub}
+		Debug.tupler {component subcomponent '$name' -$sub is '[set $sub]'}
 	    }
 	}
 
-	Debug.tupler {component $name $el => [dict get $c id]}
-	return [list $r [dict get $c id] [dict get $cpp -content] $script $load $style]
+	Debug.tupler {component done '$name' $el => [dict get $c id] '[dict get $cpp -content]'}
+	return [list $r [dict get $c id] [dict get $cpp -content]]
+    }
+
+    # check for body and header components of document and assemble them
+    method assemble {r name el tag args} {
+	# fetch, convert and index header components
+	Debug.tupler {assemble $name $el $tag $args}
+	upvar $el result
+	set result [dict merge $result [dict get? $r -$el]]
+
+	# record supplied header components
+	set loader {}
+	set scripts {}
+	dict for {n v} $result {
+	    if {[string match !* $n]} {
+		Debug.tupler {assembling literal $el '$n'}
+		dict set scripts $n $v 
+	    } else {
+		Debug.tupler {assembling $el '$n' -> [$tag $n {*}$v]}
+		dict set loader $n [$tag $n {*}$v]
+	    }
+	}
+
+	if {![catch {my fetch $name+$el} c]} {
+	    Debug.tupler {component '$name+$el' => $c}
+	    set ct [string tolower [dict get $c type]]
+	    set cc [dict get $c content]
+	    set cid [dict get $c id]	;# default - index by component id
+	    set cto head
+
+	    if {$ct ni $args} {
+		set cto [lindex $args 0]	;# convert to first expected type
+	    } elseif {$ct eq "ref"} {
+		set cid [lindex $cc 0]	;# index refs by URL component of ref
+	    }
+ 
+	    if {![dict exists $result $cid]} {
+		# convert metadata component to expected type
+		# index component by appropriate id
+		set conv [my tuConvert $c tuple/$cto tuple/$ct]
+		Debug.tupler {assembling $el $cid '$conv'}
+		dict set scripts $cid $conv
+	    } else {
+		# don't bother converting if we already have this component
+		Debug.tupler {not assembling $el $cid - duplicate}
+	    }
+	}
+
+	Debug.tupler {assembled: ($result) -> '[join [dict values $result] \n]'}
+	return [join [dict values [dict merge $loader $scripts]] \n]
+    }
+
+    method html {body {head ""}} {
+	# construct the final HTML text
+	variable doctype	;# html doctype from Tupler instance
+	append html $doctype \n
+	append html <html> \n
+	append html <head> \n $head \n </head> \n
+	append html <body> \n $body \n </body> \n
+	append html </html> \n
+	return $html
     }
 
     method tuple/html.text/html {r} {
 	# convert the Html type to pure HTML
 	dict set r -raw 1	;# no more conversions after this
-	
+
 	if {[string match "<!DOCTYPE*" [dict get $r -content]]} {
 	    return [Http Ok $r $html text/html]	;# content is already fully HTML
 	}
 
-	# record supplied header components
-	foreach c {script load style} {
-	    set $c [dict get? $r -$c]
+	variable html5
+	if {$html5} {
+	    set tag <article>
+	} else {
+	    set tag {<div> class article}
 	}
-	
+
 	# pre or post process HTML fragments by assembling their subcomponents
 	set tuple [dict get $r -tuple]
-	dict with tuple {
-	    # fetch text/plain data (title)
-	    foreach el {title} {
-		set cm [my component $r $name $el text]
-		if {[llength $cm]} {
-		    lassign $cm r cid cc
-		    dict lappend r -$el $cc
-		}
-	    }
+	dict with tuple {}
 
-	    foreach el {header nav} {
-		set cm [my component $r $name $el]
-		if {[llength $cm]} {
-		    lassign $cm r cid cc
-		    append body [<$el> id $cid $cc] \n
-		}
-	    }
+	# these will be filled in by [component]
+	set style {}
+	set script {}
 
-	    variable html5
-	    if {$html5} {
-		set tag <article>
-	    } else {
-		set tag {<div> class article}
-	    }
-	    append body [{*}$tag id T_[armour $id] [subst {
-		<!-- name:'[armour $name]' left:[armour $_left] right:[armour $_right] -->
+	if {[string tolower [dict get? $r x-requested-with]] eq "xmlhttprequest"} {
+	    # this is a transclusion - just send it out minimally transformed
+	    Debug.tuple {Transclusion Conversion}
+
+	    set body [{*}$tag id T_[armour $id] [subst {
+		<!-- transcluded name:'[armour $name]' left:[armour $_left] right:[armour $_right] -->
 		[dict get $r -content]
 		<!-- transforms [armour [dict get? $r -transforms]] -->
 	    }]]
 
-	    foreach el {aside footer} {
-		set cm [my component $r $name $el]
-		if {[llength $cm]} {
-		    lassign $cm r cid cc
-		    append body [<$el> id T_$cid $cc] \n
-		}
+	    return [Http Ok $r [my html $body] text/html]
+	}
+ 
+	# fetch text/plain data (title)
+	foreach el {title} {
+	    set cm [my component $r $name $el text]
+	    if {[llength $cm]} {
+		lassign $cm r cid cc
+		dict lappend r -$el $cc
+	    }
+	}
+
+	foreach el {header nav} {
+	    set cm [my component $r $name $el]
+	    if {[llength $cm]} {
+		lassign $cm r cid cc
+		append body [<$el> id T_$cid $cc] \n
+	    }
+	}
+
+	append body [{*}$tag id T_[armour $id] [subst {
+	    <!-- loaded name:'[armour $name]' left:[armour $_left] right:[armour $_right] -->
+	    [dict get $r -content]
+	    <!-- transforms [armour [dict get? $r -transforms]] -->
+	}]] \n
+	
+	foreach el {aside footer} {
+	    set cm [my component $r $name $el]
+	    if {[llength $cm]} {
+		lassign $cm r cid cc
+		append body [<$el> id T_$cid $cc] \n
+	    }
+	}
+
+	# process dependent jQ file as text
+	if {![catch {my fetch $name+jq} c]} {
+	    set jQc [split [my tuConvert $c tuple/text] \n]
+	    set jQl {}
+	    foreach l $jQc {
+		set l [string trim $l]
+		if {[string match #* $l] || $l eq ""} continue
+		lappend jQl $l
+		set a [lassign [split $l] jq]
+		Debug.tupler {jQ $jq .. $a}
+		set r [jQ $jq $r {*}$a]
 	    }
 
-	    # process dependent jQ file as text
-	    if {![catch {my fetch $name+jq} c]} {
-		foreach l [split [my tuConvert $c tuple/text] \n] {
-		    set l [string trim $l]
-		    if {[string match #* $l] || $l eq ""} continue
-		    set a [lassign [split $l] jq]
-		    Debug.tupler {jQ $jq .. $a}
-		    set r [jQ $jq $r {*}$a]
-		}
-		Debug.tupler {post-jQ: ($r)}
-	    }
+	    append body "<!-- jQ [armour [join $jQl ,]] -->" \n
 
-	    # check for body and header components of document and assemble them
-	    foreach {el et} {
-		script javascript
-		load {ref}
-		style {css ref}
-	    } {
-		# fetch, convert and index header components
-		if {![catch {my fetch $name+$el} c]} {
-		    Debug.tupler {component $name $el => NONE}
-		    set ct [string tolower [dict get $c type]]
-		    set cc [dict get $c content]
-		    set cid [dict get $c id]	;# default - index by component id
-		    set cto head
+	    Debug.tupler {post-jQ: ($r)}
+	}
 
-		    if {$ct ni $et} {
-			set cto [lindex $et 0]	;# convert to first expected type
-		    } elseif {$ct eq "ref"} {
-			set cid [lindex $cc 0]	;# index refs by URL component of ref
-		    }
+	# add inline scripts to <body> part
+	append body [my assemble $r $name script <load> javascript ref]
+ 
+	# construct <head> part
+	if {[dict exists $r -title]} {
+	    set head [<title> [armour [join [dict get $r -title]]]]\n
+	} else {
+	    set head [<title> [armour [dict get $r -tuple name]]]\n
+	}
+	
+	# add style preloads
+	append head [my assemble $r $name style <stylesheet> css ref]
 
-		    if {![dict exists [set $el] $cid]} {
-			# convert metadata component to expected type
-			# index component by appropriate id
-			dict set $el $cid [my tuConvert $c tuple/$cto tuple/$ct]
-		    } else {
-			# don't bother converting if we already have the component
-		    }
-		}
-	    }
-
-	    # construct <head> part
-	    if {[dict exists $r -title]} {
-		set head [<title> [armour [join [dict get $r -title]]]]
-	    } else {
-		set head [<title> [armour [dict get $r -tuple name]]]
-	    }
-
-	    # add jQ script and style preloads
-	    set preloads ""
-	    dict for {n v} [dict get? $r -script] {
-		if {[string match !* $n]} {
-		    append preloads $v \n
-		} else {
-		    append preloads [<script> src $n {*}$v] \n
-		}
-	    }
-	    dict for {n v} [dict get? $r -style] {
-		if {[string match !* $n]} {
-		    append preloads $v \n
-		} else {
-		    append preloads [<stylesheet> $n {*}$v] \n
-		}
-	    }
-
-	    append head $preloads \n			;# add jQ script preloads
-	    append head \n [join [dict values $load] \n]	;# add script preloads
-	    append head \n [join [dict values $style] \n]	;# add style preloads
-	    
-	    # add scripts to <body> part
-	    append body [join [dict values $script] \n] ;# add script postscripts
-
-	    # add jQ postscripts
-	    dict for {n v} [dict get? $r -postscript] {
-		if {[string match !* $n]} {
-		    append body \n $v \n
-		    Debug.tupler {jsloader $n $v}
-		} else {
-		    append body \n [<script> src $n {*}$v] \n
-		    Debug.tupler {jsloader $n $v}
-		}
-	    }
-
-	    append body [join [dict get? $r -postload] \n] \n	;# add jQ script postscripts
-
-	    # construct the final HTML text
-	    variable doctype	;# html doctype from Tupler instance
-	    append html $doctype \n
-	    append html <html> \n
-	    append html <head> \n $head \n </head> \n
-	    append html <body> \n $body \n </body> \n
-	    append html </html> \n
-	}	    
-	return [Http Ok $r $html text/html]
+	return [Http Ok $r [my html $body $head] text/html]
     }
 
     # /js - return the pre-canned javascript for Tupler
@@ -287,7 +312,11 @@ oo::class create Tupler {
 			    method %N% {r} {%C%}
 			}]
 			my postprocess $mname [self] $mname
-			Debug.tupler {added postprocess for type $name called $mname}
+			Debug.tupler {added postprocess for type '$name' called $mname}
+
+			if {![info exists mime]} {
+			    dict set tuple mime "Tcl Script"
+			}
 		    }
 		}
 
@@ -311,8 +340,13 @@ oo::class create Tupler {
 		    oo::objdefine [self] [string map [list %N% $mname %C% [dict get $tuple content]] {
 			method %N% {r} {%C%}
 		    }]
+
 		    my transform $lname $rname [self] $mname
-		    Debug.tupler {added conversion from $lname to $rname called '$mname'}
+		    Debug.tupler {added conversion from '$lname' to '$rname' called '$mname'}
+
+		    if {![info exists mime]} {
+			dict set tuple mime "Tcl Script"
+		    }
 		}
 	    }
 	}
@@ -404,6 +438,7 @@ oo::class create Tupler {
     # view a tuple - giving it its most natural HTML presentation
     method /view {r args} {
 	set extra [my getname $r]
+
 	dict set r -convert [self]
 	if {[catch {my fetch $extra} tuple eo]} {
 	    tailcall my bad $r $eo
@@ -419,6 +454,7 @@ oo::class create Tupler {
 		} else {
 		    set type [string map {" " _} [string tolower $type]]
 		}
+
 		Debug.tupler {/view -> tuple/$type, [dict get? -$r -convert]}
 		return [Http Ok $r $content tuple/$type]
 	    }
@@ -436,7 +472,6 @@ oo::class create Tupler {
     }
 
     superclass Tuple Convert Direct
-    #mixin 
 
     constructor {args} {
 	Debug.tupler {Creating Tupler [self] $args}
@@ -480,6 +515,7 @@ oo::class create Tupler {
 	}
 
 	Debug.tupler {Conversion Graph: [my graph]}
+	Debug.tupler {Conversion Transforms: [my transforms]}
     }
 }
 
