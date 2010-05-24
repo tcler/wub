@@ -47,6 +47,12 @@ class create Convert {
 	variable postprocess; set postprocess($from) $args
     }
 
+    # transforms - the transforms
+    method transforms {} {
+	variable transform
+	return [array get transform]
+    }
+
     # graph - the graph structure
     method graph {} {
 	variable graph
@@ -67,7 +73,7 @@ class create Convert {
 	    if {[string match */*.*/* $m]} {
 		lassign [split $m .] from to
 		lappend convertors "$from->($m)->$to"
-		my transform $from $to eval $object $m
+		my transform $from $to $object $m
 	    }
 	}
 
@@ -78,7 +84,7 @@ class create Convert {
 	    if {[string match */* $m]} {
 		if {[string match */*.*/* $m]} continue
 		lappend convertors "$m->($m)->$m"
-		my postprocess $m eval $object $m
+		my postprocess $m $object $m
 	    }
 	}
 	Debug.convert {[self] Object Convertors from $defclass: $convertors over $object}
@@ -88,7 +94,7 @@ class create Convert {
     method namespace {ns} {
 	# scan the namespace looking for translators
 	# which are commands of the form .mime/type.mime/type
-	set candidates [namespace eval $ns info commands .*/*.*/*]
+	set candidates [info commands ${ns}::.*/*.*/*]
 	Debug.convert {[self] Namespace '$ns' transformers - $candidates}
 	foreach candidate $candidates {
 	    lassign [split $candidate .] -> from to
@@ -98,7 +104,7 @@ class create Convert {
 	# scan the namespace looking for postprocessors
 	# which are commands of the form .mime/type
 	set postproc {}
-	set candidates [namespace eval $ns info commands .*/*]
+	set candidates [info commands ${ns}::.*/*]
 	Debug.convert {[self] Namespace '$ns' postprocessors - $candidates}
 	foreach candidate $candidates {
 	    if {[string match .*/*.*/* $candidate]} continue
@@ -120,6 +126,9 @@ class create Convert {
 
 	    Debug.convert {[self] postprocessing: '$postprocess($ctype)'}
 	    dict lappend rsp -transforms $ctype ;# record the transforms
+	    if {[lindex $postprocess($ctype) 0] eq "namespace"} {
+		set rsp [list $rsp]	;# namespace eval needs an extra level of quoting
+	    }
 	    set rsp [{*}$postprocess($ctype) $rsp]
 	    catch {dict unset rsp -file}	;# forget that there's a file connected
 	    Debug.convert {[self] postprocessed: '$postprocess($ctype)' -> [dict get? $rsp content-type] ([dict size $rsp] elements in response)}
@@ -284,53 +293,49 @@ class create Convert {
 	}
 
 	# a transforming path exists
-	Debug.convert {[self] TRANSFORMING: url:'[dict get? $rsp -url]' [dict size $rsp] along path $path}
+	Debug.convert {[self] TRANSFORMING: url:'[dict get? $rsp -url]' along path ($path)}
 
 	# perform those transformations on the path
 	variable transform
-	set ctype [dict get $rsp content-type]
-	set oldel $ctype
 	foreach el $path {
-	    Debug.convert {[self] transform element: $el with '$transform($el)' accepting: '[dict get? $rsp accept]' / [dict size $rsp]}
+	    lassign [split $el ,] oldtype expected ;# characterises the transformation
+
+	    Debug.convert {[self] '$transform($el)' transform element: '$el' expect '$oldtype->$expected'}
 	    dict lappend rsp -transforms $el	;# record the transforms
+
 	    if {[lindex $transform($el) 0] eq "namespace"} {
 		set rsp [list $rsp]	;# namespace eval needs an extra level of quoting
 	    }
 	    if {![set code [catch {
 		{*}$transform($el) $rsp	;# transform content
 	    } result eo]]} {
-		# transformation success - proceed
+		# transformation succeeded
 		set rsp $result
-		Debug.convert {[self] transformed accepting: '[dict get? $rsp accept]' / [dict size $rsp]}
 		if {[dict exists $rsp -suspend]} {
 		    # the transformer wants to suspend
-		    Debug.convert {[self] Transformer suspended}
+		    # it signals this by setting a -suspend
+		    Debug.convert {[self] ransformer suspended}
 		    return [list suspended $rsp]
 		}
 
 		# ensure the transformation is still on-path
 		set ctype [dict get $rsp content-type]
-		lassign [split $el .] -> oldtype expected ;# characterises the transformation
-		if {![string match $expected $ctype]} {
+		if {[string match $expected $ctype]} {
+		    Debug.convert {[self] '$transform($el)' transformer SUCCESS: '$oldtype->$ctype'}
+		} elseif {$oldtype eq $ctype} {
 		    # a transformer hasn't set a new mime type.
-		    if {[string match $oldtype $ctype]} {
-			dict set rsp content-type $expected
-			Debug.error {Convert transformer '$transform($el)' failed to set content type to $expected (accepting: '[dict get? $rsp accept]') - FIX please}
-		    } else {
-			# restart the transformation with new content type
-			Debug.convert {[self] Transformer '$transform($el)' from '$oldtype' -> '$ctype' - but were expecting '$oldtype' -> '$expected' accepting: '[dict get? $rsp accept]' ... target CHANGED}
-			return [list changed $rsp]
-		    }
+		    dict set rsp content-type $expected
+		    Debug.error {Convert [self] '$transform($el)' transformer FAILED to set content type to $expected, instead it set it to $ctype - FIX please}
+		} else {
+		    # restart the transformation with new content type
+		    Debug.convert {[self] '$transform($el)' transformer CHANGED target from '$oldtype' -> '$ctype' - we were expecting '$expected' while accepting:'[dict get? $rsp accept]'}
+		    return [list changed $rsp]
 		}
-
-		Debug.convert {[self] transform Success: $transform($el)}
 	    } else {
-		# transformation failure - alert the caller
-		Debug.convert {[self] transform Error over ($transform($el)): $result ($eo)}
+		# transformation failed - alert the caller
+		Debug.convert {[self] transformer ($transform($el)) Error $result ($eo)}
 		return [list error [Http ServerError $rsp $result $eo]]
 	    }
-
-	    set oldtype $el
 	}
 
 	Debug.convert {[self] transform accepting final: '[dict get? $rsp accept]'}
@@ -388,6 +393,9 @@ class create Convert {
 	    set rsp [my postprocessor $rsp]
 	    # remember what we've preprocessed
 	    set preprocessed [dict get $rsp content-type]
+	    if {$ctype ne $preprocessed} {
+		Debug.convert {[self] preprocessor changed type from '$ctype' to '$preprocessed'}
+	    }
 	}
 
 	# perform each transformation on the path
@@ -412,14 +420,13 @@ class create Convert {
 
 		    # perform any postprocessing on *transformed* type
 		    # avoid doing this twice - if we've already preprocessed
-		    Debug.convert {[self] conversion complete STATE: '$state' RAW? '[dict get? $rsp -raw]'}
 		    set ctype [dict get $rsp content-type]
+		    Debug.convert {[self] conversion [string toupper $state] to '$ctype'}
 		    if {$preprocessed ne $ctype
 			&& [info exists postprocess($ctype)]
 		    } {
 			set rsp [my postprocessor $rsp]
 		    }
-		    Debug.convert {[self] accepting2: '[dict get? $rsp accept]'}
 
 		    break
 		}
@@ -433,7 +440,7 @@ class create Convert {
 
 		changed {
 		    # the transformation path took us in an unexpected direction
-		    Debug.convert {[self] conversion CHANGED:}
+		    Debug.convert {[self] conversion CHANGED to '[dict get? $rsp content-type]'}
 		}
 		suspended {
 		    # a transformer has suspended
