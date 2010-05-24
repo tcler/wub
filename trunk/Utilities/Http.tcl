@@ -568,9 +568,10 @@ namespace eval Http {
 	if {[catch {
 	    if {$eo ne ""} {
 		append content [<h2> "Error Code '[dict get? $eo -errorcode]'"]
+		catch {dict unset eo -errorcode}
+		
 		append content [<pre> [armour [dict get? $eo -errorinfo]]]
-		dict unset eo -errorcode
-		dict unset eo -errorinfo
+		catch {dict unset eo -errorinfo}
 
 		#append table [<thead> "[<th> Variable] [<th> Value]"] \n
 		append table <tbody>
