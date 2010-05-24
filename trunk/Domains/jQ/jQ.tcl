@@ -62,7 +62,7 @@ set API(Domains/JQ) {
 	=== Example: arbitrary javascript over jQuery ===
 	
 	set r [jQ jquery $r]	;# load the jquery library
-	set r [jQ postscript $r {/* this is javascript */}]
+	set r [Html postscript $r {/* this is javascript */}]
 	
 	=== Example: ajax form ===
 
@@ -87,11 +87,6 @@ namespace eval jQ {
     variable uiversion 1.7.2
     variable min 1
 
-    proc _postscript {script args} {
-	variable mount
-	return [list -postscript [file join $mount scripts $script] $args]
-    }
-
     proc script {r script args} {
 	variable version; variable min
 	if {$script eq "jquery.js"} {
@@ -106,20 +101,18 @@ namespace eval jQ {
 	}
 
 	variable mount
-	dict set r -postscript [file join $mount scripts $script] $args
-
-	return $r
-    }
-
-    proc postscript {r script} {
-	dict set r -postscript ![clock microseconds] [<script> $script]
-	return $r
+	return [Html script $r [file join $mount scripts $script] {*}$args]
     }
 
     # generate a DOM ready function
     proc ::<ready> {args} {
-	set script [lindex $args end]
-	set args [lrange $args 0 end-1]
+	if {[llength $args]%2} {
+	    set script [lindex $args end]
+	    set args [lrange $args 0 end-1]
+	} else {
+	    set script ""
+	}
+
 	return [<script> [string map [list %F [string map $args $script] ] {
 	    $(function() {
 		%F
@@ -127,55 +120,63 @@ namespace eval jQ {
 	}]]
     }
 
+    # arrange for the function in args to be run post-load
     proc ready {r args} {
-	dict set r -postscript ![clock microseconds] [<ready> {*}$args]
-	return $r
+	if {[llength $args]%2} {
+	    set script [lindex $args end]
+	    set args [lrange $args 0 end-1]
+	    set script [string map [list %F [string map $args $script] ] {
+		$(function() {
+		    %F
+		});
+	    }]
+	    return [Html postscript $r $script]
+	}
     }
 
     proc scripts {r args} {
-	Debug.jq {PRESCRIPT: [Dict get? $r -postscript]}
+	Debug.jq {scripts: $args}
+
 	variable version
 	variable google
 	if {$google} {
-	    # use the google AJAX repository
-	    dict set r -postscript http://www.google.com/jsapi {}
-	    dict set r -postscript !google [<script> {google.load("jquery", "$version");}]
+	    # use the google AJAX repository to fetch our jquery version
+	    set r [Html script $r http://www.google.com/jsapi]
+	    set r [Html script $r !google "google.load('jquery', '$version');"]
 	}
-	# load each script
+
+	# load each specified script
 	variable mount
 	foreach script $args {
-	    if {$google
-		&& $script eq "jquery.js"
-	    } continue ;# needn't load jquery.js
-
-	    variable version; variable min
-	    if {$script eq "jquery.js"} {
-		# get the currently supported jquery
-		set script jquery-${version}[expr {$min?".min":""}].js
+	    variable min
+	    switch -- $script {
+		jquery.js {
+		    if {$google} continue	;# needn't load jquery.js again
+		    # get the currently supported jquery
+		    set script jquery-${version}[expr {$min?".min":""}].js
+		}
+		jquery.ui.js {
+		    # get the currently supported jquery UI
+		    variable uiversion
+		    set script jquery-ui-${uiversion}[expr {$min?".min":""}].js
+		}
 	    }
 
-	    variable uiversion
-	    if {$script eq "jquery.ui.js"} {
-		# get the currently supported jquery UI
-		set script jquery-ui-${uiversion}[expr {$min?".min":""}].js
-	    }
-
-	    dict set r -postscript [file join $mount scripts $script] {}
+	    # record requirement for script
+	    set r [Html script $r [file join $mount scripts $script]]
 	}
-	Debug.jq {SCRIPT: [dict get $r -postscript]}
+	Debug.jq {SCRIPT: [dict get $r -script]}
 	return $r
     }
 
     proc theme {r theme} {
 	variable mount
-	dict set r -style [file join $mount themes $theme ui.all.css] {}
-	return $r
+	return [Html style $r [file join $mount themes $theme ui.all.css]]
     }
 
     proc style {r style args} {
 	variable mount
-	dict set r -style [file join $mount css $style] $args
-	return $r
+	return [Html style $r [file join $mount css $style] $args]
     }
 
     variable defaults {
@@ -293,18 +294,9 @@ namespace eval jQ {
 
     proc history {r args} {
 	set r [scripts $r jquery.js jquery.history-remote.js]
-	dict lappend r -postload [<script> {
-	    $(function() {
+	return [ready $r {
 		$.ajaxHistory.initialize();
-	    });
 	}]
-	return $r
-    }
-
-    # arrange for the function in args to be run post-load
-    proc ready {r args} {
-	dict lappend r -postload [::<ready> {*}$args]
-	return $r
     }
 
     # combine a selector/initializer and set of script
@@ -318,42 +310,40 @@ namespace eval jQ {
     # args - a series of argument/value pairs followed by the script
     proc weave {r scripts args} {
 	#puts stderr "WEAVE: $r"
-	set script [lindex $args end]
-	set args [lrange $args 0 end-1]
+	set r [scripts $r {*}$scripts]	;# preload scripts first
+
+	# generate the document-ready script with %var substitution
+	if {[llength $args]%2} {
+	    set script [lindex $args end]
+	    set args [lrange $args 0 end-1]
+	    set script [string map [dict filter $args key %*] $script]
+	} else {
+	    set script ""
+	}
 
 	# %prescript is a function to run before the script
-	if {[dict exists $args %prescript]
-	    && [dict get $args %prescript] ne ""
-	} {
-	    set js [dict get $args %prescript]\n
-	}
-
-	# generate the document ready script with %var substitution
-	set script [string map [dict filter $args key %*] $script]
-	append js "\$(function()\{\n${script}\n\});"
-
-	# allow different loaders to process script
-	switch -- [Dict get? $args loader] {
-	    "" {
-		# run this script in -postload phase
-		set preload -postload
-		set script [<script> $js]
-	    }
-	    google {
-		# the script needs google loader
-		set preload -google
-	    }
-	    default {
-		# select loader in 'loader' arg
-		set preload [dict get $args loader]
-		set script [<script> $js]
-	    }
-	}
+	set js [dict get? $args %prescript]\n
 
 	# append the script to the relevant loader request element
-	if {$script ne ""} {
+	# allow different loaders to process script
+	if {$js ne "" || $script ne ""} {
+	    append js "\$(function()\{\n${script}\n\});"
 	    Debug.jq {WEAVE: $script}
-	    dict lappend r $preload $script
+	    switch -- [Dict get? $args loader] {
+		google {
+		    # the script needs google loader
+		    dict lappend r -google $script
+		}
+		"" {
+		    # run this script in -script phase
+		    set r [Html postscript $r $js]
+		}
+
+		default {
+		    # use specified loader to load this script
+		    dict lappend r [dict get $args loader] $js
+		}
+	    }
 	}
 
 	# record the style
@@ -361,11 +351,10 @@ namespace eval jQ {
 	    set r [style $r {*}[dict get $args css]]
 	}
 
-	set r [scripts $r {*}$scripts]
 	#puts stderr "POST WEAVE: $r"
 	return $r
     }
-    
+ 
     # http://docs.jquery.com/UI/Datepicker
     proc datepicker {r selector args} {
 	return [weave $r {
@@ -500,7 +489,6 @@ namespace eval jQ {
 	} %SEL $selector %OPTS [opts tabs {*}$args] {
 	    $('%SEL').tabs(%OPTS);
 	}]
-	#loader -preload
     }
 
     proc addtab {var name content} {
@@ -687,6 +675,7 @@ namespace eval jQ {
 	} else {
 	    set pre ""
 	}
+
 	return [weave $r {
 	    jquery.js jquery.autogrow.js jquery.jeditable.js
 	} %SEL $selector %OPTS [opts editable {*}$args] {*}$pre %FN $fn {
@@ -780,7 +769,7 @@ namespace eval jQ {
 
 	if {[dict exists $args key]} {
 	    # load the google maps API if we're given a key
-	    dict set r -postscript "http://maps.google.com/maps?file=api&v=2&key=[dict get $args key]" {}
+	    set r [Html script $r "http://maps.google.com/maps?file=api&v=2&key=[dict get $args key]"]
 	    dict unset args key
 	}
 
