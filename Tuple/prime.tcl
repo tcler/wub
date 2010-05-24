@@ -565,12 +565,13 @@ welcome {
 	[<h1> "Welcome to Tuple"]
 	[Html ulinks {
 	    "Tcl Scripting and component architecture" now
+	    "Creole Test" {{Creole Test}}
+	    "Test component assembly" {{Component Test}}
 	    "Test Tcl Variable and Tcl Dict rendering" reflect
 	    "Test Uppercase and text/plain" {{Example Uppercase}}
 	    "Test 'page not found' page" nothere
 	    "XRay of Now page" xray/now
 	    "Glob Test" {{glob test}}
-	    "Creole Test" {{creole test}}
 	}]
     }
 }
@@ -669,14 +670,19 @@ Creole+Html {
 "component test" {
     type Creole
     content {
-	This is a test of Component assembly
+	This is a test of Component assembly.
+
+	The [[+header|page header]] and [[+footer|page footer]] are components of this page.
+
+	Components are like server-side inclusion.
     }
 }
 
 "component test+header" {
     type Creole
+    mime Template
     content {
-	== Header Component
+	== [dict get $r -tuple name]
     }
 }
 
