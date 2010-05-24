@@ -62,6 +62,17 @@ Template {
     content {
 	* {zoom: 1.0;}
 
+	header {
+          clear:           both;
+	}
+
+	footer {
+          text-align:      center;
+          padding:         0.5em 0.5em 0.5em 0.5em;
+          margin:          0;
+          clear:           both;
+	}
+
 	input.blur {
 	    color:lightgray;
 	}
@@ -110,7 +121,7 @@ Template {
 	    -moz-border-radius-bottomleft:7px;
 	    -moz-border-radius-bottomright:7px;
 	}
-	table tr.family {
+	table tr {
 	    background: gainsboro;
 	}
 	table caption {
@@ -674,7 +685,7 @@ Creole+Html {
 
 	The [[+header|page header]] and [[+footer|page footer]] are components of this page.
 
-	Components are like server-side inclusion.
+	Components are like server-side inclusion.  Components can drag in js and css.
     }
 }
 
