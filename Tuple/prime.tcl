@@ -63,19 +63,48 @@ Template {
 	* {zoom: 1.0;}
 
 	header {
-          clear:           both;
+          clear: both;
 	}
 
+	nav {
+	    float: left;
+	    clear: left;
+	    width: 10%;
+	    background: gainsboro;
+	    -moz-border-radius-topleft:7px;
+	    -moz-border-radius-topright:7px;
+	    -moz-border-radius-bottomleft:7px;
+	    -moz-border-radius-bottomright:7px;
+	}
+
+	article {
+	    width: 80%;
+	    clear: both;
+	}
+	
+	aside {
+	    float: right;
+	    clear: right;
+	    width: 10%;
+	    background: gainsboro;
+	    -moz-border-radius-topleft:7px;
+	    -moz-border-radius-topright:7px;
+	    -moz-border-radius-bottomleft:7px;
+	    -moz-border-radius-bottomright:7px;
+	}
+	
 	footer {
-          text-align:      center;
-          padding:         0.5em 0.5em 0.5em 0.5em;
-          margin:          0;
-          clear:           both;
+	    text-align: center;
+	    margin: 0;
+	    clear: left;
+	    float: left;
+	    width: 100%;
 	}
-
+	
 	input.blur {
 	    color:lightgray;
 	}
+
 	img.icon {
 	    border:0px;
 	    width:25px
@@ -686,6 +715,10 @@ Creole+Html {
 	The [[+header|page header]] and [[+footer|page footer]] are components of this page.
 
 	Components are like server-side inclusion.  Components can drag in js and css.
+
+	The layout of this page would be improved by a bit of judicious padding in [[*rform+style]]
+
+	The layout could also be specialised to just pages of this type.
     }
 }
 
@@ -703,6 +736,26 @@ Creole+Html {
     content {
 	----
 	//This is the footer ([clock format [clock seconds]])//
+    }
+}
+
+"component test+nav" {
+    type Creole
+    content {
+	This is a navbar
+	
+	it can contain links
+
+	it floats to the left
+    }
+}
+
+"component test+aside" {
+    type Creole
+    content {
+	This is the 'aside' component
+	
+	it floats to the right
     }
 }
 
