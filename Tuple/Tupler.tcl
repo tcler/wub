@@ -405,7 +405,11 @@ oo::class create Tupler {
 	if {[string match +* $extra]} {
 	    # + prefix means relative to referer
 	    variable mount
-	    lassign [Url urlsuffix [Http Referer $r] $mount] meh rn suffix path
+	    set referer [Http Referer $r]
+	    if {$referer eq ""} {
+		error "$extra is not meaningful except as a component of a Tuple"
+	    }
+	    lassign [Url urlsuffix $referer $mount] meh rn suffix path
 	    Debug.tupler {urlsuffix: $suffix $path}
 	    set extra [Url decode $suffix]$extra
 	}
