@@ -630,20 +630,20 @@ namespace eval Nub {
 
 		    set rwtemplate {
 			if {[catch {set defs(%N) {::apply {r {return [regsub -- {%URL%} //[dict get $r -host]/[dict get $r -path] %SS%]}}}} e eo]} {
-			    Debug.error {Nub Definition Error: '$e' in rewrite "-regsub %URL% -> %SS%".  ($eo)}
+			    Debug.error {Nub Definition Error: '$e' in rewrite "-regsub %AURL% -> %ASS%".  ($eo)}
 			    set defs(%N) [Nub failed "%N -regsub %URL%->%SS%" $e $eo]
 			}
 		    }
-		    append definitions [string trim [string map [list %N $n %URL% $url %SS% $subspec] $rwtemplate] \n] \n
+		    append definitions [string trim [string map [list %N $n %URL% $url %SS% $subspec %AURL% [tclarmour $url] %ASS% [tclarmour $subspec]] $rwtemplate] \n] \n
 		} else {
 		    set script [lindex $body 0]
 		    set rwtemplate {
-			if {[catch {set defs(%N) {::apply {r {return "%L"}}}} e eo]} {
-			    Debug.error {Nub Definition Error: '$e' in rewrite "lambda r {%L}".  ($eo)}
+			if {[catch {set defs(%N) {::apply {r {return "%L%"}}}} e eo]} {
+			    Debug.error {Nub Definition Error: '$e' in rewrite "lambda r {%AL%}".  ($eo)}
 			    set defs(%N) [Nub failed %N $e $eo]
 			}
 		    }
-		    append definitions [string trim [string map [list %N $n %L $script] $rwtemplate] \n] \n
+		    append definitions [string trim [string map [list %N $n %L% $script %AL% [tclarmour $script]] $rwtemplate] \n] \n
 		}
 		continue
 	    }
@@ -659,19 +659,19 @@ namespace eval Nub {
 	    # generate code to construct the domain
 	    if {[string match _anonymous* $n]} {
 		# anonymous domain definition
-		append definitions [string trim [string map [list %N $n %D $domain %A $body] {
-		    if {[catch {set defs(%N) [%D new %A]} e eo]} {
-			Debug.error {Nub Definition Error: '$e' in anonymous "%D new %A".  ($eo)}
+		append definitions [string trim [string map [list %N $n %D $domain %A% $body %AA% [tclarmour $body]] {
+		    if {[catch {set defs(%N) [%D new %A%]} e eo]} {
+			Debug.error {Nub Definition Error: '$e' in anonymous "%D new %AA%".  ($eo)}
 			set defs(%N) [Nub failed %N $e $eo]
 		    }
 		}] \n] \n
 	    } else {
 		# named domain definition
-		append definitions [string trim [string map [list %N $n %D $domain %A $body] {
+		append definitions [string trim [string map [list %N $n %D $domain %A% $body %AA% [tclarmour $body]] {
 		    if {[catch {
-			set defs(%N) [%D create %N %A]
+			set defs(%N) [%D create %N %A%]
 		    } e eo]} {
-			Debug.error {Nub Definition Error: '$e' in running "%D create %N %A".  ($eo)}
+			Debug.error {Nub Definition Error: '$e' in running "%D create %N %AA%".  ($eo)}
 			set defs(%N) [Nub failed %N $e $eo]
 		    }
 		}] \n] \n
