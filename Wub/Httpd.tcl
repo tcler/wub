@@ -1757,7 +1757,9 @@ namespace eval Httpd {
 	# we inject the SEND event into the coro so Resume may be called from any
 	# event, thread or coroutine
 	set r [post $r]
-	return [catch {{*}[dict get $r -send] SEND $r}]
+	set result [catch {{*}[dict get $r -send] SEND $r} e eo]
+	Debug.Httpd {Resumption $code $e ($eo)}
+	return [list $result $e $eo]
     }
 
     # every script
@@ -1811,6 +1813,7 @@ namespace eval Httpd {
 
     variable reaper	;# array of hardline events 
     proc reaper {} {
+	return
 	variable timeout
 	set now [clock milliseconds]
 	set then [expr {$now - $timeout}]
