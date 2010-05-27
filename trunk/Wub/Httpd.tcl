@@ -1757,9 +1757,9 @@ namespace eval Httpd {
 	# we inject the SEND event into the coro so Resume may be called from any
 	# event, thread or coroutine
 	set r [post $r]
-	set result [catch {{*}[dict get $r -send] SEND $r} e eo]
+	set code [catch {{*}[dict get $r -send] SEND $r} e eo]
 	Debug.Httpd {Resumption $code $e ($eo)}
-	return [list $result $e $eo]
+	return [list $code $e $eo]
     }
 
     # every script
