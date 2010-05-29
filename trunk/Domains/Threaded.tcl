@@ -131,6 +131,8 @@ class create Threaded {
 	    dict unset $found $thread
 	}
 
+	::thread::release $thread
+
 	# now we can resume one element of the waiting requests
 	# (also trims dead requests)
 	variable waiting
@@ -281,6 +283,7 @@ class create Threaded {
 	variable pool
 	dict for {t occ} $pool {
 	    # destroy thread $t
+	    while {[::thread::release $thread] > 0}
 	}
     }
 
