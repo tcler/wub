@@ -202,27 +202,27 @@ oo::class create Tupler {
 	    }
 	}
 
-	foreach el {header nav} {
+	foreach el {header nav aside footer} {
 	    set cm [my component $r $name $el]
 	    if {[llength $cm]} {
 		lassign $cm r cid cc
-		append body [<$el> id T_$cid $cc] \n
+		set $el [<$el> id T_$cid $cc]
+	    } else {
+		set $el ""
 	    }
 	}
 
+	append body $header \n
+
 	append body [{*}$tag id T_[armour $id] [subst {
+	    $nav
+	    $aside
 	    <!-- loaded name:'[armour $name]' left:[armour $_left] right:[armour $_right] -->
 	    [dict get $r -content]
 	    <!-- transforms [armour [dict get? $r -transforms]] -->
 	}]] \n
-	
-	foreach el {aside footer} {
-	    set cm [my component $r $name $el]
-	    if {[llength $cm]} {
-		lassign $cm r cid cc
-		append body [<$el> id T_$cid $cc] \n
-	    }
-	}
+
+	append body $footer \n
 
 	# process dependent jQ file as text
 	if {![catch {my fetch $name+jq} c]} {
@@ -487,7 +487,7 @@ oo::class create Tupler {
 	    [<h1> [string totitle "$kind error"]]
 	    [<p> "'$name' not found while looking for '$extra'"]
 	}
-	variable html5 0
+	variable html5 1
 	variable {*}$args
 	variable js [::fileutil::cat [file join $::Tuple_home Tupler.js]]
 
