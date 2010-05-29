@@ -725,7 +725,13 @@ namespace eval ::Site {
 	    foreach {n v} $section {
 		lappend a $n [sectvar $v]
 	    }
-	    Nub domain $url [list $domain ::Domains::$sect] {*}$a
+	    if {[dict exists $a -threaded]} {
+		set targs [dict get $a -threaded]
+		dict unset a -threaded
+		Nub domain $url [list Threaded ::Domains::$sect] {*}$targs $domain {*}$a
+	    } else {
+		Nub domain $url [list $domain ::Domains::$sect] {*}$a
+	    }
 	} elseif {[dict exists $section block]} {
 	    dict with section {
 		Nub block $block
