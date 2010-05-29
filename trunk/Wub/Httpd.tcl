@@ -1788,9 +1788,15 @@ namespace eval Httpd {
 	return $result
     }
 
+    proc active {what} {
+	variable activity
+	return [expr {[info exists activity($what)] && [info commands $what] ne {}}]
+    }
+
     proc kill {args} {
 	Debug.Watchdog {killing: "$args"}
 	variable files
+	variable crs
 	foreach what $args {
 	    if {[catch {
 		rename $what {}	;# kill this coro right now
