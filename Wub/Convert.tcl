@@ -334,7 +334,7 @@ class create Convert {
 	    } else {
 		# transformation failed - alert the caller
 		Debug.convert {[self] transformer ($transform($el)) Error $result ($eo)}
-		return [list error [Http ServerError $rsp $result $eo]]
+		return [list error [Http ServerError $rsp $result $eo] $result $eo]
 	    }
 	}
 
@@ -406,7 +406,7 @@ class create Convert {
 	    # and one of the acceptable types.
 	    set oldct [dict get $rsp content-type]
 	    Debug.convert {[self] transforming from '$oldct' to one of these acceptable:'[dict get? $rsp accept]'}
-	    lassign [my transformer $rsp] state rsp
+	    lassign [my transformer $rsp] state rsp e eo
 	    Debug.convert {[self] transformed from $oldct to '[dict get $rsp content-type]'}
 	    Debug.convert {[self] accepting1: '[dict get? $rsp accept]'}
 
@@ -435,7 +435,7 @@ class create Convert {
 		    # a transformation error has occurred
 		    # we presume a ServerError has been generated
 		    # we will proceed with it as content
-		    Debug.convert {[self] conversion ERROR:}
+		    Debug.convert {[self] conversion ERROR: '$e' ($eo)}
 		}
 
 		changed {
