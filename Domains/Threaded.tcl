@@ -37,8 +37,11 @@ set API(Domains/Threaded) {
 }
 
 class create Threaded {
-    method caught {args} {}
+    # caught a background error in a thread
+    method caught {args} {
+    }
 
+    # construct a new thread
     method newthread {} {
 	set thread [::thread::create -preserved [string map [list %S% [self] %T% [::thread::id]] {
 	    proc ::ERROR {args} {
