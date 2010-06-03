@@ -20,7 +20,7 @@ namespace eval ::conversions {
 
 	if {[string match "<!DOCTYPE*" $rspcontent]} {
 	    # the content is already fully HTML
-	    return [Http Ok $r $rspcontent text/html]	;# content is already fully HTML
+	    return [Http Ok $rsp $rspcontent text/html]	;# content is already fully HTML
 	}
 
 	# if response is wrapped HTML fragment
@@ -40,7 +40,7 @@ namespace eval ::conversions {
 	    set rsp [::convert convert $rsp]
 	    set content [dict get $rsp -content]
 	    if {[string match "<!DOCTYPE*" $content]} {
-		return [Http Ok $r $content text/html]	;# content is already fully HTML
+		return [Http Ok $rsp $content text/html]	;# content is already fully HTML
 	    }
 	}
 
