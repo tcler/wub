@@ -23,7 +23,8 @@ Basic+Html {
     content {
 	# evaluate tuple of Template as the result of its tcl evaluation
 	Debug.tupler {tcl script preprocessing ([dict get $r -content])}
-	set content [eval [dict get $r -content]]
+	set tuple [dict get? $r -tuple]
+	set content [dict with tuple [dict get $r -content]]
 	
 	# determine the mime type of result
 	set mime [my getmime [dict get? $r -tuple]]
@@ -38,10 +39,11 @@ Template {
     content {
 	# evaluate tuple of Template as the result of its tcl evaluation
 	Debug.tupler {Template processing ([dict get $r -content])}
-	set result [subst [dict get $r -content]]
+	set tuple [dict get $r -tuple]
+	set result [dict with tuple {subst [dict get $r -content]}]
 
 	# determine the mime type of result
-	set mime [my getmime [dict get? $r -tuple]]
+	set mime [my getmime $tuple]
 	if {$mime eq "tuple/template"} {
 	    set mime tuple/html
 	}
@@ -63,37 +65,12 @@ Template {
 	* {zoom: 1.0;}
 
 	header {
-          clear: both;
-	}
-
-	nav {
-	    float: left;
-	    clear: left;
-	    width: 10%;
-	    background: gainsboro;
-	    -moz-border-radius-topleft:7px;
-	    -moz-border-radius-topright:7px;
-	    -moz-border-radius-bottomleft:7px;
-	    -moz-border-radius-bottomright:7px;
-	}
-
-	article {
-	    width: 80%;
+	    display: block;  
 	    clear: both;
 	}
-	
-	aside {
-	    float: right;
-	    clear: right;
-	    width: 10%;
-	    background: gainsboro;
-	    -moz-border-radius-topleft:7px;
-	    -moz-border-radius-topright:7px;
-	    -moz-border-radius-bottomleft:7px;
-	    -moz-border-radius-bottomright:7px;
-	}
-	
+
 	footer {
+	    display: block;  
 	    text-align: center;
 	    margin: 0;
 	    clear: left;
@@ -101,6 +78,48 @@ Template {
 	    width: 100%;
 	}
 	
+	nav {
+	    display: block;  
+	    float: left;
+	    clear: left;
+	    width: 10%;
+	    padding: 0em 0.5em 0em 0.5em;
+	    margin-right: 1em;
+	    background: gainsboro;
+	    -moz-border-radius-topleft:7px;
+	    -moz-border-radius-topright:7px;
+	    -moz-border-radius-bottomleft:7px;
+	    -moz-border-radius-bottomright:7px;
+	}
+
+	aside {
+	    display: block;  
+	    float: right;
+	    clear: right;
+	    width: 10%;
+
+	    background: gainsboro;
+	    padding: 0em 0.5em 0em 0.5em;
+	    margin-left: 1em;
+	    -moz-border-radius-topleft:7px;
+	    -moz-border-radius-topright:7px;
+	    -moz-border-radius-bottomleft:7px;
+	    -moz-border-radius-bottomright:7px;
+	}
+	
+	section {
+	    display: block;  
+
+	    margin-left: 1em;
+	    margin-right: 1em;
+	}
+
+	article {
+	    display: block;  
+	    width: 80%;
+	    clear: both;
+	}
+
 	input.blur {
 	    color:lightgray;
 	}
@@ -203,36 +222,53 @@ Template {
     content {*rform+css}
 }
 
-*rform+edit {
+*rform+*edit {
     type "Tcl Script"
     content {
-	::set T [my fetch [dict get $r -tuple _left]]
-	Debug.tupler {*rform+edit: ($T)}
-	dict with T {
-	    set content [::textutil::undent [::textutil::untabify $content]]
-	    set result [subst {
-		[<title> [string totitle "Editing $name"]]
-		[<form> Edit_$id class autoform action save/ {
-		    [<fieldset> Details_$id title $name {
-			[<legend> $name]
-			[<text> type label "Type:" [string totitle $type]][<br>]
-			[<textarea> content class autogrow style {width:99%; height:10em;} [string trim $content]]
-			[<hidden> id $id]
-			[<submit> submit]
+	if {[catch {my fetch [dict get $r -tuple _left]} T]} {
+	    # this tuple doesn't exist, try *new
+	    set r [Http SeeOther $r [dict get $r -tuple -left]+*new]
+	    set result [dict get $r -content]
+	} else {
+	    Debug.tupler {*rform+*edit: ($T)}
+	    set mime ""
+	    set type ""
+	    set content ""
+	    dict with T {
+		set content [::textutil::undent [::textutil::untabify $content]]
+		set result [subst {
+		    [<title> [string totitle "Editing $name"]]
+		    [<form> Edit_$id class autoform action +*save {
+			[<fieldset> Details_$id title $name {
+			    [<legend> $name]
+			    [<selectlist> type label "Type:" [my typeselect $type]]
+			    [<text> mime label "Mime:" [string totitle $mime]][<br>]
+			    [<textarea> content class autogrow style {width:99%; height:10em;} [string trim $content]]
+			    [<hidden> id $id]
+			    [<submit> submit "Save"]
+			}]
+			[<div> id result {}]
 		    }]
-		    [<div> id result {}]
 		}]
-	    }]
+	    }
+	    
+	    set result
 	}
-	set result
     }
 }
 
-*rform+edit+jQ {
+*rform+*edit+jQ {
     type Text
     content {
 	form .autoform target '#result'
 	autogrow .autogrow
+    }
+}
+
+*rform+*save {
+    type Html
+    content {
+	<p>Not Implemented</p>
     }
 }
 
@@ -599,10 +635,10 @@ Uppercase {
     content "this is uppercase"
 }
 
-welcome {
+"Tuple Tests" {
     type Template
     content {
-	[<h1> "Welcome to Tuple"]
+	[<h1> "Tuple Tests"]
 	[Html ulinks {
 	    "Tcl Scripting and component architecture" now
 	    "Creole Test" {{Creole Test}}
@@ -623,9 +659,9 @@ now {
 	[<p> "[clock format [clock seconds]] is the time"]
 	[<p> "This page is generated from a Tcl Script, and assembled from components for [<a> href xray/now+style style] (which makes the header red) and [<a> href xray/now+title title] (which gives the page a title.)"]
 	[<p> "The page itself is described using Tcl commands which generate HTML."]
-	[<p> "This (or any) page may be edited with [<a> href +edit +edit]"]
+	[<p> "This (or any) page may be edited with [<a> href +*edit +*edit]"]
 	[<p> "The following is a transclusion of +edit using the &lt;inc&gt; pseudo-tag:"]
-	[<inc> +edit]
+	[<inc> +*edit]
 	[<p> "Note that the transclusion does not bring with it any scripts or stylesheets"]
     }
 }
@@ -703,7 +739,7 @@ Creole+Html {
 
 	The following is a local transclusion from Creole:
 
-	{{+edit}}
+	{{+*edit}}
     }
 }
 
@@ -722,31 +758,31 @@ Creole+Html {
     }
 }
 
-"component test+header" {
+"*rform+header" {
     type Creole
     mime Template
     content {
-	== [dict get $r -tuple name]
+	== [string totitle $_left]
     }
 }
 
-"component test+footer" {
+"*rform+footer" {
     type Creole
     mime Template
     content {
 	----
-	//This is the footer ([clock format [clock seconds]])//
+	\[\[. | Tupler\]\] //(generated [clock format [clock seconds]])//
     }
 }
 
 "component test+nav" {
     type Creole
     content {
-	This is a navbar
-	
-	it can contain links
+	This is a 'nav' component
 
-	it floats to the left
+	It floats to the left
+
+	One would usually populate it with links
     }
 }
 
@@ -755,7 +791,24 @@ Creole+Html {
     content {
 	This is the 'aside' component
 	
-	it floats to the right
+	It floats to the right
+    }
+}
+
+Welcome {
+    type Creole
+    content {
+	Tupler is a Tcl content management system based on [[http://wagn.org | Wagn]] using [[http:/wub/ | Wub]]'s powerful content-negotiation module.
+
+	It overlays a [[http://wiki.tcl.tk/tdbc | TDBC]] database with Wagn's naming scheme and a [[Type Scheme]], allowing you to compose pages from html5-like components, jQuery javascript components and CSS styling components.
+
+	Anything in Tupler can be represented as a Tcl script, which generates page content.  This will be performed in a [[http://wiki.tcl.tk/Safe Interps | Tcl Safe Interpreter]] for pretty-good site security.
+
+	It provides a sophisticated but simple [[Match Language]] which permits arbitrary SQL queries over the database.  It also provides simpler [[Glob Name]] and [[Regexp Name]] matches
+
+	For the moment, we have some [[Tuple Tests]] to demonstrate its scope and power.
+
+	{{Tuple Tests}}
     }
 }
 
