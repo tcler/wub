@@ -113,6 +113,15 @@ oo::class create TupleStore {
 	return $result
     }
 
+    # names of a list of ids
+    method names {args} {
+	set names {}
+	foreach id $args {
+	    lappend names [my get $id name]
+	}
+	return $names
+    }
+
     # match tuples
     method match {args} {
 	if {[llength $args] == 1} {
@@ -165,16 +174,64 @@ oo::class create TupleStore {
 	return [dict get? $name2id [string tolower $name]]
     }
 
+    # nameit - associate name and tuple
+    method nameit {id name} {
+	variable name2id
+	dict set name2id $name $id
+    }
+
+    # fill name2id with all names in tuples table
+    method namefill {} {
+	variable name2id
+	foreach n [my stmt {SELECT name,id FROM tuples}] {
+	    dict set name2id [string tolower [dict get $n name]] [dict get $n id]
+	}
+    }
+
+    # return a list of indices whose name matches the regexp
+    method regexpByName {regexp} {
+	variable name2id
+	set result [dict values [dict filter $name2id script {name id} {
+	    #Debug.tuplestore {regexpByName pername: '$glob $name'}
+	    expr {$id && [regexp ^$regexp\$ $name]}
+	}]]
+	Debug.tuplestore {regexpByName $glob ($result)}
+
+	set names {}
+	foreach n $result {
+	    lappend names #$n
+	}
+	return $names
+    }
+
+    # return a list of indices whose name matches the glob
+    method globByName {glob} {
+	variable name2id
+	set result [dict values [dict filter $name2id script {name id} {
+	    #Debug.tuplestore {globByName pername: '$glob $name'}
+	    expr {$id && [string match $glob $name]}
+	}]]
+	Debug.tuplestore {globByName $glob ($result)}
+
+	set names {}
+	foreach n $result {
+	    lappend names #$n
+	}
+	Debug.tuplestore {globByName $glob -> ($names)}
+	return $names
+    }
+
     # exists - does tuple $id exist?
     method exists {id} {
 	variable tuples
-	if {$id eq ""} {
+	if {$id eq "" || !$id} {
 	    return 0	;# this form never exists
 	}
 
 	if {[info exists tuples($id)]} {
-	    return 1
+	    return 1	;# we have an in-cache copy
 	} else {
+	    # the name exists, we should now fetch its contents.
 	    set tuple [my stmt {SELECT * FROM tuples WHERE id = :id} id $id]
 	    if {[llength $tuple]} {
 		# we fill the cache on [exists] predicate
@@ -205,8 +262,8 @@ oo::class create TupleStore {
 	}
     }
 
+    # 
     method saveDB {tuple} {
-
 	set values {}
 	foreach n [set names [dict keys $tuple]] {
 	    lappend values :$n
@@ -239,8 +296,7 @@ oo::class create TupleStore {
 	    set id [dict get [lindex $x 0] MAX(id)]	;# get the id
 
 	    # this is the only place we set name
-	    variable name2id
-	    dict set name2id $name $id
+	    my nameit $id $name
 	    dict set args id $id
 
 	    set tuples($id) $args
@@ -256,38 +312,6 @@ oo::class create TupleStore {
 	}
 
 	return $id
-    }
-
-    # return a list of indices whose name matches the regexp
-    method regexpByName {regexp} {
-	variable name2id
-	set result [dict values [dict filter $name2id script {name id} {
-	    regexp ^$regexp\$ $name
-	}]]
-	Debug.tuplestore {regexpByName $glob ($result)}
-
-	set names {}
-	foreach n $result {
-	    lappend names #$n
-	}
-	return $names
-    }
-
-    # return a list of indices whose name matches the glob
-    method globByName {glob} {
-	variable name2id
-	set result [dict values [dict filter $name2id script {name id} {
-	    #Debug.tuplestore {globByName pername: '$glob $name'}
-	    string match $glob $name
-	}]]
-	Debug.tuplestore {globByName $glob ($result)}
-
-	set names {}
-	foreach n $result {
-	    lappend names #$n
-	}
-	Debug.tuplestore {globByName $glob -> ($names)}
-	return $names
     }
 
     # ids of matching tuples
@@ -417,20 +441,14 @@ oo::class create TupleStore {
 	variable tdbc sqlite3	;# TDBC backend
 	variable file tuples.db	;# db file
 	variable opts {}
-
+	variable name2id {}
 	variable {*}$args
 	variable stmts {}
 
 	next? {*}$args
 
 	my Db_load	;# create the db
-
-
-	# need to fill name2id with all names
-	variable name2id {}
-	foreach n [my stmt {SELECT name,id FROM tuples}] {
-	    lappend name2id [string tolower [dict get $n name]] [dict get $n id]
-	}
+	my namefill	;# fill name2id with all names in tuples table
 	
 	if {$trace} {
 	    trace add variable tuples {array write unset} [list [self] traceT]
@@ -440,6 +458,56 @@ oo::class create TupleStore {
 }
 
 oo::class create Tuple {
+    method fieldfind {} {
+	if {[string match {[*]*} $right]} {
+	    # construct a synthetic tuple whose content is the tuple's field contents
+	    # and whose types etc are either derived from the tuple itself or
+	    # are constants provided by tuple metadata.  axiom C3
+	    variable metadata
+	    lassign $id id left
+	    set rest [join [lassign [split $right +] right] +]
+	    set tuple [my get $id]
+	    set right [string trimleft $right *]
+	    if {[dict exists $tuple $right]} {
+		set sid #$id#$right	;# synthetic tuples's id
+		if {![info exists tuple($sid)]} {
+		    if {![dict exists $metadata $right]} {
+			return -code error -kind field -notfound $right "find: field $right doesn't exist"
+		    }
+		    
+		    # copy metadata for field into synthetic tuple
+		    dict for {n v} [dict get $metadata $right] {
+			lappend synthetic $n [dict get $metadata $right $n]
+		    }
+		    
+		    # copy uninitialized synthetic from tuple
+		    dict for {n v} $tuple {
+			if {![dict exists $synthetic $n]} {
+			    dict set synthetic $n $v
+			}
+		    }
+		    
+		    # get synthetic content as tuple's field content
+		    dict set synthetic content [dict get $tuple $right]
+		    set sname $left+*$right
+		    dict set synthetic name $sname
+		    dict set synthetic id $sid
+		    
+		    # create the synthetic tuple with a crazy name
+		    my set $sid $synthetic
+		}
+		
+		if {[llength $rest]} {
+		    # we have found a matching prefix, albeit a type- or *rform- match
+		    # now proceed with the rest
+		    tailcall my find $sid+$rest
+		} else {
+		    return [list $sid $sname $rest]
+		}
+	    }
+	}
+    }
+
     # rightish - find the longest existing name-prefix
     method rightish {args} {
 	set name [join $args +]
@@ -447,13 +515,14 @@ oo::class create Tuple {
 	set rest {}
 	while {[llength $args]} {
 	    set left [join $args +]
-	    if {[set id [my named $left]] ne ""} {
-		set rest [join $rest +]
+	    if {[set id [my named $left]] ne "" && $id} {
+		set rest [join $rest +]	;# record unmatched at right
 		Debug.tuple {rightish found a prefix '$left' at #$id [expr {($rest eq "")?"":"with a remainder '$rest'"}]}
 		return [list $id $left $rest]	;# axiom N1
+		# return id, match name, unmatched
 	    } else {
-		set rest [list [lindex $args end] {*}$rest]
-		set args [lrange $args 0 end-1]
+		set rest [list [lindex $args end] {*}$rest]	;# unmatched part
+		set args [lrange $args 0 end-1]			;# trying to match
 		Debug.tuple {rightish didn't find '$left' - try again with '$args' remainder '[join $rest +]'}
 	    }
 	}
@@ -465,7 +534,7 @@ oo::class create Tuple {
 
     # find - turn a name into a tuple id.
     method find {name {referer ""}} {
-	# do trivial case
+	# trivial case - name is of form #id
 	if {[string match #* $name]
 	    && [string is integer -strict [string range $name 1 end]]
 	} {
@@ -482,6 +551,25 @@ oo::class create Tuple {
 	# convert name to a list of elements axioms R7 and R3
 	if {[string match +* $name]} {
 	    set name $referer$name	;# axiom R7
+	}
+
+	# look for the complete name
+	set id [my named $name]
+	switch -- $id {
+	    "" {
+		# this name is not known to be good or bad
+		# proceed to look for a decomposition
+	    }
+
+	    0 {
+		# this name is known to be bad
+		return -code error -kind simple -notfound $name "find: tuple '$name' doesn't exist"
+	    }
+
+	    default {
+		# perfect match with name
+		return $id	;# full name known in its entirety
+	    }
 	}
 
 	set name [string tolower $name]	;# names are case-insensitive
@@ -510,8 +598,9 @@ oo::class create Tuple {
 	# prefix is $left and its id is $id
 	# any remaining unmatched elements are in $right
 	if {$right eq ""} {
+	    error "find: $name rightish returned NULL right, but this should have been trivial"
 	    Debug.tuple {find found a '$name' at #$id}
-	    return [list $id $left ""]	;# we have a complete match
+	    return [list $id $name]	;# we have a complete match
 	}
 
 	Debug.tuple {find failed to match '$name', longest prefix '$left' at #$id}
@@ -538,58 +627,18 @@ oo::class create Tuple {
 	} found]} {
 	    # axiom C3 (field as pseudo tuple)
 	    Debug.tuple {find didn't find composite formd '$type+$right' or '*rform+$right'}
-	    if {0 && [string match {[*]*} $right]} {
-		# construct a synthetic tuple whose content is the tuple's field contents
-		# and whose types etc are either derived from the tuple itself or
-		# are constants provided by tuple metadata.  axiom C3
-		variable metadata
-		lassign $id id left
-		set rest [join [lassign [split $right +] right] +]
-		set tuple [my get $id]
-		set right [string trimleft $right *]
-		if {[dict exists $tuple $right]} {
-		    set sid #$id#$right	;# synthetic tuples's id
-		    if {![info exists tuple($sid)]} {
-			if {![dict exists $metadata $right]} {
-			    return -code error -kind field -notfound $right "find: field $right doesn't exist"
-			}
 
-			# copy metadata for field into synthetic tuple
-			dict for {n v} [dict get $metadata $right] {
-			    lappend synthetic $n [dict get $metadata $right $n]
-			}
-
-			# copy uninitialized synthetic from tuple
-			dict for {n v} $tuple {
-			    if {![dict exists $synthetic $n]} {
-				dict set synthetic $n $v
-			    }
-			}
-
-			# get synthetic content as tuple's field content
-			dict set synthetic content [dict get $tuple $right]
-			set sname $left+*$right
-			dict set synthetic name $sname
-			dict set synthetic id $sid
-
-			# create the synthetic tuple with a crazy name
-			my set $sid $synthetic
-		    }
-		    if {[llength $rest]} {
-			tailcall my find $sid+$rest
-		    } else {
-			return [list $sid $sname $rest]
-		    }
-		}
-	    }
+	    # try field match here?
+	    # my fieldfind
 
 	    # give up - there's no such tuple
 	    return -code error -kind compound -notfound [list $left $right] "find: $name - found '$left' at #$id, but can't find '$type+$right' or '*rform+$right'"
 	} else {
-	    # found the named tuple
-	    lassign $found found l r
+	    # found the synthetic compound tuple type(left)+right or *rform+right
+	    set l ""; set r ""; lassign $found found l r
+
 	    #Debug.tuple {find found $essay at #[dict get $found id] for $name at #$id as ($left)+($right)}
-	    return [list $found $left $right]
+	    return [list $found $left $right $l $r]
 	}
     }
 
@@ -600,18 +649,24 @@ oo::class create Tuple {
 	}
 	lassign [my find $name] id left right
 
+	# construct the synthetic elements if needed
+	if {$left eq ""} {
+	    set left [join [lrange [split $name +] 0 end-1] +]
+	}
+	if {$right eq ""} {
+	    set right [lindex [split $name +] end]
+	}
+
 	# TODO - check permissions
 
 	# fetch the identified tuple
-	set tuple [my get $id]
+	set tuple [dict merge [list _left $left _right $right] [my get $id]]
 	if {[string match *#* $id]} {
 	    # this is a synthetic tuple, we could destroy it here
 	    # or could leave it for a gc sweep
 	}
 
 	# record the actual name we're fetching
-	dict set tuple _left $left
-	dict set tuple _right $right
 	Debug.tuple {fetch '$name' -> ($tuple)}
 	return $tuple
     }
