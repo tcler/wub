@@ -167,9 +167,9 @@ oo::class create Tupler {
 
 	variable html5
 	if {$html5} {
-	    set tag <article>
+	    set tag <section>
 	} else {
-	    set tag {<div> class article}
+	    set tag {<div> class section}
 	}
 
 	# pre or post process HTML fragments by assembling their subcomponents
@@ -185,7 +185,7 @@ oo::class create Tupler {
 	    Debug.tuple {Transclusion Conversion}
 
 	    set body [{*}$tag id T_[armour $id] [subst {
-		<!-- transcluded name:'[armour $name]' left:[armour $_left] right:[armour $_right] -->
+		<!-- transcluded name:'[armour $name]' left:'[armour $_left]' right:'[armour $_right]' -->
 		[dict get $r -content]
 		<!-- transforms [armour [dict get? $r -transforms]] -->
 	    }]]
@@ -213,15 +213,24 @@ oo::class create Tupler {
 	}
 
 	append body $header \n
+	if {0} {
+	    # this combines all the components inside the <section>
+	    append body [{*}$tag id T_[armour $id] [subst {
+		$nav
+		$aside
+		<!-- loaded name:'[armour $name]' left:[armour $_left] right:[armour $_right] -->
+		[<div> id B_[armour $id] class body [dict get $r -content]]
+		<!-- transforms [armour [dict get? $r -transforms]] -->
+	    }]] \n
+	}
 
+	append body $nav \n
+	append body $aside \n
 	append body [{*}$tag id T_[armour $id] [subst {
-	    $nav
-	    $aside
 	    <!-- loaded name:'[armour $name]' left:[armour $_left] right:[armour $_right] -->
 	    [dict get $r -content]
 	    <!-- transforms [armour [dict get? $r -transforms]] -->
 	}]] \n
-
 	append body $footer \n
 
 	# process dependent jQ file as text
@@ -252,6 +261,13 @@ oo::class create Tupler {
 	    set head [<title> [armour [dict get $r -tuple name]]]\n
 	}
 	
+	# add so-called html5-shiv to permit IE to render HTML5
+	append head {
+	    <!--[if IE]>
+	    <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+	    <![endif]-->
+	}
+
 	# add style preloads
 	append head [my assemble $r $name style <stylesheet> css ref]
 
@@ -416,6 +432,27 @@ oo::class create Tupler {
 
 	Debug.tupler {getname got: $extra}
 	return $extra
+    }
+
+    method typeselect {{special ""}} {
+	set tlist [lsort -dictionary [my names {*}[my oftype type]]]
+	Debug.tupler {typeselect: '$tlist'}
+	if {$special eq ""} {
+	    return $tlist
+	}
+	
+	set special [string tolower $special]
+	set types {}
+	foreach type $tlist {
+	    Debug.tupler {typeselector: '$type'}
+	    if {$special ne "" && $special eq [string tolower $type]} {
+		lappend types [list +$type]
+	    } else {
+		lappend types [list $type]
+	    }
+	}
+	Debug.tupler {typeselected: '$types'}
+	return $types
     }
 
     # xray a tuple - presenting it as a dict
