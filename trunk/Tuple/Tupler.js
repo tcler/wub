@@ -94,7 +94,7 @@ $.fn.creolizeAll = function () {
 	    try {
 		// convert basic content creole->html
 		var data = $(this).creolize();
-		$(this).html(data.contents());
+		$(this).replaceWith(data.contents());
 		count = count+1;
 	    } catch (e) {
 		alert("creole rendering error: (" + $(this).html() + ") " + e);
