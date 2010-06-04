@@ -47,3 +47,5 @@ package ifneeded Image 1.0 [list source [file join $dir Image.tcl]]
 package ifneeded OO 1.0 [list source [file join $dir OO.tcl]]
 
 package ifneeded tclhttpd 1.0 [list source [file join $dir tclhttpd.tcl]]
+package ifneeded parsetcl 0.2 [list source [file join $dir parsetcl.tcl]]
+package ifneeded Config 1.0 [list source [file join $dir Config.tcl]]
