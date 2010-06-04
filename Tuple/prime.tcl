@@ -638,7 +638,7 @@ Uppercase {
 "Tuple Tests" {
     type Template
     content {
-	[<h2> "Tuple Tests"]
+	[<p> "Tuple Tests"]
 	[Html ulinks {
 	    "Tcl Scripting and component architecture" now
 	    "Creole Test" {{Creole Test}}
@@ -758,7 +758,7 @@ Creole+Html {
     }
 }
 
-"*rform+header" {
+"Creole+header" {
     type Creole
     mime Template
     content {
@@ -766,7 +766,7 @@ Creole+Html {
     }
 }
 
-"*rform+footer" {
+"Creole+footer" {
     type Creole
     mime Template
     content {
