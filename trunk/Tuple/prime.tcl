@@ -330,7 +330,7 @@ Match {
     }
 }
 
-"Match Test" {
+"Tests+Match" {
     type Match
     mime Text
     content {
@@ -635,19 +635,20 @@ Uppercase {
     content "this is uppercase"
 }
 
-"Tuple Tests" {
+Tests {
     type Template
     content {
-	[<h3> "Tuple Tests"]
+	[<h3> "Tests"]
+	[<p> "Here are some tests of Tupler functionality"]
 	[Html ulinks {
+	    "Creole Test" {Tests+Creole}
 	    "Tcl Scripting and component architecture" now
-	    "Creole Test" {{Creole Test}}
-	    "Test component assembly" {{Component Test}}
+	    "Test component assembly" {Tests+Component}
 	    "Test Tcl Variable and Tcl Dict rendering" reflect
 	    "Test Uppercase and text/plain" {{Example Uppercase}}
 	    "Test 'page not found' page" nothere
 	    "XRay of Now page" xray/now
-	    "Glob Test" {{glob test}}
+	    "Glob Test" {{Tests+Glob}}
 	}]
     }
 }
@@ -695,7 +696,7 @@ reflect {
     content {this is not a properly formed dict}
 }
 
-"Glob Test" {
+"Tests+Glob" {
     type Glob
     mime text
     content {
@@ -727,7 +728,7 @@ Creole+Html {
     }
 }
 
-"creole test" {
+Tests+Creole {
     type Creole
     content {
 	[[WikiCreole:Creole1.0|{{http://www.wikicreole.org/attach/LeftMenu/viki.png|Creole 1.0}}]]\\
@@ -743,7 +744,7 @@ Creole+Html {
     }
 }
 
-"component test" {
+"Component Test" {
     type Creole
     content {
 	This is a test of Component assembly.
@@ -806,9 +807,7 @@ Welcome {
 
 	It provides a sophisticated but simple [[Match Language]] which permits arbitrary SQL queries over the database.  It also provides simpler [[Glob Name]] and [[Regexp Name]] matches
 
-	For the moment, we have some [[Tuple Tests]] to demonstrate its scope and power.
-
-	{{Tuple Tests}}
+	{{Tests}}
     }
 }
 
