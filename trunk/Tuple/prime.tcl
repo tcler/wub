@@ -638,7 +638,7 @@ Uppercase {
 "Tuple Tests" {
     type Template
     content {
-	[<p> "Tuple Tests"]
+	[<h3> "Tuple Tests"]
 	[Html ulinks {
 	    "Tcl Scripting and component architecture" now
 	    "Creole Test" {{Creole Test}}
