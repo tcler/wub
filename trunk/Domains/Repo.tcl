@@ -42,6 +42,7 @@ set API(Domains/Repo) {
     docprefix {URL prefix for documentation associated with directories}
     icon_size {pixel size of icons (default 24)}
     icons {icon domain to use for icons (default: /icons/)}
+    jQ {use jQuery (default: yes)}
 }
     
 # TODO - handle dangling softlinks in dirlist
@@ -129,13 +130,17 @@ namespace eval Repo {
 		[<file> file label [<submit> submit "Upload"] class multi]
 		[<hidden> op upload]
 	    }] \n
-	    set req [jQ multifile $req]	;# make upload form a multifile
+	    if {[dict get $args jQ]} {
+		set req [jQ multifile $req]	;# make upload form a multifile
+	    }
 	}
 
 	dict set req -content $content
 	dict set req content-type x-text/html-fragment
-	set req [jQ tablesorter $req .sortable]
-	set req [jQ hint $req]
+	if {[dict get $args jQ]} {
+	    set req [jQ tablesorter $req .sortable]
+	    set req [jQ hint $req]
+	}
 
 	return $req
     }
@@ -316,7 +321,7 @@ namespace eval Repo {
     proc create {cmd args} {
 	variable icons
 	dict set args mount /[string trim [dict get $args mount] /]/
-	set args [dict merge [list icons $icons expires 0 tar 0 index index.html max [expr {1024 * 1024}] titleURL "" title Repo] [Site var? Repo] $args]
+	set args [dict merge [list icons $icons expires 0 tar 0 jQ 1 index index.html max [expr {1024 * 1024}] titleURL "" title Repo] [Site var? Repo] $args]
 	set cmd [uplevel 1 namespace current]::$cmd
 	Debug.repo {create: $args}
 	namespace ensemble create \
