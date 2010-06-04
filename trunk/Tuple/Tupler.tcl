@@ -530,7 +530,12 @@ oo::class create Tupler {
 
 	if {![info exists prime]} {
 	    # always try to prime the Tuple with something
-	    variable prime [::fileutil::cat [file join $::Tuple_home $primer]]
+	    #variable prime [::fileutil::cat [file join $::Tuple_home $primer]]
+	    package require Config
+	    set conf [Config new file [file join $::Tuple_home $primer]]
+	    set prime [$conf extract]
+	    $conf destroy
+	    Debug.tupler {PRIME: $prime}
 	    dict set args prime $prime
 	}
 
