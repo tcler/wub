@@ -535,7 +535,7 @@ oo::class create Tupler {
 	    set conf [Config new file [file join $::Tuple_home $primer]]
 	    set prime [$conf extract]
 	    $conf destroy
-	    Debug.tupler {PRIME: $prime}
+	    #Debug.tupler {PRIME: $prime}
 	    dict set args prime $prime
 	}
 
