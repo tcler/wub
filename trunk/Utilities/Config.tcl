@@ -233,6 +233,11 @@ oo::class create Config {
 	return $result
     }
 
+    method file {file} {
+	package require fileutil
+	my parse [::fileutil::cat -- $file]
+    }
+
     constructor {args} {
 	Debug.config {Creating Config [self] $args}
 	if {[llength $args]%2} {
@@ -240,10 +245,15 @@ oo::class create Config {
 	    set args [lrange $args 0 end-1]
 	    dict set args config $cf
 	}
-	variable config ""
 	variable {*}$args
 	catch {set args [dict merge [Site var? Config] $args]}	;# allow .ini file to modify defaults
-	my eval $config
+
+	if {[info exists config]} {
+	    my parse $config
+	}
+	if {[info exists file]} {
+	    my file $file
+	}
     }
 }
 
