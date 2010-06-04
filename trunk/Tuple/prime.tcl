@@ -276,7 +276,7 @@ Template {
     type Template
     content {
 	[<title> [string totitle "$kind error"]]
-	[<h1> [string totitle "$kind error"]]
+	[<h2> [string totitle "$kind error"]]
 	[<p> "'$nfname' not found while looking for '$extra'"]
 	[<p> "(Generated from [<a> href "xray/Not Found" "Not Found"] page)"]
     }
@@ -456,7 +456,7 @@ Dict {
 	# do some form checking on the dict
 	if {[catch {dict size [dict get? $r -content]} e eo]} {
 	    return [Http Ok $r [subst {
-		[<h1> "Type error"]
+		[<h2> "Type error"]
 		[<p> "'[armour [dict get $r -tuple name]]' is of Type 'Dict', however its content is not a properly-formed dictionary."]
 		[<p> "Dictionaries are tcl lists with an even number of elements."]
 		[<h2> Content:]
@@ -557,7 +557,7 @@ Dict+Html {
 	# do some form checking on the dict
 	if {[catch {dict size [dict get? $r -content]} e eo]} {
 	    return [Http Ok $r [subst {
-		[<h1> "Type error"]
+		[<h2> "Type error"]
 		[<p> "'[armour [dict get $r -tuple name]]' is of Type 'Tcl Dict', however its content is not a properly-formed dictionary."]
 		[<p> "Dictionaries are tcl lists with an even number of elements."]
 		[<h2> Content:]
@@ -638,7 +638,7 @@ Uppercase {
 "Tuple Tests" {
     type Template
     content {
-	[<h1> "Tuple Tests"]
+	[<h2> "Tuple Tests"]
 	[Html ulinks {
 	    "Tcl Scripting and component architecture" now
 	    "Creole Test" {{Creole Test}}
@@ -660,7 +660,7 @@ now {
 	[<p> "This page is generated from a Tcl Script, and assembled from components for [<a> href xray/now+style style] (which makes the header red) and [<a> href xray/now+title title] (which gives the page a title.)"]
 	[<p> "The page itself is described using Tcl commands which generate HTML."]
 	[<p> "This (or any) page may be edited with [<a> href +*edit +*edit]"]
-	[<p> "The following is a transclusion of +edit using the &lt;inc&gt; pseudo-tag:"]
+	[<p> "The following is a transclusion of +*edit using the &lt;inc&gt; pseudo-tag:"]
 	[<inc> +*edit]
 	[<p> "Note that the transclusion does not bring with it any scripts or stylesheets"]
     }
