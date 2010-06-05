@@ -504,7 +504,7 @@ oo::class create Tupler {
 	my set $id [list content $content]
 
 	set tuple [my get $id]
-	dict set tuple _right [dict get $tupe name]
+	dict set tuple _right [dict get $tuple name]
 	dict set tuple _left {}
 
 	tailcall my SendTuple $r $tuple
