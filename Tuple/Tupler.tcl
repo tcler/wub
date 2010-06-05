@@ -281,14 +281,14 @@ oo::class create Tupler {
 	return [Http Ok $r $js application/javascript]
     }
 
-    # mktype - creates a bare-bones Type tuple 
-    method mktype {name {type type}} {
+    # MkType - creates a bare-bones Type tuple for a new object
+    method MkType {name {type type}} {
 	if {[catch {
 	    my fetch $name
 	} tuple]} {
-	    Debug.tupler {mktype did not find '$name'}
-	    set id [my New name $name type $type]
-	    Debug.tupler {mktype created $id -> ([my get $id])}
+	    Debug.tupler {MkType did not find '$name'}
+	    set id [my new [list name $name type $type]]
+	    Debug.tupler {MkType created $id -> ([my get $id])}
 	    return [my get $id]
 	}
 	set tt [string tolower [dict get? $tuple type]]
@@ -342,8 +342,8 @@ oo::class create Tupler {
 		    if {[llength [lassign [split $name +] l r]]} {
 			return -code error -kind form -notfound $name "$name must be a pair"
 		    }
-		    set lt [my mktype $l type]
-		    set rt [my mktype $r type]
+		    set lt [my MkType $l type]
+		    set rt [my MkType $r type]
 
 		    # conversion tuple
 		    Debug.tupler {fixup conversion $l -> $r on $name}
@@ -569,6 +569,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     package require fileutil
     Debug on convert 10
     Debug on tupler 10
+    Debug on tupleprime 10
 
     set ts [Tupler new]
 
