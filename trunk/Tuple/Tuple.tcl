@@ -224,6 +224,7 @@ oo::class create TupleStore {
     # exists - does tuple $id exist?
     method exists {id} {
 	variable tuples
+
 	if {$id eq "" || !$id} {
 	    return 0	;# this form never exists
 	}
@@ -287,16 +288,18 @@ oo::class create TupleStore {
 	    set args [lindex $args 0]
 	}
 
+	dict set args modified [clock seconds]	;# modification time
+
 	variable tuples
-	if {$id eq ""} {
-	    # generate unique id - axiom T1
-	    set name [string tolower [dict get $args name]]
-	    dict set args name $name
+	if {$id eq "" || !$id} {
+	    # this is new - generate unique id - axiom T1
+	    set name [dict get $args name]
+	    dict set args created [dict get $args modified]
 	    set x [my stmt {INSERT INTO tuples (name) VALUES (:name); SELECT MAX(id) FROM tuples} name $name]
-	    set id [dict get [lindex $x 0] MAX(id)]	;# get the id
+	    set id [dict get [lindex $x 0] MAX(id)]	;# get the id from insertion
 
 	    # this is the only place we set name
-	    my nameit $id $name
+	    my nameit $id [string tolower $name]	;# we store and compare lowercase
 	    dict set args id $id
 
 	    set tuples($id) $args
@@ -418,6 +421,10 @@ oo::class create TupleStore {
 				     name TEXT UNIQUE NOT NULL COLLATE NOCASE,
 				     type TEXT COLLATE NOCASE,
 				     mime TEXT COLLATE NOCASE,
+
+				     created INTEGER,
+				     modified INTEGER,
+				     
 				     content TEXT
 				     );
 		CREATE UNIQUE INDEX names ON tuples(name);
@@ -673,15 +680,6 @@ oo::class create Tuple {
 
     # fixups for linkage to code, etc.
     method fixup {tuple} {
-	variable metadata
-	dict with tuple {
-	    if {0 && [string match {[*]*} $_right]} {
-		# must be a tuple field described by $metadata
-		if {![dict exists $metadata [string trimleft $_right *]]} {
-		    error -kind field -notfound $_right "Field $_right of $name must be a Field"
-		}
-	    }
-	}
 
 	# remove immutable fields
 	dict for {n v} $tuple {
@@ -690,8 +688,8 @@ oo::class create Tuple {
 	    }
 	}
 
-	# lowercase some fields
-	foreach n {type mime} {
+	# lowercase some field values
+	foreach n {} {
 	    if {[dict exists $tuple $n]} {
 		set v [dict get $tuple $n]
 		set tlv [string tolower $v]
@@ -769,136 +767,98 @@ oo::class create Tuple {
 	return $id
     }
 
-    method New {args} {
-	Debug.tuple {New Tuple ($args)}
-
-	# remove immutable and synthesised fields before storage
-	foreach k [dict keys $args _*] {
-	    if {[dict exists $args $k]} {
-		dict unset args $k	;# $k is immutable
+    # LCFN - lowercase field names
+    method LCFN {tuple} {
+	# ensure all field names are lowercase
+	dict for {tn tv} $tuple {
+	    set lcn [string tolower $tn]
+	    if {$tn ne $lcn} {
+		dict set v $lcn $tv
+		dict unset v $tn
 	    }
 	}
-
-	# ensure meaningful default field values
-	foreach {n d} {type Basic content ""} {
-	    if {![dict exists $args $n]} {
-		dict set args $n $d
-	    }
-	}
-
-	# get id from name
-	set name [dict get $args name]
-	if {[my named $name] ne ""} {
-	    # ensure name isn't reused - set the id to name's id
-	    set id [my named $name]
-	    dict set args id $id
-
-	    # a tuple already exists with that id, update it
-	    puts stderr "GET: ([my get $id]) ($args)"
-	    set tuple [dict merge [my get $id] $args]
-	} else {
-	    # this is a new tuple
-	    set id ""
-	    set tuple $args	;# create tuple
-	}
-
-	set id [my set $id [my fixup $tuple]]
-	
-	Debug.tuple {New Tuple: ([my get $id]) with name '$name' and id $id}
-
-	return $id	;# return tuple's id
+	return $tuple
     }
 
-    # create a new tuple
-    method new {args} {
-	Debug.tuple {new tuple $args}
+    # new - create a new tuple with consistency
+    method new {tuple} {
+	Debug.tuple {new tuple $tuple}
 
-	# ensure all field names are lowercase
-	dict for {n v} $args {
-	    set lcn [string tolower $n]
-	    if {$n ne $lcn} {
-		dict set args $lcn $v
-		dict unset args $n
-	    }
+	set tuple [my LCFN $tuple]	;# ensure all field names are lowercase
+
+	# all tuples are named - axiom T2
+	if {![dict exists $tuple name]} {
+	    error "create failed: name not given"
 	}
 
 	# names must be unique - axiom T2
-	if {![dict exists $args name]} {
-	    error "create failed: name not given"
-	} else {
-	    set name [string tolower [dict get $args name]]
-	}
-
+	set name [dict get $tuple name]
 	if {[my named $name] ne ""} {
 	    error "create failed: name $name already exists"
 	}
 
 	# ensure type consistency
-	if {[dict exists $args type]} {
-	    # types must exist, and must be of type Type
-	    set t [string tolower [dict get $args type]]
-	    if {[set tid [my named $t]] eq ""} {
-		return -code error -kind type "type [dict get $args type] does not exist"
-	    } else {
-		if {[string tolower [my get $tid name]] ne "basic"
-		    && [string tolower [my get $tid type]] ne "type"
-		} {
-		    return -code error -kind type "type '[dict get $args type]' is not of type Type"
+	if {[dict exists $tuple type]} {
+	    # type must simply exist, and must be of type Type
+	    set t [string tolower [dict get $tuple type]]
+	    if {$t ne "type"} {
+		set tid [my named $t]
+		if {$tid eq ""} {
+		    # type must simply exist
+		    my new [list name [string totitle [dict get $tuple type]] type Type]
+
+		    #return -code error -kind type "type '[dict get $tuple type]' does not exist ($tuple)"
+		} elseif {[string tolower [my get $tid type]] ne "type"} {
+		    # tuple's type must be of type Type
+		    return -code error -kind type "type '[dict get $tuple type]' is not of type Type  ($tuple)"
 		}
 	    }
 	}
 
-	dict set args id [set id [my newid]]
+	# remove immutable and synthetic fields before storage
+	foreach k [dict keys $tuple _*] {
+	    if {[dict exists $tuple $k]} {
+		dict unset tuple $k	;# field $k is immutable
+	    }
+	}
 
-	tailcall my New {*}$args
-    }
+	set id [my set [dict get? $tuple id] [my fixup $tuple]]	;# fix up and store new tuple
+	
+	Debug.tuple {new Tuple: ([my get $id]) with name '$name' and id $id}
 
-    method create {name args} {
-	tailcall my new $args name $name
+	return $id	;# return tuple's id
     }
 
     # prime the tuple space with $content dict
     method prime {content} {
 	Debug.tupleprime {Priming space with [dict size $content] tuple definitions}
-	foreach {n v} $content {
-	    # ensure all field names are lowercase
-	    dict for {tn tv} $v {
-		set lcn [string tolower $tn]
-		if {$tn ne $lcn} {
-		    dict set v $lcn $tv
-		    dict unset v $tn
-		}
-	    }
 
-	    # decode the dict key as an id or a name
+	my new [list name Type type Type]
+
+	# process all tuples, installing types
+	dict for {n tuple} $content {
 	    if {[string match #* $n]} {
-		error "Prime can't specify id"
+		error "Prime can't specify id '$n' ($tuple)"
 	    }
-	    dict set v name $n
+	    set tuple [my LCFN $tuple]
+	    dict set tuple name $n	;# name given by prime dict wins
 
-	    if {[dict exists $v name]} {
-		set name [dict get $v name]
-		if {[my named $name] ne ""} {
-		    dict set v id [my named $name]
-		} else {
-		    # no existing tuple with this name - New will create it
-		    #dict set v id [my newid]
-		}
+	    if {[string tolower [dict get? $tuple type]] eq "type"} {
+		Debug.tupleprime {Prime Type ($tuple)}
+		my new $tuple
+		dict unset content $n
 	    } else {
-		# no id, no name - this has to be an error
-		error "prime: must supply name or existing id ($v)"
+		dict set content $n $tuple
 	    }
-	    Debug.tupleprime {Prime $v}
-
-	    # fixup and store the new tuple
-	    my New {*}$v
 	}
-    }
 
-    # metadata for fields
-    method metadata {args} {
-	variable metadata
-	return $metadata
+	# process and install all non-type tuples
+	dict for {n tuple} $content {
+	    # decode the dict key as an id or a name
+	    Debug.tupleprime {Prime ($tuple)}
+	    # fixup and store the new tuple
+	    my new $tuple
+	}
     }
 
     superclass TupleStore
@@ -914,15 +874,6 @@ oo::class create Tuple {
 	set args [dict merge [Site var? Tuple] $args]	;# allow .ini file to modify defaults
 	variable {*}$args
 	next? {*}$args
-
-	# metadata for each tuple field as if it were itself a tuple
-	variable metadata {
-	    id {type numeral}
-	    name {type text}
-	    content {type blob}
-	    type {type text}
-	    mime {type text}
-	}
 
 	if {[catch {
 	    # create an interpreter for Basic subst
