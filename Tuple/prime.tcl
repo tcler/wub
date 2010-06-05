@@ -213,7 +213,7 @@ Template {
 }
 
 *rform+styleR {
-    type ref
+    type Ref
     mime css
     content {*rform+css}
 }
@@ -234,16 +234,18 @@ Template {
 		set content [::textutil::undent [::textutil::untabify $content]]
 		set result [subst {
 		    [<title> [string totitle "Editing $name"]]
-		    [<form> Edit_$id class autoform action +*save {
+		    [<form> Edit_$id class autoform action save/ {
 			[<fieldset> Details_$id title $name {
 			    [<legend> $name]
+			    [<div> id result {}]
 			    [<selectlist> type label "Type:" [my typeselect $type]]
-			    [<text> mime label "Mime:" [string totitle $mime]][<br>]
+			    [<text> mime label "Mime:" [string totitle $mime]]
+			    [<submit> submit style {float:right;} "Save"]
+			    [<br>]
 			    [<textarea> content class autogrow style {width:99%; height:10em;} [string trim $content]]
 			    [<hidden> id $id]
-			    [<submit> submit "Save"]
+			    [<submit> submit style {float:right;} "Save"]
 			}]
-			[<div> id result {}]
 		    }]
 		}]
 	    }
@@ -388,7 +390,7 @@ CSS+Head {
     }
 }
 
-ref+html {
+Ref+Html {
     type Conversion
     content {
 	set content [dict get $r -content]
@@ -426,7 +428,7 @@ ref+html {
     }
 }
 
-ref+head {
+Ref+Head {
     type Conversion
     content {
 	set content [dict get $r -content]
@@ -710,14 +712,21 @@ reflect {
 Creole+Html {
     type Conversion
     content {
+	set tuple [dict get $r -tuple]
+
+	Debug.tupler {Creole+Html converting [dict merge $tuple [list content ...elided...]]}
+
 	set r [jQ jquery $r]	;# critical that we load jquery first
-	set r [jQ script $r creole.js]
+	set r [jQ script $r creole.js]	;# load creole conversion js
 	set r [Html script $r js/js]	;# then the local js
+ 
+	# run Creole post-processing on the loaded content
 	set r [Html postscript $r {
 	    $(document).Tuple();
 	}]
 
-	set tuple [dict get $r -tuple]
+	set r [jQ editable $r #T_[dict get $tuple id] 'saveJE/' loadurl '[dict get $tuple name]' type 'textarea' name 'content']	;# also load editable
+
 	set mime [my getmime $tuple]
 	if {$mime ni {tuple/html tuple/text}} {
 	    Debug.tupler {Creole+Html convert from $mime ($tuple)}
