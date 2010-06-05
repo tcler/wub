@@ -1,12 +1,8 @@
-Root {
-    type Root
-}
-
-Type {
+Basic {
     type Type
 }
 
-Basic {
+Conversion {
     type Type
 }
 
@@ -254,6 +250,13 @@ Template {
 	    
 	    set result
 	}
+    }
+}
+
+*rform+*xray {
+    type Html
+    content {
+	<p>Not Implemented</p>
     }
 }
 
@@ -744,7 +747,7 @@ Tests+Creole {
     }
 }
 
-"Component Test" {
+Tests+Component {
     type Creole
     content {
 	This is a test of Component assembly.
@@ -811,9 +814,3 @@ Welcome {
     }
 }
 
-*rform+mmmheader {
-    type Creole
-    mime "Tcl Script"
-    content {
-    }
-}
