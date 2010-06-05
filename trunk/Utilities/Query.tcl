@@ -11,35 +11,33 @@ Debug off query
 namespace eval Query {
     variable utf8 [expr {[catch {package require utf8}] == 0}]
 
-    # Support for x-www-urlencoded character mapping
-    # The spec says: "non-alphanumeric characters are replaced by '%HH'"
-    proc init_map {} {
-	variable map
-	variable dmap
-
-	set dmap {%0D%0A \n %0d%0a \n %% %}
-	#lappend dmap + " "
-	set map {% %% = = & & - -}
-
-	# set up non-alpha map
-	for {set i 0} {$i < 256} {incr i} {
-	    set c [format %c $i]
-	    if {![string match {[a-zA-Z0-9]} $c]} {
-		if {![dict exists $map $c]} {
-		    lappend map $c %[format %.2X $i]
-		}
-		lappend dmap %[format %.2X $i] [binary format c $i]
-		lappend dmap %[format %.2x $i] [binary format c $i]
-	    }
-	}
-
-	# These are handled specially
-	lappend map " " + \n %0D%0A
-    }
-
     variable map
     variable dmap
-    init_map
+
+    # Support for x-www-urlencoded character mapping
+    # The spec says: "non-alphanumeric characters are replaced by '%HH'"
+
+    set dmap {%0D%0A \n %0d%0a \n %% %}
+    lappend dmap + " "
+    set map {% %% = = & & - -}
+
+    # set up non-alpha map
+    for {set i 0} {$i < 256} {incr i} {
+	set c [format %c $i]
+	if {![string match {[a-zA-Z0-9]} $c]} {
+	    if {![dict exists $map $c]} {
+		lappend map $c %[format %.2X $i]
+	    }
+	}
+	# must be able to decode any %-form, however stupid
+	lappend dmap %[format %.2X $i] [binary format c $i]
+	lappend dmap %[format %.2x $i] [binary format c $i]
+    }
+
+    # These are handled specially
+    lappend map " " + \n %0D%0A
+    #puts stderr "QUERY dmap: $dmap"
+    #puts stderr "QUERY map: $map"
 
     proc 2hex {str} {
 	binary scan $str H* hex
