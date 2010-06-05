@@ -157,10 +157,10 @@ oo::class create Tupler {
 	return $html
     }
 
-    method tuple/html.text/html {r} {
+    method tuple/html.text/html {r args} {
 	# convert the Html type to pure HTML
 	dict set r -raw 1	;# no more conversions after this
-
+ 
 	if {[string match "<!DOCTYPE*" [dict get $r -content]]} {
 	    return [Http Ok $r $html text/html]	;# content is already fully HTML
 	}
@@ -181,8 +181,12 @@ oo::class create Tupler {
 	set script {}
 
 	if {[string tolower [dict get? $r x-requested-with]] eq "xmlhttprequest"} {
+	    if {[string match T_* [dict get? $args id]]} {
+		Debug.tupler {Client asked for plain text}
+		return [Http Ok $r $content text/plain]
+	    }
 	    # this is a transclusion - just send it out minimally transformed
-	    Debug.tuple {Transclusion Conversion}
+	    Debug.tupler {Transclusion Conversion}
 
 	    set body [{*}$tag id T_[armour $id] [subst {
 		<!-- transcluded name:'[armour $name]' left:'[armour $_left]' right:'[armour $_right]' -->
@@ -226,7 +230,7 @@ oo::class create Tupler {
 
 	append body $nav \n
 	append body $aside \n
-	append body [{*}$tag id T_[armour $id] [subst {
+	append body [{*}$tag id T_[armour $id] class editable [subst {
 	    <!-- loaded name:'[armour $name]' left:[armour $_left] right:[armour $_right] -->
 	    [dict get $r -content]
 	    <!-- transforms [armour [dict get? $r -transforms]] -->
@@ -435,7 +439,7 @@ oo::class create Tupler {
     }
 
     method typeselect {{special ""}} {
-	set tlist [lsort -dictionary [my names {*}[my oftype type]]]
+	set tlist [lsort -dictionary [my names {*}[my oftype Type]]]
 	Debug.tupler {typeselect: '$tlist'}
 	if {$special eq ""} {
 	    return $tlist
@@ -471,35 +475,114 @@ oo::class create Tupler {
 	}
     }
 
+    # SendTuple - format for sending
+    method SendTuple {r tuple} {
+	# resolved name
+	dict with tuple {
+	    dict set r -tuple $tuple
+	    
+	    if {![info exists type]
+		|| $type eq ""
+	    } {
+		set type basic
+	    } else {
+		set type [string map {" " _} [string tolower $type]]
+	    }
+	    
+	    Debug.tupler {SendTuple -> tuple/$type, [dict get? -$r -convert]}
+	    return [Http Ok $r $content tuple/$type]
+	}
+    }
+
+    # saveJE - save content given by Jeditable - inline jQ editor
+    method /saveJE {r id content args} {
+	Debug.tupler {/saveJE $id $args}
+	dict set r -convert [self]
+	dict unset r xmlhttprequest
+
+	set id [string range $id 2 end]	;# remove leading T_
+	my set $id [list content $content]
+
+	set tuple [my get $id]
+	dict set tuple _right [dict get $tupe name]
+	dict set tuple _left {}
+
+	tailcall my SendTuple $r
+    }
+
     method /save {r args} {
 	Debug.tupler {/save $args}
-	return [Http Ok $r [<p> class error "Save Not Yet Implemented"]]
+	dict set r -convert [self]
+
+	set columns [my columns]
+	set tuple {}	;# set of field values
+
+	dict for {n v} $args {
+	    if {[dict exists $columns $n]} {
+		dict set tuple $n $v
+		dict unset args $n
+	    }
+	}
+
+	dict with tuple {
+	    if {[catch {
+		set outcome OK
+		if {![info exists id]} {
+		    # new tuple - create
+		    Debug.tupler {/save creating ($tuple)}
+		    if {![info exists name]} {
+			error "All tuples must have a name"
+		    }
+		    set op create
+		    my new $tuple
+		} else {
+		    # existing tuple - update
+		    Debug.tupler {/save updating ($tuple)}
+		    if {[info exists name]} {
+			unset name	;# we do not change names
+		    }
+		    set op update
+		    my set $id $tuple
+		}
+	    } result eo]} {
+		set outcome failed
+	    }
+	}
+
+	Debug.tupler {/save $op $outcome $result}
+	tailcall Http Ok $r [<p> "$op $outcome $result"]
     }
 
     # view a tuple - giving it its most natural HTML presentation
     method /view {r args} {
 	set extra [my getname $r]
-
 	dict set r -convert [self]
+
 	if {[catch {my fetch $extra} tuple eo]} {
 	    tailcall my bad $r $eo
 	} else {
-	    # resolved name
-	    dict with tuple {
-		dict set r -tuple $tuple
-
-		if {![info exists type]
-		    || $type eq ""
-		} {
-		    set type basic
-		} else {
-		    set type [string map {" " _} [string tolower $type]]
+	    if {[string tolower [dict get? $r x-requested-with]] eq "xmlhttprequest"} {
+		if {[string match T_* [dict get? $args id]]} {
+		    Debug.tupler {Client asked for plain text}
+		    set content [dict get $tuple content]
+		    set content [::textutil::undent [::textutil::untabify $content]]
+		    tailcall Http Ok $r $content text/plain
 		}
-
-		Debug.tupler {/view -> tuple/$type, [dict get? -$r -convert]}
-		return [Http Ok $r $content tuple/$type]
 	    }
+
+	    tailcall my SendTuple $r $tuple
 	}
+    }
+
+    method /dump {r args} {
+	set content {}
+	foreach tuple [my stmt {SELECT * FROM tuples}] {
+	    set name [dict get $tuple name]
+	    #dict unset tuple name
+	    dict set content $name $tuple
+	}
+	dict set r -raw 1
+	return [Http Ok $r $content text/tcl]
     }
 
     # default presentation
@@ -507,7 +590,7 @@ oo::class create Tupler {
 	set extra [dict get $r -extra]
 	if {$extra eq ""} {
 	    variable welcome
-	    dict set r -extra $welcome
+	    return [Http Redirect $r $welcome]
 	}
 	tailcall my /view $r {*}$args
     }
@@ -543,10 +626,10 @@ oo::class create Tupler {
 	next? {*}$args conversions 0
 
 	# we have to instantiate all type and convert tuples, so their conversions are known
-	foreach id [my oftype conversion] {
+	foreach id [my oftype Conversion] {
 	    my exists $id
 	}
-	foreach id [my oftype type] {
+	foreach id [my oftype Type] {
 	    my exists $id
 	}
 
