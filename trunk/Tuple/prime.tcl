@@ -788,7 +788,7 @@ Tests+Component {
     }
 }
 
-"component test+nav" {
+"Tests+Component+nav" {
     type Creole
     content {
 	This is a 'nav' component
@@ -799,7 +799,7 @@ Tests+Component {
     }
 }
 
-"component test+aside" {
+"Tests+Component+aside" {
     type Creole
     content {
 	This is the 'aside' component
