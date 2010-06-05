@@ -507,7 +507,7 @@ oo::class create Tupler {
 	dict set tuple _right [dict get $tupe name]
 	dict set tuple _left {}
 
-	tailcall my SendTuple $r
+	tailcall my SendTuple $r $tuple
     }
 
     method /save {r args} {
@@ -560,18 +560,19 @@ oo::class create Tupler {
 
 	if {[catch {my fetch $extra} tuple eo]} {
 	    tailcall my bad $r $eo
-	} else {
-	    if {[string tolower [dict get? $r x-requested-with]] eq "xmlhttprequest"} {
-		if {[string match T_* [dict get? $args id]]} {
-		    Debug.tupler {Client asked for plain text}
-		    set content [dict get $tuple content]
-		    set content [::textutil::undent [::textutil::untabify $content]]
-		    tailcall Http Ok $r $content text/plain
-		}
-	    }
-
-	    tailcall my SendTuple $r $tuple
 	}
+
+	if {[string tolower [dict get? $r x-requested-with]] eq "xmlhttprequest"} {
+	    if {[string match T_* [dict get? $args id]]} {
+		Debug.tupler {Client asked for plain text}
+		set content [dict get $tuple content]
+		set content [::textutil::undent [::textutil::untabify $content]]
+		set content [string trim $content]
+		tailcall Http Ok $r $content text/plain
+	    }
+	}
+
+	tailcall my SendTuple $r $tuple
     }
 
     method /dump {r args} {
