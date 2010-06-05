@@ -174,62 +174,41 @@ oo::class create Tupler {
 
 	# pre or post process HTML fragments by assembling their subcomponents
 	set tuple [dict get $r -tuple]
+	set _left {}; set _right {}
 	dict with tuple {}
 
 	# these will be filled in by [component]
 	set style {}
 	set script {}
-
+	set footer ""
 	if {[string tolower [dict get? $r x-requested-with]] eq "xmlhttprequest"} {
-	    if {[string match T_* [dict get? $args id]]} {
-		Debug.tupler {Client asked for plain text}
-		return [Http Ok $r $content text/plain]
+	    # Transclusion - no textual components
+	} else {
+	    # fetch text/plain data (title)
+	    foreach el {title} {
+		set cm [my component $r $name $el text]
+		if {[llength $cm]} {
+		    lassign $cm r cid cc
+		    dict lappend r -$el $cc
+		}
 	    }
-	    # this is a transclusion - just send it out minimally transformed
-	    Debug.tupler {Transclusion Conversion}
 
-	    set body [{*}$tag id T_[armour $id] [subst {
-		<!-- transcluded name:'[armour $name]' left:'[armour $_left]' right:'[armour $_right]' -->
-		[dict get $r -content]
-		<!-- transforms [armour [dict get? $r -transforms]] -->
-	    }]]
-
-	    return [Http Ok $r [my html $body] text/html]
-	}
- 
-	# fetch text/plain data (title)
-	foreach el {title} {
-	    set cm [my component $r $name $el text]
-	    if {[llength $cm]} {
-		lassign $cm r cid cc
-		dict lappend r -$el $cc
+	    foreach el {header nav aside footer} {
+		set cm [my component $r $name $el]
+		if {[llength $cm]} {
+		    lassign $cm r cid cc
+		    set $el [<$el> id T_$cid $cc]
+		} else {
+		    set $el ""
+		}
 	    }
+
+	    append body $header \n
+	    append body $nav \n
+	    append body $aside \n
+
 	}
 
-	foreach el {header nav aside footer} {
-	    set cm [my component $r $name $el]
-	    if {[llength $cm]} {
-		lassign $cm r cid cc
-		set $el [<$el> id T_$cid $cc]
-	    } else {
-		set $el ""
-	    }
-	}
-
-	append body $header \n
-	if {0} {
-	    # this combines all the components inside the <section>
-	    append body [{*}$tag id T_[armour $id] [subst {
-		$nav
-		$aside
-		<!-- loaded name:'[armour $name]' left:[armour $_left] right:[armour $_right] -->
-		[<div> id B_[armour $id] class body [dict get $r -content]]
-		<!-- transforms [armour [dict get? $r -transforms]] -->
-	    }]] \n
-	}
-
-	append body $nav \n
-	append body $aside \n
 	append body [{*}$tag id T_[armour $id] class editable [subst {
 	    <!-- loaded name:'[armour $name]' left:[armour $_left] right:[armour $_right] -->
 	    [dict get $r -content]
@@ -249,9 +228,9 @@ oo::class create Tupler {
 		Debug.tupler {jQ $jq .. $a}
 		set r [jQ $jq $r {*}$a]
 	    }
-
+	    
 	    append body "<!-- jQ [armour [join $jQl ,]] -->" \n
-
+	    
 	    Debug.tupler {post-jQ: ($r)}
 	}
 
@@ -498,7 +477,7 @@ oo::class create Tupler {
     method /saveJE {r id content args} {
 	Debug.tupler {/saveJE $id $args}
 	dict set r -convert [self]
-	dict unset r xmlhttprequest
+	catch {dict unset r x-requested-with}
 
 	set id [string range $id 2 end]	;# remove leading T_
 	my set $id [list content $content]
