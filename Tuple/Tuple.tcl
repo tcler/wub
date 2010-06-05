@@ -177,7 +177,7 @@ oo::class create TupleStore {
     # nameit - associate name and tuple
     method nameit {id name} {
 	variable name2id
-	dict set name2id $name $id
+	dict set name2id [string tolower $name] $id
     }
 
     # fill name2id with all names in tuples table
@@ -265,12 +265,15 @@ oo::class create TupleStore {
 
     # 
     method saveDB {tuple} {
-	set values {}
-	foreach n [set names [dict keys $tuple]] {
-	    lappend values :$n
+	set updates {}
+	foreach n [set names [lsort [dict keys $tuple]]] {
+	    if {$n ni {id}} {
+		lappend updates "$n=:$n"
+	    }
 	}
-	set stmt [string map [list %N [join $names ,] %V [join $values ,]] {REPLACE INTO tuples (%N) VALUES (%V)}]
-	my stmt $stmt {*}$tuple
+	set stmt "UPDATE tuples SET [join $updates ,] WHERE id=:id"
+	Debug.tuplestore {saveDB saving ($tuple) with ($stmt)}
+	return [my stmt $stmt {*}$tuple]
     }
 
     method maxid {} {
@@ -290,28 +293,29 @@ oo::class create TupleStore {
 
 	dict set args modified [clock seconds]	;# modification time
 
-	variable tuples
 	if {$id eq "" || !$id} {
 	    # this is new - generate unique id - axiom T1
 	    set name [dict get $args name]
 	    dict set args created [dict get $args modified]
+	    Debug.tuplestore {set creating '$name'}
 	    set x [my stmt {INSERT INTO tuples (name) VALUES (:name); SELECT MAX(id) FROM tuples} name $name]
 	    set id [dict get [lindex $x 0] MAX(id)]	;# get the id from insertion
+	    Debug.tuplestore {set created '$name' -> $id}
 
 	    # this is the only place we set name
-	    my nameit $id [string tolower $name]	;# we store and compare lowercase
+	    my nameit $id $name	;# we store and compare lowercase
 	    dict set args id $id
 
+	    variable tuples
 	    set tuples($id) $args
 	    my saveDB $args
-	} elseif {![info exists tuples($id)]} {
+	} elseif {![my exists $id]} {
 	    error "Tuple set: tuple '$id' not found"
 	} else {
-	    dict set args id $id
-	    set tuple [dict merge $tuples($id) $args]
-	    dict set tuple name [string tolower [dict get $tuple name]]
+	    variable tuples
+	    set tuple [dict merge $tuples($id) $args [list id $id]]
 	    set tuples($id) $tuple
-	    my saveDB $args
+	    my saveDB $tuple
 	}
 
 	return $id
@@ -432,9 +436,12 @@ oo::class create TupleStore {
 		CREATE INDEX mimes ON tuples(mime);
 	    }
 	}
-
+	variable columns [$db columns tuples]
+	Debug.tuplestore {Tuple table columns: $columns}
 	Debug.tuplestore {Database tables:([$db tables])}
     }
+
+    method columns {} {variable columns; return $columns}
 
     destructor {
 	catch {db close}
@@ -456,7 +463,7 @@ oo::class create TupleStore {
 
 	my Db_load	;# create the db
 	my namefill	;# fill name2id with all names in tuples table
-	
+
 	if {$trace} {
 	    trace add variable tuples {array write unset} [list [self] traceT]
 	    trace add variable name2id {write} [list [self] traceN]
@@ -806,8 +813,6 @@ oo::class create Tuple {
 		if {$tid eq ""} {
 		    # type must simply exist
 		    my new [list name [string totitle [dict get $tuple type]] type Type]
-
-		    #return -code error -kind type "type '[dict get $tuple type]' does not exist ($tuple)"
 		} elseif {[string tolower [my get $tid type]] ne "type"} {
 		    # tuple's type must be of type Type
 		    return -code error -kind type "type '[dict get $tuple type]' is not of type Type  ($tuple)"
