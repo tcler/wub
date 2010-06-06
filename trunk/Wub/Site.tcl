@@ -105,13 +105,15 @@ Debug on site 10
 package provide Site 1.0
 
 namespace eval ::Site {
+    ::variable phase "Site Base Initialization"
     proc variable {args} {
+	::variable phase
 	dict for {name value} $args {
 	    ::variable $name
 	    if {[info exists $name]} {
-		Debug.site {variable $name: $value - overriding ([set $name])}
+		Debug.site {($phase) variable $name: $value - overriding ([set $name])}
 	    } else {
-		Debug.site {variable $name: $value - defined}
+		Debug.site {($phase) variable $name: $value - defined}
 	    }
 	    set $name $value
 	    uplevel ::variable $name	;# add the variable def to caller
@@ -119,13 +121,14 @@ namespace eval ::Site {
     }
 
     proc Variable {args} {
+	::variable phase
 	dict for {name value} $args {
 	    ::variable $name
 	    if {![info exists $name]} {
-		Debug.site {Variable $name: $value}
+		Debug.site {($phase) Variable $name: $value}
 		set $name $value
 	    } else {
-		Debug.site {Variable $name: $value - not overriding existing value ([set $name])}
+		Debug.site {($phase) Variable $name: $value - not overriding existing value ([set $name])}
 	    }
 	    uplevel ::variable $name	;# add the variable def to caller
 	}
@@ -374,6 +377,8 @@ namespace eval ::Site {
     }
 
     proc init {args} {
+	::variable phase "Site init processing"
+
 	# can pass in 'configuration' dict
 	::variable configuration
 	if {[dict exists $args configuration]} {
@@ -389,12 +394,14 @@ namespace eval ::Site {
 	}
 
 	# args to Site::init become initial variable values
+	set phase "Site init args"
 	if {[llength $args]} {
 	    variable {*}$args
 	}
 
 	# configuration variable contains defaults
 	# set some default configuration flags and values
+	set phase "Site init configuration"
 	::variable modules
 	foreach {name val} [namespace eval ::Site [list rc $configuration]] {
 	    if {[string match @* $name]} {
@@ -413,6 +420,7 @@ namespace eval ::Site {
 	}
 
 	# load ini files from app's home
+	set phase "Site ini files"
 	::variable ini
 	foreach i $ini {
 	    do_ini $i
@@ -433,6 +441,7 @@ namespace eval ::Site {
 
 	# process command-line configuration of vars
 	# - these override $args and default configuration
+	set phase "Site ::argv overrides"
 	foreach {name val} $::argv {
 	    variable $name $val	;# set global config vars
 	}
@@ -444,6 +453,7 @@ namespace eval ::Site {
 	    write_ini [file normalize $::Site::write_ini]
 	}
 
+	set phase "Site derived values"
 	::variable host; ::variable listener
 	Variable url "http://$host:[dict get $listener -port]/"
 
@@ -471,6 +481,8 @@ namespace eval ::Site {
 		Variable docroot [file join $home docroot]
 	    }
 	}
+
+	set phase "Site modules"
 
 	#### Load Convert module - content negotiation
 	::variable convert
@@ -810,6 +822,8 @@ namespace eval ::Site {
 	init {*}$args
 
 	modules		;# start the listeners etc
+
+	set phase "Site Start"
 
 	# can't run the whole start up sequence twice
 	# can initialize the application
