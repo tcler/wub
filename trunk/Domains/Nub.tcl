@@ -861,7 +861,11 @@ namespace eval Nub {
 			append switch [string map [list %H $host %U $url %CT [dict get $body ctype] %C [dict get $body content]] {
 			    "%H,%U" {
 				Debug.nub {Code [dict get $r -url] via %H,%U*}
+
+				# construct a query domain for people who want it.
 				dict set r -Query [Query parse $r]
+				set Query [Query flatten [dict get $r -Query]]
+
 				dict set r -code 200	;# default return code
 				dict set r content-type %CT	;# default content-type
 				set content [%C]
