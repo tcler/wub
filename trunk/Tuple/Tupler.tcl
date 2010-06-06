@@ -142,7 +142,7 @@ oo::class create Tupler {
 	    }
 	}
 
-	Debug.tupler {assembled: ($result) -> '[join [dict values $result] \n]'}
+	Debug.tupler {assembled: ($result) -> '[join [dict values [dict merge $loader $scripts]] \n]'}
 	return [join [dict values [dict merge $loader $scripts]] \n]
     }
 
@@ -467,9 +467,22 @@ oo::class create Tupler {
 	    } else {
 		set type [string map {" " _} [string tolower $type]]
 	    }
+
+	    # set expiry from DB
+	    if {![info exists expiry] || $expiry eq ""} {
+		set ttuple [my typeof {*}$tuple]
+		Debug.tupler {finding expiry from type ($ttuple)}
+		set expiry [dict get? $ttuple expiry]
+	    }
 	    
+	    if {$expiry ne ""} {
+		# this is cacheable with given expiry
+		Debug.tupler {SendTuple Caching $expiry}
+		set r [Http Cache $r {*}$expiry]
+	    }
+
 	    Debug.tupler {SendTuple -> tuple/$type, [dict get? -$r -convert]}
-	    return [Http Ok $r $content tuple/$type]
+	    tailcall Http Ok $r $content tuple/$type
 	}
     }
 
