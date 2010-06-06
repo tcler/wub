@@ -257,6 +257,20 @@ namespace eval Http {
 	return [md5::Hex [md5::MD5Final $tok]]
     }
 
+    # Coerce return type to a given mime type
+    proc coerce {r mime} {
+	dict set r accept $mime
+	return $r
+    }
+    proc coerceTo {r ext} {
+	# calculate the desired content-type
+	set mime [Mime MimeOf [string tolower $ext]]
+	if {$mime eq "" || $mime eq "text/plain"} {
+	    return $r	;# no change
+	}
+	dict set r accept $mime	;# we coerce the acceptable types
+	return $r
+    }
 
     # modify response to indicate that content is a file (NB: not working)
     proc File {rsp path {ctype ""}} {
