@@ -113,6 +113,31 @@ oo::class create TupleStore {
 	return $result
     }
 
+    # typeof return type tuple of given tuple
+    # can be called as [typeof $id ...] or [typeof {*}$tuple]
+    method typeof {args} {
+	if {[llength $args]%2} {
+	    set id [lindex $args 0]
+	    set args [lrange $args 1 end]
+	} else {
+	    set id [dict get $args id]
+	}
+	
+	if {[dict exists $args type]} {
+	    Debug.tuplestore {typeof $id direct -> [dict get $args type]}
+	    tailcall my fetch [dict get $args type]
+	}
+
+	set type [my get? $id type]
+	if {$type ne ""} {
+	    Debug.tuplestore {typeof $id indirect -> $type}
+	    tailcall my fetch $type
+	} else {
+	    Debug.tuplestore {typeof $id defaults -> Basic}
+	    tailcall my fetch Basic
+	}
+    }
+
     # names of a list of ids
     method names {args} {
 	set names {}
@@ -251,13 +276,26 @@ oo::class create TupleStore {
 
     # get a tuple (or part thereof) given an id
     method get {id args} {
-	variable tuples
 	if {![my exists $id]} {
 	    error "Tuple get: '$id' not found"
 	}
 
+	variable tuples
 	if {[llength $args]} {
 	    return [dict get $tuples($id) {*}$args]
+	} else {
+	    return $tuples($id)
+	}
+    }
+
+    method get? {id args} {
+	if {![my exists $id]} {
+	    error "Tuple get?: '$id' not found"
+	}
+
+	variable tuples
+	if {[llength $args]} {
+	    return [dict get? $tuples($id) {*}$args]
 	} else {
 	    return $tuples($id)
 	}
@@ -428,7 +466,8 @@ oo::class create TupleStore {
 
 				     created INTEGER,
 				     modified INTEGER,
-				     
+				     expiry TEXT,
+
 				     content TEXT
 				     );
 		CREATE UNIQUE INDEX names ON tuples(name);
@@ -621,10 +660,15 @@ oo::class create Tuple {
 
 	# partial match with a single remaining right suffix
 	# we know that $left exists and $left+$right doesn't exist
+
 	if {[catch {
-	    set type [join [split [my get $id type] /] +]
+	    set type [join [split [my get? $id type] /] +]
+	    if {$type eq ""} {
+		set type Basic
+	    }
+
 	    set essay ${type}+$right
-	    Debug.tuple {finding composite '$essay' - from $id's [my get $id type]}
+	    Debug.tuple {finding composite '$essay' - from $id's $type}
 	    if {$essay eq $name} {
 		error "composite '$essay' is degenerate"
 	    }
@@ -640,7 +684,7 @@ oo::class create Tuple {
 	    my find $essay	;# find the *rform equivalent
 	} found]} {
 	    # axiom C3 (field as pseudo tuple)
-	    Debug.tuple {find didn't find composite formd '$type+$right' or '*rform+$right'}
+	    Debug.tuple {find didn't find composite form '$type+$right' or '*rform+$right'}
 
 	    # try field match here?
 	    # my fieldfind
@@ -812,10 +856,10 @@ oo::class create Tuple {
 		set tid [my named $t]
 		if {$tid eq ""} {
 		    # type must simply exist
-		    my new [list name [string totitle [dict get $tuple type]] type Type]
-		} elseif {[string tolower [my get $tid type]] ne "type"} {
+		    my new [list name [string totitle [dict get? $tuple type]] type Type]
+		} elseif {[string tolower [my get? $tid type]] ne "type"} {
 		    # tuple's type must be of type Type
-		    return -code error -kind type "type '[dict get $tuple type]' is not of type Type  ($tuple)"
+		    return -code error -kind type "type '[dict get? $tuple type]' is not of type Type  ($tuple)"
 		}
 	    }
 	}
