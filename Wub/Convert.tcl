@@ -114,12 +114,14 @@ class create Convert {
 	}
     }
 
-    # perform applicable postprocess on content of given type
+    # perform applicable postprocesses on content of given type
     method postprocessor {rsp} {
 	set ctype [dict get $rsp content-type]
 	variable postprocess
-	if {[info exists postprocess($ctype)]} {
-	    Debug.convert {[self] postprocess type: $ctype ($rsp)}
+	while {[info exists postprocess($ctype)]
+	       && $ctype ni [dict get? $rsp -transforms]
+	   } {
+	    Debug.convert {[self] postprocess type: $ctype '$postprocess($ctype)' ([dict merge $rsp {-content ...elided...}])}
 	    # there is a postprocessor
 
 	    #set rsp [Http loadContent $rsp] ;# read -fd content if any
@@ -131,10 +133,13 @@ class create Convert {
 	    }
 	    set rsp [{*}$postprocess($ctype) $rsp]
 	    catch {dict unset rsp -file}	;# forget that there's a file connected
-	    Debug.convert {[self] postprocessed: '$postprocess($ctype)' -> [dict get? $rsp content-type] ([dict size $rsp] elements in response)}
-	} else {
-	    Debug.convert {[self] there is no $ctype postprocessor}
+
+	    Debug.convert {[self] postprocessed $ctype: '$postprocess($ctype)' -> [dict get? $rsp content-type] ([dict size $rsp])}
+	    set ctype [dict get $rsp content-type]	;# keep going with new types
 	}
+
+	Debug.convert {[expr {![info exists postprocess($ctype)]?"[self] there is no $ctype postprocessor": ($ctype in [dict get? $rsp -transforms])?"[self] has already run $ctype postprocessor":""}]}
+
 	return $rsp
     }
 
