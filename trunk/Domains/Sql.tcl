@@ -74,11 +74,9 @@ class create Sql {
 	Debug.Sql {$path -> $view '$ext'}
 
 	# calculate the desired content-type
-	set mime [Mime MimeOf [string tolower $ext]]
-	if {$mime eq "" || $mime eq "text/plain"} {
-	    set mime text/html
-	}
-	dict set r accept $mime	;# we coerce the acceptable types
+	set mime text/html
+	set r [Http coerceTo $r $ext]
+
 	Debug.Sql {desired content type of '$ext': $mime}
 	return $r
     }
