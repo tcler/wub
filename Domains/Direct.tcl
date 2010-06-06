@@ -49,6 +49,7 @@ set API(Domains/Direct) {
     namespace {namespace in which to invoke commands}
     ctype {default content-type of returned values}
     wildcard {process to be used if a request doesn't match any proc in $namespace (default /)}
+    correct {insist that the top level domain is referenced with a trailing / (default: yes)}
 }
 
 class create Direct {
@@ -241,8 +242,14 @@ class create Direct {
 	    return $r	;# the URL isn't in our domain
 	}
 
+	# insist upon correct form for top-level reference
+	variable correct
+	if {$correct && $suffix eq "/" && [string index $path end] ne "/"} {
+	    return [Http Redirect $r $path/ "<p>Please ensure paths are /-terminated</p>"]
+	}
+
 	# remove suffix's extension and trim /s
-	Debug.direct {suffix: $suffix}
+	Debug.direct {suffix: '$suffix' path: '$path' result: '$result'}
 	dict set r -suffix [string trim $suffix /]
 
 	# TODO: armour commands
@@ -267,6 +274,7 @@ class create Direct {
 	set ctype "x-text/html-fragment"
 	set mount "/"
 	set wildcard /
+	variable correct 1	;# insist on trailing /
 
 	foreach {n v} $args {
 	    set [string trimleft $n -] $v
