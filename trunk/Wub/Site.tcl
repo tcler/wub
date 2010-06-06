@@ -105,6 +105,32 @@ Debug on site 10
 package provide Site 1.0
 
 namespace eval ::Site {
+    proc variable {args} {
+	dict for {name value} $args {
+	    ::variable $name
+	    if {[info exists $name]} {
+		Debug.site {variable $name: $value - overriding ([set $name])}
+	    } else {
+		Debug.site {variable $name: $value - defined}
+	    }
+	    set $name $value
+	    uplevel ::variable $name	;# add the variable def to caller
+	}
+    }
+
+    proc Variable {args} {
+	dict for {name value} $args {
+	    ::variable $name
+	    if {![info exists $name]} {
+		Debug.site {Variable $name: $value}
+		set $name $value
+	    } else {
+		Debug.site {Variable $name: $value - not overriding existing value ([set $name])}
+	    }
+	    uplevel ::variable $name	;# add the variable def to caller
+	}
+    }
+
     variable sourced [list [info script] [info script]]
 
     # record wub's home
@@ -169,22 +195,13 @@ namespace eval ::Site {
 	return $result
     }
 
-    proc Variable {name value} {
-	variable $name
-	if {![info exists $name]} {
-	    Debug.site {Variable $name: $value}
-	    set $name $value
-	}
-	uplevel variable $name
-    }
-
-    variable modules; array set modules {}
-    variable sections; array set sections {}
+    ::variable modules; array set modules {}
+    ::variable sections; array set sections {}
 
     # read the site ini file
     proc do_ini {file} {
-	variable modules
-	variable sections
+	::variable modules
+	::variable sections
 
 	if {![file exists $file]} {
 	    error "Can't proceed: site initialization file '$file' does not exist."
@@ -227,8 +244,8 @@ namespace eval ::Site {
     }
 
     proc write_ini {file} {
-	variable modules
-	variable sections
+	::variable modules
+	::variable sections
 	set ini [::ini::open $file w]
 	foreach var [info vars ::Site::*] {
 	    if {[catch {
@@ -258,7 +275,7 @@ namespace eval ::Site {
     }
 
     variable wubdir [file normalize [file join [file dirname [info script]] ..]] ;# where's wub
-    variable configuration {
+    ::variable configuration {
 	home [file normalize [file dirname [info script]]] ;# home of application script
 	host [info hostname]	;# default home for relative paths
 	ini site.ini		;# init files
@@ -358,11 +375,13 @@ namespace eval ::Site {
 
     proc init {args} {
 	# can pass in 'configuration' dict
-	variable configuration
+	::variable configuration
 	if {[dict exists $args configuration]} {
 	    set configuration [dict merge $configuration [dict get $args configuration]]
 	    dict unset args configuration
 	}
+
+	# immediately set up debugging
 	if {[dict exists $args debug]} {
 	    set debug [dict get $args debug]
 	    Debug on site $debug
@@ -370,13 +389,13 @@ namespace eval ::Site {
 	}
 
 	# args to Site::init become initial variable values
-	if {$args ne {}} {
+	if {[llength $args]} {
 	    variable {*}$args
 	}
 
 	# configuration variable contains defaults
 	# set some default configuration flags and values
-	variable modules
+	::variable modules
 	foreach {name val} [namespace eval ::Site [list rc $configuration]] {
 	    if {[string match @* $name]} {
 		set name [string tolower [string trim $name @]]
@@ -386,7 +405,7 @@ namespace eval ::Site {
 	}
 	unset configuration	;# done with configuration var
 
-	variable home	;# application's home
+	::variable home	;# application's home
 	if {[dict exists $::argv home]} {
 	    # set this most important of variables.
 	    # It's the app's home, other stuff is made relative to it.
@@ -394,14 +413,14 @@ namespace eval ::Site {
 	}
 
 	# load ini files from app's home
-	variable ini
+	::variable ini
 	foreach i $ini {
 	    do_ini $i
 	}
 
 	# load site configuration script vars.tcl
 	# (not under SVN control, for local site configuration)
-	variable vars
+	::variable vars
 	if {$vars ne ""} {
 	    if {[file exists $vars] && [catch {
 		set fd [open $vars r]; set x [read $fd]; close $fd
@@ -413,6 +432,7 @@ namespace eval ::Site {
 	}
 
 	# process command-line configuration of vars
+	# - these override $args and default configuration
 	foreach {name val} $::argv {
 	    variable $name $val	;# set global config vars
 	}
@@ -424,7 +444,7 @@ namespace eval ::Site {
 	    write_ini [file normalize $::Site::write_ini]
 	}
 
-	variable host; variable listener
+	::variable host; ::variable listener
 	Variable url "http://$host:[dict get $listener -port]/"
 
 	# now we're configured, set some derived values
@@ -437,7 +457,7 @@ namespace eval ::Site {
 	    lappend ::auto_path $home	;# add the app's home dir to auto_path
 
 	    # find Wub stuff
-	    variable wubdir; variable topdir
+	    ::variable wubdir; ::variable topdir
 	    Variable topdir [file normalize $wubdir]
 
 	    #foreach lib {Mime extensions stx Wub Domains Utilities} {
@@ -453,7 +473,7 @@ namespace eval ::Site {
 	}
 
 	#### Load Convert module - content negotiation
-	variable convert
+	::variable convert
 	if {![info exists convert]} {
 	    set convert {}
 	}
@@ -472,11 +492,11 @@ namespace eval ::Site {
 
     #### Load those modules needed for the server to run
     proc modules {} {
-	variable docroot
+	::variable docroot
 	package require Httpd
 
 	#### Load Block module - blocks incoming by ipaddress
-	variable block
+	::variable block
 	if {[info exists block]
 	    && [dict get? $block load] ne ""
 	    && [dict get? $block load]
@@ -498,7 +518,7 @@ namespace eval ::Site {
 	}
 
 	#### Load Human Module - redirects bad bots
-	variable human
+	::variable human
 	if {[info exists human]
 	    && [dict get? $human load] ne ""
 	    && [dict get? $human load]
@@ -518,7 +538,7 @@ namespace eval ::Site {
 	}
 
 	#### Load UA Module - classifies by user-agent
-	variable ua
+	::variable ua
 	if {[info exists ua]
 	    && [dict get? $ua load] ne ""
 	    && [dict get? $ua load]
@@ -538,7 +558,7 @@ namespace eval ::Site {
 	}
 
 	### Load Varnish Module - a kind of Cache
-	variable varnish
+	::variable varnish
 	if {[info exists varnish]
 	    && [dict get? $varnish load] ne ""
 	    && [dict get? $varnish load]
@@ -558,7 +578,7 @@ namespace eval ::Site {
 	}
 
 	#### Load Cache Module - server caching
-	variable cache
+	::variable cache
 	if {[info exists cache]
 	    && [dict get? $cache load] ne ""
 	    && [dict get? $cache load]
@@ -581,7 +601,7 @@ namespace eval ::Site {
 	}
 
 	#### Load STX Module - rich text conversion
-	variable stx
+	::variable stx
 	if {[info exists stx]
 	    && [dict get? $stx load] ne ""
 	    && [dict get? $stx load]
@@ -590,7 +610,7 @@ namespace eval ::Site {
 	    package require stx
 	    package require stx2html
 
-	    variable stx_scripting
+	    ::variable stx_scripting
 	    stx2html init script [dict get? $stx scripting] {*}$stx
 	    Debug.site {Module STX: YES}
 	} else {
@@ -598,7 +618,7 @@ namespace eval ::Site {
 	}
 
 	#### Console init
-	variable shell
+	::variable shell
 	if {[info exists shell]
 	    && [dict get? $shell load] ne ""
 	    && [dict get? $shell load]
@@ -616,9 +636,9 @@ namespace eval ::Site {
 
 	#### Load up nubs
 	package require Nub
-	variable nub
-	variable nubs
-	variable sections
+	::variable nub
+	::variable nubs
+	::variable sections
 	if {[info exists nubs] && [llength $nubs]} {
 	    dict set nub nubs $nubs
 	}
@@ -637,8 +657,8 @@ namespace eval ::Site {
 	}
 
 	#### Load local semantics from ./local.tcl
-	variable local
-	variable home
+	::variable local
+	::variable home
 	if {[info exists local] && $local ne ""} {
 	    if {[file exists $local]} {
 		if {[catch {source $local} r eo]} {
@@ -651,20 +671,20 @@ namespace eval ::Site {
 	Nub apply
 
 	#### start Httpd protocol
-	variable httpd
+	::variable httpd
 	Httpd configure server_id "Wub [package present Httpd]" {*}$httpd
 
-	variable server_port
+	::variable server_port
 	if {[info exists server_port]} {
 	    # the listener and server ports differ
 	    Httpd configure server_port $server_port
 	}
 
-	variable host
-	variable docroot
+	::variable host
+	::variable docroot
 
 	#### start Listeners
-	variable listener
+	::variable listener
 	if {![dict exists $listener -port]} {
 	    dict set listener -port 80
 	}
@@ -675,7 +695,7 @@ namespace eval ::Site {
 	Listener new {*}$h -httpd Httpd {*}$listener
 
 	#### start HTTPS Listener
-	variable https
+	::variable https
 	if {[dict exists $https -port]
 	    && ([dict get $https -port] > 0)
 	    && ![catch {
@@ -690,7 +710,7 @@ namespace eval ::Site {
 	}
 
 	#### start scgi Listener
-	variable scgi
+	::variable scgi
 	if {[dict exists $scgi -port] && ([dict get $scgi -port] > 0)} {
 	    package require Scgi
 	    Listener listen -host $host -httpd scgi {*}$scgi
@@ -772,7 +792,7 @@ namespace eval ::Site {
     }
 
     proc sections {} {
-	variable sections
+	::variable sections
 	foreach {sect section} [array get sections] {
 	    Debug.site {processing section: $sect ($section)}
 	    section $sect $section
@@ -800,14 +820,14 @@ namespace eval ::Site {
 		package require $application
 		
 		# install variables defined by local, argv, etc
-		variable modules
-		variable sections
+		::variable modules
+		::variable sections
 		set app [string tolower $application]
 		if {[info exists modules([string tolower $app])]} {
-		    variable $app
+		    ::variable $app
 		    Debug.site {starting application $application - [list variable {*}[set $app]]}
 		    Debug.site {app ns: [info vars ::${application}::*]}
-		    namespace eval ::$application [list variable {*}[set $app]]
+		    namespace eval ::$application [list ::variable {*}[set $app]]
 		    Debug.site {app ns: [info vars ::${application}::*]}
 		} else {
 		    Debug.site {not starting application $application, no module in [array names modules]}
@@ -822,7 +842,7 @@ namespace eval ::Site {
 	    start
 	}
 
-	variable done 0
+	::variable done 0
 	while {!$done} {
 	    # redefine ::vwait so we don't get fooled again
 	    rename ::vwait ::Site::vwait
