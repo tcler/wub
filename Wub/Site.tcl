@@ -111,9 +111,9 @@ namespace eval ::Site {
 	dict for {name value} $args {
 	    ::variable $name
 	    if {[info exists $name]} {
-		Debug.site {($phase) variable $name: $value - overriding ([set $name])}
+		Debug.site {($phase) overriding variable $name: $value - was ([set $name])}
 	    } else {
-		Debug.site {($phase) variable $name: $value - defined}
+		Debug.site {($phase) define variable $name: $value}
 	    }
 	    set $name $value
 	    uplevel ::variable $name	;# add the variable def to caller
@@ -125,10 +125,10 @@ namespace eval ::Site {
 	dict for {name value} $args {
 	    ::variable $name
 	    if {![info exists $name]} {
-		Debug.site {($phase) Variable $name: $value}
+		Debug.site {($phase) define Variable $name: $value}
 		set $name $value
 	    } else {
-		Debug.site {($phase) Variable $name: $value - not overriding existing value ([set $name])}
+		Debug.site {($phase) not overriding Variable $name: $value - existing value ([set $name])}
 	    }
 	    uplevel ::variable $name	;# add the variable def to caller
 	}
@@ -231,7 +231,7 @@ namespace eval ::Site {
 		    set v [::ini::value $ini $sect $key]
 		    # global config file
 		    Debug.site {INI global: $key $v}
-		    set ::Site::$key $v
+		    Variable $key $v
 		}
 	    } else {
 		set modules($cs) {}			;# record the elements
