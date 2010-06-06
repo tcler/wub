@@ -861,6 +861,7 @@ namespace eval Nub {
 			append switch [string map [list %H $host %U $url %CT [dict get $body ctype] %C [dict get $body content]] {
 			    "%H,%U" {
 				Debug.nub {Code [dict get $r -url] via %H,%U*}
+				dict set r -Query [Query parse $r]
 				dict set r -code 200	;# default return code
 				dict set r content-type %CT	;# default content-type
 				set content [%C]
