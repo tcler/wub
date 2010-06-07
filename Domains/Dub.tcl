@@ -3,7 +3,7 @@ package require TclOO
 namespace import oo::*
 
 package require Debug
-Debug on dub 10
+Debug define dub 10
 
 package require Form
 package require Report

@@ -3,7 +3,7 @@ package require file
 package require Dict
 package require memoize
 package require Debug
-Debug off wubutils 10
+Debug define wubutils 10
 
 package provide WubUtils 1.0
 

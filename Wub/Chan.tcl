@@ -2,8 +2,8 @@
 package require OO
 
 package require Debug
-Debug off chan 10
-Debug on connections 10
+Debug define chan 10
+Debug define connections 10
 
 package provide Chan 1.0
 

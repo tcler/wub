@@ -5,7 +5,7 @@ namespace import oo::*
 
 set ::API(Domains/Login) {
     {
-	Simple cookie-based login account management and is simultaneously a repository for field values keyed by user.  It is intended to be constructed under a [Direct] domain, as illustrated in the example below.
+	Simple cookie-based login account management and is simultaneously a repository for field values keyed by user.
 
 	== Operation ==
 	Login provides a /login url to authenticate a user by password, and generate a cookie recording this authentication.  /logout removes the login cookies.
@@ -60,39 +60,34 @@ set ::API(Domains/Login) {
 	== Example ==
 	This code illustrates how Login can be used to control the domain /cookie/
 
-	   package require Login
-	   package require Direct
+	package require Login
 
-	   # create a Login object called ::L which uses the account view
-	   # to store user account data.
-	   # it will commit to the account db immediately upon each modification
-	   # it will service the /cookie/ domain, enabling any url handler under /cookie/
-	   # access to the account db
-	   Login ::L account {
-	       db accountdb file account.db layout {user:S password:S args:S}
-	   } cpath /cookie/ jQ 1 autocommit 1
+	# create a Login object called ::L which uses the account view
+	# to store user account data.
+	# it will commit to the account db immediately upon each modification
+	# it will service the /cookie/ domain, enabling any url handler under /cookie/
+	# access to the account db
+	Login ::L account {
+	    db accountdb file account.db layout {user:S password:S args:S}
+	} cpath /cookie/ jQ 1 autocommit 1 ctype x-text/html-fragment
 
-	   # construct a Direct Login domain under /login
-	   # it uses the account file specified, and generates cookies for /cookie/ domain
-	   Nub domain /login/ Direct object ::L ctype x-text/html-fragment
-	
-	   # this is a test page for Login.  It will permit you to log in with a new account,
-	   # (invoking /new for collection of account information) and will display the user
-	   # account information recorded in the database for user.
-	   Nub code /login/test {
-	       set r [::L /form $r]	;# the result of this nub will be a login or logout form
-	       set user [::L user $r]	;# get the account record of the user (if any)
-	
-	       # add some output to the field content
-	       set result [dict get $r -content]
-	       append result [<div> id message {}]	;# add a message div for feedback
-	       append result [<p> "User: $user"]	;# display the account data
-	   }
+	# this is a test page for Login.  It will permit you to log in with a new account,
+	# (invoking /new for collection of account information) and will display the user
+	# account information recorded in the database for user.
+	Nub code /login/test {
+	    set r [::L /form $r]	;# the result of this nub will be a login or logout form
+	    set user [::L get $r]	;# get the account record of the user (if any)
+
+	    # add some output to the field content
+	    set result [dict get $r -content]
+	    append result [<div> id message {}]	;# add a message div for feedback
+	    append result [<p> "User: $name"]	;# display the account data
+	}
 
 	=== Referenced in Examples ===
 	;[http:Nub domain]: a command which construct a nub, mapping a URL-glob onto a domain handler (in this case, Coco.)
 	;<*>: commands of this form are defined by the [http:../Utility/Html Html] generator package and the [http:../Utility/Form Form] generator package.
-	
+
     }
     account {View for storing accounts (must have at least user and password fields)}
     cookie {cookie for storing tub key (default: tub)}
@@ -101,8 +96,6 @@ set ::API(Domains/Login) {
     cpath {list of paths for login cookie}
     emptypass {boolean - are passwords required to be non-blank (default: 0, of course)}
     realm {Realm used in password challenges for AUTH based login}
-    userF {field name for user name/id (default: user)}
-    passF {field name for password (default: password)}
     permissive {boolean - completely anonymous accounts?}
     autocommit {boolean - commit on each write?}
     jQ {boolean - use jQuery javascript for interactions? (default: yes.)  Depends on [http:JQ jQ module]}
@@ -119,12 +112,103 @@ package require Cookies
 package provide Login 1.0
 
 class create ::Login {
-    variable account realm properties cookie age emptypass userF passF cpath domain forms keys jQ permissive autocommit new
+    # stmt - evaluate tdbc statement
+    # caches prepared statements
+    method stmt {stmt args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
 
-    # fetch account record of logged-in user
-    method user {r {user ""}} {
+	variable stmts	;# here are some statements we prepared earlier
+	if {[dict exists $stmts $stmt]} {
+	    set s [dict get $stmts $stmt]
+	} else {
+	    set s [db prepare $stmt]
+	    dict set stmts $stmt $s
+	}
+
+	Debug.loginsql {stmt '$stmt'}
+	set result [$s allrows -as dicts $args]
+	Debug.loginsql {stmt result: '$stmt' -> ($result)}
+	return $result
+    }
+
+    # stmtL - evaluate tdbc statement
+    # caches prepared statements
+    method stmtL {stmt args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+
+	variable stmts	;# here are some statements we prepared earlier
+	if {[dict exists $stmts $stmt]} {
+	    set s [dict get $stmts $stmt]
+	} else {
+	    set s [db prepare $stmt]
+	    dict set stmts $stmt $s
+	}
+	
+	set result [$s allrows -as lists $args]
+	Debug.loginsql {stmtL result: '$stmt' -> ($result)}
+	return $result
+    }
+
+    method Db_load {} {
+	# load the tdbc drivers
+	variable tdbc
+	package require $tdbc
+	package require tdbc::$tdbc
+	
+	variable file
+	variable opts
+	variable db [tdbc::${tdbc}::connection create [info object namespace [self]]::db $file {*}$opts]
+
+	if {![llength [db tables login]]} {
+	    # we don't have a stick table - make one
+	    db allrows {
+		PRAGMA foreign_keys = on;
+
+		-- login table - associates user with uid and password
+		CREATE TABLE login (uid INTEGER PRIMARY KEY AUTOINCREMENT,	-- user id
+				    name TEXT COLLATE NOCASE,	-- user name - null for anon
+				    password TEXT,	-- new password
+				    opassword TEXT,	-- old password
+				    last INTEGER DEFAULT CURRENT_TIMESTAMP	-- last login
+				    created INTEGER DEFAULT CURRENT_TIMESTAMP	-- when created
+				    );
+		CREATE UNIQUE INDEX user ON login(user);
+
+		-- mapping from cookies to uid
+		CREATE TABLE cookies (uid INTEGER NOT NULL,
+				   cookie TEXT UNIQUE NOT NULL,
+				   created INTEGER DEFAULT CURRENT_TIMESTAMP	-- when created
+				   FOREIGN KEY (uid) REFERENCES login(uid)
+				   );
+		CREATE UNIQUE INDEX uidkey ON cookies(uid,cookie);
+
+		-- vars associated with user
+		CREATE TABLE vars (uid INTEGER NOT NULL,
+				   var TEXT NOT NULL,
+				   value TEXT NOT NULL,
+				   FOREIGN KEY (uid) REFERENCES login(uid)
+				   );
+		CREATE UNIQUE INDEX uidvar ON vars(uid,var);
+	    }
+	}
+
+	variable columns [$db columns login]
+	Debug.login {Login table columns: $columns}
+	Debug.login {Database tables:([$db tables])}
+    }
+
+
+    # get account record of logged-in user
+    method get {r {user ""}} {
 	if {$user eq ""} {
-	    # don't know which user - use the cookie
+	    variable cookie
+	    variable domain
+
+	    # don't know which user yet - use the cookie
 	    set cdict [dict get? $r -cookies]
 
 	    # determine the right domain/path for the cookie
@@ -138,45 +222,232 @@ class create ::Login {
 	    # fetch the cookie
 	    if {![catch {Cookies fetch $cdict -name $cookie} cl]} {
 		set key [dict get $cl -value]	;# cookie contains session key
-		if {[info exists keys($key)]} {
-		    # keys($key) contains the account db index
-		    set index [dict get $keys($key) ""]
-		    Debug.login {logged in user is $index}
-		} else {
+		set uid [lindex [my stmtL {
+		    SELECT uid FROM cookies WHERE cookie == :key
+		} key $key] 0]
+		Debug.login {key '$key' -> ($result)}
+
+		if {$uid eq ""} {
 		    Debug.login {bogus key: $key}
-		    set r [my clear $r]
-		    return ""
+		    error "session cookie '$cookie' has expired"
 		}
 	    } {
 		# there's no logged-in user here
 		Debug.login {no user logged in under cookie '$cookie'}
-		return ""
+		error "No user logged in under '$cookie'"
 	    }
+
+	    set op "get by uid '$uid' from cookie '$key'"
+	    set record [my stmt {
+		SELECT * FROM login WHERE uid == :uid
+	    } uid $uid]
+	} elseif {[string is integer -strict $user]} {
+	    # passed in user name - search for it
+	    set op "get by uid '$user'"
+	    set record [my stmt {
+		SELECT * FROM login WHERE uid == :uid
+	    } uid $user]
 	} else {
-	    # passed in a user key - search for it
-	    Debug.login {user for '$user'}
-	    if {[catch {$account find $userF $user} index]} {
-		Debug.login {no such user '$user'}
-		return ""
+	    # passed in user name - search for it
+	    set op "get by name '$user'"
+	    set record [my stmt {
+		SELECT * FROM login WHERE name == :name
+	    } name $user]
+	}
+	if {![llength $record]} {
+	    error "Failed: $op"
+	}
+
+	set record [lindex $record 0]	;# we only expect one user record
+	Debug.login {$op: ($record)}
+
+	# fetch the extra vars
+	variable columns
+	foreach {var value} [my stmtL {
+	    SELECT * FROM vars WHERE (uid == :uid)
+	} uid [dict get $record uid]] {
+	    if {![dict exists $columns $var]} {
+		dict set record $var $value
 	    }
 	}
 
-	# found the index for this user record
+	return $record
+    }
 
-	if {[catch {$account get $index} record eo]} {
-	    Debug.login {can't read user's record $index in $account - $record ($eo)}
-	    return ""
+    # set account record of logged-in user
+    method set {r args} {
+	if {[dict exists $args uid]} {
+	    # specified user by uid
+	    set record [my get $r [dict get $args uid]]
+	} elseif {[dict exists $args name]} {
+	    # specified user by name
+	    set record [my get $r [dict get $args name]]
 	} else {
-	    # found the user's record
-	    dict set record "" $index
-	    Debug.login {got user $index ($record)}
-	    return $record
+	    # want logged-in user
+	    set record [my get $r]
 	}
+
+	if {![dict size $record]} {
+	    error "set login doesn't exist ($args)"
+	}
+	set uid [dict get $record uid]
+
+	variable columns
+	set extra {}
+	set updates {}
+	dict for {n v} $args {
+	    if {[dict exists $columns $n]} {
+		if {$n ni {uid}} {
+		    # change those fields we may change
+		    lappend updates "$n=:$n"
+		}
+	    } else {
+		dict unset args $n
+		dict set extra $n $v
+	    }
+	}
+
+	if {[dict exists $args name]} {
+	    # check that the name has an acceptable form
+	}
+
+	# save the main account detail
+	Debug.login {saveDB saving ($args)}
+	my stmt "UPDATE login SET [join $updates ,] WHERE uid=:uid" {*}$args
+
+	# save the vars
+	dict for {n v} $extra {
+	    my stmt {
+		INSERT OR REPLACE INTO vars (var,value) VALUES (:var,:value)
+	    } var $n value $v
+	}
+
+	return $record
+    }
+
+    # create new user
+    method new {r args} {
+	# ensure the new record is minimally compliant
+	if {[dict get? $args name] ne ""
+	    && ![catch {my get [dict get $args name]}]
+	} {
+	    error "User must be unique"
+	}
+
+	# create a new account record
+	set uid [my stmt {
+	    BEGIN TRANSACTION;
+	    INSERT login SET DEFAULT VALUES;
+	    SELECT MAX(uid) FROM login;
+	    END TRANSACTION;
+	}]
+
+	Debug.login {created new login $uid}
+	tailcall my set $r {*}$args uid $uid	;# store the rest of the data
+    }
+
+    # clear the login cookie
+    method clear {r} {
+	variable cookie
+	variable domain
+	set cdict [dict get? $r -cookies]
+	Debug.login {logout $cookie from $cdict}
+
+	# determine the right domain/path for the cookie
+	set cd [list -name $cookie]
+	if {$domain ne ""} {
+	    dict set cd -domain $domain
+	}
+
+	# fetch the cookies
+	variable cpath
+	if {![catch {Cookies fetch $cdict -name $cookie} cl]} {
+	    variable keys
+	    catch {unset keys([dict get $cl -value])}	;# forget key
+	    # clear cookies
+	    foreach cp $cpath {
+		set cdict [Cookies clear $cdict {*}$cd -path $cp]
+	    }
+
+	    # rewrite the cleared cookies
+	    dict set r -cookies $cdict
+	}
+	return $r
+    }
+
+    # send the client to a page indicating the failure of their login
+    method logmsg {r {message "Login Failed"} {url ""}} {
+	variable jQ
+	if {$jQ} {
+	    # we're using jQuery forms
+	    if {0} {
+		set r [jQ postscript $r {
+		    $('input[title!=""]').hint();
+		    $('.login').ajaxForm({target:'#message'});
+		}]
+	    }
+	    variable forms
+	    return [Http Ok $r [subst [dict get $forms logmsg]]]
+	} else {
+	    if {$url eq ""} {
+		set url [Http Referer $r]
+		if {$url eq ""} {
+		    set url "http://[dict get $r host]/"
+		}
+	    }
+	    # throw up a Forbidden form page.
+	    variable forms
+	    return [Http Forbidden $r [subst [dict get $forms logmsg]]]
+	}
+    }
+
+    # perform the login of user at $uid
+    method login {r uid} {
+	# fetch user details for $uid'th user
+	variable account
+	set record [my get $uid]
+	set cdict [dict get? $r -cookies]
+
+	# construct a session record keyed by md5
+	while {1} {
+	    set key [::md5::md5 -hex "[clock microseconds]$user$password"]
+	    if {![catch {my stmt {
+		INSERT OR ABORT INTO cookies (uid,cookie) VALUES (:uid,:key)
+	    } uid [dict get $record uid] key $key}
+	    # it's got to be a unique key
+	}
+
+	Debug.login {login: created key:$key -> uid:$uid}
+
+	variable cookie
+	set cd [list -name $cookie -value $key]	;# cookie dict
+
+	# include an optional expiry age for the cookie
+	variable expires
+	if {expires ne ""} {
+	    dict set cd -expires $expires
+	}
+
+	# determine the right domain/path for the cookie
+	variable domain
+	if {[info exists domain] && $domain ne ""} {
+	    dict set cd -domain $domain
+	}
+
+	# add in the cookies for each cookie path
+	variable cpath
+	foreach cp $cpath {
+	    set cdict [Cookies add $cdict {*}$cd -path $cp]
+	}
+	dict set r -cookies $cdict
+	Debug.login {login: added cookie $cookie to $cdict}
+
+	return $r
     }
 
     # return data stored in user record
     method /get {r {fields ""}} {
-	set record [my user $r]
+	set record [my get $r]
 
 	# convert dict to json
 	set result {}
@@ -193,90 +464,15 @@ class create ::Login {
 	return [Http NoCache [Http Ok $r $result application/json]]
     }
 
-    # set account record of logged-in user
-    method set {r args} {
-	if {[dict exists $args $userF]} {
-	    # specified user
-	    set record [my user $r [dict get $args $userF]]
-	} else {
-	    # want logged-in user
-	    set record [my user $r]
-	}
-
-	if {![dict size $record]} {
-	    return ""
-	}
-
-	set index [dict get $record ""]; dict unset record ""
-	catch {dict unset args ""}	;# remove the index
-
-	dict for {n v} $args {
-	    if {$n eq "args"} continue
-	    if {$n in $properties} {
-		dict set record $n $v
-		dict unset args $n
-	    }
-	}
-
-	# store surplus variables in args, if it exists
-	if {"args" in $properties} {
-	    dict set record args [dict merge [dict get? $record args] $args]
-	}
-
-	set record [dict merge $record $args]
-	$account set $index {*}$record
-	if {$autocommit} {
-	    $account db commit
-	}
-
-	return $record
-    }
-
     # store some data in the user's record at client request
     method /set {r args} {
-	catch {[dict unset args $userF]}	;# want only logged-in user
+	catch {[dict unset args user]}	;# want only logged-in user
 	# (also, we don't want the user to change its name from a form.)
-	set record [my set $r {*}$args]
-
-	if {![dict size $record]} {
+	if {[catch {my set $r {*}$args} record]} {
 	    return [Http NotFound $r [<p> "Not logged in"]]
 	} else {
 	    return [Http Ok $r [<message> "User $user Logged in."]]
 	}
-    }
-
-    # open account view to outside
-    method account {args} {
-	if {[llength $args]} {
-	    return [$account {*}$args]
-	} else {
-	    return $account
-	}
-    }
-
-    # clear the login cookie
-    method clear {r} {
-	set cdict [dict get? $r -cookies]
-	Debug.login {logout $cookie from $cdict}
-
-	# determine the right domain/path for the cookie
-	set cd [list -name $cookie]
-	if {[info exists domain] && $domain ne ""} {
-	    dict set cd -domain $domain
-	}
-
-	# fetch the cookies
-	if {![catch {Cookies fetch $cdict -name $cookie} cl]} {
-	    catch {unset keys([dict get $cl -value])}	;# forget key
-	    # clear cookies
-	    foreach cp $cpath {
-		set cdict [Cookies clear $cdict {*}$cd -path $cp]
-	    }
-
-	    # rewrite the cleared cookies
-	    dict set r -cookies $cdict
-	}
-	return $r
     }
 
     method /logout {r {url ""}} {
@@ -294,10 +490,14 @@ class create ::Login {
 
     # return a login or logout form
     method /form {r} {
+	variable cookie
 	set r [Http NoCache $r]
 	set code [catch {Cookies fetch [dict get $r -cookies] -name $cookie} cl]
+
+	variable keys
 	if {!$code && [info exists keys([set key [dict get $cl -value]])]} {
 	    # already logged in - return a logout link instead
+	    variable jQ
 	    if {$jQ} {
 		set r [jQ form $r .login target '#message']
 		set r [jQ hint $r]	;# style up the form
@@ -310,6 +510,7 @@ class create ::Login {
 	    }
 
 	    Debug.login {/form: logged in already as $keys($key)}
+	    variable forms
 	    return [Http Ok $r [dict get $forms logout]]
 	} else {
 	    if {!$code} {
@@ -319,6 +520,7 @@ class create ::Login {
 		set r [my clear $r]	;# clear the bogus cookie
 	    }
 
+	    variable jQ
 	    if {$jQ} {
 		set r [jQ form $r .login target '#message']
 		set r [jQ hint $r]	;# style up the form
@@ -332,56 +534,9 @@ class create ::Login {
 
 	    # user not already logged in - return a login form
 	    Debug.login {/form: not logged in}
+	    variable forms
 	    return [Http Ok $r [dict get $forms login]]
 	}
-    }
-
-    # send the client to a page indicating the failure of their login
-    method logmsg {r {message "Login Failed"} {url ""}} {
-	if {$jQ} {
-	    # we're using jQuery forms
-	    if {0} {
-		set r [jQ postscript $r {
-		    $('input[title!=""]').hint();
-		    $('.login').ajaxForm({target:'#message'});
-		}]
-	    }
-	    return [Http Ok $r [subst [dict get $forms logmsg]]]
-	} else {
-	    if {$url eq ""} {
-		set url [Http Referer $r]
-		if {$url eq ""} {
-		    set url "http://[dict get $r host]/"
-		}
-	    }
-	    # throw up a Forbidden form page.
-	    return [Http Forbidden $r [subst [dict get $forms logmsg]]]
-	}
-    }
-
-    # create new user
-    method new {r args} {
-	# ensure the new record is minimally compliant
-	if {![dict exists $args $userF] || [dict get $args $userF] == 0} {
-	    return -1	;# we refuse to allow blank users
-	}
-	if {$emptypass && ![dict exists $args $passF] || [dict get $args $passF] == 0} {
-	    return -1	;# we refuse to allow blank users
-	}
-
-	set record [my user $args]
-	if {$record ne ""} {
-	    # the user must be unique
-	    return -1
-	}
-
-	# create a new account record
-	set user [dict get $args $userF]
-	set password [dict get $args $passF]
-	set index [$account append $userF $user $passF $password]
-	my set $r {*}$args	;# store the rest of the data
-
-	return $index
     }
 
     # create new user and log them in
@@ -391,121 +546,89 @@ class create ::Login {
 	    set index [my new $r {*}$args]
 	    if {$index != -1} {
 		my login $r $index	;# log in the new user
-		return [my logmsg $r "New user '[dict get $args $userF]' created"]
+		return [my logmsg $r "New user '[dict get $args user]' created"]
 	    } else {
-		return [my logmsg $r "There's already a user '[dict get $args $userF]'"]
+		return [my logmsg $r "There's already a user '[dict get $args user]'"]
 	    }
 	} else {
 	    # We need to throw up a new user form.
+	    variable jQ
 	    if {$jQ} {
 		set r [jQ form $r .login target '#message']
 		set r [jQ hint $r]	;# style up the form
 	    }
-	    set user [dict get? $args $userF]
-	    set password [dict get? $args $passF]
+	    set user [dict get? $args user]
+	    set password [dict get? $args password]
+	    variable forms
 	    return [Http Ok $r [string map [list %USER $user %PASSWORD $password] [dict get $forms new]]]
 	}
     }
 
-    # perform the login of user at $index
-    method login {r index} {
-	# fetch user details for $index'th user
-	lassign [$account get $index $userF $passF] user password
-
-	set cdict [dict get? $r -cookies]
-
-	# construct a session record keyed by md5
-	set key [::md5::md5 -hex "[clock microseconds]$user$password"]
-	if {[info exists keys($key)]} {
-	    set key [::md5::md5 -hex "[clock microseconds]$user$password"]
-	    # it's got to be a unique key
-	}
-	set keys($key) [list user $user password $password "" $index]
-	Debug.login {login: created key $key}
-
-	set cd [list -name $cookie -value $key]	;# cookie dict
-	
-	# include an optional expiry age for the cookie
-	if {[info exists age] && $age} {
-	    dict set cd -expires $age
-	}
-
-	# determine the right domain/path for the cookie
-	if {[info exists domain] && $domain ne ""} {
-	    dict set cd -domain $domain
-	}
-	
-	# add in the cookies for each cookie path
-	foreach cp $cpath {
-	    set cdict [Cookies add $cdict {*}$cd -path $cp]
-	}
-	dict set r -cookies $cdict
-	Debug.login {login: added cookie $cookie to $cdict}
-
-	return $r
-    }
-
-    method / {r args} {
-	return [/login $r {*}$args]
-    }
-    
     # login from a form - construct user record if necessary
     method /login {r args} {
 	set r [Http NoCache $r]
+	variable jQ
 	if {$jQ} {
 	    set r [jQ form $r .login target '#message']
 	    set r [jQ hint $r]	;# style up the form
 	}
 
-	# expect vars user and password, accept url
-	set user [dict get? $args $userF]
-	set password [dict get? $args $passF]
+	# expect vars name and password, accept url
+	set name [dict get? $args name]
+	set password [dict get? $args password]
 	set url [dict get? $args url]
 
-	Debug.login {/login: user:$user password:$password url:$url}
+	Debug.login {/login: name:$name password:$password url:$url}
 
 	# prelim check on args
-	if {$user eq ""} {
-	    return [my logmsg $r "Blank username not permitted." $url]
+	if {$name eq ""} {
+	    return [my logmsg $r "Blank name not permitted." $url]
+	} elseif {[string is integer -strict $name]} {
+	    return [my logmsg $r "Name '$name' does not exist." $url]
 	}
+
+	variable emptypass
 	if {!$emptypass && $password eq ""} {
 	    return [my logmsg $r "Blank password not permitted." $url]
 	}
 
 	# find matching user in account
-	if {[catch {$account find $userF $user} index]} {
+	if {[catch {my get $name} record]} {
 	    # there's no existing user with this name.
-	    if {$permissive && $user ne "" && $password ne ""} {
+	    variable permissive
+	    if {$permissive && $name ne "" && $password ne ""} {
 		# permissive - create a new user with the name and password given
 		Debug.login {/login: permissively creating user}
-		set index [$account append $userF $user $passF $password]
+		set record [my new name $name password $password]
 	    } else {
 		Debug.login {/login: no such user}
+		variable new
 		if {$new eq ""} {
 		    # no $new url has been given for user creation, nothing to be done.
-		    return [my logmsg $r "There is no such user as '$user'." $url]
+		    return [my logmsg $r "There is no such user as '$name'." $url]
 		} else {
 		    # redirect to $new URL for collecting account information
 		    # the URL can decide to grant an account using /new
-		    return [Http Redirect $r $new?$userF=$user&$passF=$password "User '$user' doesn't exist.  Create that user."]
+		    return [Http Redir $r $new name $name password $password redir [Http Referer $r]]
 		}
 	    }
 	}
-
+	
 	# match account password
-	if {[$account get $index $passF] ne $password
-	    && ("old_$passF" ni $properties
-		|| [$account get $index old_$passF] ne $password)	   
+	variable properties
+	if {[dict get? $record password] ne $password
+	    && [dict get? $record opassword] ne $password
 	} {
 	    Debug.login {/login: passwords don't match}
-	    return [my logmsg $r "Password doesn't match for '$user'." $url]
+	    return [my logmsg $r "Password doesn't match for '$name'." $url]
 	}
 
-	set r [my login $r $index]
+	set r [my login $r $index]	;# log user in
 	
+	variable jQ
 	if {$jQ} {
 	    # assume the .form plugin is handling this.
-	    return [Http Ok $r [<message> "User $user Logged in."]]
+	    return [Http Ok $r [<message> "User '$name' Logged in."]]
 	} else {
 	    # otherwise we redirect to the page which provoked the login
 	    if {$url eq ""} {
@@ -519,42 +642,23 @@ class create ::Login {
 	}
     }
 
-    constructor {args} {
-	Debug.login {constructing $args}
-	set userF user		;# user field in $account view
-	set passF password	;# password field in $account view
-	set cookie login	;# name of the cookie
-	set domain ""		;# domain for cookies
-	set cpath ""		;# list of paths for cookies
-	set permissive 0	;# allow anonymous creation?
-	set emptypass 0		;# permit blank passwords?
-	set account {user:S password:S}	;# minimal layout for account
-	set jQ 1		;# use jQ by default
-	set realm "Login [self]"	;# login for Basic AUTH
-	set autocommit 1	;# commit on each write
-	set new "new"		;# url to redirect to on new user creation request
-
-	variable {*}[Site var? Login]	;# allow .ini file to modify defaults
-	dict for {n v} $args {
-	    set $n $v
-	}
-
-	array set keys {}	;# start remembering our keys
-
-	if {![info exists forms]} {
-	    set forms {}
-	}
-
+    method / {r args} {
+	return [/login $r {*}$args]
+    }
+    
+    method mkForms {} {
+	variable forms
 	if {![dict exists $forms login]} {
 	    # forms for Login
 	    dict set forms login [subst {
 		[<form> action [file join $mount login] class login {
 		    [<submit> submit style {display:none;} Login]
-		    [<text> $userF size 8 title Username]
-		    [<text> $passF size 8 title Password]
+		    [<text> user size 8 title Username]
+		    [<text> password size 8 title Password]
 		}]
 	    }]
 	}
+
 	if {![dict exists $forms logout]} {
 	    dict set forms logout [<a> href [file join $mount logout] Logout]
 	}
@@ -564,48 +668,49 @@ class create ::Login {
 	if {![dict exists $forms new]} {
 	    dict set forms new [<form> newuser action new class login [<fieldset> [subst {
 		[<legend> "Create User"]
-		[<text> $userF title "user id" label "User Id: " "%USER"]
-		[<text> $passF title "password" label "Password: " "%PASSWORD"]
+		[<text> user title "user id" label "User Id: " "%USER"]
+		[<text> password title "password" label "Password: " "%PASSWORD"]
 		[<br>][<text> given title "given name" label "Given: " ""]
 		[<text> surname title "surname" label "Surname: " ""]
 		[<br>][<submit> submit value 1]
 	    }]]]
 	}
+    }
 
-	# create the account database
-	if {[llength $account] > 1} {
-	    if {[llength $account]%2} {
-		# we've been handed a named View constructor expression
-		set account [View create {*}$account]
-	    } else {
-		# we've been handed an anonymous View constructor expression
-		set account [View new {*}$account]
-	    }
-	} else {
-	    # caller already has a view which it has passed in by name
+    superclass Direct
+
+    constructor {args} {
+	Debug.login {constructing $args}
+	variable cookie login		;# name of the cookie
+	variable domain ""		;# domain for cookies
+	variable cpath {}		;# list of paths for cookies
+	variable expires "next year"	;# expiry
+	variable permissive 0		;# allow anonymous creation?
+	variable emptypass 0		;# permit blank passwords?
+	variable account {user:S password:S}	;# minimal layout for account
+	variable jQ 1			;# use jQ by default
+	variable realm "Login [self]"	;# login for Basic AUTH
+	variable autocommit 1		;# commit on each write
+	variable new "new"		;# url to redirect to on new user creation request
+	variable forms {}		;# named collection of forms
+	variable tdbc sqlite3		;# TDBC backend
+	variable file login.db		;# login db name
+	variable opts {}		;# tdbc creation opts
+
+	variable {*}[Site var? Login]	;# allow .ini file to modify defaults
+	dict for {n v} $args {
+	    set $n $v
 	}
-	
-	set properties [$account properties]	;# remember the account properties
-	
+
+	variable keys; array set keys {}	;# start remembering our keys
+
 	# the /login path must always get this cookie
 	if {[lsearch $cpath $mount] == -1} {
 	    lappend cpath $mount
 	}
 
-	# ensure that we can find the user field
-	if {![info exists userF] || $userF eq ""} {
-	    if {[info exists cookie] && $cookie ne ""} {
-		# unspecified a user field, use the cookie name
-		set userF $cookie
-	    } else {
-		# unspecified user field and cookie, use the first property
-		set properties [lassign [lindex $properties 0] userF]
-	    }
-	} elseif {$userF ni $properties} {
-	    error "Field '$userF' must appear in $account's layout ($properties)"
-	} elseif {$passF ni $properties} {
-	    error "Field '$passF' must appear in $account's layout ($properties)"
-	}
+	next? {*}$args
+
 	Debug.login {constructed [self] $args}
     }
 }
@@ -615,11 +720,11 @@ if {0} {
     package require Login 
     Debug on login 100
     Nub domain /login/ Direct object {Login ::L account {db accountdb file account.db layout {user:S password:S args:S}} cpath /cookie/ permissive 0 jQ 1 autocommit 1} ctype x-text/html-fragment
-    
+
     Nub code /login/test {
 	set r [::L /form $r]	;# the result of this nub will be a login or logout form
 	set user [::L user $r]	;# get the account record of the user (if any)
-	
+
 	# add some output to the field content
 	set result [dict get $r -content]
 	append result [<div> id message {}]	;# add a message div for feedback

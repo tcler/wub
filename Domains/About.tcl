@@ -1,6 +1,6 @@
 # About - a domain for documenting other domains via their API entries
 package require Debug
-Debug on about 10
+Debug define about 10
 
 package require textutil
 package provide About 1.0

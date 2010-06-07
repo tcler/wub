@@ -187,7 +187,7 @@ class create ::Coco {
 	}
 
 	set extra [lassign [split $suffix /] cmd]
-	dict set r -extra $extra
+	dict set r -extra [join $extra /]
 
 	if {[namespace which -command Coros::@$cmd] ne ""} {
 	    # this is an existing coroutine - call it and return result

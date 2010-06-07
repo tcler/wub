@@ -5,6 +5,7 @@
 package require base64
 package require Login
 package require Debug
+Debug define auth 10
 
 package provide Auth 1.0
 
@@ -84,4 +85,3 @@ namespace eval ::Auth {
 
 #set ::Auth::passwd(colin) MOOP
 
-Debug on auth 10

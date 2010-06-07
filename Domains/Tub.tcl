@@ -1,7 +1,6 @@
 # Tub is a direct domain which allows storage of arbitrary form data
 
-package require TclOO
-namespace import oo::*
+package require OO
 
 set ::API(Domains/Tub) {
     {
@@ -17,7 +16,7 @@ set ::API(Domains/Tub) {
 }
 
 package require Debug
-Debug on tub 10
+Debug define tub 10
 
 package require Direct
 package require View
@@ -247,9 +246,7 @@ class create ::Tub {
 	return [my set $r $userid {*}$args]
     }
 
-    method do {r} {
-	return [$direct do $r]
-    }
+    superclass Direct
 
     constructor {args} {
 	set realm "Tub [self] Realm"
@@ -285,6 +282,6 @@ class create ::Tub {
 	}
 
 	# this is the means by which we're invoked.
-	set direct [Direct new object [self] ctype application/json]
+	next? {*}$args ctype application/json
     }
 }

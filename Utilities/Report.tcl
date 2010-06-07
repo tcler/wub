@@ -5,7 +5,7 @@ if {[info exists argv0] && ([info script] eq $argv0)} {
 }
 
 package require Debug
-Debug off report 10
+Debug define report 10
 package require Html
 
 package provide Report 1.0

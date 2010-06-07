@@ -1,6 +1,6 @@
 # Mail - Mail Form for Wub - fairly thin interface to SMTP package
 package require Debug
-Debug on mail 10
+Debug define mail 10
 
 package require SMTP
 package require Form

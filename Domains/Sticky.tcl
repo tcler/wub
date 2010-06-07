@@ -3,7 +3,7 @@ package require OO
 package require Query
 package require Url
 package require Debug
-Debug on sticky 10
+Debug define sticky 10
 
 package provide Sticky 1.0
 

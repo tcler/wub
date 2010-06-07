@@ -3,7 +3,7 @@
 # License says it's free.
 
 package require Debug
-Debug off icons 10
+Debug define icons 10
 
 package require RAM
 package require fileutil

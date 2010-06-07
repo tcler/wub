@@ -64,7 +64,6 @@ class create ::File {
     }
 
     method do {r} {
-
 	# calculate the suffix of the URL relative to $mount
 	lassign [Url urlsuffix $r $mount] result r suffix
 	if {!$result} {
@@ -74,7 +73,7 @@ class create ::File {
 	set ext [file extension $suffix]
 	set path [file join $root [string trimleft $suffix /]]
 
-	Debug.file {file: root:$root mount:$mount suffix:$suffix ext: $ext path:$path -path:[dict get $r -path]}
+	Debug.file {file: root:'$root' mount:'$mount' suffix:'$suffix' ext:'$ext' path:'$path' -path:'[dict get $r -path]'}
 
 	if {($ext ne "")
 	    && ([file tail $suffix] eq $ext)

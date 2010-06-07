@@ -15,7 +15,7 @@ if {[info commands ::Debug] eq {}} {
 if {[info commands ::Debug] eq {}} {
     proc Debug.view {args} {}
 } else {
-    Debug off view 10
+    Debug define view 10
 }
 
 package provide View 3.0

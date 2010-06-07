@@ -4,7 +4,7 @@ if {[catch {package require Debug}]} {
     proc Debug.url {args} {}
     #proc Debug.url {args} {puts stderr url@[uplevel subst $args]}
 } else {
-    Debug off url 10
+    Debug define url 10
 }
 
 catch {package require Query}	;# reduced functionality - no redir
@@ -22,18 +22,14 @@ namespace eval ::Url {
 
     # Support for x-www-urlencoded character mapping
     # The spec says: "non-alphanumeric characters are replaced by '%HH'"
-    variable dmap
-
-    set dmap {%0D%0A \n %0d%0a \n %% %}
-    #lappend dmap + " "
+    variable dmap {%0D%0A \n %0d%0a \n %% %}
+    #+ " "
 
     # set up non-alpha map
-    for {set i 1} {$i <= 256} {incr i} {
+    for {set i 0} {$i < 256} {incr i} {
 	set c [format %c $i]
-	if {![string match {[a-zA-Z0-9]} $c]} {
-	    lappend dmap %[format %.2X $i] [binary format c $i]
-	    lappend dmap %[format %.2x $i] [binary format c $i]
-	}
+	lappend dmap %[format %.2X $i] [binary format c $i]
+	lappend dmap %[format %.2x $i] [binary format c $i]
     }
 
     # decode
@@ -73,7 +69,7 @@ namespace eval ::Url {
     #	none
 
     proc normalize {url} {
-	set url [decode $url]
+	#set url [decode $url]
 	while {[set new [regsub -all {(/+)|(^[.][.]/)|(^/[.][.])|(/[^/]+/[.][.]$)|(/[^/]+/[.][.]/)|(^[.]/)|(/[.]$)|(/[.]/)|(^[.][.]$)|(^[.]$)} $url /]] ne $url} {
 	    set url $new
 	}
@@ -82,15 +78,17 @@ namespace eval ::Url {
 
     # strip off path prefix - from ::fileutil
     proc pstrip {prefix path} {
-	Debug.url {pstrip $prefix $path}
+	Debug.url {pstrip prefix:'$prefix' path:'$path'}
+
 	# [split] is used to generate a canonical form for both
 	# paths, for easy comparison, and also one which is easy to modify
 	# using list commands.
 	set trailing [expr {([string index $path end] eq "/")?"/":""}]
 
 	# canonicalise the paths: no bracketing /, no multiple /
-	set prefix [string trim [join $prefix /] /]
-	set path [string trim [join $path /] /]
+	set prefix [string trim $prefix /]
+	set path [string trim $path /]
+	Debug.url {pstrip canon prefix:'$prefix' path:'$path'}
 
 	if {[string equal $prefix $path]} {
 	    return "/"	;# if the paths are canonically string equal, we're sweet
@@ -99,6 +97,7 @@ namespace eval ::Url {
 	# split the paths into components
 	set prefix [split $prefix /]
 	set npath [split $path /]
+	Debug.url {pstrip prolog prefix:'$prefix' path:'$path' npath:'$npath'}
 
 	# strip non-matching prolog
 	while {[llength $npath] && ![string match ${prefix}* $npath]} {
@@ -110,11 +109,11 @@ namespace eval ::Url {
 	if {[llength $npath]} {
 	    # ergo there's a match - preserve dir suffix
 	    set match [join [lrange $npath [llength $prefix] end] /]$trailing
-	    Debug.url {pstrip match $npath - [join $prefix /] + [join $npath /] -> $match}
+	    Debug.url {pstrip match '$npath' - '[join $prefix /]' + '[join $npath /]' -> '$match'}
 	    return $match
 	} else {
 	    # the prefix doesn't match ... try stripping some leading prefix
-	    Debug.url {pstrip no match [join $prefix /] $path}
+	    Debug.url {pstrip no match '[join $prefix /]' path:$path}
 	    return /$path
 	}
     }
@@ -131,6 +130,7 @@ namespace eval ::Url {
 	    }
 	    set r [list -path $r]	;# pretend it's a request
 	}
+
 	dict set r -prefix $mount
 	set path [dict get $r -path]
 
@@ -141,10 +141,10 @@ namespace eval ::Url {
 	    # assume we've been parsed by package Url
 	    # remove the specified prefix from path, giving suffix
 	    set suffix [Url pstrip $mount [string trimleft $path /]]
-	    Debug.url {urlsuffix - suffix:$suffix url:$mount}
+	    Debug.url {urlsuffix - suffix:'$suffix' url:'$mount'}
 	    if {($suffix ne "/") && [string match "/*" $suffix]} {
 		# path isn't inside our domain suffix - error
-		Debug.url {urlsuffix - $path is outside domain suffix $suffix}
+		Debug.url {urlsuffix - '$path' is outside domain suffix '$suffix'}
 		return [list 0 [Http NotFound $r]]
 	    }
 	    dict set r -suffix $suffix
@@ -175,7 +175,7 @@ namespace eval ::Url {
     # Side Effects:
     #	none
 
-    proc parse {url {normalize 0}} {
+    proc parse {url {normalize 1}} {
 	Debug.url {Url parse $url - norm? $normalize}
 	array set x {}
 	regexp {^(([^:/?\#]+):)?(//([^/?\#]*))?([^?\#]*)([?]([^\#]*))?(\#(.*))?$} $url \
