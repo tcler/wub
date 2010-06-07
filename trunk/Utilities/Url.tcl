@@ -12,7 +12,7 @@ catch {package require Dict}	;# no subset or assemble
 
 package provide Url 1.0
 
-namespace eval Url {
+namespace eval ::Url {
 
     # Support for x-www-urlencoded character mapping
     # The spec says: "non-alphanumeric characters are replaced by '%HH'"

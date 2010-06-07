@@ -10,7 +10,7 @@ package require Html
 
 package provide Report 1.0
 
-namespace eval Report {
+namespace eval ::Report {
     variable defaults {
 	rc 0
 	sortable 0

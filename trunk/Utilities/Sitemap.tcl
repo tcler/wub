@@ -4,7 +4,7 @@ package require Html
 package require Http
 package provide Sitemap 1.0
 
-namespace eval Sitemap {
+namespace eval ::Sitemap {
     # wrap characters which offend HTML
     proc esc {string} {
   	return [string map {& &amp; ' &apos; \" &quot; > &gt; < &lt;} $string]

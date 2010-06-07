@@ -47,7 +47,7 @@ set API(Utilities/Cookies) {
 
 package provide Cookies 1.0
 
-namespace eval Cookies {
+namespace eval ::Cookies {
 
     # filter all expired cookies from a cookie dict
     proc expire {cookies {now ""}} {

@@ -60,7 +60,7 @@ proc demoronizer {} {
 }
 interp alias {} demoronizer {} string map [demoronizer]
 
-namespace eval Html {
+namespace eval ::Html {
     variable XHTML 0
 
     # convert a dict to a JSON object

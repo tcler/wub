@@ -15,7 +15,7 @@
 
 package provide utf8 1.0
 
-namespace eval utf8 {
+namespace eval ::utf8 {
     variable uniOK {
 	0x0000 0x0020 0x007f 0x00a0 0x00ad 0x00ae 
 	0x00c2 0x00c4

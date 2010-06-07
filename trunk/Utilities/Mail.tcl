@@ -8,7 +8,7 @@ package require mime
 
 package provide Mail 1.0
 
-namespace eval Mail {
+namespace eval ::Mail {
 
     proc check {email} {
 	if {[catch {::mime::parseaddress $email} x eo]} {

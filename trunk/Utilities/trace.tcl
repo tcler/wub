@@ -1,6 +1,6 @@
 # mjanssen
 
-namespace eval trace {
+namespace eval ::trace {
     
     namespace export breakpoint
 

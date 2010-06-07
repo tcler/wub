@@ -14,7 +14,7 @@ if {[catch {package require Debug}]} {
 package require parsetcl
 package provide Config 1.0
 
-namespace eval parsetcl {
+namespace eval ::parsetcl {
     proc unparse {tree} {
 	eval $tree
     }

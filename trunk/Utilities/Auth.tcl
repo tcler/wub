@@ -8,7 +8,7 @@ package require Debug
 
 package provide Auth 1.0
 
-namespace eval Auth {
+namespace eval ::Auth {
     variable passwd	;# special purpose in-place passwd
     array set passwd {}
 

@@ -8,7 +8,7 @@ package provide Query 2.0
 
 Debug off query
 
-namespace eval Query {
+namespace eval ::Query {
     variable utf8 [expr {[catch {package require utf8}] == 0}]
 
     variable map
