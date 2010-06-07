@@ -12,13 +12,13 @@ package require View
 
 package provide Dub 2.0
 
-set API(Domains/Dub) {
+set ::API(Domains/Dub) {
     {
 	provides a database view for Wub
     }
 }
 
-class create Dub {
+class create ::Dub {
     method literal {view} {return $view}
     method view {view} {
 	if {![info exists names($view)]} {

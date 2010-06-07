@@ -5,13 +5,13 @@ Debug on about 10
 package require textutil
 package provide About 1.0
 
-set API(Domains/About) {
+set ::API(Domains/About) {
     {Domain for accessing API documentation of other domains.}
 }
 
-set APIDomains {File Repo Mason Direct Dub Commenter JQ CGI Icons Tub ReCAPTCHA About RAM Tie Coco Sinorca Simplicio Nub Sql SqlQ Sticky Tiny}
+set ::APIDomains {File Repo Mason Direct Dub Commenter JQ CGI Icons Tub ReCAPTCHA About RAM Tie Coco Sinorca Simplicio Nub Sql SqlQ Sticky Tiny}
 
-namespace eval About {
+namespace eval ::About {
     variable ctype x-text/html-fragment
 
     proc do {r} {

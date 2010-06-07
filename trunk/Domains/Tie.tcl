@@ -6,7 +6,7 @@ package require Report
 
 package provide Tie 1.0
 
-set API(Experimental/Tie) {
+set ::API(Experimental/Tie) {
     {
 	Experimental domain mapping from namespace variables to Urls.  Each namespace needs to [add] itself to the Tie.
     }
@@ -19,7 +19,7 @@ set API(Experimental/Tie) {
 # check dict mods so they stay as dicts, else it can break
 # make textareas autogrow
 
-namespace eval Tie {
+namespace eval ::Tie {
     variable mount /tie/	;# (default) mount point for vars
     variable mime x-text/html-fragment	;# default mime type of responses
     variable icons 

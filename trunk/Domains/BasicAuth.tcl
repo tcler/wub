@@ -2,7 +2,7 @@
 package require base64
 package provide BasicAuth 1.0
 
-oo::class create BasicAuth {
+oo::class create ::BasicAuth {
     # to work in with Nub, BasicAuth has to provide a new method
     method new {args} {
 	return [self]

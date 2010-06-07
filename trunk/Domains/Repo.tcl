@@ -16,7 +16,7 @@ package require jQ
 
 package provide Repo 1.0
 
-set API(Domains/Repo) {
+set ::API(Domains/Repo) {
     {
 	A simple file repository providing uploads and tar'ed directory downloads
 
@@ -48,7 +48,7 @@ set API(Domains/Repo) {
 # TODO - handle dangling softlinks in dirlist
 # TODO - some kind of permissions system
 
-namespace eval Repo {
+namespace eval ::Repo {
     variable dirparams {
 	sortable 1
 	evenodd 0

@@ -16,7 +16,7 @@ package require Report
 
 package provide Metakit 1.0
 
-set API(Domains/Metakit) {
+set ::API(Domains/Metakit) {
     {
 	Domain to present metakit views
 
@@ -24,7 +24,7 @@ set API(Domains/Metakit) {
     }
 }
 
-class create Metakit {
+class create ::Metakit {
     variable db views csv limit rparams limit
 
     method do {r} {

@@ -11,7 +11,7 @@ Debug define mason
 
 package provide Mason 1.0
 
-set API(Domains/Mason) {
+set ::API(Domains/Mason) {
     {
 	A [File]-like domain mapping a URL domain onto a file-system hierarchy, providing templating and pre- and post- filtering of requests and responses (respectively)
 
@@ -61,7 +61,7 @@ set API(Domains/Mason) {
     stream {files above this size will be streamed using fcopy, not loaded and sent.  Note: streaming a file prevents *any* post-processing on is, so [Convert] for example will be ineffective.}
 }
 
-class create Mason {
+class create ::Mason {
     variable mount root hide functional notfound wrapper auth indexfile dirhead dirfoot aliases cache ctype nodir dirparams dateformat stream
 
     method conditional {req path} {

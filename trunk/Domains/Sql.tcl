@@ -8,7 +8,7 @@ Debug define Sql 10
 package provide Sql 1.0
 package provide SqlT 1.0
 
-set API(Domains/Sql) {
+set ::API(Domains/Sql) {
     {
 	A domain to minimally implement the Sql part of MVC, where the underlying model is an SQL database.
 	Sql returns each resultset record [[subst]]ed over ''form'' to give html fragments.
@@ -20,7 +20,7 @@ set API(Domains/Sql) {
     form {a Tcl script which will be [[subst]]ed for each element of the tdbc resultset, yielding an html fragment.}
     huddle {a Huddle descriptor for conversion to JSON}
 }
-set API(Domains/SqlT) {
+set ::API(Domains/SqlT) {
     {
 	A domain to minimally implement the Sql part of MVC, where the underlying model is an SQL database.
 	SqlT converts the resultset into an HTML sortable table (default), a CSV file, or a Sylk spreadsheet, depending on the extension of the URL (.html, .csv or .sylk, respectively.)
@@ -36,7 +36,7 @@ set API(Domains/SqlT) {
     huddle {a Huddle descriptor for conversion to JSON}
 }
 
-class create Sql {
+class create ::Sql {
     # enform - convert resultset to html fragment in restricted scope
     method enform {:rs :form} {
 	set :result ""
@@ -158,7 +158,7 @@ class create Sql {
     }
 }
 
-class create SqlT {
+class create ::SqlT {
     # convert synthetic TDBC type into CSV.
     method .x-text/dict.text/csv {r} {
 	Debug.Sql {converting to text/csv}

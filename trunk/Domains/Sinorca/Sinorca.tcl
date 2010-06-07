@@ -8,11 +8,11 @@ package require Color
 
 package provide Sinorca 1.0
 
-set API(Domains/Sinorca) {
+set ::API(Domains/Sinorca) {
     {experimental page-livery wrapper}
 }
 
-namespace eval Sinorca {
+namespace eval ::Sinorca {
     proc <markup> {args} {
 	return [<code> class markup [join $args]]
     }

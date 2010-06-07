@@ -10,11 +10,11 @@ package require fileutil
 
 package provide Icons 1.0
 
-set API(Domains/Icons) {
+set ::API(Domains/Icons) {
     {provides a set of nice icons}
 }
 
-namespace eval Icons {
+namespace eval ::Icons {
     variable mount /icons/
     variable icons; array set icons {}
     variable home [file join [file dirname [file normalize [info script]]] images]

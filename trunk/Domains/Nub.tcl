@@ -20,7 +20,7 @@ package require jQ
 package provide Nub 1.0
 package provide Rewrite 1.0	;# to satisfy synthetic requirement of codegen
 
-set API(Domains/Nub) {
+set ::API(Domains/Nub) {
     {
 	The Nub module controls the dispatch function of Wub.  Nub allows you to configure server's response to requests by defining a mapping from request-URLs to [http:. Domain] handlers.
 
@@ -53,7 +53,7 @@ set API(Domains/Nub) {
     docurl {url prefix for domain docs. (default /wub/docs/Domains)}
 }
 
-namespace eval Nub {
+namespace eval ::Nub {
     proc stxify {about} {
 	set about [string trim $about "\n"]
 	set about [::textutil::untabify $about]

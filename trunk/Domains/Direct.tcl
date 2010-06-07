@@ -20,7 +20,7 @@ Debug define direct 10
 
 package provide Direct 1.0
 
-set API(Domains/Direct) {
+set ::API(Domains/Direct) {
     {
 	A domain which dispatches URL requests to commands within a namespace or methods within an object.  Note that only commands whose name starts with '/' will be exported to the web.
 
@@ -52,7 +52,7 @@ set API(Domains/Direct) {
     correct {insist that the top level domain is referenced with a trailing / (default: yes)}
 }
 
-class create Direct {
+class create ::Direct {
     variable namespace object class ctype mount wildcard methods
 
     method do_ns {rsp} {

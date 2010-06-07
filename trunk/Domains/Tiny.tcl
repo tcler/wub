@@ -10,7 +10,7 @@ package require jQ
 
 package provide Tiny 1.0
 
-set API(Plugins/Tiny) {
+set ::API(Plugins/Tiny) {
     {
 	A tinyurl-alike for Wub
     }
