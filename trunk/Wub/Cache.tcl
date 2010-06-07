@@ -2,6 +2,8 @@
 # TODO: make Cache a direct domain for some introspection
 
 package require Debug
+Debug define cache 10	;# debug cache access decisions
+
 package require Http
 package provide Cache 2.0
 
@@ -554,4 +556,3 @@ namespace eval Cache {
     namespace ensemble create -subcommands {}
 }
 
-Debug off cache 10	;# debug cache access decisions

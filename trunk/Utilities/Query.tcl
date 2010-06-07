@@ -4,7 +4,7 @@ if {[info exists argv0] && ([info script] eq $argv0)} {
 }
 
 package require Debug
-Debug off query
+Debug define query
 
 package provide Query 2.0
 

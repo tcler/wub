@@ -3,7 +3,7 @@ if {[catch {package require Debug}]} {
     proc Debug.chan {args} {puts stderr [uplevel subst [list $args]]}
 } else {
     package require Debug
-    Debug off human 10
+    Debug define human 10
 }
 
 package require Cookies
@@ -17,12 +17,17 @@ set ::API(Server/Human) {
 	Attempts to distinguish browsers from bots on the questionable premise that bots never return cookies.  Hmmm.
     }
     path {which url paths are to be detected/protected?  (default /)}
-    cookie {name of the cookie to plant (default human)}
+    cookie {name of the cookie to plant (default "human")}
     expires {how long to leave the cookie in. (default "next year")}
     logdir {which directory to write the human logfile into (default [pwd])}
 }
 
 namespace eval Human {
+    proc update {from to} {
+	variable logdir
+	::fileutil::appendToFile [file join $logdir human] "$from $to\n"
+    }
+
     proc track {r} {
 	variable cookie
 	variable tracker
@@ -51,21 +56,21 @@ namespace eval Human {
 	    if {[info exists tracker($human)]} {
 		if {[lsearch -exact $tracker($human) $ipaddr] < 0} {
 		    lappend tracker($human) $ipaddr	;# only add new ipaddrs
-		    ::fileutil::appendToFile [file join $logdir human] "$human [list $tracker($human)]\n"
+		    update $human $tracker($human)
 		}
 	    } else {
 		set tracker($human) $ipaddr
-		::fileutil::appendToFile [file join $logdir human] "$human [list $ipaddr]\n"
+		update $human $ipaddr
 	    }
 	    
 	    if {[info exists tracker($ipaddr)] && [lindex $tracker($ipaddr) 0] ne "" && [lindex $tracker($ipaddr) 0]} {
 		if {[lsearch -exact $tracker($ipaddr) $human] < 0} {
 		    lappend tracker($ipaddr) $human	;# only add new ipaddrs
-		    ::fileutil::appendToFile [file join $logdir human] "$ipaddr [list $tracker($ipaddr)]\n"
+		    update $ipaddr $tracker($ipaddr)
 		}
 	    } else {
 		set tracker($ipaddr) $human
-		::fileutil::appendToFile [file join $logdir human] "$ipaddr [list $tracker($ipaddr)]\n"
+		update $ipaddr $tracker($ipaddr)
 	    }
 
 	    dict set r -human $human		;# record supposition that they're human
@@ -87,7 +92,7 @@ namespace eval Human {
 	    }
 	} else {
 	    set tracker($ipaddr) 0	;# remember that we've seen them once
-	    ::fileutil::appendToFile [file join $logdir human] "$ipaddr 0\n"
+	    update $ipaddr 0
 	}
 
 	# add a cookie to reply

@@ -9,7 +9,7 @@ package provide Scgi 1.0
 package require Debug
 package require Url
 
-Debug on scgi 10
+Debug define scgi 10
 
 set ::API(Utilities/Scgi) {
     {

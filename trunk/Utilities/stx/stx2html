@@ -8,7 +8,7 @@ lappend auto_path $thisdir \
     [file join $topdir extensions]
 
 package require stx2html
-Debug off STX 100
+Debug define STX 100
 stx2html init script 0
 set text [read stdin]
 

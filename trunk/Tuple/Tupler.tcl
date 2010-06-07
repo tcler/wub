@@ -365,7 +365,7 @@ oo::class create Tupler {
 
     method bad {r eo} {
 	# failed to resolve name
-	set extra [Url decode [dict get $r -extra]]
+	set extra [dict get $r -extra]
 	set nfname [dict get? $eo -notfound]
 	set kind [dict get? $eo -kind]
 	
@@ -398,7 +398,7 @@ oo::class create Tupler {
     }
 
     method getname {r} {
-	set extra [Url decode [dict get $r -extra]]
+	set extra [dict get $r -extra]
 	Debug.tupler {getname extra: $extra}
 
 	if {[string match +* $extra]} {
@@ -409,11 +409,11 @@ oo::class create Tupler {
 		error "$extra is not meaningful except as a component of a Tuple"
 	    }
 	    lassign [Url urlsuffix $referer $mount] meh rn suffix path
-	    Debug.tupler {urlsuffix: $suffix $path}
-	    set extra [Url decode $suffix]$extra
+	    set extra $suffix$extra
+	    Debug.tupler {getname: suffix:'$suffix' path:'$path' extra:'$extra'}
 	}
 
-	Debug.tupler {getname got: $extra}
+	Debug.tupler {getname got: '$extra'}
 	return $extra
     }
 

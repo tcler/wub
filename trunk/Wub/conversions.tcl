@@ -3,8 +3,8 @@
 package require struct::list
 package require Html
 
-Debug off jsloader 10
-Debug off cssloader 10
+Debug define jsloader 10
+Debug define cssloader 10
 
 package provide conversions 1.0
 

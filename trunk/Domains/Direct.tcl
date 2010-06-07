@@ -81,7 +81,7 @@ class create ::Direct {
 	if {$cmd eq ""} {
 	    Debug.direct {no match looking for '$fn' in '$namespace' ([info procs ${namespace}::/*])}
 	    set cmd ${namespace}::$wildcard
-	    dict set rsp -extra [split [dict get $rsp -suffix] /]
+	    dict set rsp -extra [dict get $rsp -suffix]
 	    if {[info commands $cmd] eq {}} {
 		Debug.direct {default not found looking for $cmd in ([info procs ${namespace}::/*])}
 		return [Http NotFound $rsp]
@@ -170,13 +170,13 @@ class create ::Direct {
 	if {$cmd eq ""} {
 	    Debug.direct {'$cmd' not found looking for '$fn' in '$object' ($methods)}
 	    set cmd $wildcard
-	    dict set rsp -extra [split [dict get $rsp -suffix] /]
+	    dict set rsp -extra [dict get $rsp -suffix]
 	    if {![dict exists $methods $cmd] eq {}} {
 		Debug.direct {default not found looking for $cmd in ($methods)}
 		return [Http NotFound $rsp]
 	    }
 	} else {
-	    dict set rsp -extra [lreverse $extra]	;# record the extra parts of the domain
+	    dict set rsp -extra [join [lreverse $extra]	/] ;# record the extra parts of the domain
 	}
 
 	# get the formal parameters and args-status of the method

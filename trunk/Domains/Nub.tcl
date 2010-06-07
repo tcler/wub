@@ -697,7 +697,7 @@ namespace eval ::Nub {
 	    Debug.nub {gen_rewrites url:'$url' name:'$name'}
 	    append rewriting [string map [list %URL% $url %N% $name] {{%URL%} {
 		set url [{*}$defs(%N%) $r]
-		Debug.nub {rewrite: '%URL%' -> '$url'}
+		Debug.nub {rewrite: '[tclarmour %URL%]' -> '$url'}
 		lappend rw_transforms {%URL%} $url
 	    }}] \n
 	}

@@ -1,7 +1,7 @@
 package require struct::tree
 package require csv
 package require Debug
-Debug off STX 10
+Debug define STX 10
 
 package provide stx 1.1
 

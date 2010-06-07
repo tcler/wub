@@ -1,6 +1,6 @@
 # Image.tcl - image utilities
 package require Debug
-Debug on image 10
+Debug define image 10
 
 package require Url
 package require Query

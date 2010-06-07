@@ -67,7 +67,9 @@ package require View
 
 package provide Session 3.1
 set ::API(Obsolete/Session) {
-    {Session manipulation - note, may be redundant now coroutines are available.}
+    {
+	Session manipulation - note, may be redundant now coroutines are available.
+    }
     dir {}
     file {session database (default session.db)}
     fields {fields in session view}

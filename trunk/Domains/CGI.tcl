@@ -6,7 +6,7 @@ namespace import oo::*
 
 package require Html
 package require Debug
-Debug on cgi 1000
+Debug define cgi 1000
 
 package provide CGI 1.0
 

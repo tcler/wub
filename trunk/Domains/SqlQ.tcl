@@ -105,7 +105,7 @@ namespace eval ::SqlQConvert {
 	    dict set content $n $el
 	    incr n
 	}
-	# Debug on Report 10
+
 	return [dict merge $r [list -content [Report html $content {*}$p] content-type x-text/html-fragment]]
     }
 
@@ -343,7 +343,6 @@ class create ::SqlQ {
 	dict set r -content $content
 
 	dict set r -params $params	;# send parameters to conversion
-	#Debug on convert 10
 	set r [::convert convert! $r $mime]
 	return $r
     }

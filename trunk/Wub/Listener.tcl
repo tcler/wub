@@ -17,7 +17,7 @@ package require OO
 package require Chan
 package require WubUtils
 package require Debug
-Debug off listener 10
+Debug define listener 10
 package provide Listener 2.0
 
 set ::API(Server/Listener) {

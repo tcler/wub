@@ -107,8 +107,9 @@ oo::class create TupleStore {
 
     # indices of tuples of given type
     method oftype {type} {
-	set stmt "SELECT id FROM tuples WHERE type == :type"
-	set result [my stmtL $stmt [list type $type]]
+	set result [my stmtL {
+	    SELECT id FROM tuples WHERE type == :type
+	} [list type $type]]
 	Debug.tuplestore {oftype '$type' -> ($result)}
 	return $result
     }
@@ -458,6 +459,7 @@ oo::class create TupleStore {
 	if {![llength [db tables tuples]]} {
 	    # we don't have a stick table - make one
 	    db allrows {
+		PRAGMA foreign_keys = on;
 		CREATE TABLE tuples (
 				     id INTEGER PRIMARY KEY AUTOINCREMENT,
 				     name TEXT UNIQUE NOT NULL COLLATE NOCASE,

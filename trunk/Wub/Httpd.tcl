@@ -8,11 +8,11 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 }
 
 package require Debug
-Debug off Httpd 10
-Debug off HttpdLow 10
-Debug off Watchdog 10
-Debug off Entity 10
-Debug on slow 10
+Debug define Httpd 10
+Debug define HttpdLow 10
+Debug define Watchdog 10
+Debug define Entity 10
+Debug define slow 10
 
 package require Listener
 package require Chan
@@ -1350,7 +1350,7 @@ namespace eval Httpd {
 	    # A server SHOULD return 414 (Requestuest-URI Too Long) status
 	    # if a URI is longer than the server can handle (see section 10.4.15).)
 	    variable maxurilen
-	    dict set r -uri [join [lrange $header 1 end-1]]	;# requested URL
+	    dict set r -uri [Url decode [join [lrange $header 1 end-1]]]	;# requested URL
 	    if {$maxurilen && [string length [dict get $r -uri]] > $maxurilen} {
 		# send a 414 back
 		handle [Http Bad $r "URI too long '[dict get $r -uri]'" 414] "URI too long"
@@ -1906,8 +1906,6 @@ namespace eval Httpd {
     }
 
     proc do {op req} {
-	#Debug on Httpd 10
-	#Debug on HttpdLow 10
 	if {[info commands ::wub] eq {}} {
 	    package require Mason
 	    Mason create ::wub -url / -root $::Site::docroot -auth .before -wrapper .after
@@ -2108,8 +2106,6 @@ namespace eval Httpd {
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
-
-Debug on block 10
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
     package require Stdin
