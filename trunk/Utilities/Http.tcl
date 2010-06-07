@@ -272,6 +272,11 @@ namespace eval Http {
 	return $r
     }
 
+    proc SaveAs {r filename} {
+	dict set r content-disposition "attachment; filename=$filename"
+	return $r
+    }
+
     # modify response to indicate that content is a file (NB: not working)
     proc File {rsp path {ctype ""}} {
 	set path [file normalize $path]
