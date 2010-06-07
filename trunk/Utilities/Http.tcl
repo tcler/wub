@@ -273,7 +273,7 @@ namespace eval Http {
     }
 
     proc SaveAs {r filename} {
-	dict set r content-disposition "attachment; filename=$filename"
+	dict set r content-disposition "attachment; filename=\"$filename\""
 	return $r
     }
 
