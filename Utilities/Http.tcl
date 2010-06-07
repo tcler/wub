@@ -290,6 +290,11 @@ namespace eval ::Http {
 	return $r
     }
 
+    proc ContentDisposition {r disposition filename} {
+	dict set r content-disposition "$disposition; filename=\"$filename\""
+	return $r
+    }
+
     # modify response to indicate that content is a file (NB: not working)
     proc File {rsp path {ctype ""}} {
 	set path [file normalize $path]
