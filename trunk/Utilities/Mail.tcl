@@ -8,6 +8,12 @@ package require mime
 
 package provide Mail 1.0
 
+set ::API(Utilities/Mail) {
+    {
+	Mail front-end for SMTP client
+    }
+}
+
 namespace eval ::Mail {
 
     proc check {email} {

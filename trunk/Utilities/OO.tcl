@@ -4,6 +4,12 @@ namespace import oo::*
 
 package provide OO 1.0
 
+set ::API(Utilities/OO) {
+    {
+	Helpers for TclOO - adds some nice to have functionality
+    }
+}
+
 proc ::oo::Helpers::classvar {name args} {
     set ns [info object namespace [uplevel 1 {self class}]]
     foreach v [list $name {*}$args] {

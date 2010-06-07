@@ -14,6 +14,12 @@ if {[catch {package require Debug}]} {
 package require parsetcl
 package provide Config 1.0
 
+set ::API(Utilities/Auth) {
+    {
+	Configuration parser
+    }
+}
+
 namespace eval ::parsetcl {
     proc unparse {tree} {
 	eval $tree

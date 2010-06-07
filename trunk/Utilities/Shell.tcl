@@ -19,6 +19,12 @@ namespace import oo::*
 
 package provide Shell 1.0
 
+set ::API(Utilities/Shell) {
+    {
+	Shell - Provides a tcl login shell to the running server
+    }
+}
+
 class create Shell {
     constructor {args} {
 	# prompt for input, collect it and return

@@ -3,6 +3,12 @@
 
 package provide UA 1.0
 
+set ::API(Utilities/UA) {
+    {
+	User Agent detection
+    }
+}
+
 namespace eval ::UA {
     source [file join [file dirname [info script]] browserL.tcl]
 

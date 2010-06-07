@@ -11,6 +11,13 @@ package require tdbc::sqlite3
 
 package provide Package 1.0
 
+set ::API(Utilities/Package) {
+    {
+	Package - provide a [[package]] work-alike with db backing
+    }
+}
+
+
 namespace eval ::tcl::package {
     variable Debug 1
     proc puts {args} {

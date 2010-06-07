@@ -50,7 +50,7 @@
 package require Tcl 8.6
 package provide magiclib 1.0
 
-namespace eval magic {
+namespace eval ::magic {
     variable debug 0
     variable optimise 1
 

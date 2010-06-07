@@ -10,6 +10,14 @@ package require md5
 
 package provide Http 2.1
 
+set ::API(Utilities/Http) {
+    {
+	HTTP response generator and reply analyser
+
+	Used to create HTTP responses in dict form.
+    }
+}
+
 proc Trace {{skip 1}} {
     set result {}
     for {set level [expr {[info level] - $skip}]} {$level >= 0} {incr level -1} {

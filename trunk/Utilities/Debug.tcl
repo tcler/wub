@@ -14,6 +14,12 @@
 
 package provide Debug 2.0
 
+set ::API(Utilities/Debug) {
+    {
+	Debug narrative generator
+    }
+}
+
 namespace eval ::Debug {
     variable detail
     variable level 0

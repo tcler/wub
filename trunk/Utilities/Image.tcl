@@ -9,8 +9,11 @@ package require Color
 package require fileutil
 
 package provide Image 1.0
-set API(Utilities/Image) {
-    {image support - conversions etc}
+
+set ::API(Utilities/Image) {
+    {
+	image utility - conversions etc
+    }
 }
 
 namespace eval ::Image {
