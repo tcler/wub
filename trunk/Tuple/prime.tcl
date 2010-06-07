@@ -1,17 +1,16 @@
 Basic {
     type Type
+
+    # a conversion's mime type is always tcl script
+    content {
+	# determine the mime type of result
+	set mime [my getmime [dict get? $r -tuple]]
+	return [Http Ok $r [dict get $r -content] $mime]
+    }
 }
 
 Conversion {
     type Type
-}
-
-Basic+Html {
-    type Conversion
-    content {
-	# at the moment, we'll assume Basic is Html
-	return [Http Ok $r [dict get $r -content] tuple/html]
-    }
 }
 
 "Tcl Script" {
@@ -361,6 +360,11 @@ Named+List {
     }
 }
 
+Javascript {
+    type Type
+    expiry tomorrow
+}
+
 Javascript+Html {
     type Conversion
     content {
@@ -373,6 +377,11 @@ Javascript+Head {
     content {
 	return [Http Ok $r [<script> [dict get $r -content]]] tuple/head]
     }
+}
+
+CSS {
+    type Type
+    expiry tomorrow
 }
 
 CSS+Html {
@@ -628,15 +637,23 @@ Uppercase+Text {
     }
 }
 
+# Uppercase type - shows transformations - any text is uppercased
 Uppercase {
     type Type
     content {
+	# this is called each time an Uppercase type tuple is processed
+	# for return to a client
 	return [Http Pass $r [string toupper [dict get $r -content]]]
     }
 }
 
 "Example Uppercase" {
     type Uppercase
+    content "this is uppercase"
+}
+
+"Example Uppercase2" {
+    mime Uppercase
     content "this is uppercase"
 }
 
@@ -772,6 +789,7 @@ Tests+Component {
 }
 
 "Creole+header" {
+    # this header applies to all creole tuples
     type Creole
     mime Template
     content {
@@ -780,6 +798,7 @@ Tests+Component {
 }
 
 "Creole+footer" {
+    # this footer applies to all creole tuples
     type Creole
     mime Template
     content {
@@ -822,4 +841,3 @@ Welcome {
 	{{Tests}}
     }
 }
-
