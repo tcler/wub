@@ -20,7 +20,7 @@ package require Debug
 Debug off listener 10
 package provide Listener 2.0
 
-set API(Server/Listener) {
+set ::API(Server/Listener) {
     {
 	Listener is a network server which listens for connection attempts and dispatches the connected socket to a handler.
 
@@ -49,7 +49,7 @@ set API(Server/Listener) {
     }
 }
 
-class create Listener {
+class create ::Listener {
     # accept --
     #
     #	This is the socket accept callback invoked by Tcl when
