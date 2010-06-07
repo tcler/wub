@@ -684,8 +684,13 @@ namespace eval Nub {
     
     # generate rewritingcode
     proc gen_rewrites {rewrites} {
+	variable defs
 	set rewriting ""
 	foreach {url name} $rewrites {
+	    if {[string match ^* $url] && ![string match ^http* [string tolower $url]]} {
+		set url "^http:[string range $url 1 end]"	;# rewrite to contain http prefix
+	    }
+	    Debug.nub {gen_rewrites url:'$url' name:'$name'}
 	    append rewriting [string map [list %URL% $url %N% $name] {{%URL%} {
 		set url [{*}$defs(%N%) $r]
 		Debug.nub {rewrite: '%URL%' -> '$url'}
@@ -700,6 +705,7 @@ namespace eval Nub {
 	set redirecting ""
 	foreach {from to} $redirects {
 	    set url [join [lassign $from host] /]
+	    Debug.nub {gen_redirects host:'$host' url:'$url' to:'$to'}
 	    append redirecting [string map [list %H% $host %U% $url %T% $to] {
 		"%H%,%U%" { Debug.nub {REDIR %U% -> %T%}; return [Http Redir $r %T%] }
 	    }] \n
@@ -906,9 +912,9 @@ namespace eval Nub {
 	    set rw_transforms {}
 	    set r [dict merge $r [Url parse [dict get $r -url]]]
 	    while {!$done && [incr count] < 30} {
-		Debug.nub {pre-RW //[dict get $r -host][dict get $r -path]}
 		set prior [Url url $r]
-		switch -regexp -- "//[dict get $r -host][dict get $r -path]" {
+		Debug.nub {pre-RW '$prior'}
+		switch -regexp -- "$prior" {
 		    %RW
 		    default {
 			set url [dict get $r -url]
@@ -1105,9 +1111,10 @@ namespace eval Nub {
 	}
     }
 
-    proc rewrite {url args} {
+    proc rewrite {url body} {
+	#puts stderr "RW: '$url' '$body'"
 	variable urls
-	dict set urls $url [list domain Rewrite body $args section $url]
+	dict set urls $url [list domain Rewrite body $body section $url]
     }
 
     proc block {url} {
