@@ -2,7 +2,7 @@
 
 package provide Color 1.0
 
-namespace eval Color {
+namespace eval ::Color {
     variable colors {
 	indianred CD5C5C lightcoral F08080 salmon FA8072
 	darksalmon E9967A lightsalmon FFA07A crimson DC143C

@@ -5,7 +5,7 @@
 
 package provide sgraph 1.0
 
-namespace eval sgraph {
+namespace eval ::sgraph {
     proc lpop _L {
 	upvar 1 $_L L
 	set L [lassign $L res]

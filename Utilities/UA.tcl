@@ -3,7 +3,7 @@
 
 package provide UA 1.0
 
-namespace eval UA {
+namespace eval ::UA {
     source [file join [file dirname [info script]] browserL.tcl]
 
     proc classify {ua} {

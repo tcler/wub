@@ -4,7 +4,7 @@ package provide record 1.0
 
 package require struct::set
 
-namespace eval record {
+namespace eval ::record {
     proc delta {from to} {
 	lassign [::struct::set intersect3 \
 		     [dict keys $from] \
@@ -43,7 +43,7 @@ namespace eval record {
     }
 }
 
-namespace eval record {
+namespace eval ::record {
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }

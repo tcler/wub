@@ -14,7 +14,7 @@
 
 package provide Debug 2.0
 
-namespace eval Debug {
+namespace eval ::Debug {
     variable detail
     variable level 0
     variable fds

@@ -215,7 +215,7 @@ namespace eval ::tcl::dict {
     ::unset x
 }
 
-namespace eval Dict {
+namespace eval ::Dict {
     # return a dict element, or {} if it doesn't exist
     proc get? {dict args} {
 	if {$args eq {}} {

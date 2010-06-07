@@ -11,7 +11,7 @@ package require Url
 
 Debug on scgi 10
 
-namespace eval Scgi {
+namespace eval ::Scgi {
 
     # listen - handle incoming connections
     proc listen {port} {

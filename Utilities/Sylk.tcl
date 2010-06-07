@@ -34,7 +34,7 @@
 
 package provide Sylk 1.0
 
-namespace eval Sylk {
+namespace eval ::Sylk {
 
     proc cell {sylk yx value} {
 	lassign [split $yx ,] y x

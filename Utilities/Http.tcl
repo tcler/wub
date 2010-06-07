@@ -65,7 +65,7 @@ proc translation {sock args} {
     Debug.socket {MODE: $rmode $wmode} 20
 }
 
-namespace eval Http {
+namespace eval ::Http {
     # HTTP error codes and default textual interpretation
     variable Errors
     array set Errors {

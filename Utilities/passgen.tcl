@@ -9,7 +9,7 @@
 
 package provide passgen 1.0
 
-namespace eval passgen {
+namespace eval ::passgen {
     # datasets for password generation:-
     # separate lowercase and UPPERCASE letters so we can demand minimum
     # number of each separately.

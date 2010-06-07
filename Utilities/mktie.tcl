@@ -18,7 +18,7 @@ package provide mktie 2.0
 # ### ### ### ######### ######### #########
 ## Implementation
 
-namespace eval mktie {
+namespace eval ::mktie {
     # ### ### ### ######### ######### #########
     ## API : Construction & Destruction
 
