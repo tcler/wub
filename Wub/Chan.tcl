@@ -8,7 +8,7 @@ Debug on connections 10
 package provide Chan 1.0
 
 # Chan.tcl - reflected channels
-class create IChan {
+class create ::IChan {
     # Event management.
     method blocking {mychan mode} {
 	if {[catch {
@@ -183,7 +183,7 @@ class create IChan {
     }
 }
 
-class create CaptureChan {
+class create ::CaptureChan {
     variable capture file fd
 
     method read {mychan n} {
@@ -229,7 +229,7 @@ class create CaptureChan {
     }
 }
 
-class create Socket {
+class create ::Socket {
     method socket {} {return $chan}
     method endpoints {} {return $endpoints}
 
