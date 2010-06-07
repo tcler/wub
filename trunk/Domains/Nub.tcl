@@ -654,7 +654,7 @@ namespace eval ::Nub {
 		# emit a single "package require" per domain.
 		incr defined($domain)
 		append definitions [string map [list %D% $domain] {
-		    if {[catch {package require $domain} e eo]} {
+		    if {[catch {package require %D%} e eo]} {
 			Debug.error {Couldn't load 'package %D%' - '$e' ($eo)}
 		    }
 		}]
