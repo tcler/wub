@@ -90,7 +90,7 @@ namespace eval ::Debug {
 		    set time ""
 		}
 		#puts $fd "$time$tag @@[regsub {([^[:print:]])} $result ^^^^^^^]"
-		puts $fd "$time$tag @@[string map {\n \\n} $result]"
+		puts $fd "$time$tag @@[string map {\n \\n \r ""} $result]"
 	    }
 	} else {
 	    #puts stderr "$tag @@@ $detail($tag) >= $level"
