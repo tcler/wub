@@ -31,6 +31,8 @@ package ifneeded Simplicio 1.0 [list source [file join $dir Simplicio.tcl]]
 package ifneeded Nub 1.0 [list source [file join $dir Nub.tcl]]
 package ifneeded BasicAuth 1.0 [list source [file join $dir BasicAuth.tcl]]
 package ifneeded Woof 1.0 [list source [file join $dir Woof.tcl]]
+package ifneeded WS::Wub 1.0 [list source [file join $dir WSDL.tcl]]
+package ifneeded Wsdl 1.0 [list source [file join $dir WSDL.tcl]]
 
 package ifneeded ReCAPTCHA 1.0 [list source [file join $dir ReCAPTCHA.tcl]]
 package ifneeded Tiny 1.0 [list source [file join $dir Tiny.tcl]]
