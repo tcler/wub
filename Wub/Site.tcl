@@ -790,11 +790,11 @@ namespace eval ::Site {
 	    }
 	} elseif {[dict exists $section redirect]} {
 	    dict with section {
-		Nub redirect $url {*}$redirect
+		Nub redirect $url $redirect
 	    }
 	} elseif {[dict exists $section rewrite]} {
 	    dict with section {
-		Nub rewrite $url {*}$rewrite
+		Nub rewrite [lindex $url 0] $rewrite
 	    }
 	} elseif {[dict exists $section auth]} {
 	    dict with section {
