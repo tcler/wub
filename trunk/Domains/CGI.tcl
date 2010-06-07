@@ -347,7 +347,7 @@ class create CGI {
 	cd [file dirname $script]
 
 	# execute the script
-	Debug.cgi {running: open "|$executor $script $arglist"}
+	Debug.cgi {running: open "|{*}$executor $script $arglist"}
 	if {[catch {
 	    # run the script under the executor
 	    open "|$executor $script $arglist <<[dict get? $r -entity] 2>@1" r
