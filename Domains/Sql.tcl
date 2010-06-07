@@ -277,6 +277,6 @@ if {0} {
     package require tdbc::sqlite3
     sqlite3 ::db_test $sqltestfile
     tdbc::sqlite3::connection create ::model $sqltestfile
-    Nub domain /model/all Sql db ::model sql "SELECT * FROM sources"
-    Nub domain /model/big Sql db ::model sql "SELECT * FROM sources WHERE size>:size"
+    Nub domain /model/all SqlT db ::model sql "SELECT * FROM sources"
+    Nub domain /model/big SqlT db ::model sql "SELECT * FROM sources WHERE size>:size"
 }
