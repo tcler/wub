@@ -7,13 +7,13 @@ Debug on sticky 10
 
 package provide Sticky 1.0
 
-set API(Domains/Sticky) {
+set ::API(Domains/Sticky) {
     {
 	A domain which adds a sticky note to any page using jQ
     }
 }
 
-class create Sticky {
+class create ::Sticky {
     # add a loader to the page
     method loader {r args} {
 	if {!$running} {
@@ -104,7 +104,7 @@ class create Sticky {
 
 	# create template with parameters pre-substituted
 	set template [string map [list %PARAMS% $p %SAVE% [file join $mount save]] {
-	    $.fn.stickynote.createNote({
+	    $.fn.stickyNotes.createNote({
 		id: 'ST%ID%',
 		text: '%TEXT%',
 		%PARAMS%

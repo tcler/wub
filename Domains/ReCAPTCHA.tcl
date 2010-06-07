@@ -9,7 +9,7 @@ Debug define recaptcha 10
 package require HTTP
 package provide ReCAPTCHA 1.0
 
-set API(Domains/ReCAPTCHA) {
+set ::API(Domains/ReCAPTCHA) {
     {ReCAPTCHA interface
 	=== Example: recaptcha on a page ===
 	Nub domain /rc/ {ReCAPTCHA ::rc} public YOUR_PUBLIC_KEY private YOUR_PRIVATE_KEY
@@ -27,7 +27,7 @@ set API(Domains/ReCAPTCHA) {
     }
 }
 
-class create ReCAPTCHA {
+class create ::ReCAPTCHA {
     
     method /validate {r id recaptcha_challenge_field recaptcha_response_field args} {
 	if {![dict exists $resumption $id]} {

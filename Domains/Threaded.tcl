@@ -16,7 +16,7 @@ package require Url
 
 package provide Threaded 1.0
 
-set API(Domains/Threaded) {
+set ::API(Domains/Threaded) {
     {
 	A domain which dispatches URL requests threads containing nominated domains.
 
@@ -36,7 +36,7 @@ set API(Domains/Threaded) {
     grace {how long to wait for response from thread -1 means forever (default 100000)}
 }
 
-class create Threaded {
+class create ::Threaded {
     # caught a background error in a thread
     method caught {args} {
     }

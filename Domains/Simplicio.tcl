@@ -10,7 +10,7 @@ package require fileutil
 package require Image
 
 package provide Simplicio 1.0
-set API(Domains/Simplicio) {
+set ::API(Domains/Simplicio) {
     {experimental SVG iconset}
 }
 

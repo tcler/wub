@@ -66,7 +66,7 @@ package require md5
 package require View
 
 package provide Session 3.1
-set API(Obsolete/Session) {
+set ::API(Obsolete/Session) {
     {Session manipulation - note, may be redundant now coroutines are available.}
     dir {}
     file {session database (default session.db)}
@@ -75,7 +75,7 @@ set API(Obsolete/Session) {
     cpath {session cookie path (default "/" - this default is a bad idea)}
 }
 
-namespace eval Session {
+namespace eval ::Session {
     variable dir ""
     variable db session.db	;# session database
     variable fields		;# fields in session view

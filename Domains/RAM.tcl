@@ -9,7 +9,7 @@ Debug define RAM 10
 
 package provide RAM 2.0
 
-set API(Domains/RAM) {
+set ::API(Domains/RAM) {
     {
 	in-RAM page store presenting a tcl array to a client with elements named by URL.
 
@@ -36,7 +36,7 @@ set API(Domains/RAM) {
     content_type {default content-type (default: x-text/html-fragment)}
 }
 
-class create RAM {
+class create ::RAM {
     variable ram mount content_type
 
     # get - gets keyed content only

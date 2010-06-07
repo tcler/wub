@@ -7,7 +7,7 @@ package provide jQ 1.0
 package provide JQ 1.0
 package require File
 
-set API(Domains/JQ) {
+set ::API(Domains/JQ) {
     {
 	jQ domain provides a tight integration to the jQuery web framework.  It enables the application to load jQuery plugins and modules (such as the jQuery UI module) in a convenient manner.
 
@@ -77,7 +77,7 @@ set API(Domains/JQ) {
     google {use the google versions of jQuery wherever possible}
 }
 
-namespace eval jQ {
+namespace eval ::jQ {
     variable root [file dirname [info script]]
     variable mount /jquery/
     variable expires 0

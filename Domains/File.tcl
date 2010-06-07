@@ -10,7 +10,7 @@ package require Mime
 package require Report
 package require jQ
 
-set API(Domains/File) {
+set ::API(Domains/File) {
     {
 	provides a traditional Web view for filesystem hierarchies, maping a URL suffix to a file system path.
 
@@ -30,7 +30,7 @@ set API(Domains/File) {
     sortparam {parameters for tablesorter}
 }
 
-class create File {
+class create ::File {
     method dir {req path args} {
 	Debug.file {dir over $path}
 	dict set files .. [list name [<a> href .. ..] type parent]

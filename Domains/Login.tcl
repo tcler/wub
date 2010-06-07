@@ -3,7 +3,7 @@
 package require TclOO
 namespace import oo::*
 
-set API(Domains/Login) {
+set ::API(Domains/Login) {
     {
 	Simple cookie-based login account management and is simultaneously a repository for field values keyed by user.  It is intended to be constructed under a [Direct] domain, as illustrated in the example below.
 
@@ -118,7 +118,7 @@ package require Cookies
 
 package provide Login 1.0
 
-class create Login {
+class create ::Login {
     variable account realm properties cookie age emptypass userF passF cpath domain forms keys jQ permissive autocommit new
 
     # fetch account record of logged-in user

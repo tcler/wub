@@ -22,13 +22,13 @@ Debug define SqlQ 10
 
 package provide SqlQ 1.0
 
-set API(Domains/SqlQ) {
+set ::API(Domains/SqlQ) {
     {
 	A domain to return contents of a tdbc by Sql SELECT
     }
 }
 
-namespace eval SqlQConvert {
+namespace eval ::SqlQConvert {
     # parameters handed to Report for html table generation
     variable params {
 	sepchar ,
@@ -113,7 +113,7 @@ namespace eval SqlQConvert {
     namespace ensemble create -subcommands {}
 }
 
-class create SqlQ {
+class create ::SqlQ {
     method selector {r vs} {
 	# use query to determine fieldset
 	set display_f {}

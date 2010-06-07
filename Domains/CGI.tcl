@@ -10,7 +10,7 @@ Debug on cgi 1000
 
 package provide CGI 1.0
 
-set API(Domains/CGI) {
+set ::API(Domains/CGI) {
     {
 	A traditional CGI interface
     }
@@ -21,7 +21,7 @@ set API(Domains/CGI) {
     whitelist {+list of environment variables to pass to CGI scripts}
 }
 
-class create CGI {
+class create ::CGI {
     variable fields executors mount root maxcgi cgi whitelist
 
     method env {r} {

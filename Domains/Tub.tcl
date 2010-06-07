@@ -3,7 +3,7 @@
 package require TclOO
 namespace import oo::*
 
-set API(Domains/Tub) {
+set ::API(Domains/Tub) {
     {
 	Domain for storage and retrieval of arbitrary form data
     }
@@ -25,7 +25,7 @@ package require Cookies
 
 package provide Tub 1.0
 
-class create Tub {
+class create ::Tub {
     variable view realm key properties cookie age permissive emptypass
     
     # get the data given by key
