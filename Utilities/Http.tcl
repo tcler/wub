@@ -280,6 +280,11 @@ namespace eval ::Http {
 	return $r
     }
 
+    proc Inline {r filename} {
+	dict set r content-disposition "inline; filename=\"$filename\""
+	return $r
+    }
+
     proc SaveAs {r filename} {
 	dict set r content-disposition "attachment; filename=\"$filename\""
 	return $r
