@@ -15,9 +15,9 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     lappend auto_path [pwd]
 }
 
-set API(Domains/Convert) {
+set ::API(Server/Convert) {
     {
-	Pseudo-Domain for performing content negotiation.
+	Component for performing content negotiation.
 
 	Convert attempts to convert content from the response content-type to something permitted by the accept request field by intercepting responses from -subdomains.
 
@@ -25,7 +25,7 @@ set API(Domains/Convert) {
     }
 }
 
-class create Convert {
+class create ::Convert {
     # Transform - add a single transform to the transformation graph
     method transform {from to args} {
 	set prefix ${from},$to
