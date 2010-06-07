@@ -17,7 +17,7 @@ set API(Domains/Icons) {
 namespace eval Icons {
     variable mount /icons/
     variable icons; array set icons {}
-    variable home [file dirname [file normalize [info script]]]
+    variable home [file join [file dirname [file normalize [info script]]] images]
 
     # map symbolic name to icon in array
     foreach {name icon} {
@@ -90,10 +90,10 @@ namespace eval Icons {
 	sq_right_green 001_59.gif
     } {
 	set ext [file extension $icon]
-	set icons($name$ext) [list [::fileutil::cat -translation binary [file join $home images $icon]] image/[string trim $ext .]]
+	set icons($name$ext) [list [::fileutil::cat -translation binary [file join $home $icon]] image/[string trim $ext .]]
     }
 
-    foreach file [glob [file join $home images ?*.*]] {
+    foreach file [glob [file join $home ?*.*]] {
 	set icon [file tail $file]
 	if {[string match .* $icon]} continue
 	if {![string match 001* $icon]} {
