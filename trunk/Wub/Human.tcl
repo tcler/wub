@@ -16,6 +16,10 @@ set ::API(Server/Human) {
     {
 	Attempts to distinguish browsers from bots on the questionable premise that bots never return cookies.  Hmmm.
     }
+    path {which url paths are to be detected/protected?  (default /)}
+    cookie {name of the cookie to plant (default human)}
+    expires {how long to leave the cookie in. (default "next year")}
+    logdir {which directory to write the human logfile into (default [pwd])}
 }
 
 namespace eval Human {
