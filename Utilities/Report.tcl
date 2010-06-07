@@ -10,6 +10,13 @@ package require Html
 
 package provide Report 1.0
 
+set ::API(Utilities/Report) {
+    {
+	Report generator - turns tcl dicts and csv strings into lovely HTML tables
+    }
+}
+
+
 namespace eval ::Report {
     variable defaults {
 	rc 0

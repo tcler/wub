@@ -8,6 +8,12 @@ package require Debug
 
 package provide Auth 1.0
 
+set ::API(Utilities/Auth) {
+    {
+	Facilities for HTTP Auth
+    }
+}
+
 namespace eval ::Auth {
     variable passwd	;# special purpose in-place passwd
     array set passwd {}
@@ -76,6 +82,6 @@ namespace eval ::Auth {
     namespace ensemble create -subcommands {}
 }
 
-set ::Auth::passwd(colin) MOOP
+#set ::Auth::passwd(colin) MOOP
 
 Debug on auth 10

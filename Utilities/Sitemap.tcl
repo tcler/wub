@@ -4,6 +4,12 @@ package require Html
 package require Http
 package provide Sitemap 1.0
 
+set ::API(Utilities/Sitemap) {
+    {
+	Sitemap - generates a site map for google et al.
+    }
+}
+
 namespace eval ::Sitemap {
     # wrap characters which offend HTML
     proc esc {string} {

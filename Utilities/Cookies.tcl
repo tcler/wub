@@ -8,7 +8,7 @@
 # Modification:
 # Wed, 31st Jan, 2007	Initial Release	Colin McCormack (colin at chinix dot com)
 
-set API(Utilities/Cookies) {
+set ::API(Utilities/Cookies) {
     {
 	Cookie handler utility.
 

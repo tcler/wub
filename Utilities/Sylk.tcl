@@ -34,6 +34,14 @@
 
 package provide Sylk 1.0
 
+set ::API(Utilities/Sylk) {
+    {
+	SYLK format reading/writing
+
+	Author: (c) Copyright 2003 LMS Deutschland GmbH Holger Zeinert
+    }
+}
+
 namespace eval ::Sylk {
 
     proc cell {sylk yx value} {

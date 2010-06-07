@@ -2,6 +2,12 @@
 
 package provide Color 1.0
 
+set ::API(Utilities/Color) {
+    {
+	Color manipulation utility
+    }
+}
+
 namespace eval ::Color {
     variable colors {
 	indianred CD5C5C lightcoral F08080 salmon FA8072

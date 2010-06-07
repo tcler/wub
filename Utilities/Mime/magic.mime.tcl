@@ -1,9 +1,9 @@
 package provide mime-magic 1.0
 package require magiclib
 
-namespace eval magic {}
+namespace eval ::magic {}
 
-proc magic::/magic.mime {} {
+proc ::magic::/magic.mime {} {
     switch -- [Nv I 0 ] 779248125 {emit audio/x-pn-realaudio} 442 {emit video/mpeg} 443 {emit video/mpeg} 432 {emit video/mp4v-es} 437 {emit video/mp4v-es} 435 {emit video/mpv} 324508366 {emit application/x-gdbm} 398689 {emit application/x-dbm} 235082497 {emit {Hierarchical Data Format \(version 4\) data}} 6656 {emit application/x-123} 512 {emit application/x-123} 834535424 {emit application/msword} 
     if {[S 0 == .RMF ]} {emit application/vnd.rn-realmedia}
     if {[S 0 == MAS_UTrack_V00 ]} {

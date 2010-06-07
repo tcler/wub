@@ -4,9 +4,15 @@ if {[info exists argv0] && ([info script] eq $argv0)} {
 }
 
 package require Debug
+Debug off query
+
 package provide Query 2.0
 
-Debug off query
+set ::API(Utilities/Query) {
+    {
+	Query - parse and manipulate HTML query strings
+    }
+}
 
 namespace eval ::Query {
     variable utf8 [expr {[catch {package require utf8}] == 0}]

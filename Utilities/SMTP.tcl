@@ -16,6 +16,12 @@ Debug off smtp 10
 
 package provide SMTP 3.0
 
+set ::API(Utilities/SMTP) {
+    {
+	SMTP client - for sending email
+    }
+}
+
 set ::SMTP_status {
     211 {System status, or system help reply}
     214 {Help message}

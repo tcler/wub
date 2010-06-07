@@ -9,6 +9,14 @@ package require Query
 package require know
 package provide Html 1.0
 
+set ::API(Utilities/Html) {
+    {
+	HTML tag soup generator
+
+	Provides tcl procedures for most HTML tags, and some specials.
+    }
+}
+
 alias tclarmour string map {\[ "&#x5B;" \] "&#x5D;" \{ "&#x7B;" \} "&#x7D;" $ "&#x24;"}
 
 interp alias {} armour {} string map [list &\# &\# & &amp\; < &lt\; > &gt\; \" &quot\; ' &\#39\;]

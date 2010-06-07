@@ -9,6 +9,14 @@
 
 package provide passgen 1.0
 
+set ::API(Utilities/passgen) {
+    {
+	password generator - generate a password according to the passgen_rules array
+
+	Author: Mark Oakden http:/wiki.tcl.tk/MNO
+    }
+}
+
 namespace eval ::passgen {
     # datasets for password generation:-
     # separate lowercase and UPPERCASE letters so we can demand minimum

@@ -53,6 +53,12 @@ package require Debug
 
 package provide Form 2.0
 
+set ::API(Utilities/Form) {
+    {
+	HTML Form generator
+    }
+}
+
 namespace eval ::Form {
     variable Fdefaults [dict create {*}{
 	textarea {compact 0}

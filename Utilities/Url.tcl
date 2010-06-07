@@ -12,6 +12,12 @@ catch {package require Dict}	;# no subset or assemble
 
 package provide Url 1.0
 
+set ::API(Utilities/Url) {
+    {
+	Url manipulation utility
+    }
+}
+
 namespace eval ::Url {
 
     # Support for x-www-urlencoded character mapping

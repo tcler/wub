@@ -6,7 +6,15 @@ Debug define mime 10
 package require mime-magic
 package provide Mime 1.0
 
-namespace eval Mime {
+set ::API(Utilities/Mime) {
+    {
+	Mime analysis - like unix [[file]] command
+
+	Identifies file types by inspection, maps .ext to mime type
+    }
+}
+
+namespace eval ::Mime {
     variable file_attributes 1	;# should we seek file attributes to tell us?
     variable home [file dirname [info script]]
     variable e2m {}
