@@ -730,6 +730,7 @@ namespace eval ::Site {
 	}
 
     }
+
     proc sectvar {expr} {
 	set expr [lindex $expr 0]
 	if {[string match {$*} $expr]} {
@@ -738,6 +739,7 @@ namespace eval ::Site {
 	    return $expr
 	}
     }
+
     proc section {sect section} {
 	if {[dict exists $section domain]} {
 	    if {![dict exists $section url]} {
@@ -798,7 +800,7 @@ namespace eval ::Site {
 	    }
 	} elseif {[dict exists $section auth]} {
 	    dict with section {
-		Nub auth $url {*}$auth
+		Nub auth [lindex $url 0] {*}$auth
 	    }
 	}
     }
