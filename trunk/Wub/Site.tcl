@@ -793,7 +793,7 @@ namespace eval ::Site {
 		} else {
 		    set mime [sectvar $mime]
 		}
-		Nub literal $url [lindex $literal 0] $mime
+		Nub literal $url [subst ?-nocommands? ?-novariables? [lindex $literal 0]] $mime
 	    }
 	} elseif {[dict exists $section redirect]} {
 	    dict with section {
