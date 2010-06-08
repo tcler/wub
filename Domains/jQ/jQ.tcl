@@ -329,7 +329,7 @@ namespace eval ::jQ {
 	if {$js ne "" || $script ne ""} {
 	    append js "\$(function()\{\n${script}\n\});"
 	    Debug.jq {WEAVE: $script}
-	    switch -- [Dict get? $args loader] {
+	    switch -- [dict get? $args loader] {
 		google {
 		    # the script needs google loader
 		    dict lappend r -google $script
@@ -493,7 +493,7 @@ namespace eval ::jQ {
 
     proc addtab {var name content} {
 	upvar 1 $var page
-	set id "FT[llength [Dict get? $page _]]"
+	set id "FT[llength [dict get? $page _]]"
 	dict set page $id $content
 	dict set page _ $id $name
     }
