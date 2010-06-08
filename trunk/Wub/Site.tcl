@@ -44,7 +44,8 @@ if {[llength [info command ::tcl::unsupported::yieldm]]} {
 }
 
 # keep track of sourced files - doesn't work on macosx
-if {[lindex [split [::platform::generic] -] 0] ni {macosx}} {
+package require platform
+if {[lindex [split [platform::generic] -] 0] ni {macosx}} {
     rename source source_org
     proc ::source {args} {
 	set fn [lindex $args end]
