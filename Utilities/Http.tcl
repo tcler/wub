@@ -801,17 +801,17 @@ namespace eval ::Http {
 	}
 
 	# discard some fields
-	Dict strip rsp transfer-encoding -chunked -content
+	set rsp [dict ni $rsp transfer-encoding -chunked -content]
 
 	# the response MUST NOT include other entity-headers
 	# than Date, Expires, Cache-Control, Vary, Etag, Content-Location
 	set result [dict filter $rsp key -*]
 
 	variable rq_headers
-	set result [dict merge $result [Dict subset $rsp $rq_headers]]
+	set result [dict merge $result [dict in $rsp [dict keys $rq_headers]]]
 
 	variable notmod_headers
-	set result [dict merge $result [Dict subset $rsp $notmod_headers]]
+	set result [dict merge $result [dict in [dict keys $notmod_headers]]]
 
 	# tell the other end that this isn't the last word.
 	if {0 && ![dict exists $result expires]
@@ -1033,8 +1033,7 @@ namespace eval ::Http {
 	}
 
 	# discard some fields
-	Dict strip reply transfer-encoding -chunked -content
-	return $reply
+	return [dict ni $reply transfer-encoding -chunked -content]
     }
 
     # find etag in if-match field
