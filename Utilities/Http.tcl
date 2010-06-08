@@ -280,16 +280,19 @@ namespace eval ::Http {
 	return $r
     }
 
+    # give the response an inline disposition
     proc Inline {r filename} {
 	dict set r content-disposition "inline; filename=\"$filename\""
 	return $r
     }
 
-    proc SaveAs {r filename} {
+    # give ther response an attachment disposition
+    proc Attachment {r filename} {
 	dict set r content-disposition "attachment; filename=\"$filename\""
 	return $r
     }
 
+    # give the response the nominate $disposition
     proc ContentDisposition {r disposition filename} {
 	dict set r content-disposition "$disposition; filename=\"$filename\""
 	return $r
