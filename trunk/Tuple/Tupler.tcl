@@ -26,7 +26,6 @@ package require Convert
 package require Http
 package require Html
 package require Url
-package require Dict
 package require fileutil
 
 package provide Tupler 1.0
