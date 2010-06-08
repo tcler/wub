@@ -341,20 +341,10 @@ namespace eval ::Http {
 	    dict set rsp content-type $ctype
 	}
 
-	# allow server caching
-	set rsp [Http Depends $rsp [file normalize $path]]
-
 	dict set rsp -code 200
 	dict set rsp -rtype CacheableFile
 
 	#catch {dict unset rsp -content}
-	return $rsp
-    }
-
-    # record a dependency in a response
-    proc Depends {rsp args} {
-	dict set rsp -dynamic 0
-	dict lappend rsp -depends {*}$args
 	return $rsp
     }
 
