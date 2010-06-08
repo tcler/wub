@@ -7,7 +7,6 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 
 package require fileutil
 package require Html
-package require Dict
 package require functional
 
 package provide Commenter 1.0
@@ -329,7 +328,11 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	set munge [Commenter munge $comments]
 	dict for {k v} $munge {
 	    puts $k
-	    puts [Dict keysorted $v]
+	    set result {}
+	    foreach key [lsort [dict keys $v]] {
+		lappend result $key [dict get $v $key]
+	    }
+	    puts $result
 	}
     }
 
