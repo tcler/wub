@@ -44,3 +44,5 @@ package ifneeded Alt 1.0 [list source [file join $dir Alt.tcl]]
 package ifneeded Threaded 1.0 [list source [file join $dir Threaded.tcl]]
 
 package ifneeded Introspect 1.0 [list source [file join $dir Introspect Introspect.tcl]]
+package ifneeded HtmTable 1.0 [list source [file join $dir Introspect HtmTable.tcl]]
+package ifneeded Indent 1.0 [list source [file join $dir Introspect Indent.tcl]]
