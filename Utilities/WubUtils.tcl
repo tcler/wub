@@ -1,6 +1,5 @@
 package require extend 1.0
 package require file
-package require Dict
 package require memoize
 package require Debug
 Debug define wubutils 10
