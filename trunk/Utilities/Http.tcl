@@ -298,7 +298,7 @@ namespace eval ::Http {
 	return $r
     }
 
-    # modify response to indicate that content is a file (NB: not working)
+    # content is a file
     proc File {rsp path {ctype ""}} {
 	set path [file normalize $path]
 	dict set rsp -file $path
@@ -321,7 +321,7 @@ namespace eval ::Http {
 	return $rsp
     }
 
-    # modify response to indicate that the content is a cacheable file
+    # content is a cacheable file
     proc CacheableFile {rsp path {ctype ""}} {
 	set path [file normalize $path]
 	dict set rsp -file $path
@@ -348,7 +348,7 @@ namespace eval ::Http {
 	return $rsp
     }
 
-    # modify an HTTP response to indicate that its contents may not be Cached
+    # contents may not be Cached
     proc NoCache {rsp} {
 	dict set rsp cache-control "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0"; # HTTP/1.1
 	dict set rsp expires "Sun, 01 Jul 2005 00:00:00 GMT"	;# deep past
@@ -360,7 +360,7 @@ namespace eval ::Http {
 	return $rsp
     }
 
-    # modify an HTTP response to indicate that its contents may be Cached
+    # contents may be Cached
     proc Cache {rsp {age 0} {realm ""}} {
 	if {[string is integer -strict $age]} {
 	    # it's an age
@@ -392,8 +392,7 @@ namespace eval ::Http {
 	return $rsp
     }
 
-    # Dynamic cache -modify an HTTP response to indicate
-    # that its contents, while cacheable, must be revalidated
+    # Dynamic cache - contents, while cacheable, must be revalidated
     proc DCache {rsp {age 0} {realm ""}} {
 	set rsp [Cache $rsp $age $realm]
 	if {[dict exists $rsp cache-control]} {
@@ -415,7 +414,7 @@ namespace eval ::Http {
 	return $rsp
     }
 
-    # modify an HTTP response to indicate that its contents is cacheable
+    # content is cacheable
     proc CacheableContent  {rsp mtime {content ""} {ctype ""}} {
 	# cacheable content must have last-modified
 	if {![dict exists $rsp last-modified]} {
