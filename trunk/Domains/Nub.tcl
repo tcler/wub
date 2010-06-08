@@ -728,7 +728,11 @@ namespace eval ::Nub {
 	if {[llength $blocking]} {
 	    set blocking [string map [list %B% [join $blocking " -\n"]] {
 		switch -glob -- [dict get $r -host],[dict get $r -path] {
-		    %B% { return [Block block [dict get $r -ipaddr] "Blocked by Nub [dict get $r -url] ([dict get? $r user-agent])"] }
+		    %B% {
+			set reason "Blocked by Nub [dict get $r -url] ([dict get? $r user-agent])"
+			Block block [dict get $r -ipaddr] $reason
+			return [Http Forbidden $r [<p> $reason]]
+		    }
 		    default {}
 		}
 	    }]
