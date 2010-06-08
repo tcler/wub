@@ -137,7 +137,7 @@ namespace eval Httpd {
 	dict set req -content "<ELIDED [string length [dict get? $req -content]]>"
 	dict set req -entity "<ELIDED [string length [dict get? $req -entity]]>"
 	dict set req -gzip "<ELIDED [string length [dict get? $req -gzip]]>"
-	
+
 	return [regsub {([^[:print:]])} $req .]
     }
 
@@ -279,7 +279,7 @@ namespace eval Httpd {
 	Debug.http {CE -encoding:[dict get? $args -encoding]}
 	if {![dict exists $reply -gzip]
 	    && ("gzip" in [dict get? $args -encoding])
-	    && ![string match image/* [dict get? $reply content-type]] 
+	    && ![string match image/* [dict get? $reply content-type]]
 	} {
 	    set reply [gzip_content $reply]
 	}
@@ -354,17 +354,17 @@ namespace eval Httpd {
 	if {[Http any-match $r $etag]} {
 	    # rfc2616 14.26 If-None-Match
 	    # If any of the entity tags match the entity tag of the entity
-	    # that would have been returned in the response to a similar 
-	    # GET request (without the If-None-Match header) on that 
-	    # resource, or if "*" is given and any current entity exists 
-	    # for that resource, then the server MUST NOT perform the 
-	    # requested method, unless required to do so because the 
+	    # that would have been returned in the response to a similar
+	    # GET request (without the If-None-Match header) on that
+	    # resource, or if "*" is given and any current entity exists
+	    # for that resource, then the server MUST NOT perform the
+	    # requested method, unless required to do so because the
 	    # resource's modification date fails to match that
 	    # supplied in an If-Modified-Since header field in the request.
 	    if {[string toupper [dict get $r -method]] in {"GET" "HEAD"}} {
-		# if the request method was GET or HEAD, the server 
+		# if the request method was GET or HEAD, the server
 		# SHOULD respond with a 304 (Not Modified) response, including
-		# the cache-related header fields (particularly ETag) of one 
+		# the cache-related header fields (particularly ETag) of one
 		# of the entities that matched.
 		Debug.cache {unmodified [dict get $r -uri]}
 		#counter $cached -unmod	;# count unmod hits
@@ -475,7 +475,7 @@ namespace eval Httpd {
 				} elseif {$to > $size || $to eq ""} {
 				    set to [expr {$size-1}]
 				}
-				
+
 				lappend range $from $to	;# remember range to send
 			    }
 
@@ -518,7 +518,7 @@ namespace eval Httpd {
 		    append header $hdr: " " [dict get $reply $hdr] \n
 		}
 	    }
-	    
+
 	    # format up and send each cookie
 	    if {[dict exists $reply -cookies]} {
 		Debug.cookies {Http processing: [dict get $reply -cookies]}
@@ -751,7 +751,7 @@ namespace eval Httpd {
 		# have something to send
 		Debug.Httpd {[info coroutine] no pending or $next doesn't follow $response}
 		unwritable	;# no point in trying to write
-		
+
 		if {[chan pending output $socket]} {
 		    # the client hasn't consumed our output yet
 		    # stop reading input until he does
@@ -764,7 +764,7 @@ namespace eval Httpd {
 		return 0
 	    }
 	    set response [expr {1 + $next}]	;# move to next response
-	    
+
 	    # respond to the next transaction in trx order
 	    # unpack and consume the reply from replies queue
 	    # remove this response from the pending response structure
@@ -899,7 +899,7 @@ namespace eval Httpd {
 	    Debug.error {Send discarded: satisfied duplicate ([rdump $r])}
 	    return {0 0}	;# duplicate response - just ignore
 	}
-
+    
 	# record the behaviour
 	logtransition SENT
 	variable crs
@@ -914,11 +914,11 @@ namespace eval Httpd {
 	} le leo]} {
 	    Debug.error {log error: $le ($leo)}
 	}
-
+    
 	# wire-format the reply transaction - messy
 	variable ce_encodings	;# what encodings do we support?
 	lassign [format4send $r -cache $cache -encoding $ce_encodings] r header content file empty cache range
-	set header "HTTP/1.1 $header" ;# add the HTTP signifier
+    	set header "HTTP/1.1 $header" ;# add the HTTP signifier
 
 	# record transaction reply and kick off the responder
 	# response has been collected and is pending output
@@ -948,7 +948,7 @@ namespace eval Httpd {
 	# having queued the response, we allow it to be sent on 'socket writable' event
 	writable
 
-	return [list 0 $cache]
+    	return [list 0 $cache]
     }
 
     # send --
@@ -1118,7 +1118,7 @@ namespace eval Httpd {
 		    # we've been reaped
 		    corovars satisfied ipaddr closing headering
 		    Debug.Watchdog {[info coroutine] Reaped - satisfied:($satisfied) unsatisfied:($unsatisfied) ipaddr:$ipaddr closing:$closing headering:$headering}
-		    
+
 		    terminate {*}$args
 		}
 
@@ -1200,7 +1200,7 @@ namespace eval Httpd {
 	Debug.HttpdLow {[info coroutine] get: '$line' [chan blocked $socket] [chan eof $socket]}
 	return $line
     }
-    
+
     # coroutine-enabled read
     proc read {socket size} {
     	# read a chunk of size bytes
@@ -1219,7 +1219,7 @@ namespace eval Httpd {
 	    Debug.HttpdLow {[info coroutine] eof in read}
 	    terminate "eof in reading entity - $size"	;# check the socket for closure
 	}
-	
+
 	# return the chunk
 	Debug.HttpdLow {[info coroutine] read: '$chunk'}
     	return $chunk
@@ -1238,7 +1238,7 @@ namespace eval Httpd {
 	    } else {
 		set value [join [lassign [split $line ":"] key] ":"]
 		set key [string tolower [string trim $key "- \t"]]
-		
+
 		if {[dict exists $r $key]} {
 		    dict append r $key ",$value"
 		} else {
@@ -1251,7 +1251,7 @@ namespace eval Httpd {
 	    if {$maxfield
 		&& [string length [dict get $r $key]] > $maxfield
 	    } {
-		handle [Http Bad $r "Illegal header: '[string range $line 0 20]...' [string length $dict get $r $key] is too long"] "Illegal Header - [string length [dict get $r $key]] is too long"
+		handle [Http Bad $r "Illegal header: '[string range $line 0 20]...' [string length [$dict get $r $key]] is too long"] "Illegal Header - [string length [dict get $r $key]] is too long"
 	    }
 	}
 
@@ -1488,7 +1488,7 @@ namespace eval Httpd {
 	    } elseif {[dict get $r -method] in {POST PUT}
 		      && ![dict exists $r content-length]} {
 		dict set r -te {}
-		
+
 		# this is a content-length driven entity transfer
 		# 411 Length Required
 		handle [Http Bad $r "Length Required" 411] "Length Required"
@@ -1611,6 +1611,9 @@ namespace eval Httpd {
 		}
 		#lassign result close cache
 		continue	;# go get the next request
+	    } elseif {[dict exists $r etag]} {
+		# move requested etag aside, so domains can provide their own
+		dict set $r -etag [dict get $r etag]
 	    }
 
 	    # process the request
@@ -1633,7 +1636,7 @@ namespace eval Httpd {
 			} else {
 			    set duration [dict get $rsp -suspend]
 			}
-			
+
 			Debug.Httpd {SUSPEND: $duration}
 			logtransition SUSPEND
 			grace $duration	;# response has been suspended
@@ -1643,13 +1646,13 @@ namespace eval Httpd {
 			# so we don't need to do anything more.
 			continue
 		    }
-		    
+
 		    # ok - return
 		    if {![dict exists $rsp -code]} {
 			set rsp [Http Ok $rsp]	;# default to OK
 		    }
 		}
-		
+
 		1 { # error - return the details
 		    set rsp [Http ServerError $r $rsp $eo]
 		}
@@ -1680,7 +1683,7 @@ namespace eval Httpd {
 			# set the grace duration as per request
 			set duration [dict get $rspp -suspend]
 		    }
-		    
+
 		    Debug.Httpd {SUSPEND in postprocess: $duration}
 		    grace $duration	;# response has been suspended for $duration
 		    continue
@@ -1779,7 +1782,7 @@ namespace eval Httpd {
 	} elseif {$rc == [catch continue]} {
 	    # Ignore - just consume the return code
 	    set rc 0
-	} elseif {$rc == [catch error]} {
+	} elseif {$rc == [catch error ""]} {
 	    Debug.error {every: $interval ($script) - ERROR: $result ($eo)}
 	}
 
@@ -1817,7 +1820,7 @@ namespace eval Httpd {
 	}
     }
 
-    variable reaper	;# array of hardline events 
+    variable reaper	;# array of hardline events
     proc reaper {} {
 	return
 	variable timeout
@@ -1875,7 +1878,7 @@ namespace eval Httpd {
     }
 
     proc post {r} {
-	# do per-connection postprocess (if any) 
+	# do per-connection postprocess (if any)
 	foreach c [dict get? $r -postprocess] {
 	    set r [{*}$c $r]
 	}
@@ -1884,7 +1887,7 @@ namespace eval Httpd {
 	foreach c [dict get? $r -convert] {
 	    set r [$c convert $r]
 	}
-	
+
 	# do default conversions
 	return [::convert convert $r]
     }
@@ -1939,6 +1942,19 @@ namespace eval Httpd {
 	return [do REQUEST $req]
     }
 
+    proc Forbid {sock} {
+	Debug.Httpd {Forbid $sock}
+	variable server_id
+	puts $sock "HTTP/1.1 403 Forbidden\r"
+	puts $sock "Date: [Http Now]\r"
+	puts $sock "Server: $server_id\r"
+	puts $sock "Connection: Close\r"
+	puts $sock "Content-Length: 0\r"
+	puts $sock \r
+	flush $sock
+	close $sock
+    }
+
     # connect - process a connection request
     proc Connect {sock ipaddr rport args} {
 	Debug.Httpd {Connect $sock $ipaddr $rport $args}
@@ -1948,18 +1964,18 @@ namespace eval Httpd {
 	} ns eo]} {
 	    # failed to connect.  This can be due to overconnecting
 	    Debug.error {connection error from $ipaddr:$rport - $ns ($eo)}
-	    
+
 	    variable exhaustion
 	    variable server_id
 	    set msg [dict get? [Http Unavailable {} "$ns ($eo)" $exhaustion] -content]
-		
+
 	    puts $sock "HTTP/1.1 503 Exhaustion\r"
 	    puts $sock "Date: [Http Now]\r"
 	    puts $sock "Server: $server_id\r"
 	    puts $sock "Connection: Close\r"
 	    puts $sock "Content-Length: [string length $msg]\r"
 	    puts $sock \r
-	    puts $sock -nonewline $msg
+	    puts -nonewline $sock $msg
 	    flush $sock
 	    close $sock
 	    return ""
@@ -1976,15 +1992,7 @@ namespace eval Httpd {
 		# check list of blocked ip addresses
 		if {[Block blocked? $ipaddr]} {
 		    # dump this connection with a minimum of fuss.
-		    variable server_id
-		    puts $sock "HTTP/1.1 403 Forbidden\r"
-		    puts $sock "Date: [Http Now]\r"
-		    puts $sock "Server: $server_id\r"
-		    puts $sock "Connection: Close\r"
-		    puts $sock "Content-Length: 0\r"
-		    puts $sock \r
-		    flush $sock
-		    close $sock
+		    Forbid $sock
 		    return
 		}
 	    }
@@ -1995,6 +2003,10 @@ namespace eval Httpd {
 		# unlimited, does it?
 		# OTOH, it may just be from a local cache, and the original
 		# ip address may come from a higher level protocol.
+		if {[Block blocked? $ipaddr]} {
+		    Forbid $sock
+		    return
+		}
 	    }
 	}
 
@@ -2049,7 +2061,7 @@ namespace eval Httpd {
 
 	variable activity
 	set activity($R) [clock milliseconds]	;# make creation a sign of activity
-		# this accounts for sockets created but not used.
+	# this accounts for sockets created but not used.
 	return $result
     }
 
