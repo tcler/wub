@@ -25,7 +25,7 @@ set ::API(Server/Human) {
 namespace eval Human {
     proc update {from to} {
 	variable logdir
-	::fileutil::appendToFile [file join $logdir human] "$from $to\n"
+	::fileutil::appendToFile [file join $logdir human] "$from [list $to]\n"
     }
 
     proc track {r} {
@@ -147,10 +147,16 @@ namespace eval Human {
 	variable {*}$args
 	if {![info exists tracker]} {
 	    # load in the human db
-	    catch {
+	    if {[catch {
 		set fn [file join $logdir human]
-		array set tracker [fileutil::cat $fn]
-		::fileutil::writeFile $fn [array get tracker]	;# compress back out
+		if {[file exists $fn]} {
+		    array set tracker [fileutil::cat $fn]
+		} else {
+		    array set tracker {}
+		}
+		::fileutil::writeFile -- $fn [array get tracker]	;# compress back out
+	    } e eo]} {
+		Debug.error {error writing out human file: $e ($eo)}
 	    }
 	}
 	return ::Human
