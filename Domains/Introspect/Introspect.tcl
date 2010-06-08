@@ -8,13 +8,9 @@ package require Indent
 # This namespace is a handler for the /introspect/ Direct domain.
 namespace eval Introspect {
 
-	variable first_time 1
-
     # -- /
     #
     proc / {r args} {
-		variable first_time
-		
         set content {
             <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
             <html>
@@ -22,7 +18,7 @@ namespace eval Introspect {
             <title>Server Introspect</title>
             </head>
             <body>
-		}
+	}
 		
 		append content {
             <h1>Server Introspection</h1>
@@ -42,7 +38,7 @@ namespace eval Introspect {
     # -- /imglib
     #
     proc /imglib {r size args} {
-		set path [file join [file dirname [lindex [package ifneeded Introspect [package present Introspect] ] 1] ] images ${size}]
+	set path [file join [file dirname [lindex [package ifneeded Introspect [package present Introspect] ] 1] ] images ${size}]
         set content "<center><h2>${size} Images</h2></center><hr>"
 		set cwd [pwd]
 		cd ${path}
@@ -60,13 +56,13 @@ namespace eval Introspect {
 		append content [${t} render]
 		${t} destroy
 		cd ${cwd}
-       return [Http Ok $r ${content}]
+	return [Http Ok [Http Cache $r] ${content}]
     }
     # -- /imglib
     #
     proc /images {r} {
 		set extra [split [dict get ${r} -extra] /]
-		set path [file join [file dirname [lindex [package ifneeded Introspect [package present Introspect] ] 1] ] images ${extra}]
+		set path [file join [file dirname [lindex [package ifneeded Introspect [package present Introspect] ] 1] ] images {*}${extra}]
 		return [Http CacheableFile $r ${path} text/html]
 	}
 
@@ -214,7 +210,7 @@ namespace eval Introspect {
 		
 		set ns [split [dict get ${r} -extra] /]
 		set content [dump_ns ${r} ${ns}]
-        return [Http Ok $r ${content}]
+		return [Http Ok $r ${content}]
 	}
 
 	proc GetNumCols { alist page_width } {
