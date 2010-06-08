@@ -46,21 +46,25 @@ if {[llength [info command ::tcl::unsupported::yieldm]]} {
 # keep track of sourced files - doesn't work on macosx
 package require platform
 if {[lindex [split [platform::generic] -] 0] ni {macosx}} {
+    set ::__source_log [file normalize [info script]]
     rename source source_org
     proc ::source {args} {
 	set fn [lindex $args end]
 	if {[lindex [file split $fn] end] ne "pkgIndex.tcl"} {
-	    set f [file normalize [lindex $args end]]
+	    set f [file normalize $fn]
 	    dict set ::Site::sourced [list source $f] $args
+	    lappend ::__source_log ${f}
 	    puts stderr "source $f"
 	}
 	return [uplevel source_org {*}$args]
     }
 
+    set ::__load_log {}
     rename load load_org
     proc ::load {args} {
 	set f [file normalize [lindex $args 0]]
 	dict set ::Site::sourced [list load $f] $args
+	lappend ::__load_log ${args}
 	puts stderr "load $f"
 	return [uplevel load_org {*}$args]
     }
