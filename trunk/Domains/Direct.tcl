@@ -56,7 +56,7 @@ class create ::Direct {
     variable namespace object class ctype mount wildcard methods
 
     method do_ns {rsp} {
-	Debug.direct {do direct ns:$namespace mount:$mount ctype:$ctype suffix:[dict get $rsp -suffix]}
+	Debug.direct {direct ns:$namespace mount:$mount ctype:$ctype suffix:'[dict get $rsp -suffix]'}
 	
 	# search for a matching command prefix
 	set cmd ""
@@ -72,7 +72,7 @@ class create ::Direct {
 	    }
 
 	    # there's no exact match, so trim cprefix and try again.
-	    Debug.direct {searching for ($cprefix) in '$namespace' among $probe}
+	    Debug.direct {searching for ($cprefix) in '$namespace' among '$probe'}
 	    lappend extra [lindex $cprefix end]		;# remember trailing part of url
 	    set cprefix [lrange $cprefix 0 end-1]	;# trim url and try again
 	}
