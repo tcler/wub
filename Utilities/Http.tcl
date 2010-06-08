@@ -330,6 +330,7 @@ namespace eval ::Http {
 	set mtime [file mtime $path]
 	dict set rsp -modified $mtime
 	dict set rsp last-modified [Date $mtime]
+	dict set rsp -dynamic 0	;# signal that we can cache this
 
 	# ensure the response has a mime-type
 	if {$ctype eq ""} {
@@ -368,7 +369,7 @@ namespace eval ::Http {
 		dict set rsp expires [Date [expr {[clock seconds] + $age}]]
 	    } else {
 		catch {dict unset rsp expires}
-		catch {dict inset rsp -expiry}
+		catch {dict unset rsp -expiry}
 	    }
 	} else {
 	    dict set rsp -expiry $age	;# remember expiry verbiage for caching
@@ -808,10 +809,10 @@ namespace eval ::Http {
 	set result [dict filter $rsp key -*]
 
 	variable rq_headers
-	set result [dict merge $result [dict in $rsp [dict keys $rq_headers]]]
+	set result [dict merge $result [dict in $rsp $rq_headers]]
 
 	variable notmod_headers
-	set result [dict merge $result [dict in [dict keys $notmod_headers]]]
+	set result [dict merge $result [dict in $notmod_headers]]
 
 	# tell the other end that this isn't the last word.
 	if {0 && ![dict exists $result expires]
