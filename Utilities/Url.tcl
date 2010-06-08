@@ -8,7 +8,6 @@ if {[catch {package require Debug}]} {
 }
 
 catch {package require Query}	;# reduced functionality - no redir
-catch {package require Dict}	;# no subset or assemble
 
 package provide Url 1.0
 
@@ -378,41 +377,6 @@ namespace eval ::Url {
 	dict set x -url [url $x]
 	dict set x -uri [uri $x]
 	return $x
-    }
-
-    # subset a dict's URL relevant elements
-    proc subset {dict args} {
-	if {$args eq {}} {
-	    set args {-scheme -authority -host -port -query -fragment -path -url -uri}
-	}
-	return [Dict subset $dict {*}$args]
-    }
-
-    # assemble: given a dict containing URL components, assemble a URL
-    # optionally remove some extraneous fields
-    proc assemble {dict args} {
-	if {$args eq {}} {
-	    set args {-fragment -authority -query}
-	}
-	catch {Dict defaults dict -scheme http}
-	catch {Dict strip dict {*}$strip}	;# remove extraneous fields
-	dict with [Dict trimkey [subset $dict]] {
-	    set result ${scheme}://
-	    if {[info exists authority]} {
-		append result $authority
-	    }
-	    append result $host
-	    if {[info exists port]} {
-		append result :$port
-	    }
-	    append result "/[string trimleft $path /]"
-	    if {[info exists query]} {
-		append result "?$query"
-	    }
-	    if {[info exists fragment]} {
-		append result "\#$fragment"
-	    }
-	}
     }
 
     namespace export -clear *
