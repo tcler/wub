@@ -18,12 +18,10 @@ set ::API(Server/Block) {
 }
 
 namespace eval Block {
-    variable blocked; array set blocked {}
-    variable logdir ""
-
     proc block {ipaddr {reason ""}} {
 	variable blocked
-	if {[Http nonRouting? $ipaddr]} {
+	variable local
+	if {!$local && [Http nonRouting? $ipaddr]} {
 	    Debug.block {Can't BLOCK local: $ipaddr $reason}
 	} else {
 	    set blocked($ipaddr) [list [clock seconds] $reason]
@@ -35,7 +33,8 @@ namespace eval Block {
 
     proc blocked? {ipaddr} {
 	variable blocked
-	if {[Http nonRouting? $ipaddr]} {
+	variable local
+	if {!$local && [Http nonRouting? $ipaddr]} {
 	    return 0
 	}
 	return [info exists blocked($ipaddr)]
@@ -51,9 +50,13 @@ namespace eval Block {
     }
 
     proc new {args} {
+	variable logdir ""
+	variable local 0
+
 	variable {*}$args
 	variable blocked
-	variable logdir
+	variable blocked; array set blocked {}
+
 	if {![info exists blocked]} {
 	    catch {
 		array set blocked [fileutil::cat [file join $logdir blocked]]
