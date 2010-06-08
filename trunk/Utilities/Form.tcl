@@ -109,7 +109,7 @@ namespace eval ::Form {
 		dict set config id F[incr uniqID]
 	    }
 	}
-	set content "<[attr fieldset [Dict subset $config $fieldsetA]]>\n"
+	set content "<[attr fieldset [dict in $config $fieldsetA]]>\n"
 	if {[dict exists $config legend]} {
 	    append content [<legend> [dict get $config legend]] \n
 	}
@@ -129,7 +129,7 @@ namespace eval ::Form {
 		dict set config id F[incr uniqID]
 	    }
 	}
-	set content "<[attr form [Dict subset $config $formA]]>\n"
+	set content "<[attr form [dict in $config $formA]]>\n"
 	if {[dict exists $config legend]} {
 	    append content [<legend> [dict get $config legend]] \n
 	}
@@ -201,7 +201,7 @@ namespace eval ::Form {
 		}
 		set tabular $otab	;# restore old tabular value
 
-		return "<[attr %T% [Dict subset $config $%T%A]]>$content</%T%>"
+		return "<[attr %T% [dict in $config $%T%A]]>$content</%T%>"
 	    }
 	}]
     }
@@ -212,7 +212,7 @@ namespace eval ::Form {
 		variable %T%A
 		variable Fdefaults
 		set config [dict merge [dict get? $Fdefaults %T%] [lrange $args 0 end-1]]
-		return "<[attr %T% [Dict subset $config $%T%A]]>[uplevel 1 [list subst [lindex $args end]]]</%T%>"
+		return "<[attr %T% [dict in $config $%T%A]]>[uplevel 1 [list subst [lindex $args end]]]</%T%>"
 	    }
 	}]
     }
@@ -237,7 +237,7 @@ namespace eval ::Form {
 
 	set content [uplevel 1 [list subst $content]]
 
-	set result "<[attr select [Dict subset $config $selectA]]>$content</select>"
+	set result "<[attr select [dict in $config $selectA]]>$content</select>"
 
 	if {[dict exists $config title]} {
 	    set title [list title [dict get $config title]]
@@ -296,7 +296,7 @@ namespace eval ::Form {
 		    }
 		}
 
-		return "<[attr %T% [Dict subset $config $%T%A]]>$content</%T%>"
+		return "<[attr %T% [dict in $config $%T%A]]>$content</%T%>"
 	    }
 	}]
     }
@@ -339,7 +339,7 @@ namespace eval ::Form {
 	    set title [list title $title]
 	    dict unset config title
 	}
-	set result "<[attr textarea [Dict subset $config $textareaA]]>$content</textarea>"
+	set result "<[attr textarea [dict in $config $textareaA]]>$content</textarea>"
 
 	set label [dict get? $config label]
 	variable tabular
@@ -421,7 +421,7 @@ namespace eval ::Form {
 	}
 
 	variable buttonA
-	return "<[attr button [Dict subset $config $buttonA]]>$content</button>"
+	return "<[attr button [dict in $config $buttonA]]>$content</button>"
     }
     
     foreach {itype attrs field} {
@@ -463,7 +463,7 @@ namespace eval ::Form {
 		    }
 		}
 
-		set result "<[attr input [Dict subset $config $%A%A]]>"
+		set result "<[attr input [dict in $config $%A%A]]>"
 
 		set label [dict get? $config label]
 		variable tabular
@@ -582,7 +582,7 @@ namespace eval ::Form {
 		    dict set config id F[incr uniqID]
 		}
 		set id [dict get $config id]
-		set result "<[attr input [Dict subset $config $boxA]]>$content"
+		set result "<[attr input [dict in $config $boxA]]>$content"
 		if {[dict exists $config label]
 		    && [dict get $config label] ne ""
 		} {
