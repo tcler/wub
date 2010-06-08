@@ -42,3 +42,5 @@ package ifneeded Dhcpp 1.0 [list source [file join $dir Dhcpp.tcl]]
 package ifneeded SqlQ 1.0 [list source [file join $dir SqlQ.tcl]]
 package ifneeded Alt 1.0 [list source [file join $dir Alt.tcl]]
 package ifneeded Threaded 1.0 [list source [file join $dir Threaded.tcl]]
+
+package ifneeded Introspect 1.0 [list source [file join $dir Introspect Introspect.tcl]]
