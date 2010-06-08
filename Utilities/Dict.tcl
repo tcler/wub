@@ -192,42 +192,6 @@ namespace eval ::tcl::dict {
 	return [::list $d1 $del $d2]
     }
 
-    if {0} {
-	# [dict_project $keys $dict] extracts the specified keys in $args from the $dict
-	# and returns a plain old list-of-values.
-	proc project {dict args} {
-	    set result {}
-	    foreach k $args {
-		lappend result [dict get $dict $k]
-	    }
-	    return $result
-	}
-
-	# [dict_select $keys $dicts] does the same thing to a list-of-dicts, returning a list-of-lists.
-	proc select {keys args} {
-	    return [map [list dict project $keys] $args]
-	}
-    }
-
-    foreach x {get? witharray equal apply capture nlappend in ni list diff} {
-	namespace ensemble configure dict -map [linsert [namespace ensemble configure dict -map] end $x ::tcl::dict::$x]
-    }
-    ::unset x
-}
-
-namespace eval ::Dict {
-    # return a dict element, or {} if it doesn't exist
-    proc get? {dict args} {
-	if {$args eq {}} {
-	    return {}
-	}
-	if {[dict exists $dict {*}$args]} {
-	    return [dict get $dict {*}$args]
-	} else {
-	    return {}
-	}
-    }
-
     # set a dict element, only if it doesn't already exist
     proc set? {var args} {
 	upvar 1 $var dvar
@@ -249,6 +213,42 @@ namespace eval ::Dict {
 	set name [lrange $args 0 end-1]
 	if {[dict exists $dvar {*}$name]} {
 	    dict unset dvar $name
+	}
+    }
+
+    if {0} {
+	# [dict_project $keys $dict] extracts the specified keys in $args from the $dict
+	# and returns a plain old list-of-values.
+	proc project {dict args} {
+	    set result {}
+	    foreach k $args {
+		lappend result [dict get $dict $k]
+	    }
+	    return $result
+	}
+
+	# [dict_select $keys $dicts] does the same thing to a list-of-dicts, returning a list-of-lists.
+	proc select {keys args} {
+	    return [map [list dict project $keys] $args]
+	}
+    }
+
+    foreach x {get? set? unset? witharray equal apply capture nlappend in ni list diff} {
+	namespace ensemble configure dict -map [linsert [namespace ensemble configure dict -map] end $x ::tcl::dict::$x]
+    }
+    ::unset x
+}
+
+namespace eval ::Dict {
+    # return a dict element, or {} if it doesn't exist
+    proc get? {dict args} {
+	if {$args eq {}} {
+	    return {}
+	}
+	if {[dict exists $dict {*}$args]} {
+	    return [dict get $dict {*}$args]
+	} else {
+	    return {}
 	}
     }
 
