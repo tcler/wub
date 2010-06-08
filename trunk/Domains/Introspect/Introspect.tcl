@@ -65,7 +65,7 @@ namespace eval Introspect {
     # -- /imglib
     #
     proc /images {r} {
-		set extra [dict get ${r} -extra]
+		set extra [split [dict get ${r} -extra] /]
 		set path [file join [file dirname [lindex [package ifneeded Introspect [package present Introspect] ] 1] ] images ${extra}]
 		return [Http CacheableFile $r ${path} text/html]
 	}
@@ -212,7 +212,7 @@ namespace eval Introspect {
     #
     proc /ns {r args} {
 		
-		set ns [dict get ${r} -extra]
+		set ns [split [dict get ${r} -extra] /]
 		set content [dump_ns ${r} ${ns}]
         return [Http Ok $r ${content}]
 	}
