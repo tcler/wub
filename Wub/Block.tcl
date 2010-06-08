@@ -24,13 +24,13 @@ namespace eval Block {
     proc block {ipaddr {reason ""}} {
 	variable blocked
 	if {[Http nonRouting? $ipaddr]} {
-	    Debug.block {Can't BLOCK: $ipaddr $reason as it's local}
-	    return
+	    Debug.block {Can't BLOCK local: $ipaddr $reason}
+	} else {
+	    set blocked($ipaddr) [list [clock seconds] $reason]
+	    variable logdir
+	    ::fileutil::appendToFile [file join $logdir blocked] "$ipaddr [list $blocked($ipaddr)]\n"
+	    Debug.block {BLOCKING: $ipaddr $reason}
 	}
-	set blocked($ipaddr) [list [clock seconds] $reason]
-	variable logdir
-	::fileutil::appendToFile [file join $logdir blocked] "$ipaddr [list $blocked($ipaddr)]\n"
-	Debug.block {BLOCKING: $ipaddr $reason}
     }
 
     proc blocked? {ipaddr} {
