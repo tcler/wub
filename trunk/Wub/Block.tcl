@@ -2,6 +2,8 @@
 
 package require fileutil
 package require Http
+package require Debug
+Debug define block 10
 
 package provide Block 2.0
 catch {rename Block {}}	;# remove Block placeholder
@@ -35,8 +37,12 @@ namespace eval Block {
 	variable blocked
 	variable local
 	if {!$local && [Http nonRouting? $ipaddr]} {
+	    if {[info exists blocked($ipaddr)]} {
+		Debug.block {$ipaddr not blocked because it's local}
+	    }
 	    return 0
 	}
+	Debug.block {$ipaddr blocked? [info exists blocked($ipaddr)]}
 	return [info exists blocked($ipaddr)]
     }
 
