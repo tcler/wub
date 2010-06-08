@@ -1,16 +1,16 @@
 package provide Introspect 1.0
 
-package require TclOO
+package require OO
 package require HtmTable
 package require Indent
 
 # -- Introspect
 # This namespace is a handler for the /introspect/ Direct domain.
-namespace eval Introspect {
+class create Introspect {
 
     # -- /
     #
-    proc / {r args} {
+    method / {r args} {
         set content {
             <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
             <html>
@@ -37,8 +37,9 @@ namespace eval Introspect {
 
     # -- /imglib
     #
-    proc /imglib {r size args} {
-	set path [file join [file dirname [lindex [package ifneeded Introspect [package present Introspect] ] 1] ] images ${size}]
+    method /imglib {r size args} {
+	variable home
+	set path [file join $home images ${size}]
         set content "<center><h2>${size} Images</h2></center><hr>"
 		set cwd [pwd]
 		cd ${path}
@@ -46,7 +47,7 @@ namespace eval Introspect {
 		set col 1
 		set maxcol 8
 		foreach name [lsort -dictionary [glob *.png]] {
-			${t} cell "[CreateImg "${size}/${name}"]<p>${name}" incr -no-armour align=center
+			${t} cell "[my CreateImg "${size}/${name}"]<p>${name}" incr -no-armour align=center
 			if { ${col} > ${maxcol} } {
 				${t} row incr
 				set col 0
@@ -60,15 +61,16 @@ namespace eval Introspect {
     }
     # -- /imglib
     #
-    proc /images {r} {
+    method /images {r} {
 		set extra [split [dict get ${r} -extra] /]
-		set path [file join [file dirname [lindex [package ifneeded Introspect [package present Introspect] ] 1] ] images {*}${extra}]
+		variable home
+		set path [file join $home images {*}${extra}]
 		return [Http CacheableFile $r ${path} text/html]
 	}
 
     # -- /pkg
     #
-    proc /pkg {r args} {
+    method /pkg {r args} {
 		# display stuff loaded using the 'load' command
         set content "<h3>These are items that were loaded using the 'load' command.<br>(listed in the order they were loaded)</h3>"
 		set t [HtmTable new "border='1'"]
@@ -99,18 +101,18 @@ namespace eval Introspect {
 
     # -- /pkg/view
     #
-    proc /pkg/view {r path args} {
+    method /pkg/view {r path args} {
 		set content "<h3>SOURCE: ${path}</h3>"
 		set fid [open ${path} r]
 		set raw [read ${fid}]
 		close ${fid}
-		append content "<pre>[CleanCode ${raw} 0]</pre>"
+		append content "<pre>[my CleanCode ${raw} 0]</pre>"
         return [Http Ok $r ${content}]
 	}
 
 	# --
 	#
-	proc CreateImg { img args } {
+	method CreateImg { img args } {
 		set attrs [dict create border 0]
 		append content "<img src='images/${img}'"
 		foreach arg ${args} {
@@ -127,19 +129,19 @@ namespace eval Introspect {
 
 	# --
 	#
-	proc CreateImgLink { img href args } {
+	method CreateImgLink { img href args } {
 		set attrs [dict create border 0]
 		set imglnk "<a href='${href}'>"
-		append imglnk [CreateImg ${img} ${args}]
+		append imglnk [my CreateImg ${img} ${args}]
 		append imglnk "</a>"
 		return ${imglnk}
 	}
 
     # -- /map
     #
-    # This proc displays the contents of the nubs ::Nub::urls variable.
+    # This method displays the contents of the nubs ::Nub::urls variable.
     #
-    proc /map {r args} {
+    method /map {r args} {
 		set content "<h3>URL to Domain mappings</h3>"
 		set names {{pattern url} domain body section}
 		set t [HtmTable new "border='1'" -map ${names} -headers]
@@ -157,19 +159,20 @@ namespace eval Introspect {
 
     # -- /req
     #
-    # This proc displays the content of the current request.
+    # This method displays the content of the current request.
     #
-    proc /req {r args} {
+    method /req {r args} {
 		if { [dict get ${r} -extra] eq "help" } {
-			set path [file join [file dirname [lindex [package ifneeded Introspect [package present Introspect] ] 1] ] help request_dict.html]
+		    variable home
+			set path [file join $home help request_dict.html]
 			return [Http CacheableFile $r ${path} text/html]
 		}
-        return [Http Ok $r [dump_req ${r}]]
+        return [Http Ok $r [my dump_req ${r}]]
     }
 
     # -- req_help
     #
-    proc req_help { } {
+    method req_help { } {
 		set help {
 		
 
@@ -178,11 +181,11 @@ namespace eval Introspect {
 
     # -- dump_req
     #
-    # This proc displays the content of the current request dict.
+    # This method displays the content of the current request dict.
     #
-    proc dump_req { r } {
+    method dump_req { r } {
         set keys [lsort -dictionary [dict keys ${r}]]
-        append content "</br><h2>CURRENT REQUEST [CreateImgLink 16x16/About.png req/help]</h2>"
+        append content "</br><h2>CURRENT REQUEST [my CreateImgLink 16x16/About.png req/help]</h2>"
 		append content {<p>
 		The table below conatins the contents of the request that is
 		currently being processed. For more information about the
@@ -204,16 +207,16 @@ namespace eval Introspect {
 
     # -- /ns
     #
-    # This proc displays the content of a namespace.
+    # This method displays the content of a namespace.
     #
-    proc /ns {r args} {
+    method /ns {r args} {
 		
 		set ns [split [dict get ${r} -extra] /]
-		set content [dump_ns ${r} ${ns}]
+		set content [my dump_ns ${r} ${ns}]
 		return [Http Ok $r ${content}]
 	}
 
-	proc GetNumCols { alist page_width } {
+	method GetNumCols { alist page_width } {
 		set maxwidth 0
 		if { [llength ${alist}] == 0 } { return 1 }
 		foreach a ${alist} {
@@ -225,7 +228,7 @@ namespace eval Introspect {
 		return [expr floor(${page_width}/${maxwidth})]
 	}
 
-	proc GetCommandType { cmd } {
+	method GetCommandType { cmd } {
 		set cmd [string trimleft ${cmd} :]
 		set x "{[regsub -all {::} ${cmd} "} {"]}"
 		set ns ::[lrange "{[regsub -all {::} ${cmd} "} {"]}" 0 end-1]
@@ -256,8 +259,8 @@ namespace eval Introspect {
 		return "builtin"
 	}
 
-	proc GetCommandLink { cmd {prefix ""} } {
-		set ctype [GetCommandType ${cmd}]
+	method GetCommandLink { cmd {prefix ""} } {
+		set ctype [my GetCommandType ${cmd}]
 		if { ${prefix} ne "" } {
 			set prefix "{${ctype}}"
 		}
@@ -288,7 +291,7 @@ namespace eval Introspect {
 	
     # -- dump_ns
     #
-    proc dump_ns {r NS} {
+    method dump_ns {r NS} {
 
 		set ns ${NS}
 		if { [string equal -length 2 ${NS} "::"] == 0 } {
@@ -314,7 +317,7 @@ namespace eval Introspect {
         append content "<h3>CHILD NAMESPACES</h3>"
 		set alist ""
 		set clist [lsort -dictionary [namespace children ${ns}]]
-		set numcols [GetNumCols ${clist} 120]
+		set numcols [my GetNumCols ${clist} 120]
 		foreach k ${clist} {
 			lappend alist "<a href='${k}'>[xmlarmour ${k}]</a>"
 		}
@@ -330,13 +333,13 @@ namespace eval Introspect {
         append content "<h3> COMMANDS </h3>"
 		set alist ""
 		set alist [lsort -dictionary [info commands ${pat}]]
-		set numcols [GetNumCols ${alist} 100]
+		set numcols [my GetNumCols ${alist} 100]
 		if { ${alist} eq "" } {
 			append content "<p>&nbsp;&nbsp;&nbsp;&nbsp;{NONE}</p>"
 		} else {
 			set hlist ""
 			foreach k ${alist} {
-				lappend hlist [GetCommandLink ${k} prefix]
+				lappend hlist [my GetCommandLink ${k} prefix]
 			}
 			set t [HtmTable new "border='1'"]
 			append content [${t} list2table ${hlist} ${numcols} no_armour]
@@ -379,7 +382,7 @@ namespace eval Introspect {
         return ${content}
     }
 
-	proc CleanCode { code {inset 1} } {
+	method CleanCode { code {inset 1} } {
 		set str ${code}
 		set str [Indent code ${str} -inset ${inset}]
 		set str [string map {"\t" {    }} ${str}]
@@ -388,26 +391,26 @@ namespace eval Introspect {
 	
     # -- /ns/cmd
     #
-    proc /ns/cmd {r args} {
+    method /ns/cmd {r args} {
 		set a [dict create {*}${args}]
 		set name [dict get ${a} name]
 		set cargs [info args ${name}]
 		set content "<h2> COMMAND ([armour ${name}])</h2>"
-		append content "<pre><font color='red'>proc</font>&nbsp;[armour [string trimleft ${name} :]]&nbsp;{&nbsp;${cargs}}&nbsp;{ [CleanCode [info body ${name}]]\n}</pre>"		
+		append content "<pre><font color='red'>proc</font>&nbsp;[armour [string trimleft ${name} :]]&nbsp;{&nbsp;${cargs}}&nbsp;{ [my CleanCode [info body ${name}]]\n}</pre>"		
         return [Http Ok $r ${content}]
 	}
 
-	proc GetClassMethodDef {class method} {
+	method GetClassMethodDef {class method} {
 		# check for method in the object first
 		if { [catch {info class definition ${class} ${m}} def] == 0 } {
 			lassign ${def} params body
-			return "<pre><font color='red'>method</font> [armour ${method}] { [armour ${params}] } { [CleanCode ${body}]\n    }</pre>"
+			return "<pre><font color='red'>method</font> [armour ${method}] { [armour ${params}] } { [my CleanCode ${body}]\n    }</pre>"
 		} elseif { [catch {info class forward ${class} ${m}} def] == 0 } {
 			return "<pre><font color='red'>forward</font> [armour ${method}] { ${def} }</pre>"
 		} elseif { ${method} in [info class methods ${class} -all] } {
 			if { [catch {info class definition ${class} ${method}} def] == 0 } {
 				lassign ${def} params body
-				set content "<pre><font color='red'>method</font> [armour ${method}] { [armour ${params}] } { [CleanCode ${body}]\n    }</pre>"
+				set content "<pre><font color='red'>method</font> [armour ${method}] { [armour ${params}] } { [my CleanCode ${body}]\n    }</pre>"
 				return ${content}
 			} else {
 				return "<pre><font color='red'>method</font> [armour ${method}] { <font color='red'>OPAQUE</font> }</pre>"
@@ -419,7 +422,7 @@ namespace eval Introspect {
 	
     # -- /ns/class
     #
-    proc /ns/class {r args} {
+    method /ns/class {r args} {
 		set a [dict create {*}${args}]
 		set obj [dict get ${a} obj]
 
@@ -430,7 +433,7 @@ namespace eval Introspect {
 			append content "{NONE}"
 		} else {
 			foreach c ${instances} {
-				lappend clist [GetCommandLink ${c}]
+				lappend clist [my GetCommandLink ${c}]
 			}
 			set ta [HtmTable new "border='1'"]
 			append content "<dl><dd>"
@@ -446,7 +449,7 @@ namespace eval Introspect {
 			append content "{NONE}"
 		} else {
 			foreach c ${classes} {
-				lappend clist [GetCommandLink ${c}]
+				lappend clist [my GetCommandLink ${c}]
 			}
 			append content "<pre>[join ${clist} {, }]</pre>"
 		}
@@ -455,13 +458,13 @@ namespace eval Introspect {
 
 		
 		set class [info object class ${obj}]
-		append content "<pre><font color='red'>[GetCommandLink ${class}] create</font> [armour ${obj}] {"
+		append content "<pre><font color='red'>[my GetCommandLink ${class}] create</font> [armour ${obj}] {"
 
 		set clist ""
 		set classes [info class superclasses ${obj}]
 		if { ${classes} ne "" } {
 			foreach c ${classes} {
-				lappend clist [GetCommandLink ${c}]
+				lappend clist [my GetCommandLink ${c}]
 			}
 			append content "<pre><font color='red'>superclass</font> [join ${clist} { }] </pre>"
 		}
@@ -499,13 +502,13 @@ namespace eval Introspect {
 		}
 		
 		lassign [info class constructor ${obj}] parms code
-		append content "<pre><font color='red'>constructor</font> { ${parms} } { [CleanCode ${code}]\n    }</pre>"
+		append content "<pre><font color='red'>constructor</font> { ${parms} } { [my CleanCode ${code}]\n    }</pre>"
 		
 		lassign [info class destructor ${obj}] parms code
-		append content "<pre><font color='red'>destructor</font> ${obj} { ${parms} } { [CleanCode ${code}]\n    }</pre>"
+		append content "<pre><font color='red'>destructor</font> ${obj} { ${parms} } { [my CleanCode ${code}]\n    }</pre>"
 
 		foreach m [info class methods ${obj} -all] {
-			append content [GetClassMethodDef ${obj} ${m}]
+			append content [my GetClassMethodDef ${obj} ${m}]
 		}
 
         append content "}"
@@ -521,11 +524,11 @@ namespace eval Introspect {
 #[15:41]	dkf	all others listed in [info class methods -all] are defined
 #			by superclasses
 
-	proc GetObjectMethodDef {obj method} {
+	method GetObjectMethodDef {obj method} {
 		# check for method in the object first
 		if { [catch {info object definition ${obj} ${m}} def] == 0 } {
 			lassign ${def} params body
-			return "<pre><font color='red'>method</font> [armour ${method}] { [armour ${params}] } { [CleanCode ${body}]\n    }</pre>"
+			return "<pre><font color='red'>method</font> [armour ${method}] { [armour ${params}] } { [my CleanCode ${body}]\n    }</pre>"
 		} elseif { [catch {info object forward ${obj} ${m}} def] == 0 } {
 			return "<pre><font color='red'>forward</font> [armour ${method}] { ${def} }</pre>"
 		} elseif { ${method} in [info object methods ${obj}] } {
@@ -534,12 +537,12 @@ namespace eval Introspect {
 			set class [info object class ${obj}]
 			if { [catch {info class definition ${class} ${method}} def] == 0 } {
 				lassign ${def} params body
-				set content "<pre><font color='red'>method</font> [armour ${method}] { [armour ${params}] } { [CleanCode ${body}]\n    }</pre>"
+				set content "<pre><font color='red'>method</font> [armour ${method}] { [armour ${params}] } { [my CleanCode ${body}]\n    }</pre>"
 				return ${content}
 			}	
 			foreach mixin [info object mixins ${obj}] {
 				if { [catch {info class definition ${mixin} ${method}} def] == 0 } {
-					return "<pre><font color='red'>method</font> [armour ${method}] in mixin [GetCommandLink ${mixin}] </pre>"	
+					return "<pre><font color='red'>method</font> [armour ${method}] in mixin [my GetCommandLink ${mixin}] </pre>"	
 				}
 			}		
 			# method is defined in superclass
@@ -552,8 +555,8 @@ namespace eval Introspect {
 			}
 			# Assume no forwards
 			lassign ${def} params body
-			set content "<pre><font color='blue'># method '[armour ${method}]' found in superclass</font> [GetCommandLink ${class}]\n"
-			append content "<font color='red'>method</font> [armour ${method}] { [armour ${params}] } { [CleanCode ${body}]\n    }</pre>"
+			set content "<pre><font color='blue'># method '[armour ${method}]' found in superclass</font> [my GetCommandLink ${class}]\n"
+			append content "<font color='red'>method</font> [armour ${method}] { [armour ${params}] } { [my CleanCode ${body}]\n    }</pre>"
 			return ${content}
 		} else {
 			return "<pre><font color='red'>method</font> [armour ${method}] { <font color='red'>UNKNOWN</font> }</pre>"
@@ -562,14 +565,14 @@ namespace eval Introspect {
 	
     # -- /ns/obj
     #
-    proc /ns/obj {r args} {
+    method /ns/obj {r args} {
 		set a [dict create {*}${args}]
 		set obj [dict get ${a} obj]
 		
 		append content "<h1>OBJECT(&nbsp;${obj}&nbsp;)</h1>"
 
 		set class [info object class ${obj}]
-		append content "<pre><font color='red'>class is:</font> [GetCommandLink ${class}]</pre>"
+		append content "<pre><font color='red'>class is:</font> [my GetCommandLink ${class}]</pre>"
 
 		set mixins [info object mixins ${obj}]
 		append content "<pre><font color='red'>mixins:</font> [armour ${mixins}]</pre>"
@@ -592,7 +595,7 @@ namespace eval Introspect {
 		append content "</pre>"
 
 		foreach m [info object methods ${obj} -all] {
-			append content [GetObjectMethodDef ${obj} ${m}]
+			append content [my GetObjectMethodDef ${obj} ${m}]
 		}
 		
         return [Http Ok $r ${content}]
@@ -600,21 +603,19 @@ namespace eval Introspect {
 	
     # -- /ns/alias
     #
-    proc /ns/alias {r args} {
+    method /ns/alias {r args} {
 		set a [dict create {*}${args}]
 		set token [dict get ${a} token]
 		set content "<h2> INTERP ALIAS ([armour ${token}])</h2>"
 		set more [lassign [interp alias {} [string trimleft ${token} :]] cmd]
-		append content "<b>POINTS TO:</b> [GetCommandLink "${cmd}" prefix] { [armour ${more}] }"
+		append content "<b>POINTS TO:</b> [my GetCommandLink "${cmd}" prefix] { [armour ${more}] }"
 		
         return [Http Ok $r ${content}]
 	}
 
-    # Nub will call this with args presented to the Nub
-    proc new {args} {
-        # we do nothing with the args
+    superclass Direct
+    constructor {args} {
+	variable home [file dirname [lindex [package ifneeded Introspect [package present Introspect] ] 1]]
+	next? {*}$args
     }
-
-    namespace export -clear *
-    namespace ensemble create -subcommands {}
 }
