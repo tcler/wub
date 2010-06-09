@@ -46,6 +46,10 @@ set ::API(Server/Listener) {
 	All of the arguments passed to [[Listen listen]] will be passed as args to the protocol handler ''Connect'' command.
 	
 	Some options bound for the protocol handler are important.  Notably ''-dispatch'' which is specifies the worker script for each request processed by the [Httpd] protocol stack.
+
+	Generating SSL key is very easy, just use these two commands:
+	    openssl genrsa -out server-private.pem 1024
+	    openssl req -new -x509 -key server-private.pem -out server-public.pem -days 365
     }
 }
 
@@ -108,6 +112,7 @@ class create ::Listener {
 		} [dict get $args -tls]]
 		dict set args -certfile server-public.pem
 		dict set args -keyfile  server-private.pem
+		#  tls::init -certfile server-public.pem -keyfile server-private.pem -ssl2 1 -ssl3 1 -tls1 0 -require 0 -request 0
 		set cmd [list tls::socket -server [list [self] accept $args] -command [list [self] progress] {*}[dict get $args -tls]]
 	    }
 	    
