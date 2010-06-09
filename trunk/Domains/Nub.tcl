@@ -16,7 +16,6 @@ package require Direct
 package require stx2html
 package require Html
 package require Form
-package require jQ
 package provide Nub 1.0
 package provide Rewrite 1.0	;# to satisfy synthetic requirement of codegen
 
@@ -1257,6 +1256,7 @@ namespace eval ::Nub {
 
     proc init {args} {
 	Debug.nub {construct $args}
+	package require jQ
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
