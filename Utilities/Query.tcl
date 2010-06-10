@@ -325,7 +325,7 @@ namespace eval ::Query {
 		    }
 		}
 		0,multipart/* {
-		    lassign [multipart $ct $query $count] query count
+		    lassign [multipart $ct [dict get $r -entity] $count] query count
 		}
 		1,multipart/* {
 		    lassign [multipartF $ct [dict get $r -entitypath] [dict get $r -entity] $count] query count
@@ -673,27 +673,25 @@ namespace eval ::Query {
 	set blen [expr {[string length $lineDelim] + 2 + [string length $boundary]}]
 	set first 1
 	set results [dict create]
-	set offset 0
-	
 	# Ensuring the query data starts
 	# with a newline makes the string first test simpler
 	if {[string first $lineDelim $query 0] != 0} {
 	    set query $lineDelim$query
 	}
 	
+	set offset 0
 	while {[set offset [string first "$lineDelim--$boundary" $query $offset]] >= 0} {
 	    # offset is the position of the next boundary string
 	    # in $query after $offset
 	    
+	    Debug.query {multipart found offset:$offset/[string length $query]}
 	    if {$first} {
 		set first 0	;# this was the opening delimiter
 	    } else {
 		# this was the delimiter bounding current element
 		# generate a n,v element from parsed content
-		dict lappend results \
-		    $formName \
-		    [string range $query $off2 [expr {$offset -1}]] \
-		    $headers
+		set content [string range $query $off2 [expr {$offset -1}]]
+		dict lappend results $formName $content $headers
 	    }
 	    incr offset $blen	;# skip boundary in stream
 	    
@@ -701,6 +699,7 @@ namespace eval ::Query {
 	    # which is signaled by --$boundary--
 	    if {[string range $query $offset [expr {$offset + 1}]] eq "--"} {
 		# end of parse
+		Debug.query {multipart endparse offset:$offset/[string length $query]}
 		break
 	    }
 	    
@@ -711,6 +710,7 @@ namespace eval ::Query {
 	    # find off2, the offset of the delimiter which terminates
 	    # the current element
 	    set off2 [string first "$lineDelim$lineDelim" $query $offset]
+	    Debug.query {multipart parsed between:$offset...$off2 /[string length $query]}
 	    
 	    # generate a dict called headers with element's headers and values
 	    set headers [dict create -count [incr count]]
@@ -726,14 +726,21 @@ namespace eval ::Query {
 		    
 			dict lappend headers $hdrname [lindex $valueList 0]
 			foreach {n v} [lindex $valueList 1] {
+			    set n [string tolower $n]
+			    Debug.query {multipart content-disposition: $n '$v'}
 			    lappend headers $n $v
 			    if {$n eq "name"} {
 				set formName $v	;# the name of the element
 			    }
 			}
 		    } else {
+			Debug.query {multipart content-disposition: $hdrname '$valueList'}
 			dict lappend headers $hdrname $valueList
 		    }
+		} elseif {$line ne ""} {
+		    error "bogus field: '$line'"
+		} else {
+		    Debug.query {multipart content-disposition last line}
 		}
 	    }
 	    
@@ -752,7 +759,7 @@ namespace eval ::Query {
 	    Debug.query {multipart result $n '[string range $v 0 80]...'}
 	    dict lappend q $n {*}$v
 	}
-	Debug.query {headers: $headers}
+	Debug.query {headers: $q}
 	return [list $q $count]
     }
 
