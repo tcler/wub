@@ -350,7 +350,13 @@ class create ::CGI {
 	Debug.cgi {running: open "|{*}$executor $script $arglist"}
 	if {[catch {
 	    # run the script under the executor
-	    open "|$executor $script $arglist <<[dict get? $r -entity] 2>@1" r
+	    if {[dict exists $r -entitypath]} {
+		# the entity file is already open.
+		open "|$executor $script $arglist <@[dict get? $r -entity] 2>@1" r
+	    } else {
+		# entity content is in a string
+		open "|$executor $script $arglist <<[dict get? $r -entity] 2>@1" r
+	    }
 	} pipe eo]} {
 	    # execution failed
 	    cd $pwd
