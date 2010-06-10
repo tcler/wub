@@ -5,6 +5,7 @@ if {[info exists argv0] && ([info script] eq $argv0)} {
 
 package require Debug
 Debug define query
+#package require mime
 
 package provide Query 2.0
 
@@ -15,6 +16,7 @@ set ::API(Utilities/Query) {
 }
 
 namespace eval ::Query {
+    variable todisk 10000000
     variable utf8 [expr {[catch {package require utf8}] == 0}]
 
     variable map
@@ -61,7 +63,7 @@ namespace eval ::Query {
     #	The decoded value
     
     proc decode {str} {
-	Debug.query {decode '$str' [2hex $str]} 10
+	Debug.query {decode '$str'} 10
 	variable dmap
 	set str [string map $dmap $str]
 #	set str [encoding convertfrom utf-8 $str]
@@ -235,6 +237,40 @@ namespace eval ::Query {
 	return $query
     }
 
+    proc components {token} {
+	set components [list token $token]
+	foreach p [::mime::getproperty $token -names] {
+	    dict set components $p [::mime::getproperty $token $p]
+	}
+
+	foreach p [::mime::getheader $token -names] {
+	    dict set components headers $p [::mime::getheader $token $p]
+	}
+	Debug.query {Components $token: ($components)}
+	if {[dict exists $components size] && [dict get $components size] < 100000} {
+	    dict set components body [::mime::getbody $token -decode]
+	} else {
+	    set body [file tempfile path]
+	    dict set components path $path
+	    dict set components fd $body
+	    dict set ::Httpd::files [info coroutine] $body	;# keep a copy
+	    Debug.query {Components BODY $token: $path}
+	    ::mime::copymessage $token $body	;# make a copy in the given file.
+	}
+
+	if {[dict exists $components parts]} {
+	    # recurse over parts
+	    set parts [dict get $components parts]; dict unset components parts
+	    foreach p [dict get $components $parts] {
+		dict set components parts $p [components $token]
+		dict set components parts $p token $token
+	    }
+	}
+	Debug.query {Components Full $token: ($components)}
+	
+	return $components
+    }
+
     # parse -- parse an http dict's queries
     #
     #	decodes the -query and -entity elements of an httpd dict
@@ -252,6 +288,8 @@ namespace eval ::Query {
 	}
 
 	if {[dict exists $r -query]} {
+	    # parse the query part normally
+	    Debug.query {parsing query part ([dict get $r -query])}
 	    lassign [qparse [dict get $r -query] 0] query count
 	    set query [charset $query]
 	} elseif {![dict exists $r -entity]} {
@@ -264,19 +302,35 @@ namespace eval ::Query {
 	}
 
 	if {[dict exists $r content-type]} {
+	    # there is an entity body
 	    set ct [dict get $r content-type]
-	    set entity [dict get? $r -entity]
-	    lassign [qparse $entity $count $ct] query1 count
-	    set query1 [charset $query1]
-	    Debug.query {qparsed [string range $query1 0 80]...}
-	    dict for {n v} $query1 {
-		while {$v ne {}} {
-		    set v [lassign $v val meta]
-		    Debug.query {meta: $n [string range $val 0 80]... $meta - $query}
-		    dict lappend query $n $val $meta
+	    Debug.query {parsing entity part of type '$ct'}
+	    
+	    switch -glob -- [dict exists $r -entitypath],[lindex [split $ct \;] 0] {
+		0,text/html -
+		0,text/xml -
+		0,application/xml -
+		0,application/x-www-form-urlencoded -
+		0,application/x-www-urlencoded {
+		    # this entity is in memory - use the quick stuff to parse it
+		    lassign [qparse [dict get $r -entity] $count $ct] query1 count
+		    set query1 [charset $query1]
+		    Debug.query {qparsed [string range $query1 0 80]...}
+		    dict for {n v} $query1 {
+			while {$v ne {}} {
+			    set v [lassign $v val meta]
+			    Debug.query {meta: $n [string range $val 0 80]... $meta - $query}
+			    dict lappend query $n $val $meta
+			}
+		    }
+		}
+		0,multipart/* {
+		    lassign [multipart $ct $qstring $count] query count
+		}
+		1,multipart/* {
+		    lassign [multipartF $ct [dict get $r -entitypath] [dict get $r -entity] $count] query count
 		}
 	    }
-	    Debug.query {meta [string range $query 0 80]...}
 	}
 
 	return $query
@@ -350,7 +404,57 @@ namespace eval ::Query {
     }
 
     proc metadict {query el} {
-	return {*}[lrange [dict get $query $el] 1 end]
+	return [lrange [dict get $query $el] 1 end]
+    }
+
+    # if this is a file, return its characteristics
+    proc file? {query el {num 0}} {
+	set md [metadata $query $el $num]
+	if {![dict exists $md -path]} {
+	    return {}
+	} else {
+	    return [dict in $md -path -fd -start -size]
+	}
+    }
+
+    proc copydone {to md bytes {error ""}} {
+	if {$bytes != [dict get $md -size]
+	    || $error ne ""
+	} {
+	    if {$error eq ""} {
+		set error "[$bytes bytes copied, [dict get $md -size] expected."
+	    }
+	    Debug.error {"Query copy error to '$to': $error ($md)"}
+	}
+	catch {file close $to}
+    }
+
+    # if this is a file, copy its content to a stream
+    proc copy {fd callback query el {num 0}} {
+	if {$callback eq ""} {
+	    set callback {Query copydone}
+	}
+	set md [metadata $query $el $num]
+	if {![dict exists $md -path]} {
+	    return 0
+	} else {
+	    set md [dict in $md -path -fd -start -size]
+	    dict with md {
+		chan seek ${-fd} ${-start}
+		chan copy ${-fd} $fd ${-size} -command [list {*}$callback $fd $md]
+	    }
+	    return 1
+	}
+    }
+
+    proc copytmp {file callback query el {num 0}} {
+	set fd [file tempfile path]
+	set result [copy $fd $callback $query $el $num]
+	if {$result} {
+	    return [list $fd $path]
+	} else {
+	    return {}
+	}
     }
 
     # exists -- does a value with the given name exist
@@ -564,9 +668,9 @@ namespace eval ::Query {
 	# Iterate over the boundary string and chop into parts
 	
 	set len [string length $query]
+
 	# [string length $lineDelim]+2 is for "$lineDelim--"
-	set blen [expr {[string length $lineDelim] + 2 + \
-			    [string length $boundary]}]
+	set blen [expr {[string length $lineDelim] + 2 + [string length $boundary]}]
 	set first 1
 	set results [dict create]
 	set offset 0
@@ -649,6 +753,123 @@ namespace eval ::Query {
 	    dict lappend q $n {*}$v
 	}
 	Debug.query {headers: $headers}
+	return [list $q $count]
+    }
+
+    proc scanF {fd pattern} {
+	chan seek $fd 0
+	set bsize [chan configure $fd -buffersize]
+	set psize [string length $pattern]
+	if {$psize >= $bsize} {
+	    error "pattern is longer than buffer"
+	}
+
+	chan configure $fd -blocking 0
+	set result {0}
+	set prior ""	;# previous buffer
+	while {1} {
+	    set next [chan read $fd $bsize]
+	    set found [string first $pattern $prior$next]
+	    if {$found < 0} {
+		if {[chan eof $fd]} break
+		#Debug.query {scanF not found at [chan tell $fd]}
+		continue
+	    } else {
+		# got a match in buffer
+		Debug.query {scanF found at $found from [chan tell $fd]}
+		set got [expr {[chan tell $fd]-[string length $next]-[string length $prior]+$found}]
+		lappend result $got [expr {$got + [string length $pattern]}]
+		set prior [string range $next end-$psize end]
+	    }
+	}
+	# compensate for 'terminating boundary' extra leading --
+	lappend result [expr {[chan tell $fd]-[string length $pattern]-2}]
+	
+	return $result
+    }
+
+    proc multipartF {type path fd {count -1}} {
+	set parsedType [parseMimeValue $type]
+	if {![string match multipart/* [lindex $parsedType 0]]} {
+	    error "Not a multipart Content-Type: [lindex $parsedType 0]"
+	}
+
+	Debug.query {multipartF parsed Mime Values type:'$type' options:'$parsedType'}
+	array set options [lindex $parsedType 1]
+	if {![info exists options(boundary)]} {
+	    error "No boundary given for multipart document"
+	}
+	set boundary $options(boundary)
+
+	Debug.query {multipartF options '[array get options]'}
+
+	# Iterate over the file looking for boundary string and chop into parts
+	set boundary --$boundary\r\n
+	set boundaries [scanF $fd $boundary]
+	Debug.query {boundaries: $boundaries}
+	if {[llength $boundaries] < 2} {
+	    error "multipart improperly formed"
+	}
+
+	set i -1
+	set q {}
+	foreach {start end} $boundaries {
+	    set size [expr {$end-$start}]
+	    if {$size} {
+		chan seek $fd $start
+		incr i
+		Debug.query {bounded $i ($start..$end $size)}
+		chan configure $fd -translation crlf
+		set headers [list -count [incr count]]
+		set formName "Part$i"	;# any header 'name' becomes the element name
+		while {[gets $fd line] > 0
+		       && [chan tell $fd] < $end
+		   } {
+		    Debug.query {LINE $i: '$line'}
+
+		    # generate a dict called headers with element's headers and values
+		    if {[regexp -- {([^:\t ]+):(.*)$} $line x hdrname value]} {
+			set hdrname [string tolower $hdrname]
+			set valueList [parseMimeValue $value]
+
+			Debug.query {hdr: $hdrname ($valueList)}
+			if {$hdrname eq "content-disposition"} {
+			    # Promote Content-Disposition parameters up to headers,
+			    # and look for the "name" that identifies the form element
+ 
+			    dict lappend headers $hdrname [lindex $valueList 0]
+			    foreach {n v} [lindex $valueList 1] {
+				set n [string tolower $n]
+				lappend headers $n $v
+				if {$n eq "name"} {
+				    set formName $v	;# the name of the element
+				}
+			    }
+			} else {
+			    dict lappend headers $hdrname $valueList
+			}
+		    } else {
+			error "improperly formatted header line '$line'"
+		    }
+		}
+
+		set csize [expr {$end - [chan tell $fd]-2}]	;# content size
+		variable todisk
+		if {$csize > $todisk} {
+		    set content {}
+		    set headers [dict merge $headers [list -path $path -fd $fd -start $start -size $csize]]
+
+		} else {
+		    set content [chan read $fd $csize]
+		}
+		dict lappend q $formName $content $headers
+
+		chan configure $fd -translation binary
+	    }
+	}
+
+	Debug.query {multipartF Result: $q}
+
 	return [list $q $count]
     }
 
