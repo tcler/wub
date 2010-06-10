@@ -325,7 +325,7 @@ namespace eval ::Query {
 		    }
 		}
 		0,multipart/* {
-		    lassign [multipart $ct $qstring $count] query count
+		    lassign [multipart $ct $query $count] query count
 		}
 		1,multipart/* {
 		    lassign [multipartF $ct [dict get $r -entitypath] [dict get $r -entity] $count] query count
