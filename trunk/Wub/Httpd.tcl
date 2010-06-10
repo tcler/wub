@@ -116,7 +116,7 @@ namespace eval Httpd {
     variable maxhead 1024	;# maximum number of header lines
     variable maxurilen 1024	;# maximum URI length
     variable maxentity -1	;# maximum entity size
-    variable todisk 0		;# maximum entity size to handle in-memory
+    variable todisk 10000000	;# maximum entity size to handle in-memory
 
     # timeout - by default none
     variable timeout 60000
