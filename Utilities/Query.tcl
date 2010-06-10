@@ -854,8 +854,7 @@ namespace eval ::Query {
 		}
 
 		set csize [expr {$end - [chan tell $fd]-2}]	;# content size
-		variable todisk
-		if {$csize > $todisk} {
+		if {$csize > $::Httpd::todisk} {
 		    set content {}
 		    set headers [dict merge $headers [list -path $path -fd $fd -start $start -size $csize]]
 
