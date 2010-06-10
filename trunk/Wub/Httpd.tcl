@@ -6,11 +6,13 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     lappend auto_path [pwd] ../Utilities/ ../extensions/
     package require Http
 }
+source [file join [file dirname [info script]] mime.tcl]
 
 package require Debug
 Debug define Httpd 10
 Debug define HttpdLow 10
 Debug define Watchdog 10
+
 Debug define Entity 10
 Debug define slow 10
 
@@ -114,6 +116,7 @@ namespace eval Httpd {
     variable maxhead 1024	;# maximum number of header lines
     variable maxurilen 1024	;# maximum URI length
     variable maxentity -1	;# maximum entity size
+    variable todisk 0		;# maximum entity size to handle in-memory
 
     # timeout - by default none
     variable timeout 60000
@@ -608,15 +611,14 @@ namespace eval Httpd {
 	return [list $reply $header $content $file $empty $cache $range]
     }
 
-    # our fcopy has completed
+    # our outbound fcopy has completed
     proc fcopy_complete {fd bytes written {error ""}} {
 	corovars replies closing socket
 	Debug.Httpd {[info coroutine] fcopy_complete: $fd $bytes $written '$error'}
 	watchdog
 
 	catch {close $fd}	;# remove file descriptor
-	variable files
-	dict unset files [info coroutine] $fd
+	variable files; dict unset files [info coroutine] $fd
 
 	set gone [catch {chan eof $socket} eof]
 	if {$gone || $eof} {
@@ -808,11 +810,10 @@ namespace eval Httpd {
 
 		    if {[llength $range]} {
 			lassign $range from to
-			chan seek $fd $from start
+			chan seek $fd $from
 			set bytes [expr {$to-$from+1}]
-			Debug.Httpd {[info coroutine] FCOPY RANGE: '$file' hytes $from-$to/$bytes} 8
+			Debug.Httpd {[info coroutine] FCOPY RANGE: '$file' bytes $from-$to/$bytes} 8
 			chan copy $fd $raw -command [list [info coroutine] FCOPY $fd $bytes]
-
 		    } else {
 			Debug.Httpd {[info coroutine] FCOPY ENTITY: '$file' $bytes bytes} 8
 			set raw [chan configure $socket -fd]
@@ -1136,6 +1137,16 @@ namespace eval Httpd {
 		    fcopy_complete {*}$args
 		}
 
+		FCIN {
+		    Debug.entity {FCIN done - $args}
+		    fcin {*}$args
+		}
+
+		FCHUNK {
+		    Debug.entity {FCHUNK done - $args}
+		    fchunk {*}$args
+		}
+
 		default {
 		    error "[info coroutine]: Unknown op $op $args"
 		}
@@ -1256,6 +1267,243 @@ namespace eval Httpd {
 	}
 
 	return $r
+    }
+
+    proc process_request {r} {
+	# check Cache for match
+	if {[dict size [set cached [Cache check $r]]] > 0} {
+	    # reply directly from cache
+	    dict set unsatisfied [dict get $cached -transaction] {}
+	    dict set cached -caching retrieved
+	    dict set cached -sent [clock microseconds]
+
+	    Debug.Httpd {[info coroutine] sending cached [dict get $r -uri] ([rdump $cached])}
+	    logtransition CACHED
+	    if {[catch {
+		write [dict merge $r $cached] 0	;# write cached response directly into outgoing structs
+	    } result eo]} {
+		Debug.error {FAILED write $result ($eo) IP [dict get $r -ipaddr] ([dict get? $r user-agent]) wanted [dict get $r -uri]}
+		terminate closed
+	    }
+
+	    # clean up any entity file hanging about
+	    if {[dict exists $r -entitypath]} {
+		variable files; dict unset files [dict get $r -$entitypath]
+		catch {close $entfd}
+		# leave the temp file ... should we delete it here?
+	    }
+	}
+
+	if {[dict exists $r -entitypath]} {
+	    set entfd [dict get $r -entity]
+	}
+
+	if {[dict exists $r etag]} {
+	    # move requested etag aside, so domains can provide their own
+	    dict set $r -etag [dict get $r etag]
+	}
+
+	catch {
+	    do REQUEST [pre $r]
+	} rsp eo	;# process the request
+	
+	# handle response code from processing request
+	set done 0
+	switch -- [dict get $eo -code] {
+	    0 -
+	    2 {
+		# does application want to suspend?
+		if {[dict size $rsp] == 0 || [dict exists $rsp -suspend]} {
+		    if {[dict size $rsp] == 0} {
+			set duration 0
+		    } else {
+			set duration [dict get $rsp -suspend]
+		    }
+		    
+		    Debug.Httpd {SUSPEND: $duration}
+		    logtransition SUSPEND
+		    grace $duration	;# response has been suspended
+		    incr done
+		} elseif {[dict exists $rsp -passthrough]} {
+		    # the output is handled elsewhere (as for WOOF.)
+		    # so we don't need to do anything more.
+		    incr done
+		}
+		
+		# ok - return
+		if {![dict exists $rsp -code]} {
+		    set rsp [Http Ok $rsp]	;# default to OK
+		}
+	    }
+	    
+	    1 { # error - return the details
+		set rsp [Http ServerError $r $rsp $eo]
+	    }
+	}
+	if {!$done} {
+	    watchdog
+	    logtransition POSTPROCESS
+	    if {[catch {
+		post $rsp
+	    } rspp eo]} {
+		# post-processing error - report it
+		Debug.error {[info coroutine] postprocess error: $rspp ($eo)} 1
+		watchdog
+		
+		# report error from post-processing
+		send [::convert convert [Http ServerError $r $rspp $eo]]
+	    } else {
+		# send the response to client
+		Debug.Httpd {[info coroutine] postprocess: [rdump $rspp]} 10
+		watchdog
+		
+		# does post-process want to suspend?
+		if {[dict size $rspp] == 0 || [dict exists $rspp -suspend]} {
+		    if {[dict size $rspp] == 0} {
+			# returning a {} from postprocess suspends it ... really?
+			set duration 0
+		    } else {
+			# set the grace duration as per request
+			set duration [dict get $rspp -suspend]
+		    }
+		    
+		    Debug.Httpd {SUSPEND in postprocess: $duration}
+		    grace $duration	;# response has been suspended for $duration
+		} elseif {[dict exists $rspp -passthrough]} {
+		    # the output is handled elsewhere (as for WOOF.)
+		    # so we don't need to do anything more.
+		} else {
+		    send $rspp	;# send the response through to client
+		}
+	    }
+	}
+
+	# clean up any entity file hanging about
+	if {[info exists entfd]} {
+	    variable files; dict unset files $entfd	;# don't need to clean up for us
+	    catch {close $entfd}
+	    # leave the temp file ... should we delete it here?
+	}
+    }
+
+    # inbound entity fcopy has completed - now process the request
+    proc fcin {r fd bytes read {error ""}} {
+	corovars replies closing socket
+	Debug.entity {[info coroutine] fcin: entity:$fd expected:$bytes read:$read error:'$error'}
+
+	set gone [catch {chan eof $socket} eof]
+	if {$gone || $eof} {
+	    # detect socket closure ASAP in sending
+	    Debug.entity {[info coroutine] Lost connection on fcin}
+	    if {$error eq ""} {
+		set error "eof on $socket in fcin"
+	    }
+	}
+
+	# if $bytes != $written or $error ne "", we have a problem
+	if {$gone || $eof || $bytes != $read || $error ne ""} {
+	    if {$error eq ""} {
+		set error "fcin failed to receive $bytes, only got $read."
+	    }
+	    Debug.error $error
+	    terminate "$error in fcin"
+	    return
+	} elseif {![chan pending output $socket]} {
+	    # only when the client has consumed our output do we
+	    # restart reading input
+	    Debug.entity {[info coroutine] fcin: restarting reader}
+	    readable	;# this will restart the reading loop
+	} else {
+	    Debug.entity {[info coroutine] fcin: suspending reader [chan pending output $socket]}
+	}
+	
+	# reset socket to header config, having read the entity
+	chan configure $socket -encoding binary -translation {crlf binary}
+	    
+	# see if the writer needs service
+	writable
+	
+	# at this point we have a complete entity in $entity file, it's already been ungzipped
+	# we need to process it somehow
+	chan seek $fd 0
+	process_request $r
+    }
+
+    # process a chunk which has been fcopied in
+    proc fchunk {r raw entity total bytes read {error ""}} {
+	corovars replies closing socket
+	Debug.entity {[info coroutine] fchunk: raw:$raw entity:$entity read:$read error:'$error'}
+	incr total $bytes	;# keep track of total read
+
+	set gone [catch {chan eof $socket} eof]
+	if {$gone || $eof} {
+	    # detect socket closure ASAP in sending
+	    Debug.entity {[info coroutine] Lost connection on fcin}
+	    if {$error eq ""} {
+		set error "eof on $socket in fchunk"
+	    }
+	}
+
+	# if $bytes != $written or $error ne "", we have a problem
+	if {$gone || $eof || $bytes != $read || $error ne ""} {
+	    if {$error eq ""} {
+		set error "fchunk failed to receive all my chunks - expected:$bytes got:$read."
+	    }
+	    Debug.error $error
+	    terminate "$error in fchunk"
+	    return
+	}
+
+	# read a chunksize
+	chan configure $socket -translation {crlf binary}
+	set chunksize 0x[get $socket FCHUNK]	;# we have this many bytes to read
+	chan configure $socket -translation {binary binary}
+
+	if {$chunksize ne "0x0"} {
+	    Debug.entity {[info coroutine] fchunking along}
+	    chan copy $raw $entity -size $chunksize -command [list [info coroutine] FCHUNK $r $raw $entity $total $chunksize]
+	    # enforce server limits on Entity length
+	    variable maxentity
+	    if {$maxentity > 0 && $total > $maxentity} {
+		# 413 "Request Entity Too Large"
+		handle [Http Bad $r "Request Entity Too Large" 413] "Entity Too Large"
+	    }
+	    return	;# await arrival
+	}
+
+	# we have all the chunks we're going to get
+	if {![chan pending output $socket]} {
+	    # only when the client has consumed our output do we
+	    # restart reading input
+	    Debug.entity {[info coroutine] fchunk: restarting reader}
+	    readable	;# this will restart the reading loop
+	} else {
+	    Debug.entity {[info coroutine] fchunk: suspending reader [chan pending output $socket]}
+	}
+ 
+	# see if the writer needs service
+	writable
+
+	Debug.entity {got chunked entity in $entity}
+
+	# at this point we have a complete entity in $entity file, it's already been ungzipped
+	# we need to process it somehow
+
+	chan seek $entity 0
+	variable todisk
+	if {$todisk < 0 || [file size [dict get $r -entitypath]] <= $todisk} {
+	    # we don't want to have things on disk, or it's small enough to have in memory
+	    set fd [dict gret $r -entity]
+	    dict set r -entity [dict read $fd]
+	    chan close $fd				;# close the entity fd
+	    file delete [dict get $r -entitypath]	;# clean up the file
+	    dict unset r -entitypath			;# forget we had a file
+
+	    # now it's all been read in and the files cleaned up
+	    variable files; dict unset files $entfd	;# don't need to clean up for us
+	}
+
+	process_request $r
     }
 
     proc reader {args} {
@@ -1450,6 +1698,35 @@ namespace eval Httpd {
 		}
 	    }
 
+	    # remove 'netscape extension' length= from if-modified-since
+	    if {[dict exists $r if-modified-since]} {
+		dict set r if-modified-since [lindex [split [dict get $r if-modified-since] {;}] 0]
+	    }
+
+	    # trust x-forwarded-for if we get a forwarded request from a local ip
+	    # (presumably local ip forwarders are trustworthy)
+	    set forwards {}
+	    if {[dict exists $r x-forwarded-for]} {
+		foreach xff [split [dict get? $r x-forwarded-for] ,] {
+		    set xff [string trim $xff]
+		    set xff [lindex [split $xff :] 0]
+		    if {$xff eq ""
+			|| $xff eq "unknown"
+			|| [Http nonRouting? $xff]
+		    } continue
+		    lappend forwards $xff
+		}
+	    }
+	    #lappend forwards [dict get $r -ipaddr]
+	    dict set r -forwards $forwards
+	    #dict set r -ipaddr [lindex $forwards 0]
+
+	    # process the request
+	    dict set unsatisfied [dict get $r -transaction] {}
+	    logtransition PROCESS
+
+	    dict set r -send [info coroutine]	;# remember the coroutine
+
 	    # rfc2616 4.3
 	    # The presence of a message-body in a request is signaled by the
 	    # inclusion of a Content-Length or Transfer-Encoding header field in
@@ -1506,31 +1783,39 @@ namespace eval Httpd {
 
 	    # fetch the entity (if any)
 	    if {"chunked" in [dict get? $r -te]} {
-		Debug.entity {got chunked content [dict get? $r -te]}
-		set chunksize 1
-		while {$chunksize} {
-		    chan configure $socket -translation {crlf binary}
-		    set chunksize 0x[get $socket CHUNK]
-		    chan configure $socket -translation {binary binary}
-		    if {$chunksize eq "0x"} {
-			Debug.HttpdLow {[info coroutine] Chunks all done}
-			break	;# collected all the chunks
-		    }
-		    set chunk [read $socket $chunksize]
-		    Debug.HttpdLow {[info coroutine] Chunk: $chunksize ($chunk)}
-		    get $socket CHUNK
-		    dict append r -entity $chunk
+		# write chunked entity to disk
 
-		    # enforce server limits on Entity length
-		    variable maxentity
-		    if {$maxentity > 0
-			&& [string length [dict get $r -entity]] > $maxentity} {
-			# 413 "Request Entity Too Large"
-			handle [Http Bad $r "Request Entity Too Large" 413] "Entity Too Large"
+		set chunksize 0x[get $socket FCHUNK]	;# how many bytes to read?
+		Debug.entity {[info coroutine] FCHUNK} 8
+		if {$chunksize ne "0x0"} {
+		    # create a temp file to contain entity, remember it in $r
+		    set entity [file tempfile entitypath]
+		    dict set r -entitypath $entitypath
+		    dict set r -entity $entity
+
+		    # prepare output file for receiving chunks
+		    chan configure $entity -translation binary
+		    if {"gzip" in [dict get? $r -te]} {
+			Debug.entity {[info coroutine] FCHUNK is gzipped} 8
+			zlib push inflate $entity	;# inflate it on the run
 		    }
+
+		    # record our entity fd
+		    variable files; dict set files [info coroutine] $entity 1
+
+		    # prepare the socket for fcin
+		    unreadable	;# stop reading input while fcopying
+		    unwritable	;# stop writing while fcopying
+		    grace -1	;# stop the watchdog resetting the link
+
+		    # start the fcopy
+		    chan configure $socket -translation binary
+		    chan copy $socket $entity -size $chunksize -command [list [info coroutine] FCHUNK $r $raw $entity 0 $chunksize]
+		} else {
+		    # we had a 0-length chunk ... may as well let it fall through
+		    dict set r -entity ""
 		}
-		Debug.entity {got chunked entity of length [string length [dict get $r -entity]]}
-
+		continue	;# we loop around until there are more requests
 	    } elseif {[dict exists $r content-length]} {
 		set left [dict get $r content-length]
 		Debug.entity {content-length: $left}
@@ -1542,6 +1827,41 @@ namespace eval Httpd {
 		    handle [Http Bad $r "Request Entity Too Large" 413] "Entity Too Large"
 		}
 
+		variable todisk
+		if {$todisk > 0 && $left > $todisk} {
+		    # this entity is too large to be handled in memory,
+		    # write it to disk
+		    Debug.entity {[info coroutine] FCIN: '$left' bytes} 8
+
+		    # create a temp file to contain entity, remember it in $r
+		    set entity [file tempfile entitypath]
+		    dict set r -entitypath $entitypath
+		    dict set r -entity $entity
+
+		    # prepare entity file for receiving chunks
+		    chan configure $entity -translation {binary binary}
+		    if {"gzip" in [dict get? $r -te]} {
+			Debug.entity {[info coroutine] FCIN is gzipped} 8
+			zlib push inflate $entity	;# inflate it on the run
+		    }
+
+		    # record our entity fd
+		    variable files; dict set files [info coroutine] $entity 1
+
+		    # prepare the socket for fcin
+		    unreadable	;# stop reading input while fcopying
+		    unwritable	;# stop writing while fcopying
+		    grace -1	;# stop the watchdog resetting the link
+
+		    Debug.entity {[info coroutine] FCIN: starting with $left writing to '$entitypath'} 8
+
+		    # start the fcopy
+		    chan configure $socket -translation binary
+		    chan copy $socket $entity -size $left -command [list [info coroutine] FCIN $r $entity $left]
+		    continue	;# we loop around until there are more requests
+		}
+
+		# load it all into memory
 		if {$left == 0} {
 		    dict set r -entity ""
 		    # the entity, length 0, is therefore already read
@@ -1568,133 +1888,10 @@ namespace eval Httpd {
 	    # now we postprocess/decode the entity
 	    Debug.entity {entity read complete - '[dict get? $r -te]'}
 	    if {"gzip" in [dict get? $r -te]} {
-		dict set r -entity [zlib deflate [dict get $r -entity]]
+		dict set r -entity [zlib inflate [dict get $r -entity]]
 	    }
 
-	    # remove 'netscape extension' length= from if-modified-since
-	    if {[dict exists $r if-modified-since]} {
-		dict set r if-modified-since [lindex [split [dict get $r if-modified-since] {;}] 0]
-	    }
-
-	    # trust x-forwarded-for if we get a forwarded request from a local ip
-	    # (presumably local ip forwarders are trustworthy)
-	    set forwards {}
-	    if {[dict exists $r x-forwarded-for]} {
-		foreach xff [split [dict get? $r x-forwarded-for] ,] {
-		    set xff [string trim $xff]
-		    set xff [lindex [split $xff :] 0]
-		    if {$xff eq ""
-			|| $xff eq "unknown"
-			|| [Http nonRouting? $xff]
-		    } continue
-		    lappend forwards $xff
-		}
-	    }
-	    #lappend forwards [dict get $r -ipaddr]
-	    dict set r -forwards $forwards
-	    #dict set r -ipaddr [lindex $forwards 0]
-
-	    # check Cache for match
-	    if {[dict size [set cached [Cache check $r]]] > 0} {
-		# reply directly from cache
-		dict set unsatisfied [dict get $cached -transaction] {}
-		dict set cached -caching retrieved
-		dict set cached -sent [clock microseconds]
-
-		Debug.Httpd {[info coroutine] sending cached [dict get $r -uri] ([rdump $cached])}
-		logtransition CACHED
-		if {[catch {
-		    write [dict merge $r $cached] 0	;# write cached response directly into outgoing structs
-		} result eo]} {
-		    Debug.error {FAILED write $result ($eo) IP [dict get $r -ipaddr] ([dict get? $r user-agent]) wanted [dict get $r -uri]}
-		    terminate closed
-		}
-		#lassign result close cache
-		continue	;# go get the next request
-	    } elseif {[dict exists $r etag]} {
-		# move requested etag aside, so domains can provide their own
-		dict set $r -etag [dict get $r etag]
-	    }
-
-	    # process the request
-	    dict set unsatisfied [dict get $r -transaction] {}
-	    logtransition PROCESS
-
-	    dict set r -send [info coroutine]	;# remember the coroutine
-	    catch {
-		do REQUEST [pre $r]
-	    } rsp eo	;# process the request
-
-	    # handle response code from processing request
-	    switch -- [dict get $eo -code] {
-		0 -
-		2 {
-		    # does application want to suspend?
-		    if {[dict size $rsp] == 0 || [dict exists $rsp -suspend]} {
-			if {[dict size $rsp] == 0} {
-			    set duration 0
-			} else {
-			    set duration [dict get $rsp -suspend]
-			}
-
-			Debug.Httpd {SUSPEND: $duration}
-			logtransition SUSPEND
-			grace $duration	;# response has been suspended
-			continue
-		    } elseif {[dict exists $rsp -passthrough]} {
-			# the output is handled elsewhere (as for WOOF.)
-			# so we don't need to do anything more.
-			continue
-		    }
-
-		    # ok - return
-		    if {![dict exists $rsp -code]} {
-			set rsp [Http Ok $rsp]	;# default to OK
-		    }
-		}
-
-		1 { # error - return the details
-		    set rsp [Http ServerError $r $rsp $eo]
-		}
-	    }
-
-	    watchdog
-	    logtransition POSTPROCESS
-	    if {[catch {
-		post $rsp
-	    } rspp eo]} {
-		# post-processing error - report it
-		Debug.error {[info coroutine] postprocess error: $rspp ($eo)} 1
-		watchdog
-
-		# report error from post-processing
-		send [::convert convert [Http ServerError $r $rspp $eo]]
-	    } else {
-		# send the response to client
-		Debug.Httpd {[info coroutine] postprocess: [rdump $rspp]} 10
-		watchdog
-
-		# does post-process want to suspend?
-		if {[dict size $rspp] == 0 || [dict exists $rspp -suspend]} {
-		    if {[dict size $rspp] == 0} {
-			# returning a {} from postprocess suspends it ... really?
-			set duration 0
-		    } else {
-			# set the grace duration as per request
-			set duration [dict get $rspp -suspend]
-		    }
-
-		    Debug.Httpd {SUSPEND in postprocess: $duration}
-		    grace $duration	;# response has been suspended for $duration
-		    continue
-		} elseif {[dict exists $rspp -passthrough]} {
-		    # the output is handled elsewhere (as for WOOF.)
-		    # so we don't need to do anything more.
-		    continue
-		} else {
-		    send $rspp	;# send the response through to client
-		}
-	    }
+	    process_request $r	;# now process the request
 	}
     }
 
