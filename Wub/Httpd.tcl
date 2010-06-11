@@ -6,7 +6,6 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     lappend auto_path [pwd] ../Utilities/ ../extensions/
     package require Http
 }
-source [file join [file dirname [info script]] mime.tcl]
 
 package require Debug
 Debug define Httpd 10
