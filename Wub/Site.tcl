@@ -801,7 +801,7 @@ namespace eval ::Site {
 	    }
 	} elseif {[dict exists $section rewrite]} {
 	    dict with section {
-		Nub rewrite [lindex $url 0] $rewrite
+		Nub rewrite [lindex $url 0] {*}$rewrite
 	    }
 	} elseif {[dict exists $section auth]} {
 	    dict with section {
