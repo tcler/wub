@@ -379,6 +379,10 @@ namespace eval ::Url {
 	return $x
     }
 
+    proc tail {url} {
+	return [lindex [split $url /] end]
+    }
+
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
