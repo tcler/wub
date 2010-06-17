@@ -18,16 +18,16 @@ set ::API(Domains/Mason) {
 	== Quick Start ==
 	[[[http:Nub Nub] domain /mason/ Mason root $docroot]]
 
-	Where docroot is the path of your file directory.  The directory can contain .tml files which will be [[subst]]ed under tcl, index files, .auth and .wrapper files.
+	Where docroot is the path of your file directory.  The directory can contain .tml files which will be [[subst]]ed under tcl, index files, .before and .after files.
 
-	Now any reference to /mason/path will return the content of the file at $docroot/path.  You can restrict access to the file using the .auth facility, transform the file contents using the .wrapper facility, and guard against non-existent files using the .notfound facility.
+	Now any reference to /mason/path will return the content of the file at $docroot/path.  You can restrict access to the file using the .before facility, transform the file contents using the .after facility, and guard against non-existent files using the .notfound facility.
 	
 	== Operation ==
 	The target URL is interpreted relative to the Mason object's ''root'' directory, and its value returned.  A literal match is preferred, but if one can't be made, a templated file with the same file rootname will be evaluated and returned in its stead (allowing generated content to match a requested file-extension.)
 
 	Standard templates are run at strategic points in URL handling (pre- and post-processing) to allow Mason user-provided code to intervene in requests and transform responses. If a requested file can't be located, the per-directory notfound template is evaluated in its stead.
 
-	Any file ending with .tml file extension is considered to be a template file, and is evaluated as a tcl script, and the resultant value of this evaluation returned as content to the user.  Unlike standard templates, *.tml templates are not expected to return complete response-dicts, but may return simple values.  However, *.tml template scripts have access to a variable ''response'' which will form the response dict sent to the client (after .wrapper processing) and may access and modify it.  Any ''response'' fields may be modified, and will be combined with the value returned by the .tml script to form the client response.  Any error in the .tml script evaluation will be immediately returned as a Server Error.  If the .tml script sets the -content field of ''response'', then that (and not the .tml script evaluation result) will be the response content.  .tml may also set the ''response'' -code to an HTTP response code, and it will be definitive.  A .tml may also use tcl's [[return -code]] to set the HTTP response code.
+	Any file ending with .tml file extension is considered to be a template file, and is evaluated as a tcl script, and the resultant value of this evaluation returned as content to the user.  Unlike standard templates, *.tml templates are not expected to return complete response-dicts, but may return simple values.  However, *.tml template scripts have access to a variable ''response'' which will form the response dict sent to the client (after .after processing) and may access and modify it.  Any ''response'' fields may be modified, and will be combined with the value returned by the .tml script to form the client response.  Any error in the .tml script evaluation will be immediately returned as a Server Error.  If the .tml script sets the -content field of ''response'', then that (and not the .tml script evaluation result) will be the response content.  .tml may also set the ''response'' -code to an HTTP response code, and it will be definitive.  A .tml may also use tcl's [[return -code]] to set the HTTP response code.
 
 	== Dynamic v. Static Content and Cache Interaction ==
 	Content produced by .tml files is considered dynamic, it won't be cached by default.  However, setting the -dynamic response field to 0 will override this behaviour, and the content will be considered cacheable.  In this case, the file modification time of the .tml script itself will be considered to be the modification time of its result.
@@ -39,8 +39,8 @@ set ::API(Domains/Mason) {
 	== Standard Templates ==
 	Standard templates are sought in ancestor directories of the url-addressed file, and are evaluated in a context in which the current response dict is available in ''$rsp'' or the current request dict is available in a variable as ''$req'', respectively.  The scripts may use or modify ''req'' or ''rsp'', and are expected to return a new version.  If they modify the dict (by adding, changing or removing request fields) those changes will be propagated through the system and be returned to the client.  This gives Mason a great deal of power in interpreting client requests and transforming server responses.
 
-	;.auth: Pre-filters and pre-transforms requests before the target URL is fully processed.  If ,auth errors, or returns the request with a -code field of anything other than Ok (200) the request is immediately rejected by the server.
-	;.wrapper: post-transforms responses after the target URL has been processed.  The -code field contains HTTP code, the -content field contains the content, and the content-type field contains the mime-type of the eventual HTTP response.  Any response fields may be manipulated, but this is a powerful operator, and can cause confusing results.
+	;.before: Pre-filters and pre-transforms requests before the target URL is fully processed.  If ,auth errors, or returns the request with a -code field of anything other than Ok (200) the request is immediately rejected by the server.
+	;.after: post-transforms responses after the target URL has been processed.  The -code field contains HTTP code, the -content field contains the content, and the content-type field contains the mime-type of the eventual HTTP response.  Any response fields may be manipulated, but this is a powerful operator, and can cause confusing results.
 	;.notfound: post-transforms responses after Mason has decided that it can't resolve the target URL into a resource.  .notfound script can try to recover, or can generate content (such as a search form, or suggested alternatives) or can redirect to some other resource (perhaps to create the content.)
 
 	== Safe Interpreters ==
@@ -54,8 +54,8 @@ set ::API(Domains/Mason) {
     expires {a tcl clock expression indicating when contents expire from caches.  By setting a later value, one reduces server load at the risk of having the client see old content.}
     functional {file extension which marks tcl scripts to be evaluated for value (default .tml)}
     notfound {template sought and evaluated when a requested resource can't be located (default .notfound)}
-    wrapper {template sought and evaluated with successful response (default .wrapper)}
-    auth {template sought and evaluated before processing requested file (default .auth)}
+    wrapper {template sought and evaluated with successful response (default .after)}
+    auth {template sought and evaluated before processing requested file (default .before)}
     nodir {don't allow the browsing of directories (default: 0 - browsing allowed.)}
     dateformat {a tcl clock format for displaying dates in directory listings}
     stream {files above this size will be streamed using fcopy, not loaded and sent.  Note: streaming a file prevents *any* post-processing on is, so [Convert] for example will be ineffective.}
@@ -497,8 +497,8 @@ class create ::Mason {
 	set hide {^([.].*)|(.*~)$}	;# these files are never matched
 	set functional ".tml"	;# functional extension
 	set notfound ".notfound"	;# notfound handler name
-	set wrapper ".wrapper"	;# wrapper handler name
-	set auth ".auth"	;# authentication functional
+	set wrapper ".after"	;# wrapper handler name
+	set auth ".before"	;# authentication functional
 	set indexfile index.html	;# directory index name
 	set dirhead {name size mtime *}
 	set dirfoot {}
