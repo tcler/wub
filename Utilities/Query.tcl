@@ -4,7 +4,7 @@ if {[info exists argv0] && ([info script] eq $argv0)} {
 }
 
 package require Debug
-Debug define query
+Debug define query 10
 package require mime
 package require base64
 
@@ -194,7 +194,7 @@ namespace eval ::Query {
 	} else {
 	    set charset [string tolower $charset]
 	}
-	Debug.query {cconvert $charset} 6
+	Debug.query {cconvert charset '$charset'} 6
 	variable encodings
 	if {$charset in $encodings} {
 	    # tcl knows of this encoding - so make the conversion
@@ -211,14 +211,16 @@ namespace eval ::Query {
 				lappend meta -bad $point
 			    }
 			    lappend vals $val $meta
+			    Debug.query {cconvert charset '$charset' - bad at $point} 6
 			    continue
 			}
 		    }
-		    
-		    set val [encoding convertfrom $charset $val]
-		    lappend vals $val $meta
+
+		    set v1 [encoding convertfrom $charset $val]
+		    Debug.query {cconvert charset '$charset' '$val'->'$v1'} 6
+		    lappend vals $v1 $meta
 		}
-		Debug.query {cconvert $k ($vals)} 10
+		Debug.query {cconverted $k -> ($vals)} 10
 		dict set query $k $vals
 	    }
 	}
@@ -229,6 +231,7 @@ namespace eval ::Query {
     # charset - handle '_charset_' hack
     # see https://bugzilla.mozilla.org/show_bug.cgi?id=18643
     proc charset {query} {
+	Debug.query {charset [dict get? $query _charset_]}
 	if {![exists $query _charset_]} {
 	    # no conversion necessary
 	    return $query
@@ -320,11 +323,7 @@ namespace eval ::Query {
 		    set query1 [charset $query1]
 		    Debug.query {qparsed [string range $query1 0 80]...}
 		    dict for {n v} $query1 {
-			while {$v ne {}} {
-			    set v [lassign $v val meta]
-			    Debug.query {meta: $n [string range $val 0 80]... $meta - $query}
-			    dict lappend query $n $val $meta
-			}
+			dict set query $n {*}$v
 		    }
 		}
 		0,multipart/* {
@@ -604,11 +603,11 @@ namespace eval ::Query {
     # pconvert - convert part's charset to appropriate encoding
     # - try to ensure the correctness of utf-8 input
     proc pconvert {charset content} {
+	Debug.query {pconvert '$charset'} 6
 	if {$charset eq ""} {
 	    return $content
 	}
 
-	Debug.query {pconvert $charset} 6
 	variable encodings
 	if {$charset ni $encodings} {
 	    Debug.error {Query pconvert doesn't know how to convert '$charset'}
@@ -629,7 +628,7 @@ namespace eval ::Query {
 		continue
 	    }
 	}
-    		    
+	Debug.query {pconvert '$charset'}
 	return [encoding convertfrom $charset $content]
     }
 
@@ -680,6 +679,7 @@ namespace eval ::Query {
 	}
 
 	Debug.query {multipart parsed Mime Values $type '$parsedType'}
+	#puts stderr "PARTS: $query"
 	array set options [lindex $parsedType 1]
 	if {![info exists options(boundary)]} {
 	    error "No boundary given for multipart document"
@@ -708,6 +708,7 @@ namespace eval ::Query {
 	set blen [expr {[string length $lineDelim] + 2 + [string length $boundary]}]
 	set first 1
 	set results [dict create]
+
 	# Ensuring the query data starts
 	# with a newline makes the string first test simpler
 	if {[string first $lineDelim $query 0] != 0} {
@@ -729,6 +730,7 @@ namespace eval ::Query {
 		# generate a n,v element from parsed content
 		set content [string range $query $off2 [expr {$offset -1}]]
 
+		Debug.query {encodings te:$te charset:$charset}
 		# decode transfer encoding
 		switch -- $te {
 		    quoted-printable {
@@ -745,6 +747,7 @@ namespace eval ::Query {
 
 		# decode charset encoding
 		if {$charset ne ""} {
+		    Debug.query {pconverting: $formName '$charset'}
 		    set content [pconvert $charset $content]
 		}
 		dict lappend results $formName $content $headers
@@ -785,6 +788,7 @@ namespace eval ::Query {
 		    # We're not going to support that.
 
 		    set valueList [parseMimeValue $value]
+		    Debug.query {part header $hdrname: $valueList}
 		    switch -- $hdrname {
 			content-disposition {
 			    # Promote Content-Disposition parameters up to headers,
