@@ -40,7 +40,7 @@ domain /wub/docs/ About
 # the following nub rewrites all urls of the form /*.jpg at the top level
 # so they appear to be under the /images/ URL.  It picks the parsed URL path
 # directly from the request dict to regenerate the URL in script form.
-rewrite {^/[^/]+[.](jpg|gif|png|ico)$} {/images/[file tail [dict get $r -path]]}
+rewrite {^/[^/]+[.](jpg|gif|png|ico)$} {/images/[lindex [split [dict get $r -path] /] end]}
 
 # the following nub rewrites all urls of the form /*.css at the top level
 # so they appear under the /css/ URL, using the -regsub rewrite form, substituting
