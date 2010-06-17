@@ -33,12 +33,11 @@ oo::class create Config {
 	    #puts stderr "walk: [lindex $parse {*}$index]"
 	    set cmd [lindex $parse {*}$index]
 	    lassign $cmd . . . left right
+	    set ll [parsetcl unparse $left]
 	    if {![string match L* [lindex $left 0]]} {
-		set ll [parsetcl unparse $left]
 		error "section name '$ll' must be a literal ($left)"
 	    }
 	    if {[llength $cmd] != 5} {
-		set ll [parsetcl unparse $left]
 		error "section $ll must have one argument only"
 	    }
 
