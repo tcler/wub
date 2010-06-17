@@ -1118,7 +1118,7 @@ namespace eval ::Nub {
     proc rewrite {url body} {
 	#puts stderr "RW: '$url' '$body'"
 	variable urls
-	dict set urls $url [list domain Rewrite body $body section $url]
+	dict set urls $url [list domain Rewrite body [list $body] section $url]
     }
 
     proc block {url} {
