@@ -5,7 +5,8 @@ if {[info exists argv0] && ([info script] eq $argv0)} {
 
 package require Debug
 Debug define query
-#package require mime
+package require mime
+package require base64
 
 package provide Query 2.0
 
@@ -146,6 +147,7 @@ namespace eval ::Query {
 	    application/xml -
 	    application/x-www-form-urlencoded -
 	    application/x-www-urlencoded -
+	    application/x-url-encoded -
 	    NONE {
 		set query [dict create]
 		foreach {x} [split [string trim $qstring] &] {
@@ -300,18 +302,19 @@ namespace eval ::Query {
 	    set query {}
 	    set count 0
 	}
-
+    
 	if {[dict exists $r content-type]} {
 	    # there is an entity body
 	    set ct [dict get $r content-type]
 	    Debug.query {parsing entity part of type '$ct'}
-	    
+		    
 	    switch -glob -- [dict exists $r -entitypath],[lindex [split $ct \;] 0] {
 		0,text/html -
 		0,text/xml -
 		0,application/xml -
 		0,application/x-www-form-urlencoded -
-		0,application/x-www-urlencoded {
+		0,application/x-www-urlencoded -
+		0,application/x-url-encoded {
 		    # this entity is in memory - use the quick stuff to parse it
 		    lassign [qparse [dict get $r -entity] $count $ct] query1 count
 		    set query1 [charset $query1]
@@ -598,6 +601,38 @@ namespace eval ::Query {
 	return $results
     }
 
+    # pconvert - convert part's charset to appropriate encoding
+    # - try to ensure the correctness of utf-8 input
+    proc pconvert {charset content} {
+	if {$charset eq ""} {
+	    return $content
+	}
+
+	Debug.query {pconvert $charset} 6
+	variable encodings
+	if {$charset ni $encodings} {
+	    Debug.error {Query pconvert doesn't know how to convert '$charset'}
+	    return $content
+	}
+    
+	# tcl knows of this encoding - so make the conversion
+	variable utf8
+	if {$utf8 && $charset eq "utf-8"} {
+	    # check the content for utf8 correctness
+	    set point [::utf8::findbad $content]
+	    if {$point < [string length $v] - 1} {
+		if {$point >= 0} {
+		    incr point
+		    lappend meta -bad $point
+		}
+		lappend vals $val $meta
+		continue
+	    }
+	}
+    		    
+	return [encoding convertfrom $charset $content]
+    }
+
     # multipart
     #
     #	This parses multipart form data.
@@ -680,6 +715,8 @@ namespace eval ::Query {
 	}
 	
 	set offset 0
+	set charset ""	;# charset encoding of part
+	set te ""	;# transfer encoding of part
 	while {[set offset [string first "$lineDelim--$boundary" $query $offset]] >= 0} {
 	    # offset is the position of the next boundary string
 	    # in $query after $offset
@@ -691,6 +728,25 @@ namespace eval ::Query {
 		# this was the delimiter bounding current element
 		# generate a n,v element from parsed content
 		set content [string range $query $off2 [expr {$offset -1}]]
+
+		# decode transfer encoding
+		switch -- $te {
+		    quoted-printable {
+			set content [::mime::qp_decode $content]
+		    }
+		    base64 {
+			set content [::base64::decode]
+		    }
+		    7bit - 8bit - binary - "" {}
+		    default {
+			Debug.error {Query multipart can't handle TE '$te'}
+		    }
+		}
+
+		# decode charset encoding
+		if {$charset ne ""} {
+		    set content [pconvert $charset $content]
+		}
 		dict lappend results $formName $content $headers
 	    }
 	    incr offset $blen	;# skip boundary in stream
@@ -715,35 +771,65 @@ namespace eval ::Query {
 	    # generate a dict called headers with element's headers and values
 	    set headers [dict create -count [incr count]]
 	    set formName ""	;# any header 'name' becomes the element name
+	    set charset ""
+	    set te ""
 	    foreach line [split [string range $query $offset $off2] $lineDelim] {
 		if {[regexp -- {([^:\t ]+):(.*)$} $line x hdrname value]} {
 		    set hdrname [string tolower $hdrname]
+		    # RFC2388: Field names originally in non-ASCII character sets may be encoded
+		    # within the value of the "name" parameter using the standard method
+		    # described in RFC 2047.
+		    # encoded-word = "=?" charset "?" encoding "?" encoded-text "?="
+		    # charset = token    ; see section 3
+		    # encoding = token   ; see section 4
+		    # We're not going to support that.
+
 		    set valueList [parseMimeValue $value]
-		    if {$hdrname eq "content-disposition"} {
-			
-			# Promote Content-Disposition parameters up to headers,
-			# and look for the "name" that identifies the form element
-		    
-			dict lappend headers $hdrname [lindex $valueList 0]
-			foreach {n v} [lindex $valueList 1] {
-			    set n [string tolower $n]
-			    Debug.query {multipart content-disposition: $n '$v'}
-			    lappend headers $n $v
-			    if {$n eq "name"} {
-				set formName $v	;# the name of the element
+		    switch -- $hdrname {
+			content-disposition {
+			    # Promote Content-Disposition parameters up to headers,
+			    # and look for the "name" that identifies the form element
+			    dict lappend headers $hdrname [lindex $valueList 0]
+			    foreach {n v} [lindex $valueList 1] {
+				set n [string tolower $n]
+				Debug.query {multipart content-disposition: $n '$v'}
+				lappend headers $n $v
+				if {$n eq "name"} {
+				    set formName $v	;# the name of the element
+				}
 			    }
 			}
-		    } else {
-			Debug.query {multipart content-disposition: $hdrname '$valueList'}
-			dict lappend headers $hdrname $valueList
+
+			content-type {
+			    # RFC2388: As with all multipart MIME types, each part has an optional
+			    # "Content-Type", which defaults to text/plain.
+			    set charset [string tolower [dict get? [lindex $valueList 1] charset]]
+			    dict lappend headers $hdrname $valueList
+			}
+
+			content-transfer-encoding {
+			    # RFC2388: The value supplied
+			    # for a part may need to be encoded and the "content-transfer-encoding"
+			    # header supplied if the value does not conform to the default
+			    # encoding.  [See section 5 of RFC 2046 for more details.]
+			    set te $valueList
+			    dict lappend headers $hdrname $valueList
+			}
+
+			default {
+			    Debug.query {multipart header: $hdrname '$valueList'}
+			    set te $valuelist
+			    dict lappend headers $hdrname $valueList
+			}
 		    }
 		} elseif {$line ne ""} {
 		    error "bogus field: '$line'"
 		} else {
-		    Debug.query {multipart content-disposition last line}
+		    Debug.query {multipart headers last line}
 		}
 	    }
 	    
+	    # we have now ingested the part's headers
 	    if {$off2 > 0} {
 		# +[string length "$lineDelim$lineDelim"] for the
 		# $lineDelim$lineDelim
@@ -837,26 +923,54 @@ namespace eval ::Query {
 		    # generate a dict called headers with element's headers and values
 		    if {[regexp -- {([^:\t ]+):(.*)$} $line x hdrname value]} {
 			set hdrname [string tolower $hdrname]
-			set valueList [parseMimeValue $value]
+			# RFC2388: Field names originally in non-ASCII character sets may be encoded
+			# within the value of the "name" parameter using the standard method
+			# described in RFC 2047.
+			# encoded-word = "=?" charset "?" encoding "?" encoded-text "?="
+			# charset = token    ; see section 3
+			# encoding = token   ; see section 4
+			# We're not going to support that.
 
+			set valueList [parseMimeValue $value]
 			Debug.query {hdr: $hdrname ($valueList)}
-			if {$hdrname eq "content-disposition"} {
-			    # Promote Content-Disposition parameters up to headers,
-			    # and look for the "name" that identifies the form element
- 
-			    dict lappend headers $hdrname [lindex $valueList 0]
-			    foreach {n v} [lindex $valueList 1] {
-				set n [string tolower $n]
-				lappend headers $n $v
-				if {$n eq "name"} {
-				    set formName $v	;# the name of the element
+
+			switch -- $hdrname {
+			    content-disposition {
+				# Promote Content-Disposition parameters up to headers,
+				# and look for the "name" that identifies the form element
+				dict lappend headers $hdrname [lindex $valueList 0]
+				foreach {n v} [lindex $valueList 1] {
+				    set n [string tolower $n]
+				    Debug.query {multipart content-disposition: $n '$v'}
+				    lappend headers $n $v
+				    if {$n eq "name"} {
+					set formName $v	;# the name of the element
+				    }
 				}
 			    }
-			} else {
-			    dict lappend headers $hdrname $valueList
+
+			    content-type {
+				# RFC2388: As with all multipart MIME types, each part has an optional
+				# "Content-Type", which defaults to text/plain.
+				set charset [string tolower [dict get? [lindex $valueList 1] charset]]
+				dict lappend headers $hdrname $valueList
+			    }
+
+			    content-transfer-encoding {
+				# RFC2388: The value supplied
+				# for a part may need to be encoded and the "content-transfer-encoding"
+				# header supplied if the value does not conform to the default
+				# encoding.  [See section 5 of RFC 2046 for more details.]
+				set te $valueList
+				dict lappend headers $hdrname $valueList
+			    }
+
+			    default {
+				Debug.query {multipart header: $hdrname '$valueList'}
+				set te $valuelist
+				dict lappend headers $hdrname $valueList
+			    }
 			}
-		    } else {
-			error "improperly formatted header line '$line'"
 		    }
 		}
 
