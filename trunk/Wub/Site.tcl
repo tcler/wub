@@ -746,12 +746,15 @@ namespace eval ::Site {
     }
 
     proc section {sect section} {
-	if {[dict exists $section domain]} {
+	if {[dict exists $section domain] || [dict exists $section handler]} {
 	    if {![dict exists $section url]} {
 		error "nub '$sect' declared in .ini must have a url value"
 	    }
-
-	    set domain [dict get $section domain]
+	    if {![dict exists $section handler]} {
+		set domain [dict get $section domain]
+	    } else {
+		set domain [dict get $section handler]
+	    }
 	    dict unset section domain
 	    if {![string match {[A-Z]*} $domain]
 		|| [string map {" " ""} $domain] ne $domain} {
