@@ -102,11 +102,11 @@ class create Introspect {
     # -- /pkg/view
     #
     method /pkg/view {r path args} {
-		set content "<h3>SOURCE: ${path}</h3>"
 		set fid [open ${path} r]
 		set raw [read ${fid}]
 		close ${fid}
-		append content "<pre>[my CleanCode ${raw} 0]</pre>"
+		set buffer [Indent code ${raw} ]
+		set content [Indent code2html ${path} ${buffer}]
         return [Http Ok $r ${content}]
 	}
 
