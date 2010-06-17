@@ -20,144 +20,6 @@ set ::API(Utilities/Config) {
     }
 }
 
-namespace eval ::parsetcl {
-    proc unparse {tree} {
-	eval $tree
-    }
-
-    # Lr - literal raw
-    proc Lr {interval text args} {
-	return $text
-    }
-
-    # Lb - literal braced
-    proc Lb {interval text args} {
-	return \{$text\}
-    }
-
-    # Lb - literal quoted
-    proc Lq {interval text args} {
-	return \"$text\"
-    }
-
-    # Sb - backslash substitution
-    proc Sb {interval text args} {
-	return "\\$text"
-    }
-
-    # Sv - scalar variable substitution
-    proc Sv {interval text args} {
-	return "\$[eval [lindex $args 0]]"
-    }
-
-    # Sa - array variable substitution
-    proc Sa {interval text args} {
-	foreach a [lrange $args 1 end] {
-	    append result [eval $a]
-	}
-	return "\$[eval [lindex $args 0]]($result)"
-    }
-
-    # Sc - command substitution
-    proc Sc {interval text args} {
-	set cmd {}
-	foreach a $args {
-	    lappend cmd [eval $a]
-	}
-	return "\[[join $cmd]\]"
-    }
-
-    # Mr - raw merge
-    proc Mr {interval text args} {
-	foreach a $args {
-	    append result [eval $a]
-	}
-	return $result
-    }
-
-    # Mq - quoted merge
-    proc Mq {interval text args} {
-	foreach a $args {
-	    append result [eval $a]
-	}
-	return \"$result\"
-    }
-
-    # Mb - braced merge
-    proc Mb {interval text args} {
-	foreach a $args {
-	    append result [eval $a]
-	}
-	return \{$result\}
-    }
-
-    # Cd - complete command sans {*}
-    proc Cd {interval text args} {
-	set cmd {}
-	foreach a $args {
-	    lappend cmd [eval $a]
-	}
-	return [join $cmd]
-    }
-
-    # Cx - {*}-construct
-    proc Cx {interval text args} {
-	set c {}
-	foreach a $args {
-	    lappend c [eval $a]
-	}
-	return \{*\}[join $c]
-    }
-
-    # Ce - complete commands with {*}-constructs
-    proc Ce {interval text args} {
-	set c {}
-	foreach a $args {
-	    lappend c [eval $a]
-	}
-	return [join $c]
-    }
-
-    # Cp - command prefix in Ce node
-    proc Cp {interval text args} {
-	set c {}
-	foreach a $args {
-	    lappend c [eval $a]
-	}
-	return [join $c]
-    }
-
-    # Cr - non-prefix range of command words in a Ce node
-    proc Cr {interval text args} {
-	set c {}
-	foreach a $args {
-	    lappend c [eval $a]
-	}
-	return [join $c]
-    }
-
-    # Rs - script - each arg is a command
-    proc Rs {interval text args} {
-	set cmd {}
-	foreach a $args {
-	    lappend cmd [eval $a]
-	}
-	return "\{\n[join $cmd \n]\n\}"
-    }
-
-    # Rx - parsed expr
-    proc Rx {interval text args} {
-	set cmd {}
-	foreach a $args {
-	    lappend cmd [eval $a]
-	}
-	return "\{\n[join $cmd]\n\}"
-    }
-
-    namespace export -clear *
-    namespace ensemble create -subcommands {}
-}
-
 oo::class create Config {
     method parse {script} {
 	set parse [parsetcl simple_parse_script $script]
@@ -171,11 +33,12 @@ oo::class create Config {
 	    #puts stderr "walk: [lindex $parse {*}$index]"
 	    set cmd [lindex $parse {*}$index]
 	    lassign $cmd . . . left right
-	    set ll [parsetcl unparse $left]
 	    if {![string match L* [lindex $left 0]]} {
+		set ll [parsetcl unparse $left]
 		error "section name '$ll' must be a literal ($left)"
 	    }
 	    if {[llength $cmd] != 5} {
+		set ll [parsetcl unparse $left]
 		error "section $ll must have one argument only"
 	    }
 
