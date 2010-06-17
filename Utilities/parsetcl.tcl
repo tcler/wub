@@ -22,10 +22,10 @@
 ## and version 1.2 or later is part of all distributions of LaTeX
 ## version 1999/12/01 or later.
 ## 
-namespace eval parsetcl {}
+namespace eval ::parsetcl {}
 package require Tcl 8.4
 package provide parsetcl 0.2
-proc parsetcl::flush_whitespace {script index_var cmdsep} {
+proc ::parsetcl::flush_whitespace {script index_var cmdsep} {
    upvar 1 $index_var index
    if {[
       if {$cmdsep} then {
@@ -40,7 +40,7 @@ proc parsetcl::flush_whitespace {script index_var cmdsep} {
       return 0
    }
 }
-proc parsetcl::parse_command {script index_var nested} {
+proc ::parsetcl::parse_command {script index_var nested} {
    upvar 1 $index_var index
    flush_whitespace $script index 1
    switch -- "[string index $script $index]$nested" {#0} - {#1} {
@@ -84,7 +84,7 @@ proc parsetcl::parse_command {script index_var nested} {
       return $res2
    }
 }
-proc parsetcl::basic_parse_script {script} {
+proc ::parsetcl::basic_parse_script {script} {
    set index 0
    set res [list Rs [list $index ""] ""]
    while {[lindex [set next [parse_command $script index 0]] 0] ne "Np"} {
@@ -94,7 +94,7 @@ proc parsetcl::basic_parse_script {script} {
    lset res 1 1 $index
    return $res
 }
-proc parsetcl::parse_word {script index_var nested} {
+proc ::parsetcl::parse_word {script index_var nested} {
    upvar 1 $index_var index
    switch -- [string index $script $index] \{ {
       if {$nested ? [
@@ -134,7 +134,7 @@ proc parsetcl::parse_word {script index_var nested} {
       parse_raw_word $script index $nested
    }
 }
-proc parsetcl::parse_braced_word {script index_var nested} {
+proc ::parsetcl::parse_braced_word {script index_var nested} {
    upvar 1 $index_var index
    set res [list Lb [list $index ""]]
    set depth 1
@@ -186,7 +186,7 @@ proc parsetcl::parse_braced_word {script index_var nested} {
      {missing space after close-brace}]
    return $res
 }
-proc parsetcl::parse_quoted_word {script index_var nested} {
+proc ::parsetcl::parse_quoted_word {script index_var nested} {
    upvar 1 $index_var index
    set res [list Lq [list $index ""] ""]
    set text ""
@@ -236,7 +236,7 @@ proc parsetcl::parse_quoted_word {script index_var nested} {
      {missing space after close-quote}]
    return $res
 }
-proc parsetcl::parse_raw_word {script index_var nested} {
+proc ::parsetcl::parse_raw_word {script index_var nested} {
    upvar 1 $index_var index
    set res [list]
    set type Lr
@@ -283,7 +283,7 @@ proc parsetcl::parse_raw_word {script index_var nested} {
    flush_whitespace $script index 0
    return $res
 }
-proc parsetcl::parse_backslash {script index_var} {
+proc ::parsetcl::parse_backslash {script index_var} {
    upvar 1 $index_var index
    set start $index
    incr index
@@ -350,7 +350,7 @@ proc parsetcl::parse_backslash {script index_var} {
    incr index
    return $res
 }
-proc parsetcl::parse_bracket {script index_var} {
+proc ::parsetcl::parse_bracket {script index_var} {
    upvar 1 $index_var index
    set res [list Sc [list $index ""] ""]
    incr index
@@ -369,7 +369,7 @@ proc parsetcl::parse_bracket {script index_var} {
    }
 }
 set parsetcl::varname_RE {\A(\w|::)+}
-proc parsetcl::parse_dollar {script index_var} {
+proc ::parsetcl::parse_dollar {script index_var} {
    upvar 1 $index_var index
    set res [list "" [list $index ""] ""]
    incr index
@@ -444,7 +444,7 @@ proc parsetcl::parse_dollar {script index_var} {
    lset res 4 $subres
    return $res
 }
-proc parsetcl::format_tree {tree base step} {
+proc ::parsetcl::format_tree {tree base step} {
    set res $base
    append res \{ [lrange $tree 0 1] { }
    if {[regexp {[\n\r]} [lindex $tree 2]]} then {
@@ -466,7 +466,7 @@ proc parsetcl::format_tree {tree base step} {
    }
    append res $base \}
 }
-proc parsetcl::offset_intervals {tree offset} {
+proc ::parsetcl::offset_intervals {tree offset} {
    set res [lrange $tree 0 2]
    foreach i {0 1} {
       lset res 1 $i [expr {[lindex $res 1 $i] + $offset}]
@@ -476,7 +476,7 @@ proc parsetcl::offset_intervals {tree offset} {
    }
    return $res
 }
-proc parsetcl::reparse_Lb_as_script {tree_var index parsed} {
+proc ::parsetcl::reparse_Lb_as_script {tree_var index parsed} {
    upvar 1 $tree_var tree
    set node [lindex $tree $index]
    switch -- [lindex $node 0] Lb - Lr - Lq {
@@ -498,7 +498,7 @@ proc parsetcl::reparse_Lb_as_script {tree_var index parsed} {
       return 0
    }
 }
-proc parsetcl::walk_tree {tree_var index_var args} {
+proc ::parsetcl::walk_tree {tree_var index_var args} {
    upvar 1 $tree_var tree $index_var idxL
    set idxL [list]
    set i 0
@@ -519,7 +519,7 @@ proc parsetcl::walk_tree {tree_var index_var args} {
       }
    }
 }
-proc parsetcl::simple_parse_script {script} {
+proc ::parsetcl::simple_parse_script {script} {
    set tree [basic_parse_script $script]
    walk_tree tree indices {^Cd$} {
       switch -- [lindex [lindex $tree $indices] 3 2] if {
@@ -559,7 +559,7 @@ proc parsetcl::simple_parse_script {script} {
    }
    return $tree
 }
-proc parsetcl::reinsert_indentation {tree script} {
+proc ::parsetcl::reinsert_indentation {tree script} {
    set nlL [regexp -all -inline -indices {\n\s*} $script]
    walk_tree tree where {^Rs$} - {^Sc$} {
       set newnode [lrange [lindex $tree $where] 0 2]
@@ -586,7 +586,7 @@ proc parsetcl::reinsert_indentation {tree script} {
    }
    return $tree
 }
-proc parsetcl::parse_semiwords {string} {
+proc ::parsetcl::parse_semiwords {string} {
    set res [list]
    set index 0
    while {$index < [string length $string]} {
@@ -618,7 +618,7 @@ proc parsetcl::parse_semiwords {string} {
    }
    return $res
 }
-proc parsetcl::reparse_Lb_as_Mb {tree_var index parsed} {
+proc ::parsetcl::reparse_Lb_as_Mb {tree_var index parsed} {
    upvar 1 $tree_var tree
    set node [lindex $tree $index]
    switch -- [lindex $node 0] Lb - Lr - Lq {
@@ -644,6 +644,145 @@ proc parsetcl::reparse_Lb_as_Mb {tree_var index parsed} {
       return 0
    }
 }
+
+namespace eval ::parsetcl {
+    proc unparse {tree} {
+	eval $tree
+    }
+
+    # Lr - literal raw
+    proc Lr {interval text args} {
+	return $text
+    }
+
+    # Lb - literal braced
+    proc Lb {interval text args} {
+	return \{$text\}
+    }
+
+    # Lb - literal quoted
+    proc Lq {interval text args} {
+	return \"$text\"
+    }
+
+    # Sb - backslash substitution
+    proc Sb {interval text args} {
+	return "\\$text"
+    }
+
+    # Sv - scalar variable substitution
+    proc Sv {interval text args} {
+	return "\$[eval [lindex $args 0]]"
+    }
+
+    # Sa - array variable substitution
+    proc Sa {interval text args} {
+	foreach a [lrange $args 1 end] {
+	    append result [eval $a]
+	}
+	return "\$[eval [lindex $args 0]]($result)"
+    }
+
+    # Sc - command substitution
+    proc Sc {interval text args} {
+	set cmd {}
+	foreach a $args {
+	    lappend cmd [eval $a]
+	}
+	return "\[[join $cmd]\]"
+    }
+
+    # Mr - raw merge
+    proc Mr {interval text args} {
+	foreach a $args {
+	    append result [eval $a]
+	}
+	return $result
+    }
+
+    # Mq - quoted merge
+    proc Mq {interval text args} {
+	foreach a $args {
+	    append result [eval $a]
+	}
+	return \"$result\"
+    }
+
+    # Mb - braced merge
+    proc Mb {interval text args} {
+	foreach a $args {
+	    append result [eval $a]
+	}
+	return \{$result\}
+    }
+
+    # Cd - complete command sans {*}
+    proc Cd {interval text args} {
+	set cmd {}
+	foreach a $args {
+	    lappend cmd [eval $a]
+	}
+	return [join $cmd]
+    }
+
+    # Cx - {*}-construct
+    proc Cx {interval text args} {
+	set c {}
+	foreach a $args {
+	    lappend c [eval $a]
+	}
+	return \{*\}[join $c]
+    }
+
+    # Ce - complete commands with {*}-constructs
+    proc Ce {interval text args} {
+	set c {}
+	foreach a $args {
+	    lappend c [eval $a]
+	}
+	return [join $c]
+    }
+
+    # Cp - command prefix in Ce node
+    proc Cp {interval text args} {
+	set c {}
+	foreach a $args {
+	    lappend c [eval $a]
+	}
+	return [join $c]
+    }
+
+    # Cr - non-prefix range of command words in a Ce node
+    proc Cr {interval text args} {
+	set c {}
+	foreach a $args {
+	    lappend c [eval $a]
+	}
+	return [join $c]
+    }
+
+    # Rs - script - each arg is a command
+    proc Rs {interval text args} {
+	set cmd {}
+	foreach a $args {
+	    lappend cmd [eval $a]
+	}
+	return "\{\n[join $cmd \n]\n\}"
+    }
+
+    # Rx - parsed expr
+    proc Rx {interval text args} {
+	set cmd {}
+	foreach a $args {
+	    lappend cmd [eval $a]
+	}
+	return "\{\n[join $cmd]\n\}"
+    }
+
+    namespace export -clear *
+    namespace ensemble create -subcommands {}
+}
+
 ## 
 ##
 ## End of file `parsetcl.tcl'.
