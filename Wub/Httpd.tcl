@@ -1276,12 +1276,9 @@ namespace eval Httpd {
 
 	    Debug.Httpd {[info coroutine] sending cached [dict get $r -uri] ([rdump $cached])}
 	    logtransition CACHED
-	    if {[catch {
+	    set fail [catch {
 		write [dict merge $r $cached] 0	;# write cached response directly into outgoing structs
-	    } result eo]} {
-		Debug.error {FAILED write $result ($eo) IP [dict get $r -ipaddr] ([dict get? $r user-agent]) wanted [dict get $r -uri]}
-		terminate closed
-	    }
+	    } result eo]
 
 	    # clean up any entity file hanging about
 	    if {[dict exists $r -entitypath]} {
@@ -1289,6 +1286,12 @@ namespace eval Httpd {
 		catch {close $entfd}
 		# leave the temp file ... should we delete it here?
 	    }
+
+	    if {$fail} {
+		Debug.error {FAILED write $result ($eo) IP [dict get $r -ipaddr] ([dict get? $r user-agent]) wanted [dict get $r -uri]}
+		terminate closed
+	    }
+	    return	;# we've sent the cached copy, we're done
 	}
 
 	if {[dict exists $r -entitypath]} {
@@ -1526,6 +1529,11 @@ namespace eval Httpd {
 
 	# keep receiving input requests
 	while {1} {
+	    # start with blank request
+	    set r {}
+	    dict set r -transaction [incr transaction]
+	    dict set r -sock $socket
+
 	    # get whole header
 	    set headering 1
 	    set lines {}
@@ -1550,13 +1558,11 @@ namespace eval Httpd {
 
 	    # parse the header into a request
 	    set h [parse [lrange $lines 1 end]]	;# parse the header
-	    set r [dict merge $prototype $h]
+	    set r [dict merge $prototype $h $r]
 
 	    set start [clock microseconds]
 	    dict set r -htime [expr {$start - $hstart}]
 	    dict set r -received $start
-	    dict set r -transaction [incr transaction]
-	    dict set r -sock $socket
 	    dict set r -clientheaders [dict keys $h]
 
 	    # unpack the header line
