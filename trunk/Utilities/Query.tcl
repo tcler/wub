@@ -311,13 +311,13 @@ namespace eval ::Query {
 	    set ct [dict get $r content-type]
 	    Debug.query {parsing entity part of type '$ct'}
 		    
-	    switch -glob -- [dict exists $r -entitypath],[lindex [split $ct \;] 0] {
-		0,text/html -
-		0,text/xml -
-		0,application/xml -
-		0,application/x-www-form-urlencoded -
-		0,application/x-www-urlencoded -
-		0,application/x-url-encoded {
+	    switch -glob -- [dict exists $r -entitypath],[dict exists $r -entity],[lindex [split $ct \;] 0] {
+		0,1,text/html -
+		0,1,text/xml -
+		0,1,application/xml -
+		0,1,application/x-www-form-urlencoded -
+		0,1,application/x-www-urlencoded -
+		0,1,application/x-url-encoded {
 		    # this entity is in memory - use the quick stuff to parse it
 		    lassign [qparse [dict get $r -entity] $count $ct] query1 count
 		    set query1 [charset $query1]
@@ -326,10 +326,10 @@ namespace eval ::Query {
 			dict set query $n {*}$v
 		    }
 		}
-		0,multipart/* {
+		0,1,multipart/* {
 		    lassign [multipart $ct [dict get $r -entity] $count] query count
 		}
-		1,multipart/* {
+		1,1,multipart/* {
 		    lassign [multipartF $ct [dict get $r -entitypath] [dict get $r -entity] $count] query count
 		}
 	    }
