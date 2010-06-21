@@ -89,7 +89,7 @@ set API(Server/Httpd) {
 proc bgerror {args} {
     Debug.error {bgerror: $args}
 }
-interp bgerror {} bgerror
+interp bgerror {} ::bgerror
 
 # define a default [pest] predicate, allow it to be overriden by pest.tcl
 proc pest {req} {return 0}
@@ -802,7 +802,7 @@ namespace eval Httpd {
 		    chan configure $fd -translation binary
 		    unreadable	;# stop reading input while fcopying
 		    unwritable	;# stop writing while fcopying
-		    grace -1	;# stop the watchdog resetting the link
+		    grace 120000	;# stop the watchdog resetting the link
 		    set raw [chan configure $socket -fd]
 
 		    if {[llength $range]} {
@@ -1809,7 +1809,7 @@ namespace eval Httpd {
 		    # prepare the socket for fcin
 		    unreadable	;# stop reading input while fcopying
 		    unwritable	;# stop writing while fcopying
-		    grace -1	;# stop the watchdog resetting the link
+		    grace 120000	;# stop the watchdog resetting the link
 
 		    # start the fcopy
 		    chan configure $socket -translation binary
@@ -1854,7 +1854,7 @@ namespace eval Httpd {
 		    # prepare the socket for fcin
 		    unreadable	;# stop reading input while fcopying
 		    unwritable	;# stop writing while fcopying
-		    grace -1	;# stop the watchdog resetting the link
+		    grace 120000	;# stop the watchdog resetting the link
 
 		    Debug.entity {[info coroutine] FCIN: starting with $left writing to '$entitypath'} 8
 
