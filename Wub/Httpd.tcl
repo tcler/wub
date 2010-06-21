@@ -1961,7 +1961,11 @@ namespace eval Httpd {
 	# event, thread or coroutine
 	set r [post $r]
 	set code [catch {{*}[dict get $r -send] [list SEND $r]} e eo]
-	Debug.Httpd {Resumption $code $e ($eo)}
+	if {$code != 0} {
+	    Debug.error {Failed Resumption $code $e ($eo)}
+	} else {
+	    Debug.Httpd {Resumption $code $e ($eo)}
+	}
 	return [list $code $e $eo]
     }
 
