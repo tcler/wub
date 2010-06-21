@@ -42,7 +42,7 @@ namespace eval Block {
 	    }
 	    return 0
 	}
-	Debug.block {$ipaddr blocked? [info exists blocked($ipaddr)]}
+	#Debug.block {$ipaddr blocked? [info exists blocked($ipaddr)]}
 	return [info exists blocked($ipaddr)]
     }
 
