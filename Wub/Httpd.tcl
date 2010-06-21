@@ -1145,6 +1145,7 @@ namespace eval Httpd {
 		}
 
 		default {
+		    Debug.error {[info coroutine]: Unknown op '$op' ($args)}
 		    error "[info coroutine]: Unknown op '$op' ($args)"
 		}
 	    }
