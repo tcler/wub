@@ -888,7 +888,7 @@ namespace eval Httpd {
 	    # a duplicate response has been sent - discard this
 	    # this could happen if a dispatcher sends a response,
 	    # then gets an error.
-	    Debug.error {Send discarded: duplicate ([rdump $r])}
+	    Debug.error {Send discarded: duplicate ([rdump $r]) - sent:([rdump [dict get $satisfied $trx]])}
 	    return {0 0}	;# duplicate response - just ignore
 	}
 
@@ -930,7 +930,7 @@ namespace eval Httpd {
 	# empty? - is there actually no content, as distinct from 0-length content?
 	Debug.Httpd {[info coroutine] ADD TRANS: ([dict keys $replies])}
 	dict set replies $trx [list $header $content $file [close? $r] $empty $range]
-	dict set satisfied $trx {}	;# record satisfaction of transaction
+	dict set satisfied $trx [dict merge $r {-content <elided>}]	;# record satisfaction of transaction
 
 	if {[chan pending output $socket]} {
 	    # the client hasn't consumed our output yet
