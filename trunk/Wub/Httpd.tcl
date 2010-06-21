@@ -1145,7 +1145,7 @@ namespace eval Httpd {
 		}
 
 		default {
-		    error "[info coroutine]: Unknown op $op $args"
+		    error "[info coroutine]: Unknown op '$op' ($args)"
 		}
 	    }
 	}
@@ -1960,11 +1960,11 @@ namespace eval Httpd {
 	# we inject the SEND event into the coro so Resume may be called from any
 	# event, thread or coroutine
 	set r [post $r]
-	set code [catch {{*}[dict get $r -send] [list SEND $r]} e eo]
+	set code [catch {{*}[dict get $r -send] SEND $r} e eo]
 	if {$code != 0} {
-	    Debug.error {Failed Resumption $code $e ($eo)}
+	    Debug.error {Failed Resumption $code '$e' ($eo)}
 	} else {
-	    Debug.Httpd {Resumption $code $e ($eo)}
+	    Debug.Httpd {Resumption $code '$e' ($eo)}
 	}
 	return [list $code $e $eo]
     }
