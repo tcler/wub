@@ -1176,7 +1176,7 @@ namespace eval Httpd {
 	set closing 1
 	readable CLOSING
 
-	Debug.error {'handle' closing}
+	#Debug.error {'handle' closing}
 	return -level [expr {[info level] - 1}]	;# return to the top coro level
 	#rename [info coroutine] ""; ::yield	;# terminate coro
     }
