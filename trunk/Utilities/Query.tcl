@@ -750,7 +750,7 @@ namespace eval ::Query {
 		    Debug.query {pconverting: $formName '$charset'}
 		    set content [pconvert $charset $content]
 		}
-		dict lappend results $formName $content $headers
+		dict lappend results $formName $content {*}$headers
 	    }
 	    incr offset $blen	;# skip boundary in stream
 	    
