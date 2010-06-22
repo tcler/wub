@@ -181,8 +181,6 @@ namespace eval ::Query {
 	return [list $query $count]
     }
 
-    variable encodings [encoding names]
-
     # cconvert - convert charset to appropriate encoding
     # - try to ensure the correctness of utf-8 input
     proc cconvert {query charset} {
@@ -193,7 +191,7 @@ namespace eval ::Query {
 	}
 	Debug.query {cconvert charset '$charset'} 6
 	variable encodings
-	if {$charset in $encodings} {
+	if {$charset in [encoding names]} {
 	    # tcl knows of this encoding - so make the conversion
 	    variable utf8
 	    dict for {k v} $query {
@@ -588,8 +586,7 @@ namespace eval ::Query {
 	    return $content
 	}
 
-	variable encodings
-	if {$charset ni $encodings} {
+	if {$charset ni [encoding names]} {
 	    Debug.error {Query pconvert doesn't know how to convert '$charset'}
 	    return $content
 	}
@@ -698,6 +695,7 @@ namespace eval ::Query {
 	set offset 0
 	set charset ""	;# charset encoding of part
 	set te ""	;# transfer encoding of part
+
 	while {[set offset [string first "$lineDelim--$boundary" $query $offset]] >= 0} {
 	    # offset is the position of the next boundary string
 	    # in $query after $offset
