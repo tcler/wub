@@ -750,7 +750,7 @@ namespace eval ::Query {
 		    Debug.query {pconverting: $formName '$charset'}
 		    set content [pconvert $charset $content]
 		}
-		dict lappend results $formName $content {*}$headers
+		dict lappend results $formName $content $headers
 	    }
 	    incr offset $blen	;# skip boundary in stream
 	    
@@ -793,8 +793,8 @@ namespace eval ::Query {
 			content-disposition {
 			    # Promote Content-Disposition parameters up to headers,
 			    # and look for the "name" that identifies the form element
-			    dict lappend headers $hdrname [lindex $valueList 0]
-			    foreach {n v} [lindex $valueList 1] {
+			    dict set headers $hdrname [lindex $valueList 0]
+			    foreach {n v} [lrange $valueList 1 end] {
 				set n [string tolower $n]
 				Debug.query {multipart content-disposition: $n '$v'}
 				dict set headers $n $v
