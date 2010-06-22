@@ -166,12 +166,12 @@ namespace eval ::Query {
 			set meta [list -count [incr count]]
 		    }
 		    
-		    dict lappend query $var $val $meta
+		    dict lappend query $var [list $val $meta]
 		    # todo - not quite right - this doesn't allow duplicate
 		    # var=val, but should
 		}
 	    }
-	    
+
 	    default {
 		error "Unknown Content-Type: $ct"
 	    }
@@ -310,6 +310,7 @@ namespace eval ::Query {
 		1,1,multipart/* {
 		    lassign [multipartF $ct [dict get $r -entitypath] [dict get $r -entity] $count] query count
 		}
+
 		default {
 		    # this entity is in memory - use the quick stuff to parse it
 		    lassign [qparse [dict get $r -entity] $count $ct] query count
@@ -733,7 +734,7 @@ namespace eval ::Query {
 		    Debug.query {pconverting: $formName '$charset'}
 		    set content [pconvert $charset $content]
 		}
-		lappend results $formName $content $headers
+		dict lappend results $formName [list $content $headers]
 	    }
 	    incr offset $blen	;# skip boundary in stream
 	    
