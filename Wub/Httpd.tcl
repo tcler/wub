@@ -2027,7 +2027,6 @@ namespace eval Httpd {
 
     variable reaper	;# array of hardline events
     proc reaper {} {
-	return
 	variable timeout
 	set now [clock milliseconds]
 	set then [expr {$now - $timeout}]
