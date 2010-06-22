@@ -30,6 +30,7 @@ set ::API(Domains/Repo) {
 
 	== ToDo ==
 	As Repo was developed for a Wiki, where the culture's fairly permissive, it doesn't provide ''any'' authentication.  It probably should.
+	Repo ought to decompress and untar any uploaded tar.gz files.
     }
 
     expires {a tcl clock expression indicating when contents expire from caches (default:0 - no expiry)}
@@ -161,7 +162,7 @@ namespace eval ::Repo {
 	    set content [set $f]
 	    if {$content eq ""} continue
 	    set metadata [Query metadict [dict get $r -Query] $f]
-	    Debug.repo {+add Q: $metadata}
+	    Debug.repo {+add Q: ([llength $metadata]) $metadata}
 
 	    set name [dict get? $metadata filename]
 	    if {[string tolower [lindex [split $name .] 1]] in {"exe" "bat" "com" "scr" "vbs" "mp3" "avi"}} {
