@@ -750,7 +750,7 @@ namespace eval ::Query {
 		    Debug.query {pconverting: $formName '$charset'}
 		    set content [pconvert $charset $content]
 		}
-		dict lappend results $formName $content $headers
+		lappend results $formName $content $headers
 	    }
 	    incr offset $blen	;# skip boundary in stream
 	    
@@ -844,13 +844,8 @@ namespace eval ::Query {
 	    }
 	}
 	
-	set q [dict create]
-	dict for {n v} $results {
-	    Debug.query {multipart result $n '[string range $v 0 80]...'}
-	    dict lappend q $n {*}$v
-	}
-	Debug.query {headers: $q}
-	return [list $q $count]
+	Debug.query {headers: $results}
+	return [list $results $count]
     }
 
     proc scanF {fd pattern} {
