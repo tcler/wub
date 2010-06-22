@@ -380,7 +380,7 @@ namespace eval ::Url {
     }
 
     proc range {url from to} {
-	return [join {*}[lrange [split $url /] $from $to] /]
+	return [join [lrange [split $url /] $from $to] /]
     }
     
     proc tail {url} {
