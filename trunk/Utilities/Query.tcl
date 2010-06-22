@@ -797,7 +797,7 @@ namespace eval ::Query {
 			    foreach {n v} [lindex $valueList 1] {
 				set n [string tolower $n]
 				Debug.query {multipart content-disposition: $n '$v'}
-				lappend headers $n $v
+				dict set headers $n $v
 				if {$n eq "name"} {
 				    set formName $v	;# the name of the element
 				}
@@ -808,7 +808,7 @@ namespace eval ::Query {
 			    # RFC2388: As with all multipart MIME types, each part has an optional
 			    # "Content-Type", which defaults to text/plain.
 			    set charset [string tolower [dict get? [lindex $valueList 1] charset]]
-			    dict lappend headers $hdrname $valueList
+			    dict set headers $hdrname $valueList
 			}
 
 			content-transfer-encoding {
@@ -817,13 +817,13 @@ namespace eval ::Query {
 			    # header supplied if the value does not conform to the default
 			    # encoding.  [See section 5 of RFC 2046 for more details.]
 			    set te $valueList
-			    dict lappend headers $hdrname $valueList
+			    dict set headers $hdrname $valueList
 			}
 
 			default {
 			    Debug.query {multipart header: $hdrname '$valueList'}
 			    set te $valuelist
-			    dict lappend headers $hdrname $valueList
+			    dict set headers $hdrname $valueList
 			}
 		    }
 		} elseif {$line ne ""} {
