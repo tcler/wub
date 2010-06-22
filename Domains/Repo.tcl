@@ -161,7 +161,7 @@ namespace eval ::Repo {
 	    # extract meaning from file upload
 	    set content [set $f]
 	    if {$content eq ""} continue
-	    set metadata [Query metadict [dict get $r -Query] $f]
+	    set metadata [Query metadata [dict get $r -Query] $f]
 	    Debug.repo {+add Q: ([llength $metadata]) $metadata}
 
 	    set name [dict get? $metadata filename]
