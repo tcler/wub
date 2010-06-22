@@ -172,15 +172,12 @@ namespace eval ::Query {
 		}
 	    }
 	    
-	    multipart/* {
-		lassign [multipart $ct $qstring $count] query count
-	    }
-	    
 	    default {
 		error "Unknown Content-Type: $ct"
 	    }
 	}
 	
+	set query [charset $query]
 	return [list $query $count]
     }
 
@@ -296,11 +293,6 @@ namespace eval ::Query {
 	    # parse the query part normally
 	    Debug.query {parsing query part ([dict get $r -query])}
 	    lassign [qparse [dict get $r -query] 0] query count
-	    set query [charset $query]
-	} elseif {![dict exists $r -entity]} {
-	    set query [dict create]
-	    set count -1
-	    dict set r -entity {}
 	} else {
 	    set query {}
 	    set count 0
@@ -312,25 +304,16 @@ namespace eval ::Query {
 	    Debug.query {parsing entity part of type '$ct'}
 		    
 	    switch -glob -- [dict exists $r -entitypath],[dict exists $r -entity],[lindex [split $ct \;] 0] {
-		0,1,text/html -
-		0,1,text/xml -
-		0,1,application/xml -
-		0,1,application/x-www-form-urlencoded -
-		0,1,application/x-www-urlencoded -
-		0,1,application/x-url-encoded {
-		    # this entity is in memory - use the quick stuff to parse it
-		    lassign [qparse [dict get $r -entity] $count $ct] query1 count
-		    set query1 [charset $query1]
-		    Debug.query {qparsed [string range $query1 0 80]...}
-		    dict for {n v} $query1 {
-			dict set query $n {*}$v
-		    }
-		}
 		0,1,multipart/* {
 		    lassign [multipart $ct [dict get $r -entity] $count] query count
 		}
 		1,1,multipart/* {
 		    lassign [multipartF $ct [dict get $r -entitypath] [dict get $r -entity] $count] query count
+		}
+		default {
+		    # this entity is in memory - use the quick stuff to parse it
+		    lassign [qparse [dict get $r -entity] $count $ct] query count
+		    Debug.query {qparsed [string range $query1 0 80]...}
 		}
 	    }
 	}
