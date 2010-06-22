@@ -389,10 +389,6 @@ namespace eval ::Query {
 	return [lindex [dict get $query $el] [expr {$num * 2 + 1}]]
     }
 
-    proc metadict {query el} {
-	return [lrange [dict get $query $el] 1 end]
-    }
-
     # if this is a file, return its characteristics
     proc file? {query el {num 0}} {
 	set md [metadata $query $el $num]
