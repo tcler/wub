@@ -166,7 +166,7 @@ namespace eval ::Query {
 			set meta [list -count [incr count]]
 		    }
 		    
-		    dict lappend query $var [list $val $meta]
+		    dict lappend query $var $val $meta
 		    # todo - not quite right - this doesn't allow duplicate
 		    # var=val, but should
 		}
