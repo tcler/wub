@@ -401,6 +401,8 @@ namespace eval ::Report {
 }
 
 if {[info exists argv0] && ([info script] eq $argv0)} {
+    lappend auto_path .
+    package require Dict
     Report init 
     set csv {name,address,phone
 	fred, 11 stone drive, 123
