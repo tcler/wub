@@ -48,8 +48,10 @@ if {[info exists argv0] && ([info script] eq $argv0)} {
 package require textutil
 package require Dict
 package require Html
+package require OO
 
 package require Debug
+Debug define form 10
 
 package provide Form 2.0
 
@@ -59,27 +61,15 @@ set ::API(Utilities/Form) {
     }
 }
 
-namespace eval ::Form {
-    variable Fdefaults [dict create {*}{
-	textarea {compact 0}
-	form {method post tabular 0}
-	fieldset {vertical 0}
-	submit {alt Submit}
-	reset {alt Reset}
-	option {}
-    }]
-    variable tabindex 0	;# taborder for fields
-    variable tabular 0	;# tabular form elements
-    variable uniqID 0	;# unique ID for fields
-
+class create ::FormClass {
     # default - set attribute defaults for a given tag
-    proc default {type args} {
+    method default {type args} {
 	variable Fdefaults
 	set d [dict get? $Fdefaults $type]
 	dict set Fdefaults $type [dict merge $d $args]
     }
 
-    proc attr {T args} {
+    method attr {T args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
@@ -97,7 +87,7 @@ namespace eval ::Form {
 	return [join $result]
     }
 
-    proc fieldsetS {name args} {
+    method fieldsetS {name args} {
 	variable fieldsetA
 	variable Fdefaults
 	set config [dict merge [dict get? $Fdefaults fieldset] [lrange $args 0 end-1]]
@@ -109,14 +99,14 @@ namespace eval ::Form {
 		dict set config id F[incr uniqID]
 	    }
 	}
-	set content "<[attr fieldset [dict in $config $fieldsetA]]>\n"
+	set content "<[my attr fieldset [dict in $config $fieldsetA]]>\n"
 	if {[dict exists $config legend]} {
 	    append content [<legend> [dict get $config legend]] \n
 	}
 	return $content
     }
 
-    proc formS {name args} {
+    method formS {name args} {
 	variable formA
 	variable Fdefaults
 	variable tabindex 0
@@ -129,7 +119,7 @@ namespace eval ::Form {
 		dict set config id F[incr uniqID]
 	    }
 	}
-	set content "<[attr form [dict in $config $formA]]>\n"
+	set content "<[my attr form [dict in $config $formA]]>\n"
 	if {[dict exists $config legend]} {
 	    append content [<legend> [dict get $config legend]] \n
 	}
@@ -146,7 +136,7 @@ namespace eval ::Form {
 	    set ti ""
 	}
 	eval [string map [list %TI% $ti %T% $type] {
-	    proc <%T%> {args} {
+	    method <%T%> {args} {
 		variable %T%A
 		variable Fdefaults
 
@@ -201,23 +191,23 @@ namespace eval ::Form {
 		}
 		set tabular $otab	;# restore old tabular value
 
-		return "<[attr %T% [dict in $config $%T%A]]>$content</%T%>"
+		return "<[my attr %T% [dict in $config $%T%A]]>$content</%T%>"
 	    }
 	}]
     }
     
     foreach {type} {legend} {
 	eval [string map [list %T% $type] {
-	    proc <%T%> {args} {
+	    method <%T%> {args} {
 		variable %T%A
 		variable Fdefaults
 		set config [dict merge [dict get? $Fdefaults %T%] [lrange $args 0 end-1]]
-		return "<[attr %T% [dict in $config $%T%A]]>[uplevel 1 [list subst [lindex $args end]]]</%T%>"
+		return "<[my attr %T% [dict in $config $%T%A]]>[uplevel 1 [list subst [lindex $args end]]]</%T%>"
 	    }
 	}]
     }
 
-    proc <select> {name args} {
+    method <select> {name args} {
 	variable selectA
 	variable Fdefaults
 
@@ -237,7 +227,7 @@ namespace eval ::Form {
 
 	set content [uplevel 1 [list subst $content]]
 
-	set result "<[attr select [dict in $config $selectA]]>$content</select>"
+	set result "<[my attr select [dict in $config $selectA]]>$content</select>"
 
 	if {[dict exists $config title]} {
 	    set title [list title [dict get $config title]]
@@ -277,7 +267,7 @@ namespace eval ::Form {
 
     foreach {type} {option optgroup} {
 	eval [string map [list %T% $type] {
-	    proc <%T%> {args} {
+	    method <%T%> {args} {
 		variable %T%A
 		variable Fdefaults
 
@@ -296,12 +286,12 @@ namespace eval ::Form {
 		    }
 		}
 
-		return "<[attr %T% [dict in $config $%T%A]]>$content</%T%>"
+		return "<[my attr %T% [dict in $config $%T%A]]>$content</%T%>"
 	    }
 	}]
     }
 
-    proc <textarea> {name args} {
+    method <textarea> {name args} {
 	variable textareaA
 	variable Fdefaults
 	if {[llength $args] % 2} {
@@ -339,7 +329,7 @@ namespace eval ::Form {
 	    set title [list title $title]
 	    dict unset config title
 	}
-	set result "<[attr textarea [dict in $config $textareaA]]>$content</textarea>"
+	set result "<[my attr textarea [dict in $config $textareaA]]>$content</textarea>"
 
 	set label [dict get? $config label]
 	variable tabular
@@ -374,7 +364,7 @@ namespace eval ::Form {
     # <reset> and <submit>
     foreach type {reset submit} {
 	eval [string map [list %T% $type] {
-	    proc <%T%> {name args} {
+	    method <%T%> {name args} {
 		variable Fdefaults
 		if {[llength $args] % 2} {
 		    set content [lindex $args end]
@@ -405,7 +395,7 @@ namespace eval ::Form {
 	}]
     }
 
-    proc <button> {name args} {
+    method <button> {name args} {
 	if {[llength $args]%2} {
 	    set content [lindex $args end]
 	    set args [lrange $args 0 end-1]
@@ -421,7 +411,7 @@ namespace eval ::Form {
 	}
 
 	variable buttonA
-	return "<[attr button [dict in $config $buttonA]]>$content</button>"
+	return "<[my attr button [dict in $config $buttonA]]>$content</button>"
     }
     
     foreach {itype attrs field} {
@@ -432,7 +422,7 @@ namespace eval ::Form {
 	image image src
     } {
 	eval [string map [list %T% $itype %A% $attrs %F% $field] {
-	    proc <%T%> {name args} {
+	    method <%T%> {name args} {
 		if {[llength $args] % 2} {
 		    set value [lindex $args end]
 		    set args [lrange $args 0 end-1]
@@ -463,7 +453,7 @@ namespace eval ::Form {
 		    }
 		}
 
-		set result "<[attr input [dict in $config $%A%A]]>"
+		set result "<[my attr input [dict in $config $%A%A]]>"
 
 		set label [dict get? $config label]
 		variable tabular
@@ -484,7 +474,7 @@ namespace eval ::Form {
 	}]
     }
 
-    proc <selectlist> {name args} {
+    method <selectlist> {name args} {
 	set result ""
 	foreach line [lindex $args end] {
 	    set line [string trim $line]
@@ -499,14 +489,14 @@ namespace eval ::Form {
 	return [uplevel 1 [list <select> $name {*}[lrange $args 0 end-1] $result]]
     }
     
-    proc <selectset> {args} {
+    method <selectset> {args} {
 	return [uplevel 1 [list <selectlist> {*}$args]]
     }
 
     # <radioset> <checkset> <radio> <checkbox>
     foreach type {radio check} sub {"" box} {
 	eval [string map [list %T% $type %S% $sub] {
-	    proc <%T%set> {name args} {
+	    method <%T%set> {name args} {
 		variable Fdefaults
 		set rsconfig [dict merge [dict get? $Fdefaults %T%] [lrange $args 0 end-1] [list name $name type %T%]]
 		set boxes [lindex $args end]
@@ -555,7 +545,7 @@ namespace eval ::Form {
 	}]
 	
 	eval [string map [list %T% $type$sub] {
-	    proc <%T%> {name args} {
+	    method <%T%> {name args} {
 		if {[llength $args] % 2} {
 		    set content [lindex $args end]
 		    set args [lrange $args 0 end-1]
@@ -582,7 +572,7 @@ namespace eval ::Form {
 		    dict set config id F[incr uniqID]
 		}
 		set id [dict get $config id]
-		set result "<[attr input [dict in $config $boxA]]>$content"
+		set result "<[my attr input [dict in $config $boxA]]>$content"
 		if {[dict exists $config label]
 		    && [dict get $config label] ne ""
 		} {
@@ -599,18 +589,115 @@ namespace eval ::Form {
 	}]
     }
 
-    variable scripting 1	;# permit scripting options
-    proc init {args} {
+    method layout_parser {fname args} {
+	variable layoutcache
+	if {[info exists layoutcache($fname-$args)]} {
+	    return $layoutcache($fname-$args)
+	}
+	if {[llength $args]%2 != 1} {
+	    error "syntax: layout name ?option_pairs? {content}"
+	}
+
+	set script [lindex $args end]
+	set args [lrange $args 0 end-1]
+
+	variable tags
+	package require parsetcl
+	set parse [::parsetcl simple_parse_script $script]
+
+	set rendered {}
+	set known {}
+	set form {}
+	set frag 0
+
+	parsetcl walk_tree parse index Cd {
+	    # body
+	    set line [lindex $parse {*}$index]
+	    Debug.form {walk: '$line'}
+	    set cargs [lassign $line . . . left]
+	    set fc [lindex $left 2]
+	    if {[string match L* [lindex $left 0]] && $fc in $tags} {
+		switch -- $fc {
+		    form {
+			error "form tags cannot appear in a layout"
+		    }
+		    
+		    fieldset {
+			set name [lindex $cargs 0]
+			set content [lindex $cargs end]
+			set fsargs {}
+			foreach ca [lrange $cargs 1 end-1] {
+			    lappend fsargs [parsetcl unparse $ca]
+			}
+			set name [string trim [lindex $name 2] .]
+			if {[dict exists $known $name]} {
+			    error "redeclaration of '$name' in '[parsetcl unparse $line]'"
+			}
+
+			# a fieldset's content is itself a form - recursively parse
+			set content [lindex $content 2]
+			set fs [lindex [uplevel 1 [list [self] layout_parser $name \n$content\n]] 1]
+			set fs "\[<fieldset> $name $fsargs [list \n$fs\n]\]"
+			Debug.form {fieldset: $name: '$content' -> ($fs)}
+			dict set known $name \n$fs
+		    }
+
+		    default {
+			lset parse {*}$index 3 2 <$fc>	;# make it a form command
+			set name [lindex $parse {*}$index 4 2]
+			if {![string match L* [lindex $parse {*}$index 4 0]]} {
+			    error "'[lindex $parse {*}$index 4 2]' is not a name in [parsetcl unparse $line]"
+			}
+			set allargs ""
+			foreach a $cargs {
+			    lappend allargs [parsetcl unparse $a]
+			}
+			dict set known $name "\[<$fc> [join $allargs]\]"
+		    }
+		}
+	    } else {
+		Debug.form {'$fc' is not a form tag}
+	    }
+	} C.* {
+	    dict set known [incr frag] [parsetcl unparse $line]
+	}
+
+	set result "$fname $args [list [join [dict values $known] \n]\n]"
+	set layoutcache($fname-$args) $result
+	return $result
+    }
+
+    method layout {fname args} {
+	set result [my layout_parser $fname {*}$args]
+	Debug.form {layout: ($result)}
+	return [uplevel 1 [list [self] <form> {*}$result]]
+    }
+
+    constructor {args} {
+	variable Fdefaults [dict create {*}{
+	    textarea {compact 0}
+	    form {method post tabular 0}
+	    fieldset {vertical 0}
+	    submit {alt Submit}
+	    reset {alt Reset}
+	    option {}
+	}]
+	variable tabindex 0	;# taborder for fields
+	variable tabular 0	;# tabular form elements
+	variable uniqID 0	;# unique ID for fields
+	variable scripting 1	;# permit scripting options
+
 	if {$args ne {}} {
 	    variable {*}$args
 	}
-	variable scripting
+
 	if {$scripting} {
 	    variable coreA {id class style title}
 	} else {
 	    variable coreA {id class title}
 	}
 	variable i18nA {lang dir}
+
 	set commonOn {
 	    onclick ondblclick onmousedown onmouseup onmouseover
 	    onmousemove onmouseout onkeypress onkeydown onkeyup
@@ -649,18 +736,27 @@ namespace eval ::Form {
 	variable optgroupA [subst {disabled label $allA}]
 	variable optionA [subst {selected disabled label value $allA}]
 	variable legendA [subst {$allA}]
+
+	variable tags {}
+	foreach m [info class methods FormClass -all] {
+	    if {![string match <* $m]} continue
+	    lappend tags [string trim $m <>] {}
+	}
     }
-
-    namespace export -clear *
-    namespace ensemble create -subcommands {}
+    set meth {}
+    foreach m [info class methods FormClass -all -private] {
+	if {![string match <* $m]} continue
+	lappend meth $m
+	interp alias {} $m {} Form $m
+    }
+    export {*}[info class methods FormClass -all] {*}$meth
 }
-Form init
-
-namespace import ::Form::<*>
+::FormClass create ::Form
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
     Form default textarea rows 8 cols 60
 
+    if {0} {
     puts "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head></head><body>"
     puts [<form> xxx action http:moop.html {
 	[<p> "This is a form to enter your account details"]
@@ -785,4 +881,59 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     }
     puts [<form> yyy action http:moop.html $body]
     puts "</body>\n</html>"
+    }
+
+    Debug on form 10
+    puts [Form layout foo {
+	fieldset fsearch {
+	    submit submit "Search"
+	    text kw title "Search Text"
+	    <br> clear both
+	    radioset scope {fieldset style} "float:left" legend "Search scope" {
+		+site 0
+		section 1
+	    }
+	    select newer {fieldset style} "float:left" legend "Newer Than" {
+		[<option> week value "last week"]
+		[<option> fortnight value "last fortnight"]
+		[<option> month value "last month"]
+		[<option> year value "last year"]
+	    }
+	    select older {fieldset style} "float:left" legend "Older Than" {
+		[<option> week value "last week"]
+		[<option> fortnight value "last fortnight"]
+		[<option> month value "last month"]
+		[<option> year value "last year"]
+	    }
+	    select sort {fieldset style} "float:left" legend "Sort By" {
+		[<option> title value title]
+		[<option> author value author]
+	    }
+	}
+	fieldset sr1 style moop {
+	    radioset scope1 label "Search scope" {
+		+site 0
+		section 1
+	    }
+	    select newer1 label "Newer Than" {
+		[<option> week value "last week"]
+		[<option> fortnight value "last fortnight"]
+		[<option> month value "last month"]
+		[<option> year value "last year"]
+	    }
+	    select older1 label "Older Than" {
+		[<option> week value "last week"]
+		[<option> fortnight value "last fortnight"]
+		[<option> month value "last month"]
+		[<option> year value "last year"]
+	    }
+	    selectset sort1 label "Sort By" {
+		title
+		author
+	    }
+	}
+	button foo
+	radioset rs ...
+	text text ...
+    }]
 }
