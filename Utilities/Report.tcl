@@ -448,7 +448,7 @@ if {[info exists argv0] && ([info script] eq $argv0)} {
 	    wilma, 11 stone drive, 123
 	    barney, 13 stone drive, 345
 	}
-	set r [Report csv2dict $csv]
+	set data [Report csv2dict $csv]
 	set params {
 	    sortable 1
 	    evenodd 1
@@ -475,7 +475,7 @@ if {[info exists argv0] && ([info script] eq $argv0)} {
 	    rowp {name,fred {class fred}}
 	}
 	puts "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head></head><body>"
-	puts [Report html {*}$r {*}$params {*}$params1 {*}$params2]
+	puts [Report html {*}$data {*}$params {*}$params1 {*}$params2]
 	puts "</body>\n</html>"
     }
 }
