@@ -624,21 +624,44 @@ class create ::FormClass {
 		    
 		    fieldset {
 			set name [lindex $cargs 0]
+			if {[dict exists $known $name]} {
+			    error "redeclaration of '$name' in '[parsetcl unparse $line]'"
+			}
+
 			set content [lindex $cargs end]
 			set fsargs {}
 			foreach ca [lrange $cargs 1 end-1] {
 			    lappend fsargs [parsetcl unparse $ca]
 			}
 			set name [string trim [lindex $name 2] .]
-			if {[dict exists $known $name]} {
-			    error "redeclaration of '$name' in '[parsetcl unparse $line]'"
-			}
 
 			# a fieldset's content is itself a form - recursively parse
 			set content [lindex $content 2]
 			set fs [lindex [uplevel 1 [list [self] layout_parser $name \n$content\n]] 1]
 			set fs "\[<fieldset> $name $fsargs [list \n$fs\n]\]"
 			Debug.form {fieldset: $name: '$content' -> ($fs)}
+			dict set known $name \n$fs
+		    }
+
+		    select {
+			set name [lindex $cargs 0]
+			if {[dict exists $known $name]} {
+			    error "redeclaration of '$name' in '[parsetcl unparse $line]'"
+			}
+
+			set content [lindex $cargs end]
+			set fsargs {}
+			foreach ca [lrange $cargs 1 end-1] {
+			    lappend fsargs [parsetcl unparse $ca]
+			}
+			set fsargs [join $fsargs]
+			set name [string trim [lindex $name 2] .]
+
+			# a select's content is itself a form - recursively parse
+			set content [lindex $content 2]
+			set fs [lindex [uplevel 1 [list [self] layout_parser $name \n$content\n]] 1]
+			set fs "\[<select> $name $fsargs [list \n$fs\n]\]"
+			Debug.form {select: $name: '$content' -> ($fs)}
 			dict set known $name \n$fs
 		    }
 
@@ -657,9 +680,10 @@ class create ::FormClass {
 		}
 	    } else {
 		Debug.form {'$fc' is not a form tag}
+		dict set known [incr frag] \[[parsetcl unparse $line]\]
 	    }
 	} C.* {
-	    dict set known [incr frag] [parsetcl unparse $line]
+	    dict set known [incr frag] \[[parsetcl unparse $line]\]
 	}
 
 	set result "$fname $args [list [join [dict values $known] \n]\n]"
@@ -883,57 +907,62 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     puts "</body>\n</html>"
     }
 
-    Debug on form 10
-    puts [Form layout foo {
-	fieldset fsearch {
-	    submit submit "Search"
-	    text kw title "Search Text"
-	    <br> clear both
-	    radioset scope {fieldset style} "float:left" legend "Search scope" {
-		+site 0
-		section 1
+    if {1} {
+	Debug on form 10
+	puts "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head></head><body>"
+	puts [Form layout foo {
+	    fieldset fsearch {
+		submit submit "Search"
+		text kw title "Search Text"
+		<br> clear both
+		radioset scope {fieldset style} "float:left" legend "Search scope" {
+		    +site 0
+		    section 1
+		}
+		select newer {fieldset style} "float:left" legend "Newer Than" {
+		    option week value "last week"
+		    option fortnight value "last fortnight"
+		    option month value "last month"
+		    option year value "last year"
+		}
+		select older {fieldset style} "float:left" legend "Older Than" {
+		    option week value "last week"
+		    option fortnight value "last fortnight"
+ 		    option month value "last month"
+		    option year value "last year"
+		}
+		select sort {fieldset style} "float:left" legend "Sort By" {
+		    option title value title
+		    option author value author
+		}
 	    }
-	    select newer {fieldset style} "float:left" legend "Newer Than" {
-		[<option> week value "last week"]
-		[<option> fortnight value "last fortnight"]
-		[<option> month value "last month"]
-		[<option> year value "last year"]
+	    fieldset sr1 style moop {
+		radioset scope1 label "Search scope" {
+		    +site 0
+		    section 1
+		}
+		select newer1 label "Newer Than" {
+		    option week value "last week"
+		    option fortnight value "last fortnight"
+		    option month value "last month"
+		    option year value "last year"
+		}
+		select older1 label "Older Than" {
+		    option week value "last week"
+		    option fortnight value "last fortnight"
+		    option month value "last month"
+		    option year value "last year"
+		}
+		selectset sort1 label "Sort By" {
+		    title
+		    author
+		}
 	    }
-	    select older {fieldset style} "float:left" legend "Older Than" {
-		[<option> week value "last week"]
-		[<option> fortnight value "last fortnight"]
-		[<option> month value "last month"]
-		[<option> year value "last year"]
-	    }
-	    select sort {fieldset style} "float:left" legend "Sort By" {
-		[<option> title value title]
-		[<option> author value author]
-	    }
-	}
-	fieldset sr1 style moop {
-	    radioset scope1 label "Search scope" {
-		+site 0
-		section 1
-	    }
-	    select newer1 label "Newer Than" {
-		[<option> week value "last week"]
-		[<option> fortnight value "last fortnight"]
-		[<option> month value "last month"]
-		[<option> year value "last year"]
-	    }
-	    select older1 label "Older Than" {
-		[<option> week value "last week"]
-		[<option> fortnight value "last fortnight"]
-		[<option> month value "last month"]
-		[<option> year value "last year"]
-	    }
-	    selectset sort1 label "Sort By" {
-		title
-		author
-	    }
-	}
-	button foo
-	radioset rs ...
-	text text ...
-    }]
+	    text fullname label "full name"
+	    button foo
+	    radioset rs ...
+	    text text ...
+	}]
+	puts "</body>\n</html>"
+    }
 }
