@@ -387,6 +387,44 @@ namespace eval ::Report {
 	return [list $result headers $header]
     }
 
+    # convert a TDBC result set into a list containing:
+    # header for Report and data for Report
+    proc rs2dict {rs args} {
+	package require tdbc
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+
+	set key [dict get? $args key]
+	set rsc [$rs columns]
+	set result {}
+	if {$key ne ""} {
+	    if {$key ni $rsc} {
+		error "key '$key' does not occur in resultset '$rs' ($rsc)"
+	    }
+	    set unique [dict get? $args unique]
+
+	    # ensure the key is unique across recordset
+	    $rs foreach -as dicts -- record {
+		set k [dict get $record $key]
+		if {[dict exists $result $k]} {
+		    if {$unique} {
+			error "key element '$key' valued '$k' is not unique."
+		    }
+		} else {
+		    dict set result [dict get $record $key] $record
+		}
+	    }
+	} else {
+	    set cnt -1
+	    $rs foreach -as dicts -- record {
+		dict set result [incr cnt] $record
+	    }
+	}
+
+	return [list $result headers $rsc]
+    }
+
     proc init {args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args]
@@ -404,36 +442,40 @@ if {[info exists argv0] && ([info script] eq $argv0)} {
     lappend auto_path .
     package require Dict
     Report init 
-    set csv {name,address,phone
-	fred, 11 stone drive, 123
-	wilma, 11 stone drive, 123
-	barney, 13 stone drive, 345
+    if {1} {
+	set csv {name,address,phone
+	    fred, 11 stone drive, 123
+	    wilma, 11 stone drive, 123
+	    barney, 13 stone drive, 345
+	}
+	set r [Report csv2dict $csv]
+	set params {
+	    sortable 1
+	    evenodd 1
+	}
+	set params1 {
+	    class table
+	    tparam {title table}
+	    hclass header
+	    hparam {title column}
+	    thparam {class thead}
+	    thrparam {class thead}
+	    fclass footer
+	    tfparam {class tfoot}
+	    tfrparam {class tfoot}
+	    rclass row
+	    rparam {}
+	    eclass el
+	    eparam {}
+	    footer {}
+	}
+	set params2 {
+	    footerp {name {class fname} phone {colspan 2}}
+	    headerp {name {class hname} phone {colspan 2}}
+	    rowp {name,fred {class fred}}
+	}
+	puts "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head></head><body>"
+	puts [Report html {*}$r {*}$params {*}$params1 {*}$params2]
+	puts "</body>\n</html>"
     }
-    set r [Report csv2dict $csv]
-    set params {
-	sortable 1
-	evenodd 1
-    }
-    set params1 {
-	class table
-	tparam {title table}
-	hclass header
-	hparam {title column}
-	thparam {class thead}
-	thrparam {class thead}
-	fclass footer
-	tfparam {class tfoot}
-	tfrparam {class tfoot}
-	rclass row
-	rparam {}
-	eclass el
-	eparam {}
-	footer {}
-    }
-    set params2 {
-	footerp {name {class fname} phone {colspan 2}}
-	headerp {name {class hname} phone {colspan 2}}
-	rowp {name,fred {class fred}}
-    }
-    puts [Report html {*}$r {*}$params {*}$params1 {*}$params2]
 }
