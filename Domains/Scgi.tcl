@@ -40,8 +40,12 @@ class create ::Scgi {
 	    }
 
 	    # response status
-	    set stguff [join [lassign [split [dict get $response status]] status]]
-	    dict set r -code $status
+	    if {[dict exists $response status]} {
+		set stguff [join [lassign [split [dict get $response status]] status]]
+		dict set r -code $status
+	    } else {
+		dict set r -code 503
+	    }
 
 	    # entity (if any)
 	    set body [string range $accum $delim+4 end]
