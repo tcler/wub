@@ -216,6 +216,43 @@ namespace eval ::tcl::dict {
 	}
     }
 
+    # dict switch dict args... --
+    #
+    # Apply matching functions from the second dict (or $args)
+    # replacing existing values with the function application's return
+    #
+    # dict switch record {
+    #	name {string tolower $name}
+    #	dob {...}
+    # }
+
+    proc switch {d args} {
+	upvar 1 $d dict
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	dict for {n v} $dict {
+	    if {[dict exists $args $n]} {
+		dict set dict $n [uplevel 1 [list ::apply [list $n [dict get $args $n]] $v]]
+	    }
+	}
+	return $dict
+    }
+
+    # side effect free variant of switch
+    proc transmute {dict args} {
+        if {[llength $args] == 1} {
+            set args [lindex $args 0]
+        }
+        dict for {n v} $dict {
+            if {[dict exists $args $n]} {
+                dict set dict $n [uplevel 1 [list ::apply [list $n [dict get $args $n]] $v]]
+            }
+        }
+        return $dict
+    }
+
+
     if {0} {
 	# [dict_project $keys $dict] extracts the specified keys in $args from the $dict
 	# and returns a plain old list-of-values.
@@ -233,7 +270,7 @@ namespace eval ::tcl::dict {
 	}
     }
 
-    foreach x {get? set? unset? witharray equal apply capture nlappend in ni list diff} {
+    foreach x {get? set? unset? witharray equal apply capture nlappend in ni list diff switch transmute} {
 	namespace ensemble configure dict -map [linsert [namespace ensemble configure dict -map] end $x ::tcl::dict::$x]
     }
     ::unset x
@@ -377,7 +414,7 @@ namespace eval ::Dict {
 		set file [file readlink $file]
 	    }
 
-	    switch -- [file type $file] {
+	    ::switch -- [file type $file] {
 		directory {
 		    set extra "/"
 		}
