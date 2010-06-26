@@ -8,6 +8,9 @@ package require Url
 package require Mime
 package require md5
 
+package require Debug
+Debug define caching
+
 package provide Http 2.1
 
 set ::API(Utilities/Http) {
@@ -345,6 +348,7 @@ namespace eval ::Http {
 	dict set rsp -code 200
 	dict set rsp -rtype CacheableFile
 
+	Debug.caching {CacheableFile: last-modified '[dict get $rsp last-modified]'}
 	#catch {dict unset rsp -content}
 	return $rsp
     }
@@ -358,6 +362,7 @@ namespace eval ::Http {
 	catch {dict unset rsp -modified}
 	catch {dict unset rsp -depends}
 	#catch {dict unset rsp last-modified}
+	Debug.caching {NoCache}
 	return $rsp
     }
 
@@ -367,13 +372,16 @@ namespace eval ::Http {
 	    # it's an age
 	    if {$age != 0} {
 		dict set rsp expires [Date [expr {[clock seconds] + $age}]]
+		Debug.caching {Http Cache: numeric age expires '[dict get $rsp expires]'}
 	    } else {
+		Debug.caching {Http Cache: turn off expires}
 		catch {dict unset rsp expires}
 		catch {dict unset rsp -expiry}
 	    }
 	} else {
 	    dict set rsp -expiry $age	;# remember expiry verbiage for caching
 	    dict set rsp expires [Date [clock scan $age]]
+	    Debug.caching {Http Cache: text age expires '$age' - '[dict get $rsp expires]'}
 	    set age [expr {[clock scan $age] - [clock seconds]}]
 	}
 	dict set rsp -dynamic 0	;# signal that we can cache this
@@ -390,6 +398,7 @@ namespace eval ::Http {
 	    }
 	}
 
+	Debug.caching {Http Cache: ($age) cache-control: [dict get? $rsp cache-control]}
 	return $rsp
     }
 
@@ -401,6 +410,8 @@ namespace eval ::Http {
 	} else {
 	    dict set rsp cache-control "must-revalidate"
 	}
+	Debug.caching {DCache: [dict get? $rsp cache-control]}
+
 	return $rsp
     }
 
@@ -443,7 +454,7 @@ namespace eval ::Http {
 	if {![dict exists $rsp -code]} {
 	    dict set rsp -code 200
 	}
-
+	catch {dict unset rsp -dynamic}
 	dict set rsp -rtype CacheableContent	;# tag the response type
 	return $rsp
     }
@@ -1088,3 +1099,4 @@ namespace eval ::Http {
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
+# vim: ts=8:sw=4:noet
