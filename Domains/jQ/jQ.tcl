@@ -80,7 +80,7 @@ set ::API(Domains/JQ) {
 namespace eval ::jQ {
     variable root [file dirname [info script]]
     variable mount /jquery/
-    variable expires 0
+    variable expires "next week"
     variable google 0
 
     variable version 1.3.2
@@ -825,3 +825,4 @@ namespace eval ::jQ {
 }
 
 interp alias {} JQ {} jQ	;# convention - Domain names start with U/C char
+# vim: ts=8:sw=4:noet
