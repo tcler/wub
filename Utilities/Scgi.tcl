@@ -1,11 +1,11 @@
-# Scgi - Simple Common Gateway Interface
+# Sscgi - Simple Common Gateway Interface Server
 # Derived from http://wiki.tcl.tk/19670 by Mark Janssen (http://wiki.tcl.tk/14766)
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
     lappend auto_path [file dirname [info script]]
 }
 
-package provide Scgi 1.0
+package provide Sscgi 1.0
 package require Debug
 package require Url
 
@@ -216,3 +216,4 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 
 #### Wub Listener interface
 # Listener listen -host $host -port $listener_port -httpd Scgi -dispatch {Backend Incoming}
+# vim: ts=8:sw=4:noet
