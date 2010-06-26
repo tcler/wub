@@ -647,6 +647,14 @@ namespace eval Httpd {
 	writable
     }
 
+    proc associate {chan} {
+	variable files; dict set files [info coroutine] $chan 1
+    }
+
+    proc disaassociate {chan} {
+	variable files; catch {dict unset files [info coroutine] $chan}
+    }
+
     # extract some information from Httpd to aid in debugging
     proc status {} {
 	variable crs	;# array of running coroutine transitions
