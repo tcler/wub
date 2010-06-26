@@ -25,12 +25,13 @@ class create ::Scgi {
 	if {$gone || $eof} {
 	    # the channel's gone - we presume it's completed the request
 	    Httpd disassociate $scgi
-	    catch {chan close $eof}
+	    catch {chan close $scgi}
 
 	    # split input into headers and body
 	    set delim [string first "\xd\xa\xd\xa" $accum]
 	    set headers [split [string map {\xd\xa \xa} [string range $accum 0 $delim]] \a]
-	    Debug.scgi {[self] got headers ($headers)}
+	    set body [string range $accum $delim+4 end]
+	    Debug.scgi {[self] got headers ($headers) and body length [string length $body]}
 
 	    set response {}
 	    foreach header $headers {
@@ -42,13 +43,14 @@ class create ::Scgi {
 	    # response status
 	    if {[dict exists $response status]} {
 		set stguff [join [lassign [split [dict get $response status]] status]]
+		Debug.scgi {[self] status:$status guff: '$stguff'}
 		dict set r -code $status
 	    } else {
+		Debug.scgi {[self] No status sent}
 		dict set r -code 503
 	    }
 
 	    # entity (if any)
-	    set body [string range $accum $delim+4 end]
 	    if {[string length $body]} {
 		dict set r content-length $body
 		dict set r -content $body
