@@ -151,6 +151,7 @@ class create ::CGI {
 
     method closed {r pipe} {
 	Debug.cgi {closed [string length [dict get? $r -content]]}
+	Httpd disassociate $pipe
 	if {[catch {
 	    incr cgi -1
 
@@ -367,6 +368,7 @@ class create ::CGI {
 	    fconfigure $pipe -translation {auto binary} -blocking 0
 	    cd $pwd
 	}
+	Httpd associate $pipe
 
 	# collect input from the proc
 	fileevent $pipe readable [list [self] headers $r $pipe]
