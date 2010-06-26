@@ -101,7 +101,7 @@ namespace eval ::Scgi {
     lappend trans PATH_INFO -pathinfo ;# The extra path information, as given by the client. In other words, scripts can be accessed by their virtual pathname, followed by extra information at the end of this path. The extra information is sent as PATH_INFO. This information should be decoded by the server if it comes from a URL before it is passed to the CGI script.
     lappend trans PATH_TRANSLATED -translated ;# The server provides a translated version of PATH_INFO, which takes the path and does any virtual-to-physical mapping to it.
     lappend trans QUERY_STRING -query ;# The information which follows the ? in the URL which referenced this script. This is the query information. It should not be decoded in any fashion. This variable should always be set when there is query information, regardless of command line decoding.
-    lappend REDIRECT_STATUS -status
+    lappend trans REDIRECT_STATUS -status
     lappend trans REMOTE_ADDR -ripaddr ;# The IP address of the remote host making the request.
     lappend trans REMOTE_HOST	-rhost ;# The hostname making the request. If the server does not have this information, it should set REMOTE_ADDR and leave this unset.
     lappend trans REMOTE_IDENT -ident ;# If the HTTP server supports RFC 931 identification, then this variable will be set to the remote user name retrieved from the server. Usage of this variable should be limited to logging only.
