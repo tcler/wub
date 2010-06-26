@@ -619,9 +619,11 @@ class create ::FormClass {
 	    if {[string match L* [lindex $left 0]] && $fc in $tags} {
 		switch -- $fc {
 		    form {
-			error "form tags cannot appear in a layout"
+			# use this command to inject args into eventual <form>
+			foreach ca $cargs {
+			    lappend args [parsetcl unparse $ca]
+			}
 		    }
-		    
 		    fieldset {
 			set name [lindex $cargs 0]
 			if {[dict exists $known $name]} {
@@ -781,130 +783,130 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     Form default textarea rows 8 cols 60
 
     if {0} {
-    puts "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head></head><body>"
-    puts [<form> xxx action http:moop.html {
-	[<p> "This is a form to enter your account details"]
-	[<fieldset> details vertical 1 title "Account Details" {
-	    [<legend> "Account Details"]
-	    [<text> user label "User name" title "Your preferred username (only letters, numbers and spaces)"]
-	    [<text> email label "Email Address" title "Your email address" moop]
-	    [<hidden> hidden moop]
-	}]
-	[<fieldset> passwords maxlength 16 size 16 {
-	    [<legend> "Passwords"]
-	    [<p> "Type in your preferred password, twice.  Leaving it blank will generate a random password for you."]
-	    [<password> password]
-	    [<password> repeat]
-	}]
-	[<radioset> illness legend "Personal illnesses" {
-	    +none 0
-	    lameness 1
-	    haltness 2
-	    blindness 2
-	}]
-	[<checkset> illness vertical 1 legend "Personal illnesses" {
-	    +none 0
-	    lameness 1
-	    haltness 2
-	    blindness 2
-	}]
-	[<select> selname legend "Shoe Size" title "Security dictates that we know your approximate shoe size" {
-	    [<option> value moop1 label moop1 value 1 "Petit"]
-	    [<option> label moop2 value moop2 value 2 "Massive"]
-	}]
-	[<fieldset> personal tabular 1 legend "Personal Information" {
-	    [<text> fullname label "full name" title "Full name to be used in email."] [<text> phone label phone title "Phone number for official contact"]
-	}]
-	[<p> "When you create the account instructions will be emailed to you.  Make sure your email address is correct."]
-	[<textarea> te compact 1 {
-	    This is some default text to be getting on with
-	    It's fairly cool.  Note how it's left aligned.
-	}]
-	<br>[<submit> submit "Create New Account"]
-
-	[<br>]
-	[<fieldset> permissions -legend Permissions {
-	    [<fieldset> gpermF style "float:left" title "Group Permissions." {
-		[<legend> Group]
-		[<checkbox> gperms title "Can group members read this page?" value 1 checked 1 read]
-		[<checkbox> gperms title "Can group members modify this page?" value 2 checked 1 modify]
-		[<checkbox> gperms title "Can group members add to this page?" value 4 checked 1 add]
-		[<br>][<text> group title "Which group owns this page?" label "Group: "]
+	puts "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head></head><body>"
+	puts [<form> xxx action http:moop.html {
+	    [<p> "This is a form to enter your account details"]
+	    [<fieldset> details vertical 1 title "Account Details" {
+		[<legend> "Account Details"]
+		[<text> user label "User name" title "Your preferred username (only letters, numbers and spaces)"]
+		[<text> email label "Email Address" title "Your email address" moop]
+		[<hidden> hidden moop]
 	    }]
-	    [<fieldset> opermF style "float:left" title "Default Permissions." {
-		[<legend> Anyone]
-		[<checkbox> operms title "Can anyone read this page?" value 1 checked 1 read]
-		[<checkbox> operms title "Can anyone modify this page?" value 2 modify]
-		[<checkbox> operms title "Can anyone add to this page?" value 4 add]
+	    [<fieldset> passwords maxlength 16 size 16 {
+		[<legend> "Passwords"]
+		[<p> "Type in your preferred password, twice.  Leaving it blank will generate a random password for you."]
+		[<password> password]
+		[<password> repeat]
 	    }]
-	}]
-	[<br>]
-	[<div> class buttons [subst {
-	    [<submit> class positive {
-		[<img> src /images/icons/tick.png alt ""] Save
+	    [<radioset> illness legend "Personal illnesses" {
+		+none 0
+		lameness 1
+		haltness 2
+		blindness 2
 	    }]
+	    [<checkset> illness vertical 1 legend "Personal illnesses" {
+		+none 0
+		lameness 1
+		haltness 2
+		blindness 2
+	    }]
+	    [<select> selname legend "Shoe Size" title "Security dictates that we know your approximate shoe size" {
+		[<option> value moop1 label moop1 value 1 "Petit"]
+		[<option> label moop2 value moop2 value 2 "Massive"]
+	    }]
+	    [<fieldset> personal tabular 1 legend "Personal Information" {
+		[<text> fullname label "full name" title "Full name to be used in email."] [<text> phone label phone title "Phone number for official contact"]
+	    }]
+	    [<p> "When you create the account instructions will be emailed to you.  Make sure your email address is correct."]
+	    [<textarea> te compact 1 {
+		This is some default text to be getting on with
+		It's fairly cool.  Note how it's left aligned.
+	    }]
+	    <br>[<submit> submit "Create New Account"]
 	    
-	    [<a> href /password/reset/ [subst {
-		[<img> src /images/icons/textfield_key.png alt ""] Change Password
+	    [<br>]
+	    [<fieldset> permissions -legend Permissions {
+		[<fieldset> gpermF style "float:left" title "Group Permissions." {
+		    [<legend> Group]
+		    [<checkbox> gperms title "Can group members read this page?" value 1 checked 1 read]
+		    [<checkbox> gperms title "Can group members modify this page?" value 2 checked 1 modify]
+		    [<checkbox> gperms title "Can group members add to this page?" value 4 checked 1 add]
+		    [<br>][<text> group title "Which group owns this page?" label "Group: "]
+		}]
+		[<fieldset> opermF style "float:left" title "Default Permissions." {
+		    [<legend> Anyone]
+		    [<checkbox> operms title "Can anyone read this page?" value 1 checked 1 read]
+		    [<checkbox> operms title "Can anyone modify this page?" value 2 modify]
+		    [<checkbox> operms title "Can anyone add to this page?" value 4 add]
+		}]
+	    }]
+	    [<br>]
+	    [<div> class buttons [subst {
+		[<submit> class positive {
+		    [<img> src /images/icons/tick.png alt ""] Save
+		}]
+		
+		[<a> href /password/reset/ [subst {
+		    [<img> src /images/icons/textfield_key.png alt ""] Change Password
+		}]]
+		
+		[<a> href "#" class negative [subst {
+		    [<img> src /images/icons/cross.png alt ""] Cancel
+		}]]
 	    }]]
-	    
-	    [<a> href "#" class negative [subst {
-		[<img> src /images/icons/cross.png alt ""] Cancel
-	    }]]
-	}]]
-    }]
-    puts "<hr />"
-    set body {
-	[<fieldset> fsearch {
-	    [<submit> submit "Search"]
-	    [<text> kw title "Search Text"]
-	    [<br> clear both]
-	    [<radioset> scope {fieldset style} "float:left" legend "Search scope" {
-		+site 0
-		section 1
-	    }]
-	    [<select> newer {fieldset style} "float:left" legend "Newer Than" {
-		[<option> week value "last week"]
-		[<option> fortnight value "last fortnight"]
-		[<option> month value "last month"]
-		[<option> year value "last year"]
-	    }]
-	    [<select> older {fieldset style} "float:left" legend "Older Than" {
-		[<option> week value "last week"]
-		[<option> fortnight value "last fortnight"]
-		[<option> month value "last month"]
-		[<option> year value "last year"]
-	    }]
-	    [<select> sort {fieldset style} "float:left" legend "Sort By" {
-		[<option> title value title]
-		[<option> author value author]
-	    }]
 	}]
-	[<fieldset> sr1 {
-	    [<radioset> scope1 label "Search scope" {
-		+site 0
-		section 1
+	puts "<hr />"
+	set body {
+	    [<fieldset> fsearch {
+		[<submit> submit "Search"]
+		[<text> kw title "Search Text"]
+		[<br> clear both]
+		[<radioset> scope {fieldset style} "float:left" legend "Search scope" {
+		    +site 0
+		    section 1
+		}]
+		[<select> newer {fieldset style} "float:left" legend "Newer Than" {
+		    [<option> week value "last week"]
+		    [<option> fortnight value "last fortnight"]
+		    [<option> month value "last month"]
+		    [<option> year value "last year"]
+		}]
+		[<select> older {fieldset style} "float:left" legend "Older Than" {
+		    [<option> week value "last week"]
+		    [<option> fortnight value "last fortnight"]
+		    [<option> month value "last month"]
+		    [<option> year value "last year"]
+		}]
+		[<select> sort {fieldset style} "float:left" legend "Sort By" {
+		    [<option> title value title]
+		    [<option> author value author]
+		}]
 	    }]
-	    [<select> newer1 label "Newer Than" {
-		[<option> week value "last week"]
-		[<option> fortnight value "last fortnight"]
-		[<option> month value "last month"]
-		[<option> year value "last year"]
+	    [<fieldset> sr1 {
+		[<radioset> scope1 label "Search scope" {
+		    +site 0
+		    section 1
+		}]
+		[<select> newer1 label "Newer Than" {
+		    [<option> week value "last week"]
+		    [<option> fortnight value "last fortnight"]
+		    [<option> month value "last month"]
+		    [<option> year value "last year"]
+		}]
+		[<select> older1 label "Older Than" {
+		    [<option> week value "last week"]
+		    [<option> fortnight value "last fortnight"]
+		    [<option> month value "last month"]
+		    [<option> year value "last year"]
+		}]
+		[<selectset> sort1 label "Sort By" {
+		    title
+		    author
+		}]
 	    }]
-	    [<select> older1 label "Older Than" {
-		[<option> week value "last week"]
-		[<option> fortnight value "last fortnight"]
-		[<option> month value "last month"]
-		[<option> year value "last year"]
-	    }]
-	    [<selectset> sort1 label "Sort By" {
-		title
-		author
-	    }]
-	}]
-    }
-    puts [<form> yyy action http:moop.html $body]
-    puts "</body>\n</html>"
+	}
+	puts [<form> yyy action http:moop.html $body]
+	puts "</body>\n</html>"
     }
 
     if {1} {
@@ -966,3 +968,4 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	puts "</body>\n</html>"
     }
 }
+# vim: ts=8:sw=4:noet
