@@ -322,7 +322,7 @@ namespace eval ::Site {
 	}]
 
 	# SCGI Listener configuration
-	@scgi [rc {
+	@sscgi [rc {
 	    -port 8088			;# what port does SCGI run on
 	    -port 0			;# disable SCGI - comment to enable
 	    -scgi_send {::scgi Send}	;# how does SCGI communicate incoming?
@@ -727,11 +727,11 @@ namespace eval ::Site {
 	}
 
 	#### start scgi Listener
-	::variable scgi
-	if {[dict exists $scgi -port] && ([dict get $scgi -port] > 0)} {
-	    package require Scgi
-	    Listener listen -host $host -httpd scgi {*}$scgi
-	    Debug.log {Listening on scgi $host [dict get $scgi -port] using docroot $docroot}
+	::variable sscgi
+	if {[dict exists $sscgi -port] && ([dict get $sscgi -port] > 0)} {
+	    package require Sscgi
+	    Listener listen -host $host -httpd sscgi {*}$scgi
+	    Debug.log {Listening on scgi $host [dict get $sscgi -port] using docroot $docroot}
 	}
 
     }
@@ -886,3 +886,4 @@ namespace eval ::Site {
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
+# vim: ts=8:sw=4:noet
