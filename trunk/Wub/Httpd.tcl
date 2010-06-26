@@ -651,7 +651,7 @@ namespace eval Httpd {
 	variable files; dict set files [info coroutine] $chan 1
     }
 
-    proc disaassociate {chan} {
+    proc disassociate {chan} {
 	variable files; catch {dict unset files [info coroutine] $chan}
     }
 
