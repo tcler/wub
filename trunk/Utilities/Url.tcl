@@ -380,10 +380,12 @@ namespace eval ::Url {
     }
 
     proc range {url from to} {
+	Debug.url {Url range: '$url' -> '[join [lrange [split $url /] $from $to] /]'}
 	return [join [lrange [split $url /] $from $to] /]
     }
     
     proc tail {url} {
+	Debug.url {Url tail: '$url' -> '[lindex [split $url /] end]'}
 	return [lindex [split $url /] end]
     }
 
@@ -409,3 +411,4 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	}
     }
 }
+# vim: ts=8:sw=4:noet
