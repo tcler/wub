@@ -20,7 +20,7 @@ set ::API(Domains/Scgi) {
 
 class create ::Scgi {
     # response - collect and process response from SCGI client
-    method response {r scgi accum} {
+    method response {r scgi {accum ""}} {
 	set gone [catch {chan eof $scgi} eof]
 	if {$gone || $eof} {
 	    # the channel's gone - we presume it's completed the request
@@ -33,7 +33,7 @@ class create ::Scgi {
 	    Debug.scgi {[self] got headers ($headers)}
 
 	    set response {}
-	    foreach line header $headers {
+	    foreach header $headers {
 		set val [join [lassign [split $header :] name] :]
 		set name [string toupper $name]
 		dict set response $name $val
@@ -70,11 +70,15 @@ class create ::Scgi {
 
     # connected - connected to SCGI
     method connected {r scgi} {
+	Debug.scgi {connected $scgi}
+	chan event $scgi writable {}
+
 	set gone [catch {chan eof $scgi} eof]
 	if {$gone || $eof} {
 	    # the channel's gone before we even connected - resume with error
-	    Debug.scgi {[self] SCGI unavailable}
-	    Httpd Resume [Http Unavailable $r] 0
+	    Debug.error {[self] SCGI unavailable}
+	    variable host; variable port
+	    Httpd Resume [Http Unavailable $r "SCGI ${host}:$port unavailable"] 0
 	}
 
 	set rq ""
@@ -125,8 +129,8 @@ class create ::Scgi {
 	    }
 	}
 
-	Debug.scgi {[self] sending request}
-	chan configure $scgi -blocking 0-translation {binary binary}
+	Debug.scgi {[self] sending request ($rq)}
+	chan configure $scgi -blocking 0 -translation {binary binary}
 	puts $scgi "[string length $rq]:$rq,"	;# send the header
 	puts $scgi [dict get? $r -entity]	;# send the entity
 
@@ -135,20 +139,27 @@ class create ::Scgi {
     }
 
     method do {r} {
+	Debug.scgi {do: [dict get $r -uri]}
+
 	# open a connection to the appropriate port, let it all happen from there.
 	variable port
 	variable host
 	set scgi [socket -async $host $port]
+	Debug.scgi {do: socket: $scgi}
+	#chan event $scgi readable [list [self] connected $r $scgi]
+	chan event $scgi writable [list [self] connected $r $scgi]
 	dict set r -scgi $scgi
-	chan event $scgi readable [list [self] connected $r $scgi]
 
 	Httpd associate $scgi	;# set connection's file information to reflect the scgi socket
 
-	return [Httpd Suspend $r]	;# wait for something to happen
+	variable grace
+	Debug.scgi {do: suspending $grace}
+	return [Httpd Suspend $r $grace]	;# wait for something to happen
     }
 
     variable cache
     constructor {args} {
+	Debug.scgi {construct: $args}
 	set cache 0
 	variable grace [expr {2 * 60 * 60 * 1000}]	;# 2 minutes grace to respond
 	variable host localhost	;# what host is the SCGI server on?
