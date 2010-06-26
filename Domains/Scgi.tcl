@@ -98,6 +98,11 @@ class create ::Scgi {
 	append rq [my enc SERVER_SOFTWARE [string map {" " /} $::Httpd::server_id]]
 	append rq [my enc SERVER_NAME [dict get? $r -host]]
 
+	variable extra
+	foreach {n v} $extra {
+	    append rq [my enc $n $v]
+	}
+
 	set protocol [string toupper [dict get? $r -scheme]]
 	append protocol /[dict get? $r -version]
 	append rq [my enc SERVER_PROTOCOL $protocol]
@@ -129,7 +134,7 @@ class create ::Scgi {
 	    }
 	}
 
-	Debug.scgi {[self] sending request ($rq)}
+	Debug.scgi {[self] sending request ([string length $rq]:$rq)}
 	chan configure $scgi -blocking 0 -translation {binary binary}
 	puts $scgi "[string length $rq]:$rq,"	;# send the header
 	puts $scgi [dict get? $r -entity]	;# send the entity
@@ -164,6 +169,7 @@ class create ::Scgi {
 	variable grace [expr {2 * 60 * 60 * 1000}]	;# 2 minutes grace to respond
 	variable host localhost	;# what host is the SCGI server on?
 	variable port 8085	;# what port does the SCGI server run on?
+	variable extra {}	;# extra request fields
 	variable run {}		;# what command do you want us to run?
 	variable {*}$args
 
