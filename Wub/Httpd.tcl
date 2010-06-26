@@ -1725,6 +1725,12 @@ namespace eval Httpd {
 	    dict set r -forwards $forwards
 	    #dict set r -ipaddr [lindex $forwards 0]
 
+	    # filter out all X-* forms, move them to -x-* forms so we don't re-send them
+	    foreach x [dict keys $r x-*] {
+		dict set r -$x [dict get $r $x]
+		dict unset r $x
+	    }
+
 	    # process the request
 	    dict set unsatisfied [dict get $r -transaction] {}
 	    logtransition PROCESS
@@ -2338,3 +2344,4 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 }
 
 Httpd every $Httpd::timeout {Httpd reaper}	;# start the inactivity reaper
+# vim: ts=8:sw=4:noet
