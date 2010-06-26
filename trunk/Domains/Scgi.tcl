@@ -29,20 +29,20 @@ class create ::Scgi {
 
 	    # split input into headers and body
 	    set delim [string first "\xd\xa\xd\xa" $accum]
-	    set headers [split [string map {\xd\xa \xa} [string range $accum 0 $delim]] \a]
+	    set headers [split [string map {\xd\xa \xa} [string range $accum 0 $delim]] \n]
 	    set body [string range $accum $delim+4 end]
-	    Debug.scgi {[self] got headers ($headers) and body length [string length $body]}
 
 	    set response {}
 	    foreach header $headers {
 		set val [join [lassign [split $header :] name] :]
 		set name [string toupper $name]
-		dict set response $name $val
+		dict set response $name [string trim $val]
 	    }
+	    Debug.scgi {[self] got headers ($response) and body length [string length $body]}
 
 	    # response status
-	    if {[dict exists $response status]} {
-		set stguff [join [lassign [split [dict get $response status]] status]]
+	    if {[dict exists $response STATUS]} {
+		set stguff [join [lassign [split [dict get $response STATUS]] status]]
 		Debug.scgi {[self] status:$status guff: '$stguff'}
 		dict set r -code $status
 	    } else {
@@ -52,9 +52,9 @@ class create ::Scgi {
 
 	    # entity (if any)
 	    if {[string length $body]} {
-		dict set r content-length $body
+		dict set r content-length [string length $body]
 		dict set r -content $body
-		dict set r content-type [dict get? $response CONTENT_TYPE]
+		dict set r content-type [dict get? $response CONTENT-TYPE]
 	    } else {
 		dict set r content-length 0
 	    }
@@ -115,17 +115,32 @@ class create ::Scgi {
 	# name and revision of the information protcol this request came in with.
 	# Format: protocol/revision
 
-	set url [Url parse [dict get? $r -uri]]
-	append rq [my enc REQUEST_URI [dict get? $r -uri]]
+	# calculate the suffix of the URL relative to $mount
+	variable mount; lassign [Url urlsuffix $r $mount] result r suffix path
+
+	set url [Url url $r]
+	set url [Url parse $url]
+	Debug.scgi {sending URL: ($url)}
+	variable host; variable port; variable prefix
+	dict set url -host $host
+	dict set url -port $port
+	dict set url -path $prefix/$suffix
+
+	append rq [my enc PATH_INFO $suffix]
+
+	Debug.scgi {sending URL: ($url)}
+	append rq [my enc REQUEST_URI [Url url $url]]
 	append rq [my enc REQUEST_METHOD [dict get? $r -method]]
 	# method with which the request was made.
 	# For HTTP, this is "GET", "HEAD", "POST", etc.
 
-	append rq [my enc QUERY_STRING [dict get? $url -query]]
-	# information which follows the ? in the URL which referenced this script.
-	# This is the query information. It should not be decoded in any fashion.
-	# This variable should always be set when there is query information,
-	# regardless of command line decoding.
+	if {[dict get? $url -query] ne ""} {
+	    append rq [my enc QUERY_STRING [dict get? $url -query]]
+	    # information which follows the ? in the URL which referenced this script.
+	    # This is the query information. It should not be decoded in any fashion.
+	    # This variable should always be set when there is query information,
+	    # regardless of command line decoding.
+	}
 
 	append rq [my enc REMOTE_ADDR [dict get? $r -ipaddr]]
 	# IP address of the remote host making the request.
@@ -175,6 +190,7 @@ class create ::Scgi {
 	variable grace [expr {2 * 60 * 60 * 1000}]	;# 2 minutes grace to respond
 	variable host localhost	;# what host is the SCGI server on?
 	variable port 8085	;# what port does the SCGI server run on?
+	variable prefix ""
 	variable extra {}	;# extra request fields
 	variable run {}		;# what command do you want us to run?
 	variable {*}$args
