@@ -139,7 +139,7 @@ class create ::Scgi {
 	}
 
 	Debug.scgi {[self] sending request ([string length $rq]:$rq)}
-	chan configure $scgi -blocking 0 -translation {binary binary}
+	chan configure $scgi -blocking 0 -translation {binary binary} -buffering none
 	puts $scgi "[string length $rq]:$rq,"	;# send the header
 	puts $scgi [dict get? $r -entity]	;# send the entity
 
