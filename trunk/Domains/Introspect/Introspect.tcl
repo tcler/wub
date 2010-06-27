@@ -8,39 +8,39 @@ package require Indent
 # This namespace is a handler for the /introspect/ Direct domain.
 class create Introspect {
 
-    # -- /
-    #
-    method / {r args} {
-        set content {
-            <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-            <html>
-            <head>
-            <title>Server Introspect</title>
-            </head>
-            <body>
-	}
-		
-		append content {
-            <h1>Server Introspection</h1>
-            <ul>
-            <li>View image library (<a href='/introspect/imglib?size=16x16'>16x16</a>, <a href='/introspect/imglib?size=24x24'>24x24</a>, <a href='/introspect/imglib?size=48x48'>48x48</a>)</li>
-            <li>Find out what has been <a href='/introspect/pkg'>loaded</a> into the main interp.</li>
-            <li>View the current URL to Domain <a href='/introspect/map'>mappings</a>.</li>
-            <li>View the contents of a WUB <a href='/introspect/req'>request</a> structure.</li>
-            <li>View the global name space and start <a href='/introspect/ns/'>introspecting</a> WUB code.</li>
-			</ul>
-            </body>
-            </html>
-        }
-        return [Http Ok $r $content text/html]
-    }
+	# -- /
+	#
+	method / {r args} {
+		set content {
+			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+			<html>
+			<head>
+			<title>Server Introspect</title>
+			</head>
+			<body>
+		}
 
-    # -- /imglib
-    #
-    method /imglib {r size args} {
-	variable home
-	set path [file join $home images ${size}]
-        set content "<center><h2>${size} Images</h2></center><hr>"
+		append content {
+			<h1>Server Introspection</h1>
+			<ul>
+			<li>View image library (<a href='/introspect/imglib?size=16x16'>16x16</a>, <a href='/introspect/imglib?size=24x24'>24x24</a>, <a href='/introspect/imglib?size=48x48'>48x48</a>)</li>
+			<li>Find out what has been <a href='/introspect/pkg'>loaded</a> into the main interp.</li>
+			<li>View the current URL to Domain <a href='/introspect/map'>mappings</a>.</li>
+			<li>View the contents of a WUB <a href='/introspect/req'>request</a> structure.</li>
+			<li>View the global name space and start <a href='/introspect/ns/'>introspecting</a> WUB code.</li>
+			</ul>
+			</body>
+			</html>
+		}
+		return [Http Ok $r $content text/html]
+	}
+
+	# -- /imglib
+	#
+	method /imglib {r size args} {
+		variable home
+		set path [file join $home images ${size}]
+		set content "<center><h2>${size} Images</h2></center><hr>"
 		set cwd [pwd]
 		cd ${path}
 		set t [HtmTable new "border='0'"]
@@ -53,26 +53,26 @@ class create Introspect {
 				set col 0
 			}
 			incr col
-		}	
+		}
 		append content [${t} render]
 		${t} destroy
 		cd ${cwd}
-	return [Http Ok [Http Cache $r] ${content}]
-    }
-    # -- /imglib
-    #
-    method /images {r} {
+		return [Http Ok [Http Cache $r] ${content}]
+	}
+	# -- /imglib
+	#
+	method /images {r} {
 		set extra [split [dict get ${r} -extra] /]
 		variable home
 		set path [file join $home images {*}${extra}]
 		return [Http CacheableFile $r ${path} text/html]
 	}
 
-    # -- /pkg
-    #
-    method /pkg {r args} {
+	# -- /pkg
+	#
+	method /pkg {r args} {
 		# display stuff loaded using the 'load' command
-        set content "<h3>These are items that were loaded using the 'load' command.<br>(listed in the order they were loaded)</h3>"
+		set content "<h3>These are items that were loaded using the 'load' command.<br>(listed in the order they were loaded)</h3>"
 		set t [HtmTable new "border='1'"]
 		${t} headers {path name interp}
 		foreach e $::__load_log {
@@ -84,9 +84,9 @@ class create Introspect {
 		}
 		append content [${t} render]
 		${t} destroy
-		
+
 		# display stuff loaded using the 'source' command
-        append content "<h3>These are items that were sourced using the 'source' command.<br>(listed in the order they were sourced)</h3>"
+		append content "<h3>These are items that were sourced using the 'source' command.<br>(listed in the order they were sourced)</h3>"
 		set t [HtmTable new "border='1'"]
 		${t} headers {path}
 		foreach p $::__source_log {
@@ -95,19 +95,19 @@ class create Introspect {
 		}
 		append content [${t} render]
 		${t} destroy
-		
-        return [Http Ok $r ${content}]
-    }
 
-    # -- /pkg/view
-    #
-    method /pkg/view {r path args} {
+		return [Http Ok $r ${content}]
+	}
+
+	# -- /pkg/view
+	#
+	method /pkg/view {r path args} {
 		set fid [open ${path} r]
 		set raw [read ${fid}]
 		close ${fid}
 		set buffer [Indent code ${raw} ]
 		set content [Indent code2html ${path} ${buffer}]
-        return [Http Ok $r ${content}]
+		return [Http Ok $r ${content}]
 	}
 
 	# --
@@ -137,11 +137,11 @@ class create Introspect {
 		return ${imglnk}
 	}
 
-    # -- /map
-    #
-    # This method displays the contents of the nubs ::Nub::urls variable.
-    #
-    method /map {r args} {
+	# -- /map
+	#
+	# This method displays the contents of the nubs ::Nub::urls variable.
+	#
+	method /map {r args} {
 		set content "<h3>URL to Domain mappings</h3>"
 		set names {{pattern url} domain body section}
 		set t [HtmTable new "border='1'" -map ${names} -headers]
@@ -154,63 +154,63 @@ class create Introspect {
 		}
 		append content [${t} render]
 		${t} destroy
-        return [Http Ok $r $content]
-    }
+		return [Http Ok $r $content]
+	}
 
-    # -- /req
-    #
-    # This method displays the content of the current request.
-    #
-    method /req {r args} {
+	# -- /req
+	#
+	# This method displays the content of the current request.
+	#
+	method /req {r args} {
 		if { [dict get ${r} -extra] eq "help" } {
-		    variable home
+			variable home
 			set path [file join $home help request_dict.html]
 			return [Http CacheableFile $r ${path} text/html]
 		}
-        return [Http Ok $r [my dump_req ${r}]]
-    }
+		return [Http Ok $r [my dump_req ${r}]]
+	}
 
-    # -- req_help
-    #
-    method req_help { } {
+	# -- req_help
+	#
+	method req_help { } {
 		set help {
-		
+
 
 		}
 	}
 
-    # -- dump_req
-    #
-    # This method displays the content of the current request dict.
-    #
-    method dump_req { r } {
-        set keys [lsort -dictionary [dict keys ${r}]]
-        append content "</br><h2>CURRENT REQUEST [my CreateImgLink 16x16/About.png req/help]</h2>"
+	# -- dump_req
+	#
+	# This method displays the content of the current request dict.
+	#
+	method dump_req { r } {
+		set keys [lsort -dictionary [dict keys ${r}]]
+		append content "</br><h2>CURRENT REQUEST [my CreateImgLink 16x16/About.png req/help]</h2>"
 		append content {<p>
-		The table below conatins the contents of the request that is
-		currently being processed. For more information about the
-		request sturcture in WUB, click on the info icon.
-		</p>
+			The table below conatins the contents of the request that is
+			currently being processed. For more information about the
+			request sturcture in WUB, click on the info icon.
+			</p>
 		}
 		set t [HtmTable new "border='1'"]
-        foreach k ${keys} {
-            set v [dict get ${r} ${k}]
+		foreach k ${keys} {
+			set v [dict get ${r} ${k}]
 			${t} col 0
-		    ${t} cell ${k} incr
+			${t} cell ${k} incr
 			${t} cell ${v}
 			${t} row incr
-        }		
-        append content [${t} render]
+		}
+		append content [${t} render]
 		${t} destroy
-        return ${content}
-    }
+		return ${content}
+	}
 
-    # -- /ns
-    #
-    # This method displays the content of a namespace.
-    #
-    method /ns {r args} {
-		
+	# -- /ns
+	#
+	# This method displays the content of a namespace.
+	#
+	method /ns {r args} {
+
 		set ns [split [dict get ${r} -extra] /]
 		set content [my dump_ns ${r} ${ns}]
 		return [Http Ok $r ${content}]
@@ -266,32 +266,32 @@ class create Introspect {
 		}
 		set href [string trimleft ${cmd} {:}]
 		switch -exact -- ${ctype} {
-		"ensemble" {
-			return "<font color='orange'>${prefix}</font>&nbsp;<a href='${href}'>[xmlarmour "${cmd}"]</a>"
-		}
-		"proc" {
-			return "{proc}&nbsp;<a href='cmd?name=${cmd}'>[xmlarmour "${href}"]</a>"
-		}
-		"class" {
-			return "<font color='red'>${prefix}</font>&nbsp;<a href='class?obj=${href}'>[xmlarmour "${cmd}"]</a>"
-		}
-		"metaclass" {
-			return "<font color='red'>${prefix}</font>&nbsp;<a href='class?obj=${href}'>[xmlarmour "${cmd}"]</a>"
-		}
-		"obj" {
-			return "<font color='red'>${prefix}</font>&nbsp;<a href='obj?obj=${href}'>[xmlarmour "${cmd}"]</a>"
-		}
-		"alias" {
-			return "<font color='tan'>${prefix}</font>&nbsp;<a href='alias?token=${href}'>[xmlarmour "${cmd}"]</a>"
-		}
-		default {
-			return "<a href='http://www.tcl.tk/man/tcl8.6/TclCmd/${href}.htm'>[xmlarmour "${cmd}"]</a>"
+			"ensemble" {
+				return "<font color='orange'>${prefix}</font>&nbsp;<a href='${href}'>[xmlarmour "${cmd}"]</a>"
+			}
+			"proc" {
+				return "{proc}&nbsp;<a href='cmd?name=${cmd}'>[xmlarmour "${href}"]</a>"
+			}
+			"class" {
+				return "<font color='red'>${prefix}</font>&nbsp;<a href='class?obj=${href}'>[xmlarmour "${cmd}"]</a>"
+			}
+			"metaclass" {
+				return "<font color='red'>${prefix}</font>&nbsp;<a href='class?obj=${href}'>[xmlarmour "${cmd}"]</a>"
+			}
+			"obj" {
+				return "<font color='red'>${prefix}</font>&nbsp;<a href='obj?obj=${href}'>[xmlarmour "${cmd}"]</a>"
+			}
+			"alias" {
+				return "<font color='tan'>${prefix}</font>&nbsp;<a href='alias?token=${href}'>[xmlarmour "${cmd}"]</a>"
+			}
+			default {
+				return "<a href='http://www.tcl.tk/man/tcl8.6/TclCmd/${href}.htm'>[xmlarmour "${cmd}"]</a>"
 		}}
 	}
-	
-    # -- dump_ns
-    #
-    method dump_ns {r NS} {
+
+	# -- dump_ns
+	#
+	method dump_ns {r NS} {
 
 		set ns ${NS}
 		if { [string equal -length 2 ${NS} "::"] == 0 } {
@@ -299,7 +299,7 @@ class create Introspect {
 		}
 
 		set content ""
-        append content "<h2>INTROSPECTION FOR NAMESPACE (${ns})</h2>"
+		append content "<h2>INTROSPECTION FOR NAMESPACE (${ns})</h2>"
 
 		if { [namespace exists ${ns}] == 0 } {
 			append content "<p> NOT FOUND"
@@ -314,7 +314,7 @@ class create Introspect {
 		}
 
 		# namespaces
-        append content "<h3>CHILD NAMESPACES</h3>"
+		append content "<h3>CHILD NAMESPACES</h3>"
 		set alist ""
 		set clist [lsort -dictionary [namespace children ${ns}]]
 		set numcols [my GetNumCols ${clist} 120]
@@ -330,7 +330,7 @@ class create Introspect {
 		}
 
 		# commands
-        append content "<h3> COMMANDS </h3>"
+		append content "<h3> COMMANDS </h3>"
 		set alist ""
 		set alist [lsort -dictionary [info commands ${pat}]]
 		set numcols [my GetNumCols ${alist} 100]
@@ -345,9 +345,9 @@ class create Introspect {
 			append content [${t} list2table ${hlist} ${numcols} no_armour]
 			${t} destroy
 		}
-		
+
 		# variables
-        append content "<h3>VARIABLES</h3>"
+		append content "<h3>VARIABLES</h3>"
 		set vlist [lsort -dictionary [info vars ${pat}]]
 		if { ${vlist} eq "" } {
 			append content "<p>&nbsp;&nbsp;&nbsp;&nbsp;{NONE}</p>"
@@ -378,9 +378,9 @@ class create Introspect {
 			append content [${t} render]
 			${t} destroy
 		}
-		
-        return ${content}
-    }
+
+		return ${content}
+	}
 
 	method CleanCode { code {inset 1} } {
 		set str ${code}
@@ -388,16 +388,16 @@ class create Introspect {
 		set str [string map {"\t" {    }} ${str}]
 		return [armour ${str}]
 	}
-	
-    # -- /ns/cmd
-    #
-    method /ns/cmd {r args} {
+
+	# -- /ns/cmd
+	#
+	method /ns/cmd {r args} {
 		set a [dict create {*}${args}]
 		set name [dict get ${a} name]
 		set cargs [info args ${name}]
 		set content "<h2> COMMAND ([armour ${name}])</h2>"
-		append content "<pre><font color='red'>proc</font>&nbsp;[armour [string trimleft ${name} :]]&nbsp;{&nbsp;${cargs}}&nbsp;{ [my CleanCode [info body ${name}]]\n}</pre>"		
-        return [Http Ok $r ${content}]
+		append content "<pre><font color='red'>proc</font>&nbsp;[armour [string trimleft ${name} :]]&nbsp;{&nbsp;${cargs}}&nbsp;{ [my CleanCode [info body ${name}]]\n}</pre>"
+		return [Http Ok $r ${content}]
 	}
 
 	method GetClassMethodDef {class method} {
@@ -419,10 +419,10 @@ class create Introspect {
 			return "<pre><font color='red'>method</font> [armour ${method}] { <font color='red'>UNKNOWN</font> }</pre>"
 		}
 	}
-	
-    # -- /ns/class
-    #
-    method /ns/class {r args} {
+
+	# -- /ns/class
+	#
+	method /ns/class {r args} {
 		set a [dict create {*}${args}]
 		set obj [dict get ${a} obj]
 
@@ -441,7 +441,7 @@ class create Introspect {
 			append content "</dd></dl>"
 			${ta} destroy
 		}
-		
+
 		append content "<h2>SUBCLASSES</h2>"
 		set clist ""
 		set classes [info class subclasses ${obj}]
@@ -453,76 +453,76 @@ class create Introspect {
 			}
 			append content "<pre>[join ${clist} {, }]</pre>"
 		}
-		
+
 		append content "<h2>CLASS IMPLEMENTATION</h2>"
 
-		
+
 		set class [info object class ${obj}]
 		append content "<pre><font color='red'>[my GetCommandLink ${class}] create</font> [armour ${obj}] {"
 
-		set clist ""
-		set classes [info class superclasses ${obj}]
-		if { ${classes} ne "" } {
-			foreach c ${classes} {
-				lappend clist [my GetCommandLink ${c}]
+			set clist ""
+			set classes [info class superclasses ${obj}]
+			if { ${classes} ne "" } {
+				foreach c ${classes} {
+					lappend clist [my GetCommandLink ${c}]
+				}
+				append content "<pre><font color='red'>superclass</font> [join ${clist} { }] </pre>"
 			}
-			append content "<pre><font color='red'>superclass</font> [join ${clist} { }] </pre>"
-		}
-		
-		set mlist ""
-		set mixins [info class mixins ${obj}]
-		if { ${mixins} ne "" } {
-			foreach m ${mixins} {
-				lappend mlist "<a href='class?obj=${m}'>[xmlarmour "${m}"]</a>"
+
+			set mlist ""
+			set mixins [info class mixins ${obj}]
+			if { ${mixins} ne "" } {
+				foreach m ${mixins} {
+					lappend mlist "<a href='class?obj=${m}'>[xmlarmour "${m}"]</a>"
+				}
+				append content "<pre><font color='red'>mixin</font> [join ${mlist} { }]</pre>"
 			}
-			append content "<pre><font color='red'>mixin</font> [join ${mlist} { }]</pre>"
-		}
-		
-		set flist ""
-		set filters [info class filters ${obj}]
-		if { ${filters} ne "" } {
-			foreach f ${filters} {
-				lappend flist "<a href='class?obj=${f}'>[xmlarmour "${f}"]</a>"
+
+			set flist ""
+			set filters [info class filters ${obj}]
+			if { ${filters} ne "" } {
+				foreach f ${filters} {
+					lappend flist "<a href='class?obj=${f}'>[xmlarmour "${f}"]</a>"
+				}
+				append content "<pre><font color='red'>filter</font> [join ${flist} { }]</pre>"
 			}
-			append content "<pre><font color='red'>filter</font> [join ${flist} { }]</pre>"
-		}
 
-		set exports [info class methods ${obj}]
-		if { ${exports} ne "" } {
-			append content "<pre><font color='red'>export</font> [join ${exports} { }]</pre>"
-		}
-
-		set vars [info class variables ${obj}]
-		if { ${vars} ne "" } {
-			append content "<pre>"
-			foreach v [lsort -dictionary ${vars}] {
-				append content "variable&nbsp;[xmlarmour ${v}]\n"
+			set exports [info class methods ${obj}]
+			if { ${exports} ne "" } {
+				append content "<pre><font color='red'>export</font> [join ${exports} { }]</pre>"
 			}
-			append content "</pre>"
-		}
-		
-		lassign [info class constructor ${obj}] parms code
-		append content "<pre><font color='red'>constructor</font> { ${parms} } { [my CleanCode ${code}]\n    }</pre>"
-		
-		lassign [info class destructor ${obj}] parms code
-		append content "<pre><font color='red'>destructor</font> ${obj} { ${parms} } { [my CleanCode ${code}]\n    }</pre>"
 
-		foreach m [info class methods ${obj} -all] {
-			append content [my GetClassMethodDef ${obj} ${m}]
-		}
+			set vars [info class variables ${obj}]
+			if { ${vars} ne "" } {
+				append content "<pre>"
+				foreach v [lsort -dictionary ${vars}] {
+					append content "variable&nbsp;[xmlarmour ${v}]\n"
+				}
+				append content "</pre>"
+			}
 
-        append content "}"
-		
-        return [Http Ok $r ${content}]
+			lassign [info class constructor ${obj}] parms code
+			append content "<pre><font color='red'>constructor</font> { ${parms} } { [my CleanCode ${code}]\n    }</pre>"
+
+			lassign [info class destructor ${obj}] parms code
+			append content "<pre><font color='red'>destructor</font> ${obj} { ${parms} } { [my CleanCode ${code}]\n    }</pre>"
+
+			foreach m [info class methods ${obj} -all] {
+				append content [my GetClassMethodDef ${obj} ${m}]
+			}
+
+		append content "}"
+
+		return [Http Ok $r ${content}]
 	}
 
-#[15:40]	dkf	you can get a list of methods that are not errors with
-#			[info class definition], and you can get a list of methods that are
-#			not errors with [info class forward]
-#[15:40]	dkf	those will be disjoint
-#[15:40]	dkf	all others listed in [info class methods] are opaque
-#[15:41]	dkf	all others listed in [info class methods -all] are defined
-#			by superclasses
+	#[15:40]	dkf	you can get a list of methods that are not errors with
+	#			[info class definition], and you can get a list of methods that are
+	#			not errors with [info class forward]
+	#[15:40]	dkf	those will be disjoint
+	#[15:40]	dkf	all others listed in [info class methods] are opaque
+	#[15:41]	dkf	all others listed in [info class methods -all] are defined
+	#			by superclasses
 
 	method GetObjectMethodDef {obj method} {
 		# check for method in the object first
@@ -539,12 +539,12 @@ class create Introspect {
 				lassign ${def} params body
 				set content "<pre><font color='red'>method</font> [armour ${method}] { [armour ${params}] } { [my CleanCode ${body}]\n    }</pre>"
 				return ${content}
-			}	
+			}
 			foreach mixin [info object mixins ${obj}] {
 				if { [catch {info class definition ${mixin} ${method}} def] == 0 } {
-					return "<pre><font color='red'>method</font> [armour ${method}] in mixin [my GetCommandLink ${mixin}] </pre>"	
+					return "<pre><font color='red'>method</font> [armour ${method}] in mixin [my GetCommandLink ${mixin}] </pre>"
 				}
-			}		
+			}
 			# method is defined in superclass
 			while {${method} ni [info class methods ${class}]} {
 				# Assume the simple case
@@ -562,13 +562,13 @@ class create Introspect {
 			return "<pre><font color='red'>method</font> [armour ${method}] { <font color='red'>UNKNOWN</font> }</pre>"
 		}
 	}
-	
-    # -- /ns/obj
-    #
-    method /ns/obj {r args} {
+
+	# -- /ns/obj
+	#
+	method /ns/obj {r args} {
 		set a [dict create {*}${args}]
 		set obj [dict get ${a} obj]
-		
+
 		append content "<h1>OBJECT(&nbsp;${obj}&nbsp;)</h1>"
 
 		set class [info object class ${obj}]
@@ -588,34 +588,53 @@ class create Introspect {
 		append content "</pre>"
 
 		append content "<pre>"
-		set vars [info object vars ${obj}]
-		foreach var ${vars} {
-			append content "<font color='red'>var</font> ${var}\n"
-		}
+		append content "<font color='red'>var:</font>\n"
 		append content "</pre>"
+		set names {var value}
+		set t [HtmTable new "border='1'" -map ${names} -headers]
+		foreach n [info object vars ${obj}] {
+			${t} cell ${n} var
+			set fullname "[info object namespace $obj]::${n}"
+			if { [array exists ${fullname}] } {
+				set t2 [HtmTable new]
+				foreach k [array names ${fullname}] {
+					${t2} cell ${k} incr
+					${t2} cell [set ${fullname}(${k})]
+					${t2} row
+				}
+				set value [${t2} render]
+				${t2} destroy
+			} else {
+				set value [set ${fullname}]
+			}
+			${t} cell ${value} value
+			${t} row
+		}
+		append content [${t} render]
+		${t} destroy
 
 		foreach m [info object methods ${obj} -all] {
 			append content [my GetObjectMethodDef ${obj} ${m}]
 		}
-		
-        return [Http Ok $r ${content}]
+
+		return [Http Ok $r ${content}]
 	}
-	
-    # -- /ns/alias
-    #
-    method /ns/alias {r args} {
+
+	# -- /ns/alias
+	#
+	method /ns/alias {r args} {
 		set a [dict create {*}${args}]
 		set token [dict get ${a} token]
 		set content "<h2> INTERP ALIAS ([armour ${token}])</h2>"
 		set more [lassign [interp alias {} [string trimleft ${token} :]] cmd]
 		append content "<b>POINTS TO:</b> [my GetCommandLink "${cmd}" prefix] { [armour ${more}] }"
-		
-        return [Http Ok $r ${content}]
+
+		return [Http Ok $r ${content}]
 	}
 
-    superclass Direct
-    constructor {args} {
-	variable home [file dirname [lindex [package ifneeded Introspect [package present Introspect] ] 1]]
-	next? {*}$args
-    }
+	superclass Direct
+	constructor {args} {
+		variable home [file dirname [lindex [package ifneeded Introspect [package present Introspect] ] 1]]
+		next? {*}$args
+	}
 }
