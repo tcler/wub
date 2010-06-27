@@ -59,10 +59,11 @@ set ::API(Domains/Mason) {
     nodir {don't allow the browsing of directories (default: 0 - browsing allowed.)}
     dateformat {a tcl clock format for displaying dates in directory listings}
     stream {files above this size will be streamed using fcopy, not loaded and sent.  Note: streaming a file prevents *any* post-processing on is, so [Convert] for example will be ineffective.}
+    sortparam {parameters for tablesorter}
 }
 
 class create ::Mason {
-    variable mount root hide functional notfound wrapper auth indexfile dirhead dirfoot aliases cache ctype nodir dirparams dateformat stream
+    variable mount root hide functional notfound wrapper auth indexfile dirhead dirfoot aliases cache ctype nodir dirparams dateformat stream sortparam
 
     method conditional {req path} {
 	# check conditional
@@ -213,7 +214,7 @@ class create ::Mason {
 
 	dict set req -content $content
 	dict set req content-type x-text/html-fragment
-	set req [jQ tablesorter $req .sortable]
+	set req [jQ tablesorter $req .sortable {*}$sortparam]
 
 	return $req
     }
@@ -523,6 +524,7 @@ class create ::Mason {
 	}
 	set dateformat "%Y %b %d %T"
 	set stream [expr {1024 * 1024}]	;# default streaming 1Mb
+ 	set sortparam {}
 
 	# when a file is not located, it will be searched for.
 	# to minimise the cost of this search, -cache will
