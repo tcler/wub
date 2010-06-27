@@ -118,6 +118,9 @@ class create ::Scgi {
 	# calculate the suffix of the URL relative to $mount
 	variable mount; lassign [Url urlsuffix $r $mount] result r suffix path
 
+	append rq [my enc PATH_INFO /$suffix]
+	append rq [my enc PATH_TRANSLATED /$suffix]
+
 	set url [Url url $r]
 	set url [Url parse $url]
 	Debug.scgi {sending URL: ($url)}
@@ -126,10 +129,8 @@ class create ::Scgi {
 	dict set url -port $port
 	dict set url -path $prefix/$suffix
 
-	append rq [my enc PATH_INFO $suffix]
-
 	Debug.scgi {sending URL: ($url)}
-	append rq [my enc REQUEST_URI [Url url $url]]
+	#append rq [my enc REQUEST_URI [Url url $url]]
 	append rq [my enc REQUEST_METHOD [dict get? $r -method]]
 	# method with which the request was made.
 	# For HTTP, this is "GET", "HEAD", "POST", etc.
