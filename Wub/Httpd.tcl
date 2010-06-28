@@ -2293,11 +2293,11 @@ namespace eval Httpd {
 	if {$logfile ne "" && $log eq ""} {
 	    if {![catch {
 		open $logfile a
-	    } log] || ![catch {
-		open [file join /tmp [file tail $logfile]] a
-	    } log]} {
+	    } log eo]} {
 		# we want to try to make writes atomic
 		fconfigure $log -buffering line
+	    } else {
+		Debug.error {Failed to open logfile:'$logfile' - '$log' ($eo)}
 	    }
 	}
 
