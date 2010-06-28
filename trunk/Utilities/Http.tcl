@@ -216,7 +216,7 @@ namespace eval ::Http {
 
 	lappend line \"[dict get? $r -forwards]\"
 
-	return [join $line]
+	return [string map {\n \\n \r \\r} [join $line]]
     }
 
     # map http error code to human readable message
