@@ -101,16 +101,18 @@ proc findpaths {} {
 
     #Debug.log {AUTOPATH: $::auto_path}
 }
-findpaths
+findpaths	;# have to do this before looking for Debug or Dict
 
-package require Debug
+package require Debug	;# Debug before Dict, as it depends on it
 package require Dict
 
 Debug on site 10
-package provide Site 1.0
+package provide Site 1.0	;# we're providing the Site facilities
 
 namespace eval ::Site {
-    ::variable phase "Site Base Initialization"
+    ::variable phase "Site Base Initialization"	;# record the site init phase
+
+    # 
     proc variable {args} {
 	::variable phase
 	dict for {name value} $args {
@@ -218,7 +220,7 @@ namespace eval ::Site {
 	    Debug.log {INI file: [file normalize $file] [file exists $file]}
 	}
 
-	package require inifile
+	package require inifile	;# windows .ini file processing
 	set ini [::ini::open $file r]
 
 	foreach sect [::ini::sections $ini] {
@@ -382,7 +384,7 @@ namespace eval ::Site {
     }
 
     proc init {args} {
-	::variable phase "Site init processing"
+	::variable phase "Site init processing"	;# move to site init phase
 
 	# can pass in 'configuration' dict
 	::variable configuration
@@ -399,14 +401,14 @@ namespace eval ::Site {
 	}
 
 	# args to Site::init become initial variable values
-	set phase "Site init args"
+	set phase "Site init args"	;# move to site init args phase
 	if {[llength $args]} {
 	    variable {*}$args
 	}
 
 	# configuration variable contains defaults
 	# set some default configuration flags and values
-	set phase "Site init configuration"
+	set phase "Site init configuration"	;# move to site configuration phase
 	::variable modules
 	foreach {name val} [namespace eval ::Site [list rc $configuration]] {
 	    if {[string match @* $name]} {
@@ -425,7 +427,7 @@ namespace eval ::Site {
 	}
 
 	# load ini files from app's home
-	set phase "Site ini files"
+	set phase "Site ini files"	;# move to site ini files phase
 	::variable ini
 	foreach i $ini {
 	    do_ini $i
@@ -446,7 +448,7 @@ namespace eval ::Site {
 
 	# process command-line configuration of vars
 	# - these override $args and default configuration
-	set phase "Site ::argv overrides"
+	set phase "Site ::argv overrides"	;# move to ::argv overriding phase
 	foreach {name val} $::argv {
 	    variable $name $val	;# set global config vars
 	}
@@ -458,7 +460,7 @@ namespace eval ::Site {
 	    write_ini [file normalize $::Site::write_ini]
 	}
 
-	set phase "Site derived values"
+	set phase "Site derived values"	;# phase to generate some derived values
 	::variable host; ::variable listener
 	Variable url "http://$host:[dict get $listener -port]/"
 
@@ -487,7 +489,7 @@ namespace eval ::Site {
 	    }
 	}
 
-	set phase "Site modules"
+	set phase "Site modules"	;# load site modules
 
 	#### Load Convert module - content negotiation
 	::variable convert
@@ -833,7 +835,7 @@ namespace eval ::Site {
 
 	modules		;# start the listeners etc
 
-	set phase "Site Start"
+	set phase "Site Start"	;# site start phase
 
 	# can't run the whole start up sequence twice
 	# can initialize the application
@@ -866,18 +868,20 @@ namespace eval ::Site {
 	    start
 	}
 
+	# redefine ::vwait so we don't get fooled again
+	rename ::vwait ::Site::vwait
+	proc ::vwait {args} {
+	    catch {
+		info frame -1
+	    } frame
+	    puts stderr "Recursive VWAIT AAAARRRRRRGH! from '$frame'"
+	}
+
+	# enter event loop
 	::variable done 0
 	while {!$done} {
-	    # redefine ::vwait so we don't get fooled again
-	    rename ::vwait ::Site::vwait
-	    proc ::vwait {args} {
-		catch {
-		    info frame -1
-		} frame
-		puts stderr "Recursive VWAIT AAAARRRRRRGH! from '$frame'"
-	    }
 	    Debug.site {entered event loop}
-	    ::Site::vwait done
+	    ::Site::vwait ::Site::done
 	}
 
 	Debug.log {Shutdown top level}
