@@ -21,13 +21,72 @@ set ::API(Utilities/Config) {
 }
 
 oo::class create Config {
-    method parse {script} {
+    method section {script {varwalk 0}} {
+	set body [parsetcl simple_parse_script $script]
+	set NS [info object namespace [self]]
+
+	# perform variable rewrite
+	if {$varwalk} {
+	    parsetcl walk_tree body bi Sv {
+		set s [lindex $body {*}$bi 3 2]
+		if {![string match ::* $s] && [string match *::* $s]} {
+		    # this is section-relative var - we need to make a fully qualified NS
+		    set s "${NS}::_C::$s"
+		    lset body {*}$bi 3 2 $s
+		}
+		Debug.config {VAR: $s}
+	    } Ne {
+		# syntax error
+		set cmd [lindex $body {*}$index]
+		error "Syntax Error - $cmd"
+	    }
+	}
+
+	# perform script transformation
+	set rb {}
+	set comments {}
+	set raw {}
+
+	parsetcl walk_tree body bi Rs {} C.* {
+	    set bcmd [lindex $body {*}$bi]
+	    lassign $bcmd . . . bl br
+	    if {[llength $bi] == 1} {
+		set bll [parsetcl unparse $bl]
+		if {![string match L* [lindex $bl 0]]} {
+		    error "variable name '$bll' must be a literal ($bl)"
+		}
+		if {[llength $bcmd] != 5} {
+		    error "variable $bll must have one argument only"
+		}
+		set brl [parsetcl unparse $br]
+		Debug.config {BCMD $bi: ($bl) ($br) '$brl'}
+
+		dict set raw $bll $brl
+		lappend rb "variable $bll $brl"
+	    } elseif {[parsetcl unparse $bl] eq "expr"} {
+		Debug.config {EXPR: ($br) -> ([parsetcl parse_semiwords [parsetcl unparse $br]])}
+	    }
+	} Nc {
+	    # comment
+	    dict set comments $bll [lindex $body {*}$bi]
+	} Ne {
+	    set cmd [lindex $parse {*}$index]
+	    error "Syntax Error - $cmd"
+	}
+
+	Debug.config {section: ($rb)}
+
+	return [list [join $rb \;] $raw $comments]
+    }
+
+    method parse {script {varwalk 0}} {
 	set parse [parsetcl simple_parse_script $script]
 	#puts stderr "Parse: $parse"
 	#puts stderr "Format: [parsetcl format_tree $parse { } {   }]"
 	#puts stderr "UnParse: [parsetcl unparse $parse]"
 	set rendered {}
-
+	set raw {}
+	set comments {}
 	parsetcl walk_tree parse index Cd {
 	    # body
 	    #puts stderr "walk: [lindex $parse {*}$index]"
@@ -37,61 +96,41 @@ oo::class create Config {
 	    if {![string match L* [lindex $left 0]]} {
 		error "section name '$ll' must be a literal ($left)"
 	    }
+
 	    if {[llength $cmd] != 5} {
 		error "section $ll must have one argument only"
 	    }
 
-	    # get body
-	    set body [parsetcl simple_parse_script [lindex [parsetcl unparse $right] 0]]
-	    set NS [info object namespace [self]]
-
-	    # perform variable rewrite
-	    parsetcl walk_tree body bi Sv {
-		set s [lindex $body {*}$bi 3 2]
-		if {![string match ::* $s] && [string match *::* $s]} {
-		    # this is section-relative var - we need to make a fully qualified NS
-		    set s "${NS}::_C::$s"
-		    lset body {*}$bi 3 2 $s
-		}
-		#puts stderr "VAR: $s"
-	    }
-
-	    # perform script transformation
-	    set rb ""
-	    parsetcl walk_tree body bi Rs {} C.* {
-		set bcmd [lindex $body {*}$bi]
-		lassign $bcmd . . . bl br
-		if {[llength $bi] == 1} {
-		    set bll [parsetcl unparse $bl]
-		    if {![string match L* [lindex $bl 0]]} {
-			error "section name '$bll' must be a literal ($bl)"
-		    }
-		    if {[llength $bcmd] != 5} {
-			error "section $bll must have one argument only"
-		    }
-		    set brl [parsetcl unparse $br]
-		    #puts stderr "BCMD $bi: ($bl) ($br) '$brl'"
-		    
-		    lappend rb "variable $bll $brl"
-		} elseif {[parsetcl unparse $bl] eq "expr"} {
-		    #puts stderr "EXPR: ($br) -> ([parsetcl parse_semiwords [parsetcl unparse $br]])"
-		}
-	    }
-	    
-	    lappend rendered "namespace eval $ll [list [join $rb \;]]"
-
+	    # get body of section (with var substitution)
+	    set sb [lindex [parsetcl unparse $right] 0]
+	    lassign [my section $sb $varwalk] rb sraw scomments
+	    dict set raw $ll $sraw
+	    dict set comments $ll $scomments
+	    lappend rendered "namespace eval $ll [list $rb]"
 	} C.* {
 	    error "Don't know how to handle [lindex $parse {*}$index]"
+	} Nc {
+	    # comment
+	    set cmd [lindex $parse {*}$index]
+	    #puts stderr "Comment - $cmd"
+	} Ne {
+	    set cmd [lindex $parse {*}$index]
+	    error "Syntax Error - $cmd"
 	}
 
+	Debug.config {RENDERED: $rendered}
 	set rendered [join $rendered \;]
-	#puts stderr "RENDERED: $rendered"
-	namespace eval _C $rendered
-	return $parse
+	return [list $raw $comments $rendered]
+    }
+
+    # destroy any 
+    method clear {} {
+	namespace delete _C
     }
 
     method extract {{config ""}} {
-	my parse $config
+	lassign [my parse $config 1] raw comments rendered
+	namespace eval _C $rendered
 	set result {}
 	foreach ns [namespace children _C] {
 	    foreach var [info vars ${ns}::*] {
@@ -140,6 +179,9 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	sect1 {
 	    v1 [expr {$section::v1 ^ 10}]
 	    ap [list moop {*}$::auto_path]
+	}
+	sect_err {
+	    xy {this is an error $moop(m}
 	}
     }]"
 }
