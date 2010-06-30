@@ -47,19 +47,20 @@ oo::class create Config {
 	set comments {}
 	set raw {}
 
+	set metadata {}
 	parsetcl walk_tree body bi Rs {} C.* {
 	    set bcmd [lindex $body {*}$bi]
-	    lassign $bcmd . . . bl br
 	    if {[llength $bi] == 1} {
-		set bll [parsetcl unparse $bl]
+		set metad [lassign $bcmd . . . bl br]
+		set bll [parsetcl unparse $bl]	;# literal name
 		if {![string match L* [lindex $bl 0]]} {
 		    error "variable name '$bll' must be a literal ($bl)"
 		}
-		if {[llength $bcmd] != 5} {
-		    error "variable $bll must have one argument only"
-		}
 		set brl [parsetcl unparse $br]
-		Debug.config {BCMD $bi: ($bl) ($br) '$brl'}
+		foreach md $metad {
+		    dict lappend metadata $bll [parsetcl unparse $md]
+		}
+		Debug.config {BCMD $bi: ($bl) ($br) '$brl' - MD:($metadata)}
 
 		dict set raw $bll $brl
 		lappend rb "variable $bll $brl"
@@ -76,7 +77,7 @@ oo::class create Config {
 
 	Debug.config {section: ($rb)}
 
-	return [list [join $rb \;] $raw $comments]
+	return [list [join $rb \;] $raw $comments $metadata]
     }
 
     method parse {script {varwalk 0}} {
@@ -103,9 +104,10 @@ oo::class create Config {
 
 	    # get body of section (with var substitution)
 	    set sb [lindex [parsetcl unparse $right] 0]
-	    lassign [my section $sb $varwalk] rb sraw scomments
+	    lassign [my section $sb $varwalk] rb sraw scomments smetadata
 	    dict set raw $ll $sraw
 	    dict set comments $ll $scomments
+	    dict set metadata $ll $smetadata
 	    lappend rendered "namespace eval $ll [list $rb]"
 	} C.* {
 	    error "Don't know how to handle [lindex $parse {*}$index]"
@@ -120,7 +122,7 @@ oo::class create Config {
 
 	Debug.config {RENDERED: $rendered}
 	set rendered [join $rendered \;]
-	return [list $raw $comments $rendered]
+	return [list $rendered $raw $comments $metadata]
     }
 
     # destroy any 
@@ -129,7 +131,7 @@ oo::class create Config {
     }
 
     method extract {{config ""}} {
-	lassign [my parse $config 1] raw comments rendered
+	lassign [my parse $config 1] rendered raw comments metadata
 	namespace eval _C $rendered
 	set result {}
 	foreach ns [namespace children _C] {
@@ -178,7 +180,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	# another section 
 	sect1 {
 	    v1 [expr {$section::v1 ^ 10}]
-	    ap [list moop {*}$::auto_path]
+	    ap [list moop {*}$::auto_path] -moop moopy
 	}
 	sect_err {
 	    xy {this is an error $moop(m}
