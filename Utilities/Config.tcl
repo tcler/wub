@@ -131,15 +131,20 @@ oo::class create Config {
 	return $subbed
     }
 
+    # merge_section - merge a section dict after variable substitution
+    method merge_section {section vars} {
+	set ss {}
+	dict for {n v} $vars {
+	    set sv [my VarSub $v]
+	    Debug.config {extract: $n $v ($sv)}
+	    namespace eval _C::$section "variable $n $sv"
+	}
+    }
+
     # merge a raw dict after variable substitution
     method merge {raw} {
 	dict for {section vars} $raw {
-	    set ss {}
-	    dict for {n v} $vars {
-		set sv [my VarSub $v]
-		Debug.config {extract: $n $v ($sv)}
-		namespace eval _C::$section "variable $n $sv"
-	    }
+	    my merge_section $section $vars
 	}
     }
 
@@ -168,6 +173,14 @@ oo::class create Config {
 	    }
 	}
 
+	return $result
+    }
+
+    # parse and merge a file in config format
+    method section_file {section file} {
+	package require fileutil
+	set result [my section [::fileutil::cat -- $file]]
+	my merge [list $section [lindex $result 0]]
 	return $result
     }
 
