@@ -21,33 +21,15 @@ set ::API(Utilities/Config) {
 }
 
 oo::class create Config {
-    method section {script {varwalk 0}} {
-	set body [parsetcl simple_parse_script $script]
-	set NS [info object namespace [self]]
-
-	# perform variable rewrite
-	if {$varwalk} {
-	    parsetcl walk_tree body bi Sv {
-		set s [lindex $body {*}$bi 3 2]
-		if {![string match ::* $s] && [string match *::* $s]} {
-		    # this is section-relative var - we need to make a fully qualified NS
-		    set s "${NS}::_C::$s"
-		    lset body {*}$bi 3 2 $s
-		}
-		Debug.config {VAR: $s}
-	    } Ne {
-		# syntax error
-		set cmd [lindex $body {*}$index]
-		error "Syntax Error - $cmd"
-	    }
-	}
+    # parse a single section into raw alist, comments and metadata
+    method section {script} {
+	set raw {}	;# association between name and tcl script giving value
+	set comments {}	;# association between name and run-on comments
+	set metadata {}	;# association between name and metadata
 
 	# perform script transformation
-	set rb {}
-	set comments {}
-	set raw {}
-
-	set metadata {}
+	set bll ""	;# initial name used to collect per-section comments
+	set body [parsetcl simple_parse_script $script]
 	parsetcl walk_tree body bi Rs {} C.* {
 	    set bcmd [lindex $body {*}$bi]
 	    if {[llength $bi] == 1} {
@@ -56,38 +38,37 @@ oo::class create Config {
 		if {![string match L* [lindex $bl 0]]} {
 		    error "variable name '$bll' must be a literal ($bl)"
 		}
-		set brl [parsetcl unparse $br]
+
 		foreach md $metad {
 		    dict lappend metadata $bll [parsetcl unparse $md]
 		}
-		Debug.config {BCMD $bi: ($bl) ($br) '$brl' - MD:($metadata)}
 
+		set brl [parsetcl unparse $br]
 		dict set raw $bll $brl
-		lappend rb "variable $bll $brl"
+		Debug.config {BCMD $bi: ($bl) ($br) '$brl' - MD:($metadata)}
 	    } elseif {[parsetcl unparse $bl] eq "expr"} {
 		Debug.config {EXPR: ($br) -> ([parsetcl parse_semiwords [parsetcl unparse $br]])}
 	    }
 	} Nc {
 	    # comment
-	    dict set comments $bll [lindex $body {*}$bi]
+	    dict lappend comments $bll [lindex $body {*}$bi]
 	} Ne {
 	    set cmd [lindex $parse {*}$index]
 	    error "Syntax Error - $cmd"
 	}
 
-	Debug.config {section: ($rb)}
+	Debug.config {section: raw:($raw)}
 
-	return [list [join $rb \;] $raw $comments $metadata]
+	return [list $raw $comments $metadata]
     }
 
-    method parse {script {varwalk 0}} {
+    # parse a complete configuration into raw, comments and metadata
+    method parse {script} {
+	set raw {}	;# association between name and tcl script giving value
+	set comments {}	;# association between name and run-on comments
+	set metadata {}	;# association between name and metadata
+
 	set parse [parsetcl simple_parse_script $script]
-	#puts stderr "Parse: $parse"
-	#puts stderr "Format: [parsetcl format_tree $parse { } {   }]"
-	#puts stderr "UnParse: [parsetcl unparse $parse]"
-	set rendered {}
-	set raw {}
-	set comments {}
 	parsetcl walk_tree parse index Cd {
 	    # body
 	    #puts stderr "walk: [lindex $parse {*}$index]"
@@ -104,11 +85,10 @@ oo::class create Config {
 
 	    # get body of section (with var substitution)
 	    set sb [lindex [parsetcl unparse $right] 0]
-	    lassign [my section $sb $varwalk] rb sraw scomments smetadata
+	    lassign [my section $sb] sraw scomments smetadata
 	    dict set raw $ll $sraw
 	    dict set comments $ll $scomments
 	    dict set metadata $ll $smetadata
-	    lappend rendered "namespace eval $ll [list $rb]"
 	} C.* {
 	    error "Don't know how to handle [lindex $parse {*}$index]"
 	} Nc {
@@ -120,31 +100,83 @@ oo::class create Config {
 	    error "Syntax Error - $cmd"
 	}
 
-	Debug.config {RENDERED: $rendered}
-	set rendered [join $rendered \;]
-	return [list $rendered $raw $comments $metadata]
+	Debug.config {parse: ($raw)}
+	return [list $raw $comments $metadata]
     }
 
-    # destroy any 
+    # destroy context namespace
     method clear {} {
 	namespace delete _C
+	namespace eval _C {}
     }
 
+    # substitute section-relative names into value scripts
+    method VarSub {script} {
+	set NS [info object namespace [self]]
+
+	# perform variable rewrite
+	set body [parsetcl simple_parse_script $script]
+	parsetcl walk_tree body bi Sv {
+	    set s [lindex $body {*}$bi 3 2]
+	    if {![string match ::* $s] && [string match *::* $s]} {
+		# this is section-relative var - we need to make a fully qualified NS
+		set s "${NS}::_C::$s"
+		lset body {*}$bi 3 2 $s
+	    }
+	    Debug.config {Var: $s}
+	}
+	set subbed [parsetcl unparse $body]
+	set subbed [lindex [split $subbed \n] 1]	;# why is this necessary?
+	Debug.config {VarSub: '$script' -> '$subbed'}
+	return $subbed
+    }
+
+    # merge a raw dict after variable substitution
+    method merge {raw} {
+	dict for {section vars} $raw {
+	    set ss {}
+	    dict for {n v} $vars {
+		set sv [my VarSub $v]
+		Debug.config {extract: $n $v ($sv)}
+		namespace eval _C::$section "variable $n $sv"
+	    }
+	}
+    }
+
+    # sections - a list of sections
+    method sections {} {
+	set result {}
+	foreach section [namespace children _C] {
+	    lappend result [namespace tail $section]
+	}
+	return $result
+    }
+
+    # extract naming context from configuration and aggregated namespace
     method extract {{config ""}} {
-	lassign [my parse $config 1] rendered raw comments metadata
-	namespace eval _C $rendered
+	if {$config ne ""} {
+	    # parse $config if proffered
+	    lassign [my parse $config] raw comments metadata
+	    my merge $raw
+	}
+
+	# extract the accumulated values from _C namespace children
 	set result {}
 	foreach ns [namespace children _C] {
 	    foreach var [info vars ${ns}::*] {
 		dict set result [namespace tail $ns] [namespace tail $var] [set $var]
 	    }
 	}
+
 	return $result
     }
 
+    # parse and merge a file in config format
     method file {file} {
 	package require fileutil
-	my parse [::fileutil::cat -- $file]
+	set result [my parse [::fileutil::cat -- $file]]
+	my merge [lindex $result 0]
+	return $result
     }
 
     constructor {args} {
@@ -157,11 +189,14 @@ oo::class create Config {
 	variable {*}$args
 	catch {set args [dict merge [Site var? Config] $args]}	;# allow .ini file to modify defaults
 
-	if {[info exists config]} {
-	    my parse $config
-	}
+	namespace eval _C {}	;# construct empty subnamespace
+
 	if {[info exists file]} {
-	    my file $file
+	    my file $file	;# parse 
+	}
+	if {[info exists config]} {
+	    lassign [my parse $config] raw comments metadata
+	    my merge $raw
 	}
     }
 }
