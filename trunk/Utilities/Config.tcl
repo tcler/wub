@@ -246,7 +246,6 @@ oo::class create Config {
     }
 
     constructor {args} {
-	my clear
 	Debug.config {Creating Config [self] $args}
 	if {[llength $args]%2} {
 	    set cf [lindex $args end]
@@ -254,15 +253,16 @@ oo::class create Config {
 	    dict set args config $cf
 	}
 	variable {*}$args
-	catch {set args [dict merge [Site var? Config] $args]}	;# allow .ini file to modify defaults
+	#catch {set args [dict merge [Site var? Config] $args]}	;# allow .ini file to modify defaults -- config is, itself, not Configurable
 
-	namespace eval _C {}	;# construct empty subnamespace
+	my clear	;# start with a clean slate
 
 	if {[info exists file]} {
-	    my load $file	;# parse 
+	    my load $file	;# parse any file passed in
 	}
+
 	if {[info exists config]} {
-	    lassign [my parse $config] raw comments metadata
+	    my parse $config	;# parse any literal config passed in
 	}
     }
 }
