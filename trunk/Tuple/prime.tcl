@@ -276,13 +276,30 @@ Template {
     }
 }
 
-"Not Found" {
-    type Template
+"Form" {
+    type Type
     content {
-	[<title> [string totitle "$kind error"]]
-	[<h2> [string totitle "$kind error"]]
-	[<p> "'$nfname' not found while looking for '$extra'"]
-	[<p> "(Generated from [<a> href "xray/Not Found" "Not Found"] page)"]
+	Debug.tupler {Form type}
+	set form [::Form layout Form_[incr ::form_id] [dict get $r -content]]
+	set query [Query flatten [Query parse $r]]
+	set form [dict apply query {$form}]	;# subst vars from Query into form
+	return [Http Pass $r $form tuple/html]
+    }
+}
+
+"*rform+Not Found" {
+    type Form
+    content {
+	form action save/ class autoform
+	fieldset notfound[incr ::notfoundc] {
+	    legend "New Tuple: $name"
+	    selectlist type label "Type:" [my typeselect $type]
+	    text mime label "Mime:" [string totitle $mime]
+	    submit submit style {float:right;} "Save"
+	    <br>
+	    textarea content class autogrow style {width:99%; height:10em;} [string trim $content]
+	    submit submit style {float:right;} "Save"
+	}
     }
 }
 
@@ -742,7 +759,7 @@ Creole+Html {
 	    $(document).Tuple();
 	}]
 
-	set r [jQ editable $r #T_[dict get $tuple id] 'saveJE/' loadurl '[dict get $tuple name]' type 'textarea' name 'content']	;# also load editable
+	set r [jQ editable $r #T_[dict get $tuple id] 'saveJE/' loadurl '[dict get $tuple name].PT' type 'textarea' name 'content']	;# also load editable
 
 	set mime [my getmime $tuple]
 	if {$mime ni {tuple/html tuple/text}} {
