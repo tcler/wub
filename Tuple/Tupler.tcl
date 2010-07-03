@@ -159,6 +159,7 @@ oo::class create Tupler {
     method tuple/html.text/html {r args} {
 	# convert the Html type to pure HTML
 	dict set r -raw 1	;# no more conversions after this
+	Debug.tupler {dynamic?: [dict get? $r -dynamic]}
  
 	if {[string match "<!DOCTYPE*" [dict get $r -content]]} {
 	    return [Http Ok $r $html text/html]	;# content is already fully HTML
@@ -175,14 +176,17 @@ oo::class create Tupler {
 	set tuple [dict get $r -tuple]
 	set _left {}; set _right {}
 	dict with tuple {}
+	set r [Http CacheableContent $r $modified]
 
 	# these will be filled in by [component]
 	set style {}
 	set script {}
 	set footer ""
-	if {[string tolower [dict get? $r x-requested-with]] eq "xmlhttprequest"} {
+	if {[string tolower [dict get? $r -x-requested-with]] eq "xmlhttprequest"} {
 	    # Transclusion - no textual components
+	    Debug.tupler {'$name' tuple/html.text/html - ajax request - no textual components '[dict get? $r -x-requested-with]'}
 	} else {
+	    Debug.tupler {'$name' tuple/html.text/html - non-ajax request}
 	    # fetch text/plain data (title)
 	    foreach el {title} {
 		set cm [my component $r $name $el text]
@@ -260,7 +264,7 @@ oo::class create Tupler {
     method /js/js {r args} {
 	variable js
 	# TODO - caching and expiry stuff
-	return [Http Ok $r $js application/javascript]
+	return [Http Ok [Http Cache $r "next week"] $js application/javascript]
     }
 
     # MkType - creates a bare-bones Type tuple for a new object
@@ -373,25 +377,14 @@ oo::class create Tupler {
 	    return -options $eo
 	} else {
 	    if {[catch {
-		my fetch "Not Found"
+		my fetch "*rform+Not Found"
 	    } found]} {
 		# no user-defined page - go with the system default
 		variable notfound
 		return [Http NotFound $r [subst $notfound] x-text/html-fragment]
 	    } else {
 		# found the user-defined page "Not Found"
-		dict with found {
-		    set mime [my getmime $found]
-		    Debug.tupler {NotFound Handler: $found $mime}
-		    if {$type eq ""} {
-			set type basic
-		    } else {
-			set type [string map {" " _} [string tolower $type]]
-		    }
-		    set content [subst $content]
-		    dict set r -tuple $found
-		    return [Http Ok $r $content tuple/html]
-		}
+		return [Http Redirect $r "*rform+Not Found" name $nfname extra $extra kind $kind mime "" content "" type ""]
 	    }
 	}
     }
@@ -453,12 +446,34 @@ oo::class create Tupler {
 	}
     }
 
-    # SendTuple - format for sending
-    method SendTuple {r tuple} {
+    method invalidate {id args} {
+	if {![dict exists $args modified]} {
+	    set modified [my get $id modified]
+	} else {
+	    set modified [dict get $args modified]
+	}
+
+	Cache invalidate T_$id@$modified
+	Cache invalidate P_$id@$modified
+    }
+
+    # saveJE - save content given by Jeditable - inline jQ editor
+    method /saveJE {r id content args} {
+	Debug.tupler {/saveJE $id $args}
+	dict set r -convert [self]
+
+	set id [string range $id 2 end]	;# remove leading T_
+	my invalidate $id	;# invalidate old cache contents
+	my set $id [list content $content]
+
+	set tuple [my get $id]
+	dict set tuple _right [dict get $tuple name]
+	dict set tuple _left {}
+
+	dict set r -tuple $tuple
+
 	# resolved name
 	dict with tuple {
-	    dict set r -tuple $tuple
-	    
 	    if {![info exists type]
 		|| $type eq ""
 	    } {
@@ -466,41 +481,15 @@ oo::class create Tupler {
 	    } else {
 		set type [string map {" " _} [string tolower $type]]
 	    }
-
-	    # set expiry from DB
-	    if {![info exists expiry] || $expiry eq ""} {
-		set ttuple [my typeof {*}$tuple]
-		Debug.tupler {finding expiry from type ($ttuple)}
-		set expiry [dict get? $ttuple expiry]
-	    }
-	    
-	    if {$expiry ne ""} {
-		# this is cacheable with given expiry
-		Debug.tupler {SendTuple Caching $expiry}
-		set r [Http Cache $r {*}$expiry]
-	    }
-
-	    Debug.tupler {SendTuple -> tuple/$type, [dict get? -$r -convert]}
-	    tailcall Http Ok $r $content tuple/$type
 	}
+
+	Debug.tupler {saveJE -> tuple/$type, [dict get? -$r -convert]}
+
+	# we must not cache /saveJE results
+	tailcall Http Ok [Http NoCache $r] $content tuple/$type
     }
 
-    # saveJE - save content given by Jeditable - inline jQ editor
-    method /saveJE {r id content args} {
-	Debug.tupler {/saveJE $id $args}
-	dict set r -convert [self]
-	catch {dict unset r x-requested-with}
-
-	set id [string range $id 2 end]	;# remove leading T_
-	my set $id [list content $content]
-
-	set tuple [my get $id]
-	dict set tuple _right [dict get $tuple name]
-	dict set tuple _left {}
-
-	tailcall my SendTuple $r $tuple
-    }
-
+    # /save - save the tuple handed in from a form
     method /save {r args} {
 	Debug.tupler {/save $args}
 	dict set r -convert [self]
@@ -508,6 +497,7 @@ oo::class create Tupler {
 	set columns [my columns]
 	set tuple {}	;# set of field values
 
+	# sort args into tuple columns and others
 	dict for {n v} $args {
 	    if {[dict exists $columns $n]} {
 		dict set tuple $n $v
@@ -533,6 +523,7 @@ oo::class create Tupler {
 			unset name	;# we do not change names
 		    }
 		    set op update
+		    my invalidate $id
 		    my set $id $tuple
 		}
 	    } result eo]} {
@@ -541,7 +532,42 @@ oo::class create Tupler {
 	}
 
 	Debug.tupler {/save $op $outcome $result}
-	tailcall Http Ok $r [<p> "$op $outcome $result"]
+	tailcall Http Ok [Http NoCache $r] [<p> "$op $outcome $result"]
+    }
+
+    # send plain text contents of a tuple
+    method /plain {r args} {
+	dict set r -extra [file rootname [dict get $r -extra]]
+	set extra [my getname $r]
+	dict set r -convert [self]
+
+	if {[catch {my fetch $extra} tuple eo]} {
+	    tailcall my bad $r $eo
+	}
+
+	# we're requested to provide just the text
+	Debug.tupler {/transclude id:'[dict get? $args id]'}
+	dict with tuple {}
+	set content [::textutil::undent [::textutil::untabify $content]]
+	set content [string trim $content]
+
+	# set expiry from DB
+	if {![info exists expiry] || $expiry eq ""} {
+	    set ttuple [my typeof {*}$tuple]
+	    Debug.tupler {finding expiry from type ($ttuple)}
+	    set expiry [dict get? $ttuple expiry]
+	}
+ 
+	if {$expiry ne ""} {
+	    # this is cacheable with given expiry
+	    Debug.tupler {/transclude Caching $expiry}
+	    set r [Http Cache $r {*}$expiry]
+	}
+
+	dict set r etag "P_$id@$modified"	;# give tuple a unique ETag
+	catch {dict unset r -dynamic}
+
+	tailcall Http Ok $r $content text/plain
     }
 
     # view a tuple - giving it its most natural HTML presentation
@@ -553,17 +579,37 @@ oo::class create Tupler {
 	    tailcall my bad $r $eo
 	}
 
-	if {[string tolower [dict get? $r x-requested-with]] eq "xmlhttprequest"} {
-	    if {[string match T_* [dict get? $args id]]} {
-		Debug.tupler {Client asked for plain text}
-		set content [dict get $tuple content]
-		set content [::textutil::undent [::textutil::untabify $content]]
-		set content [string trim $content]
-		tailcall Http Ok $r $content text/plain
-	    }
+	dict set r -tuple $tuple
+	dict with tuple {}
+
+	Debug.tupler {/view '$name'}
+
+	if {![info exists type]
+	    || $type eq ""
+	} {
+	    set type basic
+	} else {
+	    set type [string map {" " _} [string tolower $type]]
 	}
 
-	tailcall my SendTuple $r $tuple
+	# set expiry from DB
+	if {![info exists expiry] || $expiry eq ""} {
+	    set ttuple [my typeof {*}$tuple]
+	    Debug.tupler {finding expiry from type ($ttuple)}
+	    set expiry [dict get? $ttuple expiry]
+	}
+	    
+	if {$expiry ne ""} {
+	    # this is cacheable with given expiry
+	    Debug.tupler {/view Caching $expiry}
+	    set r [Http Cache $r {*}$expiry]
+	}
+
+	dict set r etag "T_$id@$modified"	;# give tuple a unique ETag
+	catch {dict unset r -dynamic}
+
+	Debug.tupler {/view -> tuple/$type, [dict get? -$r -convert]}
+	tailcall Http Ok [Http CacheableContent $r $modified] $content tuple/$type
     }
 
     method /dump {r args} {
@@ -584,7 +630,17 @@ oo::class create Tupler {
 	    variable welcome
 	    return [Http Redirect $r $welcome]
 	}
-	tailcall my /view $r {*}$args
+
+	set ext [file extension [Url tail $extra]]
+	switch -- $ext {
+	    .PT {
+		# what is wanted is a straight textual content
+		tailcall my /plain $r {*}$args
+	    }
+	    default {
+		tailcall my /view $r {*}$args
+	    }
+	}
     }
 
     superclass Tuple Convert Direct
