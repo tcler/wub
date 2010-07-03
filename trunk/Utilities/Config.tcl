@@ -203,6 +203,22 @@ oo::class create Config {
 	return $result
     }
 
+    # bind - bind all values to their evaluated value
+    method bind {} {
+	variable raw [my extract]
+    }
+
+    method 2dict {} {
+	dict set result raw [my raw]
+	dict set result comments [my comments]
+	dict set result metadata [my metadata]
+	return $result
+    }
+
+    method 2list {} {
+	return [list [my raw] [my comments] [my metadata]]
+    }
+
     # raw - access raw values
     method raw {{section ""}} {
 	variable raw
@@ -230,6 +246,13 @@ oo::class create Config {
 	    return $metadata
 	} else {
 	    return [dict get $metadata $section]
+	}
+    }
+
+    # aggregate a list of Config objects
+    method aggregate {args} {
+	foreach a $args {
+	    my merge {*}[$a 2list]
 	}
     }
 
