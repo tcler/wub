@@ -27,30 +27,35 @@ oo::class create Config {
 	variable clean 0
 
 	# perform script transformation
-	set bll ""	;# initial name used to collect per-section comments
+	set varname ""	;# initial name used to collect per-section comments
 	set body [parsetcl simple_parse_script $script]
-	parsetcl walk_tree body bi Rs {} C.* {
-	    set bcmd [lindex $body {*}$bi]
-	    if {[llength $bi] == 1} {
-		set metad [lassign $bcmd . . . bl br]
-		set bll [parsetcl unparse $bl]	;# literal name
-		if {![string match L* [lindex $bl 0]]} {
-		    error "variable name '$bll' must be a literal ($bl)"
+	parsetcl walk_tree body index Rs {} C.* {
+	    set cmd [lindex $body {*}$index]
+	    if {[llength $index] == 1} {
+		set meta [lassign $cmd . . . left]
+		set right [lindex $meta end]
+		set meta [lrange $meta 0 end-1]
+
+		set varname [parsetcl unparse $left]	;# literal name
+		if {![string match L* [lindex $left 0]]} {
+		    error "variable name '$varname' must be a literal ($left)"
 		}
 
-		foreach md $metad {
-		    dict set metadata $section $bll [parsetcl unparse $md]
+		# accumulate per-variable metadata
+		foreach md $meta {
+		    dict set metadata $section $varname [parsetcl unparse $md]
 		}
 
-		set brl [parsetcl unparse $br]
-		dict set raw $section $bll $brl
-		Debug.config {BCMD $bi: ($bl) ($br) '$brl' - MD:($metadata)}
-	    } elseif {[parsetcl unparse $bl] eq "expr"} {
-		Debug.config {EXPR: ($br) -> ([parsetcl parse_semiwords [parsetcl unparse $br]])}
+		# set raw value
+		set rl [parsetcl unparse $right]
+		dict set raw $section $varname $rl
+		Debug.config {BCMD $index: ($left) ($right) '$rl' - MD:($metadata)}
+	    } else {
+		# we only transform the script top level
 	    }
 	} Nc {
-	    # comment
-	    dict set comments $section $bll [lindex $body {*}$bi]
+	    # comment associates with immediately prior variable
+	    dict set comments $section $varname [lindex $body {*}$index]
 	} Ne {
 	    set cmd [lindex $parse {*}$index]
 	    error "Syntax Error - $cmd"
@@ -81,22 +86,27 @@ oo::class create Config {
 
 	set parse [parsetcl simple_parse_script $script]
 	parsetcl walk_tree parse index Cd {
-	    # body
-	    #puts stderr "walk: [lindex $parse {*}$index]"
 	    set cmd [lindex $parse {*}$index]
-	    lassign $cmd . . . left right
-	    set ll [parsetcl unparse $left]
-	    if {![string match L* [lindex $left 0]]} {
-		error "section name '$ll' must be a literal ($left)"
-	    }
+	    if {[llength $index] == 1} {
+		set meta [lassign $cmd . . . left]
+		set right [lindex $meta end]
+		set meta [lrange $meta 0 end-1]
 
-	    if {[llength $cmd] != 5} {
-		error "section $ll must have one argument only"
-	    }
+		set section [parsetcl unparse $left]
+		if {![string match L* [lindex $left 0]]} {
+		    error "section name '$section' must be a literal ($left)"
+		}
 
-	    # get body of section (with var substitution)
-	    set sb [lindex [parsetcl unparse $right] 0]
-	    my parse_section $ll $sb
+		# accumulate per-section metadata
+		foreach md $meta {
+		    dict set metadata $section "" [parsetcl unparse $md]
+		}
+		
+		# parse raw body of section
+		my parse_section $section [lindex [parsetcl unparse $right] 0]
+	    } else {
+		# we only transform the top level of script
+	    }
 	} C.* {
 	    error "Don't know how to handle [lindex $parse {*}$index]"
 	} Nc {
@@ -131,12 +141,12 @@ oo::class create Config {
 
 	# perform variable rewrite
 	set body [parsetcl simple_parse_script $script]
-	parsetcl walk_tree body bi Sv {
-	    set s [lindex $body {*}$bi 3 2]
+	parsetcl walk_tree body index Sv {
+	    set s [lindex $body {*}$index 3 2]
 	    if {![string match ::* $s] && [string match *::* $s]} {
 		# this is section-relative var - we need to make a fully qualified NS
 		set s "${NS}::_C::$s"
-		lset body {*}$bi 3 2 $s
+		lset body {*}$index 3 2 $s
 	    }
 	    Debug.config {Var: $s}
 	}
@@ -299,15 +309,15 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	    var val	;# this is a variable
 	    var1 val1
 	    v1 2
-	    v2 [expr {$v1 ^ 2}]
+	    v2 [expr {$v1 ** 2}]
 	}
 	# another section 
 	sect1 {
 	    v1 [expr {$section::v1 ^ 10}]
-	    ap [list moop {*}$::auto_path] -moop moopy
+	    ap -moop moopy [list moop {*}$::auto_path]
 	}
-	sect_err {
-	    xy {this is an error $moop(m}
+	sect_err -sectmetadata yep {
+	    xy -varmetadata yep {this is an error $moop(m}
 	}
     }]"
 }
