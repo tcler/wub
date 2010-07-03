@@ -22,10 +22,9 @@ set ::API(Utilities/Config) {
 
 oo::class create Config {
     # parse a single section into raw alist, comments and metadata
-    method section {script} {
-	set raw {}	;# association between name and tcl script giving value
-	set comments {}	;# association between name and run-on comments
-	set metadata {}	;# association between name and metadata
+    method parse_section {section script} {
+	variable raw; variable comments; variable metadata
+	variable clean 0
 
 	# perform script transformation
 	set bll ""	;# initial name used to collect per-section comments
@@ -40,33 +39,45 @@ oo::class create Config {
 		}
 
 		foreach md $metad {
-		    dict lappend metadata $bll [parsetcl unparse $md]
+		    dict set metadata $section $bll [parsetcl unparse $md]
 		}
 
 		set brl [parsetcl unparse $br]
-		dict set raw $bll $brl
+		dict set raw $section $bll $brl
 		Debug.config {BCMD $bi: ($bl) ($br) '$brl' - MD:($metadata)}
 	    } elseif {[parsetcl unparse $bl] eq "expr"} {
 		Debug.config {EXPR: ($br) -> ([parsetcl parse_semiwords [parsetcl unparse $br]])}
 	    }
 	} Nc {
 	    # comment
-	    dict lappend comments $bll [lindex $body {*}$bi]
+	    dict set comments $section $bll [lindex $body {*}$bi]
 	} Ne {
 	    set cmd [lindex $parse {*}$index]
 	    error "Syntax Error - $cmd"
 	}
 
 	Debug.config {section: raw:($raw)}
+    }
 
-	return [list $raw $comments $metadata]
+    # parse a file in config format
+    method load_section {section file} {
+	package require fileutil
+	my parse_section $section [::fileutil::cat -- $file]
+    }
+
+    # merge raw, comments and metadata dicts for given section
+    method merge_section {section args} {
+	variable raw; variable comments; variable metadata
+	variable clean 0
+	lassign $args _raw _comments _metadata
+	dict set raw $section [dict merge [dict get $raw $section] $_raw]
+	dict set comments $section [dict merge [dict get $comments $section] $_comments]
+	dict set metadata $section [dict merge [dict get $metadata $section] $_metadata]
     }
 
     # parse a complete configuration into raw, comments and metadata
     method parse {script} {
-	set raw {}	;# association between name and tcl script giving value
-	set comments {}	;# association between name and run-on comments
-	set metadata {}	;# association between name and metadata
+	variable raw; variable comments; variable metadata
 
 	set parse [parsetcl simple_parse_script $script]
 	parsetcl walk_tree parse index Cd {
@@ -85,10 +96,7 @@ oo::class create Config {
 
 	    # get body of section (with var substitution)
 	    set sb [lindex [parsetcl unparse $right] 0]
-	    lassign [my section $sb] sraw scomments smetadata
-	    dict set raw $ll $sraw
-	    dict set comments $ll $scomments
-	    dict set metadata $ll $smetadata
+	    my parse_section $ll $sb
 	} C.* {
 	    error "Don't know how to handle [lindex $parse {*}$index]"
 	} Nc {
@@ -101,13 +109,20 @@ oo::class create Config {
 	}
 
 	Debug.config {parse: ($raw)}
-	return [list $raw $comments $metadata]
     }
 
-    # destroy context namespace
-    method clear {} {
-	namespace delete _C
-	namespace eval _C {}
+    # merge a raw, commants and metadata dicts
+    method merge {args} {
+	lassign $args _raw _comments _metadata
+	foreach section [dict keys $_raw] {
+	    my merge_section $section [dict get $_raw $section] [dict get? $_comments $section] [dict get? $_metadata $section]
+	}
+    }
+
+    # parse a file in config format
+    method load {file} {
+	package require fileutil
+	my parse [::fileutil::cat -- $file]
     }
 
     # substitute section-relative names into value scripts
@@ -131,28 +146,41 @@ oo::class create Config {
 	return $subbed
     }
 
-    # merge_section - merge a section dict after variable substitution
-    method merge_section {section vars} {
+    # eval_section - evaluate a section dict after variable substitution
+    method eval_section {section} {
+	variable raw
 	set ss {}
-	dict for {n v} $vars {
+	dict for {n v} [dict get $raw $section] {
 	    set sv [my VarSub $v]
-	    Debug.config {extract: $n $v ($sv)}
+	    Debug.config {eval_section '$section': $n $v ($sv)}
 	    namespace eval _C::$section "variable $n $sv"
 	}
     }
 
-    # merge a raw dict after variable substitution
-    method merge {raw} {
-	dict for {section vars} $raw {
-	    my merge_section $section $vars
+    # evaluate a raw dict after variable substitution
+    method eval {} {
+	variable clean
+	variable raw
+	if {!$clean} {
+	    # only re-evaluate if not clean
+	    foreach section [dict keys $raw] {
+		my eval_section $section
+	    }
 	}
+	set clean 1
     }
 
     # sections - a list of sections
     method sections {} {
+	variable raw; return [dict keys $raw]
+    }
+
+    # section - get evaluated section
+    method section {section} {
+	my eval	;# evaluate any changes in raw
 	set result {}
-	foreach section [namespace children _C] {
-	    lappend result [namespace tail $section]
+	foreach var [info vars _C::${section}::*] {
+	    dict set result [namespace tail $var] [set $var]
 	}
 	return $result
     }
@@ -161,38 +189,64 @@ oo::class create Config {
     method extract {{config ""}} {
 	if {$config ne ""} {
 	    # parse $config if proffered
-	    lassign [my parse $config] raw comments metadata
-	    my merge $raw
+	    my parse $config
 	}
+
+	my eval	;# evaluate any changes in raw
 
 	# extract the accumulated values from _C namespace children
 	set result {}
-	foreach ns [namespace children _C] {
-	    foreach var [info vars ${ns}::*] {
-		dict set result [namespace tail $ns] [namespace tail $var] [set $var]
-	    }
+	foreach section [my sections] {
+	    dict set result $section [my section $section]
 	}
 
 	return $result
     }
 
-    # parse and merge a file in config format
-    method section_file {section file} {
-	package require fileutil
-	set result [my section [::fileutil::cat -- $file]]
-	my merge [list $section [lindex $result 0]]
-	return $result
+    # raw - access raw values
+    method raw {{section ""}} {
+	variable raw
+	if {$section eq ""} {
+	    return $raw
+	} else {
+	    return [dict get $raw $section]
+	}
     }
 
-    # parse and merge a file in config format
-    method file {file} {
-	package require fileutil
-	set result [my parse [::fileutil::cat -- $file]]
-	my merge [lindex $result 0]
-	return $result
+    # comments - access comment values
+    method comments {{section ""}} {
+	variable comments
+	if {$section eq ""} {
+	    return $comments
+	} else {
+	    return [dict get $comments $section]
+	}
+    }
+
+    # metadata - access metadata values
+    method metadata {{section ""}} {
+	variable metadata
+	if {$section eq ""} {
+	    return $metadata
+	} else {
+	    return [dict get $metadata $section]
+	}
+    }
+
+    # destroy context namespace
+    method clear {} {
+	variable raw {}	;# association between name and tcl script giving value
+	variable comments {}	;# association between name and run-on comments
+	variable metadata {}	;# association between name and metadata
+
+	# destroy evaluation namespace
+	catch {namespace delete _C}
+	namespace eval _C {}
+	variable clean 1
     }
 
     constructor {args} {
+	my clear
 	Debug.config {Creating Config [self] $args}
 	if {[llength $args]%2} {
 	    set cf [lindex $args end]
@@ -205,11 +259,10 @@ oo::class create Config {
 	namespace eval _C {}	;# construct empty subnamespace
 
 	if {[info exists file]} {
-	    my file $file	;# parse 
+	    my load $file	;# parse 
 	}
 	if {[info exists config]} {
 	    lassign [my parse $config] raw comments metadata
-	    my merge $raw
 	}
     }
 }
