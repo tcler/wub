@@ -1,4 +1,10 @@
 // transclude <span>s with src links
+
+// set caching to true, otherwise jquery.js can't be cached
+$.ajaxSetup({
+	cache: true
+});
+
 $.fn.transclude = function (options) {
     //alert("transcluding: '" + options.url + "' '" + options.data+"'");
     var empty = {};
@@ -7,6 +13,7 @@ $.fn.transclude = function (options) {
 	    target: $(this),
 	    merge: "overwrite",
 	    dataType: "html",
+	    cache: true,
 	    success: function (data, status) {
 		//alert("success "  + $(this.target).attr("id") + " " + data);
 		try {
