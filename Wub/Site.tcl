@@ -1,7 +1,9 @@
 # Site - simple configuration for single-threaded Wub Server.
 package require Tcl 8.6	;# minimum version of tcl required
 
-namespace eval ::Site {}
+namespace eval ::Site {
+    variable home [file normalize [file dirname [info script]]]
+}
 
 # temporary compatibility shim for coroutines
 # handle new coro interface
@@ -80,11 +82,10 @@ proc findpaths {} {
 
     if {![info exists ::starkit::topdir]} {
 	# unpacked startup
-	set home [file normalize [file dirname [info script]]]
-	dict set apath $home {}
+	dict set apath $::Site::home {}
 
 	# find Wub stuff
-	set top [file dirname $home]
+	set top [file dirname $::Site::home]
 	foreach lib {extensions Wub Domains Utilities Client Tuple} {
 	    dict set apath [file join $top $lib] {}
 	}
@@ -105,14 +106,16 @@ findpaths	;# have to do this before looking for Debug or Dict
 
 package require Debug	;# Debug before Dict, as it depends on it
 package require Dict
+package require Config	;# handle configuration
 
 Debug on site 10
+Debug define nubsite 10
 package provide Site 1.0	;# we're providing the Site facilities
 
 namespace eval ::Site {
-    ::variable phase "Site Base Initialization"	;# record the site init phase
+    ::variable phase "Base Initialization"	;# record the site init phase
 
-    # 
+    # variable - track variable definitions
     proc variable {args} {
 	::variable phase
 	dict for {name value} $args {
@@ -123,10 +126,15 @@ namespace eval ::Site {
 		Debug.site {($phase) define variable $name: $value}
 	    }
 	    set $name $value
-	    uplevel ::variable $name	;# add the variable def to caller
+	    if {[catch {
+		uplevel ::variable $name	;# add the variable def to caller
+	    } e eo]} {
+		Debug.error {variable '$name' $e ($eo)}
+	    }
 	}
     }
 
+    # conditionally overwrite variables
     proc Variable {args} {
 	::variable phase
 	dict for {name value} $args {
@@ -144,7 +152,6 @@ namespace eval ::Site {
     variable sourced [list [info script] [info script]]
 
     # record wub's home
-    variable home [file normalize [file dirname [info script]]]
     variable wubroot $home
     variable wubtop [file dirname $home]
 
@@ -187,174 +194,79 @@ namespace eval ::Site {
 	return $vars
     }
 
-    # simple rc reader
-    proc rc {text} {
-	set accum ""
-	set result {}
-	foreach line [split $text \n] {
-	    set line [string trim $line]
-	    if {$line eq ""} continue
-	    lassign [split $line {\#;}] line
-	    append accum " " [string trim $line]
-	    if {[info complete $accum]} {
-		set pass [uplevel 1 list $accum]
-		lappend result {*}$pass
-		set accum ""
-	    }
-	}
-	return $result
-    }
-
-    ::variable modules; array set modules {}
-    ::variable sections; array set sections {}
-
-    # read the site ini file
-    proc do_ini {file} {
-	::variable modules
-	::variable sections
-
-	if {![file exists $file]} {
-	    error "Can't proceed: site initialization file '$file' does not exist."
-	    return
-	} else {
-	    Debug.log {INI file: [file normalize $file] [file exists $file]}
-	}
-
-	package require inifile	;# windows .ini file processing
-	set ini [::ini::open $file r]
-
-	foreach sect [::ini::sections $ini] {
-	    set cs [string tolower $sect]	;# section name
-	    if {$cs eq $sect} {
-		# this is a nub definition
-		foreach key [::ini::keys $ini $sect] {
-		    set v [::ini::value $ini $sect $key]
-		    Debug.site {INI nub $sect: $key $v}
-		    dict lappend sections($sect) $key $v
-		}
-	    } elseif {$cs eq "wub"} {
-		set modules($cs) {}			;# record the elements
-		foreach key [::ini::keys $ini $sect] {
-		    set v [::ini::value $ini $sect $key]
-		    # global config file
-		    Debug.site {INI global: $key $v}
-		    Variable $key $v
-		}
-	    } else {
-		set modules($cs) {}			;# record the elements
-		foreach key [::ini::keys $ini $sect] {
-		    set v [::ini::value $ini $sect $key]
-		    Debug.site {INI module $cs: $key $v}
-		    dict set ::Site::$cs $key $v
-		}
-	    }
-	}
-
-	::ini::close $ini
-    }
-
-    proc write_ini {file} {
-	::variable modules
-	::variable sections
-	set ini [::ini::open $file w]
-	foreach var [info vars ::Site::*] {
-	    if {[catch {
-		set val [set $var]
-		set vvar [namespace tail $var]
-		set name [dict get $val name]
-	    }]} continue
-
-	    if {[info exists modules($vvar)]} {
-		# it's a module
-		dict for {k v} $val {
-		    if {$k ne "name"} {
-			::ini::set $ini $name $k $v
-		    }
-		}
-	    } else {
-		# it's in wub
-		catch {
-		    if {$val ne ""} {
-			::ini::set $ini wub $vvar $val
-		    }
-		}
-	    }
-	}
-	::ini::commit $ini
-	::ini::close $ini
-    }
-
     variable wubdir [file normalize [file join [file dirname [info script]] ..]] ;# where's wub
-    ::variable configuration {
-	home [file normalize [file dirname [info script]]] ;# home of application script
-	host [info hostname]	;# default home for relative paths
-	ini site.ini		;# init files
-	globaldocroot 1		;# do we use Wub's docroot, or caller's
 
-	@shell [rc {
+    ::variable configuration {
+	Wub {
+	    home [file normalize [file dirname [info script]]] ;# home of application script
+	    host [info hostname]	;# default home for relative paths
+	    config ./site.config	;# configuration file
+	    globaldocroot 1		;# do we use Wub's docroot, or caller's
+	    application ""		;# package to require as application
+	    local local.tcl	;# post-init localism
+	    vars vars.tcl	;# pre-init localism
+	    password ""		;# account (and general) root password
+	    # topdir	;# Where to look for Wub libs - don't change
+	    # docroot	;# Where to look for document root.
+	}
+
+	Shell {
 	    load 0		;# want Console
 	    port 8082		;# Console listening socket
-	}]
+	}
 
-	application ""		;# package to require as application
-
-	local local.tcl	;# post-init localism
-	vars vars.tcl	;# pre-init localism
-	# topdir	;# Where to look for Wub libs - don't change
-	# docroot	;# Where to look for document root.
-
-	@stx [rc {
+	Stx {
 	    load 1	;# want STX by default
 	    scripting 0	;# permit stx scripting?
-	}]
+	}
 
-	# HTTP Listener configuration
-	@listener [rc {
+	Listener {
+	    # HTTP Listener configuration
 	    -port 8080	;# Wub listener port
 	    #-host	;# listening host (default [info hostname]
 	    #-http	;# dispatch handler (default Http)
-	}]
+	}
 
-	# HTTPS Listener configuration
-	@https [rc {
+	Https {
+	    # HTTPS Listener configuration
 	    -port 8081	;# Wub listener port
 	    #-host	;# listening host (default [info hostname]
 	    #-http	;# dispatch handler (default Http)
 	    -tls {}
-	}]
+	}
 
-	# SCGI Listener configuration
-	@sscgi [rc {
+	Sscgi {
+	    # SCGI Listener configuration
 	    -port 8088			;# what port does SCGI run on
 	    -port 0			;# disable SCGI - comment to enable
 	    -scgi_send {::scgi Send}	;# how does SCGI communicate incoming?
-	}]
+	}
 
-	# Varnish configuration
-	@varnish [rc { ;# don't use varnish cache by default
+	Varnish {
+	    # Varnish configuration
 	    load 0			;# don't want varnish
 	    # vaddress localhost	;# where is varnish running?
 	    # vport 6082		;# on what port is varnish control?
-	}]
+	}
 
-	@block [rc {
+	Block {
 	    load 1		;# want block by default
-	}]
+	}
 
-	@human [rc {
+	Human {
 	    load 1		;# want human by default
-	}]
+	}
 
-	@ua [rc {
+	Ua {
 	    load 1		;# want user agent classification by default
-	}]
+	}
 
-	@convert [rc {		;# cant content negotiation by default
+	Convert {		;# cant content negotiation by default
 	    load 1
-	}]
+	}
 
-	# Internal Cach configuration
-	@cache [rc { ;# use in-RAM cache by default
+	Cache {
+	    # Internal Cache configuration
 	    load 1		;# want cache, by default
 	    maxsize 204800	;# maximum size of object to cache
 	    high 100		;# high water mark for cache
@@ -363,15 +275,15 @@ namespace eval ::Site {
 	    weight_hits -2.0	;# hits weight for replacement
 	    # CC 0	;# do we bother to parse cache-control?
 	    # obey_CC 0	;# do we act on cache-control? (Not Implemented)
-	}]
+	}
 
-	@nub [rc {
+	Nub {
 	    nubs {}
 	    # nub.nub bogus.nub
-	}]
+	}
 
-	# Httpd protocol engine configuration
-	@httpd [rc {
+	Httpd {
+	    # Httpd protocol engine configuration
 	    logfile "wub.log"	;# log filename for common log format logging
 	    max_conn 20		;# max connections per IP
 	    no_really 30	;# how many times to complain about max_conn
@@ -379,127 +291,85 @@ namespace eval ::Site {
 	    # server_id		;# server ID to client (default "Wub")
 	    retry_wait	20	;# how long to advise client to wait on exhaustion
 	    timeout 60000	;# ms of idle to tolerate
-	}]
-	password ""		;# account (and general) root password
+	}
     }
 
     proc init {args} {
-	::variable phase "Site init processing"	;# move to site init phase
-
-	# can pass in 'configuration' dict
-	::variable configuration
-	if {[dict exists $args configuration]} {
-	    set configuration [dict merge $configuration [dict get $args configuration]]
-	    dict unset args configuration
-	}
+	::variable phase "init processing"	;# move to site init phase
 
 	# immediately set up debugging
-	if {[dict exists $args debug]} {
-	    set debug [dict get $args debug]
-	    Debug on site $debug
+	if {[dict exists $args debug]
+	    && [dict get $args debug]
+	} {
+	    Debug on site [dict get $args debug]
 	    dict unset args debug
 	}
 
+	::variable configuration
+	#Debug on config
+	Config create config $configuration
+	unset configuration	;# done with configuration var
+
+	# set some derived values
+	if {[info exists ::starkit::topdir]} {
+	    # starkit startup
+	    config assign Wub topdir $::starkit::topdir
+	    config assign Wub docroot [file join $topdir docroot]
+	} else {
+	    # unpacked startup
+	    ::variable home
+	    lappend ::auto_path $home	;# add the app's home dir to auto_path
+
+	    # find Wub stuff
+	    ::variable wubdir; ::variable topdir
+	    config assign Wub topdir [file normalize $wubdir]
+	}
+
+	# evaluate Wub section + $args
+	::variable home	;# application's default home
+	config assign Wub home $home
+
 	# args to Site::init become initial variable values
-	set phase "Site init args"	;# move to site init args phase
-	if {[llength $args]} {
-	    variable {*}$args
+	foreach {n v} $args {
+	    if {[string match {[A-Z]*} $n]} {
+		config merge_section [string totitle $n] $v
+		dict unset args $n
+	    }
+	}
+
+	config merge_section Wub [list home $home {*}$args]
+
+	# read Wub.config configuration file
+	set C [config extract]
+	puts stderr "CFG1: ($C)"
+	if {[dict exists $C Wub config]} {
+	    set phase "Site user configuration"	;# move to site config files phase
+	    config aggregate [Config create user file [dict get $C Wub config]]
+	    set C [config extract]	;# extract configuration values
+	    user destroy
+	}
+	puts stderr "CFG: ($C)"
+
+	# define docroot
+	if {[dict get $C Wub globaldocroot]} {
+	    dict set config Wub docroot [file join [config get Wub topdir] docroot]
+	} else {
+	    dict set config Wub docroot [file join [config get Wub home] docroot]
+	}
+
+	# use Wub config to populate ::Site variables
+	dict for {n v} [dict get $C Wub] {
+	    variable $n $v
 	}
 
 	# configuration variable contains defaults
 	# set some default configuration flags and values
 	set phase "Site init configuration"	;# move to site configuration phase
-	::variable modules
-	foreach {name val} [namespace eval ::Site [list rc $configuration]] {
-	    if {[string match @* $name]} {
-		set name [string tolower [string trim $name @]]
-		set modules($name) {}
-	    }
-	    Variable $name $val	;# install the named variable
-	}
-	unset configuration	;# done with configuration var
-
-	::variable home	;# application's home
-	if {[dict exists $::argv home]} {
-	    # set this most important of variables.
-	    # It's the app's home, other stuff is made relative to it.
-	    set home [dict get $::argv home]
-	}
-
-	# load ini files from app's home
-	set phase "Site ini files"	;# move to site ini files phase
-	::variable ini
-	foreach i $ini {
-	    do_ini $i
-	}
-
-	# load site configuration script vars.tcl
-	# (not under SVN control, for local site configuration)
-	::variable vars
-	if {$vars ne ""} {
-	    if {[file exists $vars] && [catch {
-		set fd [open $vars r]; set x [read $fd]; close $fd
-		eval $x
-		unset x
-	    } e eo]} {
-		puts stderr "ERROR reading '$vars' config file: '$e' ($eo) - config is incomplete."
-	    }
-	}
-
-	# process command-line configuration of vars
-	# - these override $args and default configuration
-	set phase "Site ::argv overrides"	;# move to ::argv overriding phase
-	foreach {name val} $::argv {
-	    variable $name $val	;# set global config vars
-	}
-	unset name; unset val
-
-	# we can write all this stuff back out, if desired
-	if {[info exists ::Site::write_ini]} {
-	    unset e; unset eo
-	    write_ini [file normalize $::Site::write_ini]
-	}
 
 	set phase "Site derived values"	;# phase to generate some derived values
-	::variable host; ::variable listener
-	Variable url "http://$host:[dict get $listener -port]/"
-
-	# now we're configured, set some derived values
-	if {[info exists ::starkit::topdir]} {
-	    # starkit startup
-	    Variable topdir $::starkit::topdir
-	    Variable docroot [file join $topdir docroot]
-	} else {
-	    # unpacked startup
-	    lappend ::auto_path $home	;# add the app's home dir to auto_path
-
-	    # find Wub stuff
-	    ::variable wubdir; ::variable topdir
-	    Variable topdir [file normalize $wubdir]
-
-	    #foreach lib {Mime extensions stx Wub Domains Utilities} {
-	    #lappend ::auto_path [file join $topdir $lib]
-	    #}
-	    
-	    # find docroot
-	    if {$globaldocroot} {
-		Variable docroot [file join $topdir docroot]
-	    } else {
-		Variable docroot [file join $home docroot]
-	    }
-	}
+	dict set config Wub url "http://[dict get $C Wub host]:[dict get $C Listener -port]/"
 
 	set phase "Site modules"	;# load site modules
-
-	#### Load Convert module - content negotiation
-	::variable convert
-	if {![info exists convert]} {
-	    set convert {}
-	}
-
-	# install default conversions
-	package require Convert
-	Convert create ::convert {*}$convert
 
 	proc init {args} {}	;# ensure init can't be called twice
     }
@@ -509,248 +379,12 @@ namespace eval ::Site {
     Debug on log 10
     Debug on block 10
 
-    #### Load those modules needed for the server to run
-    proc modules {} {
-	::variable docroot
-	package require Httpd
-
-	#### Load Block module - blocks incoming by ipaddress
-	::variable block
-	if {[info exists block]
-	    && [dict get? $block load] ne ""
-	    && [dict get? $block load]
-	} {
-	    #### initialize Block
-	    Debug.site {Module Block: YES}
-	    package require Block
-	    Block new logdir $docroot {*}$block
-	} else {
-	    # NULL Block
-	    Debug.site {Module Block: NO}
-	    namespace eval ::Block {
-		proc block {args} {}
-		proc blocked? {args} {return 0}
-		proc new {args} {}
-		namespace export -clear *
-		namespace ensemble create -subcommands {}
-	    }
-	}
-
-	#### Load Human Module - redirects bad bots
-	::variable human
-	if {[info exists human]
-	    && [dict get? $human load] ne ""
-	    && [dict get? $human load]
-	} {
-	    #### initialize Human
-	    package require Human
-	    Debug.site {Module Human: YES}
-	    Human new logdir $docroot {*}$human
-	} else {
-	    # NULL Human
-	    Debug.site {Module Human: NO}
-	    namespace eval ::Human {
-		proc track {r args} {return $r}
-		namespace export -clear *nub/nubs/
-		namespace ensemble create -subcommands {}
-	    }
-	}
-
-	#### Load UA Module - classifies by user-agent
-	::variable ua
-	if {[info exists ua]
-	    && [dict get? $ua load] ne ""
-	    && [dict get? $ua load]
-	} {
-	    #### initialize UA
-	    package require UA
-	    Debug.site {Module UA: YES}
-	} else {
-	    # NULL UA classifier
-	    Debug.site {Module UA: NO}
-	    namespace eval ::UA {
-		proc classify {args} {return browser}
-		proc parse {args} {return ""}
-		namespace export -clear *
-		namespace ensemble create -subcommands {}
-	    }
-	}
-
-	### Load Varnish Module - a kind of Cache
-	::variable varnish
-	if {[info exists varnish]
-	    && [dict get? $varnish load] ne ""
-	    && [dict get? $varnish load]
-	} {
-	    #### Varnish cache
-	    package require Varnish
-	    if {![catch {
-		Varnish init {*}$varnish
-		Debug.site {Module Varnish: YES}
-	    } r eo]} {
-		Debug.error {varnish: $r ($eo)}
-		package forget Varnish
-		catch {unset cache}
-	    }
-	} else {
-	    Debug.site {Module Varnish: NO}
-	}
-
-	#### Load Cache Module - server caching
-	::variable cache
-	if {[info exists cache]
-	    && [dict get? $cache load] ne ""
-	    && [dict get? $cache load]
-	} {
-	    #### in-RAM Cache
-	    package require Cache 
-	    Cache new {*}$cache
-	    Debug.site {Module Cache: YES}
-	} else {
-	    #### Null Cache - provide a minimal non-Cache interface
-	    package provide Cache 2.0
-	    namespace eval ::Cache {
-		proc put {r} {return $r}
-		proc check {r} {return {}}
-		
-		namespace export -clear *
-		namespace ensemble create -subcommands {}
-	    }
-	    Debug.site {Module Cache: NO}
-	}
-
-	#### Load STX Module - rich text conversion
-	::variable stx
-	if {[info exists stx]
-	    && [dict get? $stx load] ne ""
-	    && [dict get? $stx load]
-	} {
-	    #### stx init
-	    package require stx
-	    package require stx2html
-
-	    ::variable stx_scripting
-	    stx2html init script [dict get? $stx scripting] {*}$stx
-	    Debug.site {Module STX: YES}
-	} else {
-	    Debug.site {Module STX: NO}
-	}
-
-	#### Console init
-	::variable shell
-	if {[info exists shell]
-	    && [dict get? $shell load] ne ""
-	    && [dict get? $shell load]
-	} {
-	    if {[catch {
-		#### Shell init
-		package require Shell
-		Shell new {*}$shell
-	    } err eo]} {
-		Debug.error {Module Shell: Failed to Init. $err ($eo)}
-	    }
-	} else {
-	    Debug.site {Module Shell: NO}
-	}
-
-	#### Load up nubs
-	package require Nub
-	::variable nub
-	::variable nubs
-	::variable sections
-	if {[info exists nubs] && [llength $nubs]} {
-	    dict set nub nubs $nubs
-	}
-
-	Nub init {*}$nub
-	Debug.site {NUB:$nub}
-	if {[dict exists $nub nubs] && [llength [dict get $nub nubs]]} {
-	    foreach file [dict get $nub nubs] {
-		Nub configF $file
-	    }
-	} elseif {[array names sections {[a-z]*}] ne {}} {
-	    sections	;# initialize the nubs
-	} else {
-	    # no nubs supplied
-	    Nub config	;# start with the builtin
-	}
-
-	#### Load local semantics from ./local.tcl
-	::variable local
-	::variable home
-	if {[info exists local] && $local ne ""} {
-	    if {[file exists $local]} {
-		if {[catch {source $local} r eo]} {
-		    Debug.error {Site LOCAL ($local) error: '$r' ($eo)}
-		}
-	    }
-	}
-
-	# apply all collected Nubs
-	Nub apply
-
-	#### start Httpd protocol
-	::variable httpd
-	Httpd configure server_id "Wub [package present Httpd]" {*}$httpd
-
-	::variable server_port
-	if {[info exists server_port]} {
-	    # the listener and server ports differ
-	    Httpd configure server_port $server_port
-	}
-
-	::variable host
-	::variable docroot
-
-	#### start Listeners
-	::variable listener
-	if {![dict exists $listener -port]} {
-	    dict set listener -port 80
-	}
-	set h {}
-	if {[dict exists $listener -host]} {
-	    set h [list -host [dict get $listener -host]]
-	}
-	Listener new {*}$h -httpd Httpd {*}$listener
-
-	#### start HTTPS Listener
-	::variable https
-	if {[dict exists $https -port]
-	    && ([dict get $https -port] > 0)
-	    && ![catch {
-		package require tls
-	    }]
-	} {
-	    #### Simplistic Certificate Authority
-	    #package require CA
-	    #CA init dir $home/CA host $host port [dict get $https -port]
-	    #dict lappend https -tls -cafile [CA cafile] -certfile [CA certificate $host] 
-	    Listener new {*}$h -httpd Httpd {*}$https
-	}
-
-	#### start scgi Listener
-	::variable sscgi
-	if {[dict exists $sscgi -port] && ([dict get $sscgi -port] > 0)} {
-	    package require Sscgi
-	    Listener listen -host $host -httpd sscgi {*}$scgi
-	    Debug.log {Listening on scgi $host [dict get $sscgi -port] using docroot $docroot}
-	}
-
-    }
-
-    proc sectvar {expr} {
-	set expr [lindex $expr 0]
-	if {[string match {$*} $expr]} {
-	    return [subst -nocommands $expr]
-	} else {
-	    return $expr
-	}
-    }
-
-    proc section {sect section} {
+    #### section - interrogate section for nub definitions
+    proc section {sect} {
+	set section [config get $sect]
 	if {[dict exists $section domain] || [dict exists $section handler]} {
 	    if {![dict exists $section url]} {
-		error "nub '$sect' declared in .ini must have a url value"
+		error "nub '$sect' declared in .config must have a url value"
 	    }
 	    if {![dict exists $section handler]} {
 		set domain [dict get $section domain]
@@ -772,16 +406,19 @@ namespace eval ::Site {
 	    if {[dict exists $a -threaded]} {
 		set targs [dict get $a -threaded]
 		dict unset a -threaded
+		Debug.nubsite {Nub domain $url [list Threaded ::Domains::$sect] {*}$targs $domain $a}
 		Nub domain $url [list Threaded ::Domains::$sect] {*}$targs $domain {*}$a
 	    } else {
+		Debug.nubsite {Nub domain $url [list $domain ::Domains::$sect] $a}
 		Nub domain $url [list $domain ::Domains::$sect] {*}$a
 	    }
 	} elseif {[dict exists $section block]} {
 	    dict with section {
+		Debug.nubsite {Nub block $block}
 		Nub block $block
 	    }
 	} elseif {![dict exists $section url]} {
-	    error "nub '$sect' declared in .ini must have a url value"
+	    error "nub '$sect' declared in .config must have a url value"
 	} elseif {[dict exists $section code]} {
 	    dict with section {
 		if {![info exists mime]} {
@@ -789,6 +426,7 @@ namespace eval ::Site {
 		} else {
 		    set mime [sectvar $mime]
 		}
+		Debug.nubsite {Nub code $url [lindex $code 0] $mime}
 		Nub code $url [lindex $code 0] $mime
 	    }
 	} elseif {[dict exists $section literal]} {
@@ -798,28 +436,242 @@ namespace eval ::Site {
 		} else {
 		    set mime [sectvar $mime]
 		}
-		Nub literal $url [subst -nocommands -novariables [lindex $literal 0]] $mime
+		set lit [subst -nocommands -novariables [lindex $literal 0]]
+		Debug.nubsite {Nub literal [lindex $url 0] '$lit' $mime}
+		Nub literal $url $lit $mime
 	    }
 	} elseif {[dict exists $section redirect]} {
 	    dict with section {
+		Debug.nubsite {Nub redirect $url $redirect}
 		Nub redirect $url $redirect
 	    }
 	} elseif {[dict exists $section rewrite]} {
 	    dict with section {
-		Nub rewrite [lindex $url 0] {*}$rewrite
+		Debug.nubsite {Nub rewrite [lindex $url 0] $rewrite}
+		Nub rewrite [lindex $url 0] $rewrite
 	    }
 	} elseif {[dict exists $section auth]} {
 	    dict with section {
-		Nub auth [lindex $url 0] {*}$auth
+		Debug.nubsite {Nub auth [lindex $url 0] $auth}
+		Nub auth [lindex $url 0] $auth
 	    }
 	}
     }
 
+    #### sections - process each section for Domain definition
     proc sections {} {
 	::variable sections
-	foreach {sect section} [array get sections] {
-	    Debug.site {processing section: $sect ($section)}
-	    section $sect $section
+	foreach sect [config sections {[a-z]*}] {
+	    Debug.site {processing section: $sect}
+	    section $sect
+	}
+    }
+
+    #### Load those modules needed for the server to run
+    proc modules {} {
+	::variable docroot
+	package require Httpd
+
+	#### Load Convert module - content negotiation
+	# install default conversions
+	package require Convert
+	if {[config exists Convert]} {
+	    Convert create ::convert [config section Convert]
+	} else {
+	    Convert create ::convert
+	}
+
+	#### Load Block module - blocks incoming by ipaddress
+	::variable block
+	if {[config exists Block]
+	    && [config get Block load]
+	} {
+	    #### initialize Block
+	    Debug.site {Module Block: YES}
+	    package require Block
+	    Block new logdir $docroot [config section Block]
+	} else {
+	    # NULL Block
+	    Debug.site {Module Block: NO}
+	    namespace eval ::Block {
+		proc block {args} {}
+		proc blocked? {args} {return 0}
+		proc new {args} {}
+		namespace export -clear *
+		namespace ensemble create -subcommands {}
+	    }
+	}
+
+	#### Load Human Module - redirects bad bots
+	if {[config exists Human]
+	    && [config get Human load]
+	} {
+	    #### initialize Human
+	    package require Human
+	    Debug.site {Module Human: YES}
+	    Human new logdir $docroot {*}[config section Human]
+	} else {
+	    # NULL Human
+	    Debug.site {Module Human: NO}
+	    namespace eval ::Human {
+		proc track {r args} {return $r}
+		namespace export -clear *nub/nubs/
+		namespace ensemble create -subcommands {}
+	    }
+	}
+
+	#### Load UA Module - classifies by user-agent
+	if {[config exists UA]
+	    && [config get UA load]
+	} {
+	    #### initialize UA
+	    package require UA
+	    Debug.site {Module UA: YES}
+	} else {
+	    # NULL UA classifier
+	    Debug.site {Module UA: NO}
+	    namespace eval ::UA {
+		proc classify {args} {return browser}
+		proc parse {args} {return ""}
+		namespace export -clear *
+		namespace ensemble create -subcommands {}
+	    }
+	}
+
+	### Load Varnish Module - a kind of Cache
+	if {[config exists Varnish]
+	    && [config get Varnish load]
+	} {
+	    #### Varnish cache
+	    package require Varnish
+	    if {![catch {
+		Varnish init {*}[config section Varnish]
+		Debug.site {Module Varnish: YES}
+	    } r eo]} {
+		Debug.error {varnish: $r ($eo)}
+		package forget Varnish
+		catch {unset cache}
+	    }
+	} else {
+	    Debug.site {Module Varnish: NO}
+	}
+
+	#### Load Cache Module - server caching
+	if {[config exists cache]
+	    && [config get Cache load]
+	} {
+	    #### in-RAM Cache
+	    package require Cache 
+	    Cache new {*}[config section Cache]
+	    Debug.site {Module Cache: YES}
+	} else {
+	    #### Null Cache - provide a minimal non-Cache interface
+	    package provide Cache 2.0
+	    namespace eval ::Cache {
+		proc put {r} {return $r}
+		proc check {r} {return {}}
+		
+		namespace export -clear *
+		namespace ensemble create -subcommands {}
+	    }
+	    Debug.site {Module Cache: NO}
+	}
+
+	#### Load STX Module - rich text conversion
+	if {[config exists STX]
+	    && [config get STX load]
+	} {
+	    #### stx init
+	    package require stx
+	    package require stx2html
+
+	    ::variable stx_scripting
+	    stx2html init script [dict get? $stx scripting] [config section STX]
+	    Debug.site {Module STX: YES}
+	} else {
+	    Debug.site {Module STX: NO}
+	}
+
+	#### Console init
+	if {[config exists Shell]
+	    && [config get Shell load]
+	} {
+	    if {[catch {
+		#### Shell init
+		package require Shell
+		Shell new {*}[config section Shell]
+	    } err eo]} {
+		Debug.error {Module Shell: Failed to Init. $err ($eo)}
+	    }
+	} else {
+	    Debug.site {Module Shell: NO}
+	}
+
+	#### Load up nubs
+	package require Nub
+	Nub init {*}[config section Nub]
+	sections	;# initialize the nubs
+
+	#### Load local semantics from ./local.tcl
+	::variable local
+	::variable home
+	if {[info exists local] && $local ne ""} {
+	    if {[file exists $local]} {
+		if {[catch {source $local} r eo]} {
+		    Debug.error {Site LOCAL ($local) error: '$r' ($eo)}
+		}
+	    }
+	}
+
+	# apply all collected Nubs
+	Nub apply
+
+	#### start Httpd protocol
+	::variable httpd
+	Httpd configure server_id "Wub [package present Httpd]" {*}[config section Httpd]
+
+	::variable server_port
+	if {[info exists server_port]} {
+	    # the listener and server ports differ
+	    Httpd configure server_port $server_port
+	}
+
+	::variable host
+	::variable docroot
+
+	#### start Listeners
+	Listener new {*}[config section Listener] -httpd ::Httpd
+
+	#### start HTTPS Listener
+	if {[config exists Https -port]
+	    && ([config get Https -port] > 0)
+	    && ![catch {
+		package require tls
+	    }]
+	} {
+	    #### Simplistic Certificate Authority
+	    #package require CA
+	    #CA init dir $home/CA host $host port [dict get $https -port]
+	    #dict lappend https -tls -cafile [CA cafile] -certfile [CA certificate $host] 
+	    Listener new https [config section Https] -httpd Httpd
+	}
+
+	#### start scgi Listener
+	if {[config exists Sscgi -port]
+	    && [config get Sscgi -port] > 0
+	} {
+	    package require Sscgi
+	    Listener new sscgi {*}[config section Sscgi] -httpd Sscgi
+	}
+
+    }
+
+    proc sectvar {expr} {
+	set expr [lindex $expr 0]
+	if {[string match {$*} $expr]} {
+	    return [subst -nocommands $expr]
+	} else {
+	    return $expr
 	}
     }
 
@@ -846,8 +698,6 @@ namespace eval ::Site {
 		package require $application
 		
 		# install variables defined by local, argv, etc
-		::variable modules
-		::variable sections
 		set app [string tolower $application]
 		if {[info exists modules([string tolower $app])]} {
 		    ::variable $app
