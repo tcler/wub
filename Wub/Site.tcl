@@ -215,7 +215,7 @@ namespace eval ::Site {
 	    port 8082		;# Console listening socket
 	}
 
-	Stx {
+	STX {
 	    load 1	;# want STX by default
 	    scripting 0	;# permit stx scripting?
 	}
