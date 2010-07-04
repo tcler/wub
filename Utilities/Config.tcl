@@ -75,9 +75,9 @@ oo::class create Config {
 	variable raw; variable comments; variable metadata
 	variable clean 0
 	lassign $args _raw _comments _metadata
-	dict set raw $section [dict merge [dict get $raw $section] $_raw]
-	dict set comments $section [dict merge [dict get $comments $section] $_comments]
-	dict set metadata $section [dict merge [dict get $metadata $section] $_metadata]
+	dict set raw $section [dict merge [dict get? $raw $section] $_raw]
+	dict set comments $section [dict merge [dict get? $comments $section] $_comments]
+	dict set metadata $section [dict merge [dict get? $metadata $section] $_metadata]
     }
 
     # parse a complete configuration into raw, comments and metadata
@@ -135,6 +135,16 @@ oo::class create Config {
 	my parse [::fileutil::cat -- $file]
     }
 
+    method assign {args} {
+	variable raw; dict set raw {*}$args
+	variable clean 0	
+    }
+    method get {args} {
+	my eval
+	variable extracted
+	return [dict get $extracted {*}$args]
+    }
+
     # substitute section-relative names into value scripts
     method VarSub {script} {
 	set NS [info object namespace [self]]
@@ -151,7 +161,7 @@ oo::class create Config {
 	    Debug.config {Var: $s}
 	}
 	set subbed [parsetcl unparse $body]
-	set subbed [lindex [split $subbed \n] 1]	;# why is this necessary?
+	set subbed [join [lrange [split $subbed \n] 1 end-1] \n]	;# why is this necessary?
 	Debug.config {VarSub: '$script' -> '$subbed'}
 	return $subbed
     }
@@ -176,13 +186,16 @@ oo::class create Config {
 	    foreach section [dict keys $raw] {
 		my eval_section $section
 	    }
+	    set clean 1
+	    return 1
+	} else {
+	    return 0
 	}
-	set clean 1
     }
 
     # sections - a list of sections
-    method sections {} {
-	variable raw; return [dict keys $raw]
+    method sections {{glob {}}} {
+	variable raw; return [dict keys $raw {*}$glob]
     }
 
     # section - get evaluated section
@@ -195,6 +208,11 @@ oo::class create Config {
 	return $result
     }
 
+    method exists {args} {
+	variable raw
+	return [dict exists $raw {*}$args]
+    }
+
     # extract naming context from configuration and aggregated namespace
     method extract {{config ""}} {
 	if {$config ne ""} {
@@ -202,15 +220,19 @@ oo::class create Config {
 	    my parse $config
 	}
 
-	my eval	;# evaluate any changes in raw
-
-	# extract the accumulated values from _C namespace children
-	set result {}
-	foreach section [my sections] {
-	    dict set result $section [my section $section]
+	# evaluate any changes in raw
+	variable extracted
+	if {![my eval]} {
+	    return $extracted
 	}
 
-	return $result
+	# extract the accumulated values from _C namespace children
+	set extracted {}
+	foreach section [my sections] {
+	    dict set extracted $section [my section $section]
+	}
+
+	return $extracted
     }
 
     # bind - bind all values to their evaluated value
@@ -218,14 +240,14 @@ oo::class create Config {
 	variable raw [my extract]
     }
 
-    method 2dict {} {
+    method todict {} {
 	dict set result raw [my raw]
 	dict set result comments [my comments]
 	dict set result metadata [my metadata]
 	return $result
     }
 
-    method 2list {} {
+    method tolist {} {
 	return [list [my raw] [my comments] [my metadata]]
     }
 
@@ -255,14 +277,14 @@ oo::class create Config {
 	if {$section eq ""} {
 	    return $metadata
 	} else {
-	    return [dict get $metadata $section]
+	    return [dict get? $metadata $section]
 	}
     }
 
     # aggregate a list of Config objects
     method aggregate {args} {
 	foreach a $args {
-	    my merge {*}[$a 2list]
+	    my merge {*}[$a tolist]
 	}
     }
 
