@@ -160,22 +160,19 @@ namespace eval ::Site {
 
     # return a specific module Site var
     proc var {module args} {
-	upvar 0 ::Site::[string tolower $module] modvars
-
 	if {[llength $args]} {
-	    return [dict get $modvars {*}$args]
+	    return [config get $module {*}$args]
 	} else {
-	    return $modvars
+	    return [config section $module]
 	}
     }
 
     proc var? {module args} {
-	upvar 0 ::Site::[string tolower $module] modvars
-	if {[info exists modvars]} {
+	if {[config exists $module]} {
 	    if {[llength $args]} {
-		return [dict get? $modvars {*}$args]
+		return [config get $module {*}$args]
 	    } else {
-		return $modvars
+		return [config section $module]
 	    }
 	} else {
 	    return {}
@@ -204,7 +201,6 @@ namespace eval ::Site {
 	    globaldocroot 1		;# do we use Wub's docroot, or caller's
 	    application ""		;# package to require as application
 	    local local.tcl	;# post-init localism
-	    vars vars.tcl	;# pre-init localism
 	    password ""		;# account (and general) root password
 	    # topdir	;# Where to look for Wub libs - don't change
 	    # docroot	;# Where to look for document root.
