@@ -422,8 +422,8 @@ namespace eval ::Site {
 		} else {
 		    set mime [sectvar $mime]
 		}
-		Debug.nubsite {Nub code $url [lindex $code 0] $mime}
-		Nub code $url [lindex $code 0] $mime
+		Debug.nubsite {Nub code $url $code $mime}
+		Nub code $url $code $mime
 	    }
 	} elseif {[dict exists $section literal]} {
 	    dict with section {
