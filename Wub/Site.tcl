@@ -582,7 +582,7 @@ namespace eval ::Site {
 	    package require stx2html
 
 	    ::variable stx_scripting
-	    stx2html init script [dict get? $stx scripting] [config section STX]
+	    stx2html init script [config get STX scripting] {*}[config section STX]
 	    Debug.site {Module STX: YES}
 	} else {
 	    Debug.site {Module STX: NO}
