@@ -611,78 +611,89 @@ class create ::FormClass {
 	set frag 0
 
 	parsetcl walk_tree parse index Cd {
-	    # body
-	    set line [lindex $parse {*}$index]
-	    Debug.form {walk: '$line'}
-	    set cargs [lassign $line . . . left]
-	    set fc [lindex $left 2]
-	    if {[string match L* [lindex $left 0]] && $fc in $tags} {
-		switch -- $fc {
-		    form {
-			# use this command to inject args into eventual <form>
-			foreach ca $cargs {
-			    lappend args [parsetcl unparse $ca]
+	    if {[llength $index] == 1} {
+		# body
+		set line [lindex $parse {*}$index]
+		Debug.form {walk: '$line'}
+		set cargs [lassign $line . . . left]
+		set fc [lindex $left 2]
+		if {[string match L* [lindex $left 0]] && $fc in $tags} {
+		    switch -- $fc {
+			form {
+			    # use this command to inject args into eventual <form>
+			    foreach ca $cargs {
+				lappend args [parsetcl unparse $ca]
+			    }
+			}
+			fieldset {
+			    set name [lindex $cargs 0]
+			    if {[dict exists $known $name]} {
+				error "redeclaration of '$name' in '[parsetcl unparse $line]'"
+			    }
+			    
+			    set content [lindex $cargs end]
+			    set fsargs {}
+			    foreach ca [lrange $cargs 1 end-1] {
+				lappend fsargs [parsetcl unparse $ca]
+			    }
+			    set name [string trim [lindex $name 2] .]
+			    
+			    # a fieldset's content is itself a form - recursively parse
+			    set content [lindex $content 2]
+			    set fs [lindex [uplevel 1 [list [self] layout_parser $name \n$content\n]] 1]
+			    set fs "\[<fieldset> $name $fsargs [list \n$fs\n]\]"
+			    Debug.form {fieldset: $name: '$content' -> ($fs)}
+			    dict set known $name \n$fs
+			}
+			
+			select {
+			    set name [lindex $cargs 0]
+			    if {[dict exists $known $name]} {
+				error "redeclaration of '$name' in '[parsetcl unparse $line]'"
+			    }
+			    
+			    set content [lindex $cargs end]
+			    set fsargs {}
+			    foreach ca [lrange $cargs 1 end-1] {
+				lappend fsargs [parsetcl unparse $ca]
+			    }
+			    set fsargs [join $fsargs]
+			    set name [string trim [lindex $name 2] .]
+			    
+			    # a select's content is itself a form - recursively parse
+			    set content [lindex $content 2]
+			    set fs [lindex [uplevel 1 [list [self] layout_parser $name \n$content\n]] 1]
+			    set fs "\[<select> $name $fsargs [list \n$fs\n]\]"
+			    Debug.form {select: $name: '$content' -> ($fs)}
+			    dict set known $name \n$fs
+			}
+			
+			legend {
+			    lset parse {*}$index 3 2 <legend>	;# make it a form command
+			    set allargs {}
+			    foreach a $cargs {
+				lappend allargs [parsetcl unparse $a]
+			    }
+			    dict set known [incr frag] "\[<$fc> [join $allargs]\]"
+			}
+			
+			default {
+			    lset parse {*}$index 3 2 <$fc>	;# make it a form command
+			    set name [lindex $parse {*}$index 4 2]
+			    if {![string match L* [lindex $parse {*}$index 4 0]]} {
+				error "'[lindex $parse {*}$index 4 2]' is not a name in [parsetcl unparse $line]"
+			    }
+			    set allargs {}
+			    foreach a $cargs {
+				lappend allargs [parsetcl unparse $a]
+			    }
+			    dict set known $name "\[<$fc> [join $allargs]\]"
 			}
 		    }
-		    fieldset {
-			set name [lindex $cargs 0]
-			if {[dict exists $known $name]} {
-			    error "redeclaration of '$name' in '[parsetcl unparse $line]'"
-			}
-
-			set content [lindex $cargs end]
-			set fsargs {}
-			foreach ca [lrange $cargs 1 end-1] {
-			    lappend fsargs [parsetcl unparse $ca]
-			}
-			set name [string trim [lindex $name 2] .]
-
-			# a fieldset's content is itself a form - recursively parse
-			set content [lindex $content 2]
-			set fs [lindex [uplevel 1 [list [self] layout_parser $name \n$content\n]] 1]
-			set fs "\[<fieldset> $name $fsargs [list \n$fs\n]\]"
-			Debug.form {fieldset: $name: '$content' -> ($fs)}
-			dict set known $name \n$fs
-		    }
-
-		    select {
-			set name [lindex $cargs 0]
-			if {[dict exists $known $name]} {
-			    error "redeclaration of '$name' in '[parsetcl unparse $line]'"
-			}
-
-			set content [lindex $cargs end]
-			set fsargs {}
-			foreach ca [lrange $cargs 1 end-1] {
-			    lappend fsargs [parsetcl unparse $ca]
-			}
-			set fsargs [join $fsargs]
-			set name [string trim [lindex $name 2] .]
-
-			# a select's content is itself a form - recursively parse
-			set content [lindex $content 2]
-			set fs [lindex [uplevel 1 [list [self] layout_parser $name \n$content\n]] 1]
-			set fs "\[<select> $name $fsargs [list \n$fs\n]\]"
-			Debug.form {select: $name: '$content' -> ($fs)}
-			dict set known $name \n$fs
-		    }
-
-		    default {
-			lset parse {*}$index 3 2 <$fc>	;# make it a form command
-			set name [lindex $parse {*}$index 4 2]
-			if {![string match L* [lindex $parse {*}$index 4 0]]} {
-			    error "'[lindex $parse {*}$index 4 2]' is not a name in [parsetcl unparse $line]"
-			}
-			set allargs ""
-			foreach a $cargs {
-			    lappend allargs [parsetcl unparse $a]
-			}
-			dict set known $name "\[<$fc> [join $allargs]\]"
-		    }
+		} else {
+		    Debug.form {'$fc' is not a form tag}
+		    dict set known [incr frag] \[[parsetcl unparse $line]\]
 		}
-	    } else {
-		Debug.form {'$fc' is not a form tag}
-		dict set known [incr frag] \[[parsetcl unparse $line]\]
 	    }
 	} C.* {
 	    dict set known [incr frag] \[[parsetcl unparse $line]\]
