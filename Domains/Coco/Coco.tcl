@@ -32,7 +32,7 @@ set ::API(Domains/Coco) {
 	    set r [yield]	;# initially just redirect
 
 	    # validate the supplied form against a dict of field/validators
-	    set r [form $r [string map [list %REF $referer] {
+	    set r [my form $r [string map [list %REF $referer] {
 		[<h1> "Personal Information"]
 		[<p> "Referer: '%REF'"]
 		%MESSAGE
@@ -54,6 +54,7 @@ set ::API(Domains/Coco) {
 		"Phone number has to look like a phone number."
 		{[regexp {^[-0-9+ ]+$} $phone]}
 	    }]
+
 	    # now all the variable/fields mentioned in [form] have valid values
 	    
 	    # resume where you were
@@ -174,7 +175,8 @@ class create ::Coco {
 
 	    Debug.coco {coroutine initialising - ($r) reply}
 	    variable lambda
-	    set result [coroutine Coros::@$cmd ::apply [list {*}$lambda [info object namespace [self]]] $r]
+	    set s [lrange [list {*}$lambda [info object namespace [self]]] 0 2]
+	    set result [coroutine Coros::@$cmd ::apply $s $r]
 
 	    if {$result ne ""} {
 		Debug.coco {coroutine initialised - ($r) reply}
@@ -211,14 +213,8 @@ class create ::Coco {
     }
 
     constructor {args} {
-	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
-	}
-
 	variable {*}[Site var? Coco]	;# allow .ini file to modify defaults
-	foreach {n v} $args {
-	    variable $n $v
-	}
+	variable {*}$args
 	namespace eval [info object namespace [self]]::Coros {}
     }
 }
