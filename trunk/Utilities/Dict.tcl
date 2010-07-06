@@ -209,10 +209,8 @@ namespace eval ::tcl::dict {
     # unset a dict element if it exists
     proc unset? {var args} {
 	upvar 1 $var dvar
-	set val [lindex $args end]
-	set name [lrange $args 0 end-1]
-	if {[dict exists $dvar {*}$name]} {
-	    dict unset dvar $name
+	if {[dict exists $dvar {*}$args]} {
+	    dict unset dvar {*}$args
 	}
     }
 
