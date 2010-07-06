@@ -106,28 +106,17 @@ class create ::Coco {
 
     # form - construct a self-validating form within a Coco
     # this will continue emitting and validating form until it's complete
-    method Form {_r name form args} {
+    method Form {_r name args} {
 	variable hint
+	set form [lindex $args end]
+	set args [lrange $args 0 end-1]
+
+	set prefix [dict get? $args -prefix]; dict unset? args -prefix
+	set suffix [dict get? $args -suffix]; dict unset? args -suffix
 
 	Debug.coco {[self] Form $name}
 	upvar 1 _vals _vals
 	set _vals {}
-	foreach {var vv} $args {
-	    # process each validation clause
-	    set _value ""	;# default value for field
-	    catch {unset _validate}
-	    if {[llength $vv] == 1} {
-		dict set _vals $var $vv	;# given default field value
-	    } else {
-		lassign $vv _msg _validate _value
-		dict set _vals $var $_value	;# given default field value
-		if {[info exists _validate]} {
-		    set _validates($var) $_validate	;# field validator expr
-		    set _messages($var) $_msg		;# validation fail message
-		}
-	    }
-	}
-	uplevel 1 {dict with _vals {}}	;# initialize corovars
  
 	set lmetadata {}
 	set form [my layout_parser $name -content {my var} $form]
@@ -140,6 +129,7 @@ class create ::Coco {
 		set _messages($n) [string trim [dict get $v -invalid] \"]
 	    }
 	}
+	uplevel 1 {dict with _vals {}}	;# initialize corovars
 
 	Debug.coco {[self] layout: $form}
 	set metadata [my metadata]
@@ -155,6 +145,7 @@ class create ::Coco {
 	    # issue form
 	    set F [uplevel 1 [list [self] <form> {*}$form]]	;# generate form
 	    set F [string map [list %MESSAGE% [join $_message <br>]] $F]
+	    set F "$prefix\n$F\n$suffix"
 	    set _r [yield [Http Ok [Http NoCache $_r] $F x-text/html-fragment]]
 
 	    # unpack query response
