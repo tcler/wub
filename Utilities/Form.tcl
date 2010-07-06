@@ -137,6 +137,7 @@ class create ::FormClass {
 	}
 	eval [string map [list %TI% $ti %T% $type] {
 	    method <%T%> {args} {
+		Debug.form {[self] defining %T%}
 		variable %T%A
 		variable Fdefaults
 
@@ -151,6 +152,8 @@ class create ::FormClass {
 
 		set config [dict merge [dict get? $Fdefaults %T%] $args]
 		%TI%
+
+		my metadata $name $config
 
 		variable tabular
 		set otab $tabular
@@ -195,7 +198,28 @@ class create ::FormClass {
 	    }
 	}]
     }
-    
+
+    # process or return metadata
+    method metadata {{name ""} {config ""}} {
+	variable metadata
+	if {$name eq ""} {
+	    return $metadata	;# want all metadata
+	}
+
+	if {$config eq ""} {
+	    return [dict get? $metadata $name]	;# want metadata for field
+	}
+
+	set n $name; set i 0
+	while {[dict exists $metadata $n]} {
+	    # ensure metadata is unique by name
+	    set n ${name}_[incr i]
+	}
+
+	Debug.form {[self] metadata '$n': $config}
+	dict set metadata $n $config
+    }
+
     foreach {type} {legend} {
 	eval [string map [list %T% $type] {
 	    method <%T%> {args} {
@@ -228,6 +252,7 @@ class create ::FormClass {
 	set content [uplevel 1 [list subst $content]]
 
 	set result "<[my attr select [dict in $config $selectA]]>$content</select>"
+	my metadata $name $config	;# remember config for field
 
 	if {[dict exists $config title]} {
 	    set title [list title [dict get $config title]]
@@ -330,6 +355,7 @@ class create ::FormClass {
 	    dict unset config title
 	}
 	set result "<[my attr textarea [dict in $config $textareaA]]>$content</textarea>"
+	my metadata $name $config	;# remember config for field
 
 	set label [dict get? $config label]
 	variable tabular
@@ -389,6 +415,7 @@ class create ::FormClass {
 		    set content [uplevel 1 subst [list $content]]
 		}
 
+		my metadata $name $config	;# remember config for field
 		variable imageA
 		return [<button> $name {*}$config $content]
 	    }
@@ -410,6 +437,7 @@ class create ::FormClass {
 	    dict set config tabindex [incr tabindex]
 	}
 
+	my metadata $name $config	;# remember config for field
 	variable buttonA
 	return "<[my attr button [dict in $config $buttonA]]>$content</button>"
     }
@@ -423,7 +451,7 @@ class create ::FormClass {
     } {
 	eval [string map [list %T% $itype %A% $attrs %F% $field] {
 	    method <%T%> {name args} {
-		if {[llength $args] % 2} {
+		if {[llength $args]%2} {
 		    set value [lindex $args end]
 		    set args [lrange $args 0 end-1]
 		} else {
@@ -454,6 +482,7 @@ class create ::FormClass {
 		}
 
 		set result "<[my attr input [dict in $config $%A%A]]>"
+		my metadata $name $config	;# remember config for field
 
 		set label [dict get? $config label]
 		variable tabular
@@ -515,6 +544,7 @@ class create ::FormClass {
 		    lappend result [uplevel 1 [list <%T%%S%> $name {*}$config $content]]
 		    set accum ""
 		}
+
 		if {[dict exists $rsconfig vertical]
 		    && [dict get $rsconfig vertical]} {
 		    set joiner <br>
@@ -522,6 +552,8 @@ class create ::FormClass {
 		    set joiner \n
 		}
 		
+		my metadata $name $config	;# remember config for field
+
 		if {[dict exists $rsconfig legend]} {
 		    set legend [dict get $rsconfig legend]
 
@@ -573,6 +605,8 @@ class create ::FormClass {
 		}
 		set id [dict get $config id]
 		set result "<[my attr input [dict in $config $boxA]]>$content"
+		my metadata $name $config	;# remember config for field
+
 		if {[dict exists $config label]
 		    && [dict get $config label] ne ""
 		} {
@@ -625,6 +659,7 @@ class create ::FormClass {
 				lappend args [parsetcl unparse $ca]
 			    }
 			}
+
 			fieldset {
 			    set name [lindex $cargs 0]
 			    if {[dict exists $known $name]} {
@@ -641,7 +676,7 @@ class create ::FormClass {
 			    # a fieldset's content is itself a form - recursively parse
 			    set content [lindex $content 2]
 			    set fs [lindex [uplevel 1 [list [self] layout_parser $name \n$content\n]] 1]
-			    set fs "\[<fieldset> $name $fsargs [list \n$fs\n]\]"
+			    set fs "\[[self] <fieldset> $name $fsargs [list \n$fs\n]\]"
 			    Debug.form {fieldset: $name: '$content' -> ($fs)}
 			    dict set known $name \n$fs
 			}
@@ -663,7 +698,7 @@ class create ::FormClass {
 			    # a select's content is itself a form - recursively parse
 			    set content [lindex $content 2]
 			    set fs [lindex [uplevel 1 [list [self] layout_parser $name \n$content\n]] 1]
-			    set fs "\[<select> $name $fsargs [list \n$fs\n]\]"
+			    set fs "\[[self] <select> $name $fsargs [list \n$fs\n]\]"
 			    Debug.form {select: $name: '$content' -> ($fs)}
 			    dict set known $name \n$fs
 			}
@@ -671,10 +706,25 @@ class create ::FormClass {
 			legend {
 			    lset parse {*}$index 3 2 <legend>	;# make it a form command
 			    set allargs {}
-			    foreach a $cargs {
-				lappend allargs [parsetcl unparse $a]
+			    foreach a $cargs {				# body
+				parsetcl walk_tree a li Cd {
+				    set lleft [lindex $a {*}$li 3]
+				    set sc [lindex $lleft 2]
+				    if {[string match L* [lindex $lleft 0]]
+					&& [string match <*> $sc]
+					&& [string trim $sc <>] in $tags
+				    } {
+					Debug.form {legend subcommand: '$sc'}
+					# this is a form <tag> command
+					# rewrite it so it appears to be coming from [self]
+					lset a {*}$li 3 2 [list [self] $sc]
+				    }
+				}
+				set up [parsetcl unparse $a]
+				Debug.form {legend: $up}
+				lappend allargs $up
 			    }
-			    dict set known [incr frag] "\[<$fc> [join $allargs]\]"
+			    dict set known [incr frag] "\[[self] <$fc> [join $allargs]\]"
 			}
 			
 			default {
@@ -683,17 +733,23 @@ class create ::FormClass {
 			    if {![string match L* [lindex $parse {*}$index 4 0]]} {
 				error "'[lindex $parse {*}$index 4 2]' is not a name in [parsetcl unparse $line]"
 			    }
+			    if {[dict exists $known $name]} {
+				error "redeclaration of '$name' in '[parsetcl unparse $line]'"
+			    }
+
 			    set allargs {}
 			    foreach a $cargs {
 				lappend allargs [parsetcl unparse $a]
 			    }
-			    dict set known $name "\[<$fc> [join $allargs]\]"
+			    dict set known $name "\[[self] <$fc> [join $allargs]\]"
 			}
 		    }
 		} else {
 		    Debug.form {'$fc' is not a form tag}
 		    dict set known [incr frag] \[[parsetcl unparse $line]\]
 		}
+	    } else {
+		# this is a normal command within the body of a tag - leave it alone
 	    }
 	} C.* {
 	    dict set known [incr frag] \[[parsetcl unparse $line]\]
@@ -706,7 +762,7 @@ class create ::FormClass {
 
     method layout {fname args} {
 	set result [my layout_parser $fname {*}$args]
-	Debug.form {layout: ($result)}
+	Debug.form {[self] layout: ($result)}
 	return [uplevel 1 [list [self] <form> {*}$result]]
     }
 
@@ -719,6 +775,7 @@ class create ::FormClass {
 	    reset {alt Reset}
 	    option {}
 	}]
+	variable metadata {}	;# remember field configs
 	variable tabindex 0	;# taborder for fields
 	variable tabular 0	;# tabular form elements
 	variable uniqID 0	;# unique ID for fields
@@ -786,7 +843,7 @@ class create ::FormClass {
 	lappend meth $m
 	interp alias {} $m {} Form $m
     }
-    export {*}[info class methods FormClass -all] {*}$meth
+    export {*}[info class methods FormClass -all] {*}$meth ;# ensure <form>s are visible
 }
 ::FormClass create ::Form
 
