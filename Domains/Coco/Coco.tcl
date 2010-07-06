@@ -101,52 +101,55 @@ proc ::<message> {message} {
 }
 
 class create ::Coco {
-    method form {_r form args} {
-	Debug.coco {form: $_vals}
+    # form - construct a self-validating form within a Coco
+    # this will continue emitting and validating form until it's complete
+    method form {_r name form args} {
+	upvar 1 _vals _vals
 	set _vals {}
 	foreach {var vv} $args {
-	    set _value ""
+	    # process each validation clause
+	    set _value ""	;# default value for field
 	    catch {unset _validate}
 	    if {[llength $vv] == 1} {
-		dict set _vals $var [lindex $vv 0]
+		dict set _vals $var [lindex $vv 0]	;# given default field value
 	    } else {
 		lassign $vv _msg _validate _value
-		dict set _vals $var $_value
+		dict set _vals $var $_value	;# given default field value
 		if {[info exists _validate]} {
-		    set _validates($var) $_validate
-		    set _messages($var) $_msg
+		    set _validates($var) $_validate	;# field validator expr
+		    set _messages($var) $_msg		;# validation fail message
 		}
 	    }
 	}
 
-	set _message [list {Enter Fields.}]
+	uplevel 1 {dict with _vals {}}	;# initialize corovars
+ 
+	set form [uplevel 1 [list Form layout $name $form]]
+
+	set _message [list {Enter Fields.}]	;# initial message
 	while {[llength $_message]} {
 	    set _r [jQ hint $_r]	;# add form hinting
 	    
 	    # issue form
 	    set _r [yield [Http Ok [Http NoCache $_r] [dict with _vals {
-		subst [string map [list %MESSAGE [<message> $_message]] $form]
+		subst [string map [list %MESSAGE% [join $_message <br>]] $form]
 	    }] x-text/html-fragment]]
 	    
 	    # unpack query response
-	    set _Q [Query parse $_r]
-	    dict set _r -Query $_Q
-	    set _Q [Query flatten $_Q]
+	    set _Q [Query parse $_r]; dict set _r -Query $_Q; set _Q [Query flatten $_Q]
 	    
-	    # fetch and validate fields
-	    set _message {}
+	    # fetch and validate response fields
+	    set _message {}	;# default - empty message
 	    foreach _var [dict keys $_vals] {
-		dict set _vals $_var [dict get? $_Q $_var]
-		uplevel 1 set $_var [list [dict get? $_Q $_var]]
+		dict set _vals $_var [dict get? $_Q $_var]	;# record value
 	    }
-	    dict with _vals {}
+
+	    uplevel 1 {dict with _vals {}}	;# initialize corovars
 	    
 	    Debug.coco {form vals: $_vals}
 	    foreach _var [dict keys $_vals] {
 		if {[info exists _validates($_var)]} {
-		    if $_validates($_var) {
-			dict set _r -values $_var [dict get $_vals $_var]
-		    } else {
+		    if {![uplevel 1 [list expr $_validates($_var)]]} {
 			lappend _message $_messages($_var)
 		    }
 		}
