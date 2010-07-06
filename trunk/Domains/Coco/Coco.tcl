@@ -32,7 +32,7 @@ set ::API(Domains/Coco) {
 	    set r [yield]	;# initially just redirect
 
 	    # validate the supplied form against a dict of field/validators
-	    set r [my form $r info {
+	    set r [my Form $r info {
 		<h1> "Personal Information"
 		<p> "Referer: '$referer'"
 		<p> class message [join %MESSAGE% <br>]
@@ -94,14 +94,22 @@ set ::API(Domains/Coco) {
     lambda {+a lambda or procname (taking a single argument) which is invoked as a coroutine to process client input.  This lambda will be invoked in the context of the Coco-constructed coroutine.}
 }
 
-proc ::<message> {message} {
-    return [<p> class message [join $message "</p><p class='message'>"]]
-}
-
 class create ::Coco {
+    method var {name} {
+	upvar #1 $name var
+	if {[info exists var]} {
+	    return $var
+	} else {
+	    return ""
+	}
+    }
+
     # form - construct a self-validating form within a Coco
     # this will continue emitting and validating form until it's complete
-    method form {_r name form args} {
+    method Form {_r name form args} {
+	variable hint
+
+	Debug.coco {[self] Form $name}
 	upvar 1 _vals _vals
 	set _vals {}
 	foreach {var vv} $args {
@@ -109,7 +117,7 @@ class create ::Coco {
 	    set _value ""	;# default value for field
 	    catch {unset _validate}
 	    if {[llength $vv] == 1} {
-		dict set _vals $var [lindex $vv 0]	;# given default field value
+		dict set _vals $var $vv	;# given default field value
 	    } else {
 		lassign $vv _msg _validate _value
 		dict set _vals $var $_value	;# given default field value
@@ -119,23 +127,40 @@ class create ::Coco {
 		}
 	    }
 	}
-
 	uplevel 1 {dict with _vals {}}	;# initialize corovars
  
-	set form [uplevel 1 [list Form layout $name $form]]
+	set lmetadata {}
+	set form [my layout_parser $name -content {my var} $form]
+	dict for {n v} $lmetadata {
+	    dict set _vals $n [dict get? $v -content]
+	    if {[dict exists $v -validate]} {
+		set _validates($n) [dict get $v -validate]
+	    }
+	    if {[dict exists $v -invalid]} {
+		set _messages($n) [string trim [dict get $v -invalid] \"]
+	    }
+	}
+
+	Debug.coco {[self] layout: $form}
+	set metadata [my metadata]
+	Debug.coco {FORM: $form}
+	Debug.coco {METADATA: $metadata}
 
 	set _message [list {Enter Fields.}]	;# initial message
 	while {[llength $_message]} {
-	    set _r [jQ hint $_r]	;# add form hinting
+	    if {$hint} {
+		set _r [jQ hint $_r]	;# add form hinting
+	    }
 	    
 	    # issue form
-	    set _r [yield [Http Ok [Http NoCache $_r] [dict with _vals {
-		subst [string map [list %MESSAGE% [join $_message <br>]] $form]
-	    }] x-text/html-fragment]]
-	    
+	    set F [uplevel 1 [list [self] <form> {*}$form]]	;# generate form
+	    set F [string map [list %MESSAGE% [join $_message <br>]] $F]
+	    set _r [yield [Http Ok [Http NoCache $_r] $F x-text/html-fragment]]
+
 	    # unpack query response
 	    set _Q [Query parse $_r]; dict set _r -Query $_Q; set _Q [Query flatten $_Q]
-	    
+	    Debug.coco {[info coroutine] Query: $_Q / ([dict keys $_vals])}
+
 	    # fetch and validate response fields
 	    set _message {}	;# default - empty message
 	    foreach _var [dict keys $_vals] {
@@ -144,10 +169,12 @@ class create ::Coco {
 
 	    uplevel 1 {dict with _vals {}}	;# initialize corovars
 	    
-	    Debug.coco {form vals: $_vals}
+	    Debug.coco {[info coroutine] form vals: $_vals}
 	    foreach _var [dict keys $_vals] {
 		if {[info exists _validates($_var)]} {
-		    if {![uplevel 1 [list expr $_validates($_var)]]} {
+		    set valid [uplevel 1 expr $_validates($_var)]
+		    Debug.coco {[info coroutine] valid? '$_var' -> '$valid'}
+		    if {!$valid} {
 			lappend _message $_messages($_var)
 		    }
 		}
@@ -199,10 +226,10 @@ class create ::Coco {
 	    if {[catch {
 		Coros::@$cmd $r
 	    } result eo]} {
-		Debug.error {coroutine error: $result ($eo)}
+		Debug.error {'@$cmd' error: $result ($eo)}
 		return [Http ServerError $r $result $eo]
 	    }
-	    Debug.coco {coroutine yielded: ($result)}
+	    Debug.coco {'@$cmd' yielded: ($result)}
 	    return $result
 	} else {
 	    Debug.coco {coroutine gone: @$cmd}
@@ -214,9 +241,12 @@ class create ::Coco {
 	namespace delete Coros
     }
 
+    superclass FormClass	;# allow Form to work nicely
     constructor {args} {
+	variable hint 1
 	variable {*}[Site var? Coco]	;# allow .ini file to modify defaults
 	variable {*}$args
 	namespace eval [info object namespace [self]]::Coros {}
+	next {*}$args
     }
 }
