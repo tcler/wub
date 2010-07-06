@@ -32,20 +32,18 @@ set ::API(Domains/Coco) {
 	    set r [yield]	;# initially just redirect
 
 	    # validate the supplied form against a dict of field/validators
-	    set r [my form $r [string map [list %REF $referer] {
-		[<h1> "Personal Information"]
-		[<p> "Referer: '%REF'"]
-		%MESSAGE
-		[Form layout info {
-		    fieldset personal {
-			legend [<submit> submit "Personal Information"]
-			text forename title "Forename" $forename
-			text surname title "Surname" $surname
-			[<br>]
-			text phone title "Phone number" $phone
-		    }
-		}]
-	    }] forename {
+	    set r [my form $r info {
+		<h1> "Personal Information"
+		<p> "Referer: '$referer'"
+		<p> class message [join %MESSAGE% <br>]
+		fieldset personal {
+		    legend [<submit> submit "Personal Information"]
+		    text forename title "Forename" $forename
+		    text surname title "Surname" $surname
+		    [<br>]
+		    text phone title "Phone number" $phone
+		}
+	    } forename {
 		"Forename can't be empty."
 		{$forename ne ""}
 	    } surname {
