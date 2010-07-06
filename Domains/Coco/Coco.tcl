@@ -31,27 +31,19 @@ set ::API(Domains/Coco) {
 	    set referer [Http Referer $r]	;# remember referer
 	    set r [yield]	;# initially just redirect
 
+	    set prefix "[<h1> "Personal Information"][<p> "Referer: '$referer'"]"
+	    set suffix [<p> [clock format [clock seconds]]]
+
 	    # validate the supplied form against a dict of field/validators
-	    set r [my Form $r info {
-		<h1> "Personal Information"
-		<p> "Referer: '$referer'"
+	    set r [my Form $r info -prefix $prefix -suffix $suffix {
 		<p> class message [join %MESSAGE% <br>]
 		fieldset personal {
 		    legend [<submit> submit "Personal Information"]
-		    text forename title "Forename" $forename
-		    text surname title "Surname" $surname
+		    text forename title "Forename" -invalid "Forename can't be empty" -validate {$forename ne ""}
+		    text surname title "Surname" -invalid "Surname can't be empty." -validate {$surname ne ""}
 		    [<br>]
-		    text phone title "Phone number" $phone
+		    text phone title "Phone number" -invalid "Phone number has to look like a phone number." -validate {[regexp {^[-0-9+ ]+$} $phone]}
 		}
-	    } forename {
-		"Forename can't be empty."
-		{$forename ne ""}
-	    } surname {
-		"Surname can't be empty."
-		{$surname ne ""}
-	    } phone {
-		"Phone number has to look like a phone number."
-		{[regexp {^[-0-9+ ]+$} $phone]}
 	    }]
 
 	    # now all the variable/fields mentioned in [form] have valid values
