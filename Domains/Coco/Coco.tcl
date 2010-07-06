@@ -36,13 +36,14 @@ set ::API(Domains/Coco) {
 		[<h1> "Personal Information"]
 		[<p> "Referer: '%REF'"]
 		%MESSAGE
-		[<form> info {
-		    [<fieldset> personal {
-			[<legend> [<submit> submit "Personal Information"]]
-			[<text> forename title "Forename" $forename]
-			[<text> surname title "Surname" $surname]
-			[<br>][<text> phone title "Phone number" $phone]
-		    }]
+		[Form layout info {
+		    fieldset personal {
+			legend [<submit> submit "Personal Information"]
+			text forename title "Forename" $forename
+			text surname title "Surname" $surname
+			[<br>]
+			text phone title "Phone number" $phone
+		    }
 		}]
 	    }] forename {
 		"Forename can't be empty."
