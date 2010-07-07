@@ -271,15 +271,23 @@ namespace eval ::tcl::dict {
     foreach x {get? set? unset? witharray equal apply capture nlappend in ni list diff switch transmute} {
 	namespace ensemble configure dict -map [linsert [namespace ensemble configure dict -map] end $x ::tcl::dict::$x] -unknown {::apply {{dict cmd args} {
 	    if {[string match *.* $cmd]} {
+		if {[string index $cmd end] eq "?"} {
+		    ::set opt ?
+		    ::set cmd [string trim $cmd ?]
+		} else {
+		    ::set opt ""
+		}
 		::set cmd [::split $cmd .]
 		if {[llength $args]} {
 		    # [dict a.b.c] -> [dict get $a b c]
-		    return [::list dict set {*}$cmd [lindex $args 0]]
+		    #puts stderr "DICTSET: dict set$opt '$cmd' '$args' ([::info level -1])"
+		    return [::list dict set$opt {*}$cmd]
 		} else {
 		    # [dict a.b.c x] -> [dict set a b c x]
 		    ::set var [::lindex $cmd 0]
 		    ::upvar 1 $var v
-		    return [::list dict get $v {*}[lrange $cmd 1 end]]
+		    #puts stderr "DICTGET: dict get$opt ($v) [lrange $cmd 1 end] -> '[dict get$opt $v {*}[lrange $cmd 1 end]]'"
+		    return [::list dict get$opt $v {*}[lrange $cmd 1 end]]
 		}
 	    }
 	} ::tcl::dict}}
@@ -474,5 +482,6 @@ namespace eval ::Dict {
 if {[info exists argv0] && ($argv0 eq [info script])} {
     set a {b {c 1 d 0} c 2 d 3}
     puts [dict a.b.c]
+    puts [dict a.b.q?]
 }
 # vim: ts=8:sw=4:noet
