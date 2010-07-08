@@ -314,22 +314,6 @@ class create OAuth {
     method / {r} {
 	set suffix [string trim [dict get? $r -suffix] /]
 	# clean up expired tokens --- todo
-	if {$suffix eq "google"} {
-	    set r [Httpd Suspend $r 100000]
-	    set V [HTTP new http://google.com/ [lambda {v} [string map [list %R $r] {
-		set r [list %R]	;# our response
-		Debug.OAuth {r dict: $r}
-		set result [split [dict get $v -content] \n]
-		Debug.OAuth {Result: $result}
-		
-		set r [Http Ok+ $r $result]
-		Debug.OAuth {r dict before resume: $r}
-		set r [Httpd Resume $r]
-		Debug.OAuth {r dict after resume: $r}
-		return $r
-	    }]] get /]
-	    return $r
-	}
 	if {$suffix eq ""} {
 	    set queryd [Query flatten [Query parse $r]]
 	    set provider [dict get $queryd provider]
