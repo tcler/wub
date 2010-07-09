@@ -67,12 +67,12 @@ class create ::WubTk {
 			});
 		    });
 
-		    $(".variable").click(function () { 
+		    $(".variable").change(function () { 
 			$.ajax({
 			    context: this,
 			    type: "GET",
 			    url: "variable",
-			    data: {id: $(this).attr("name")},
+			    data: {id: $(this).attr("name"), val: $(this).val()},
 			    dataType: "script",
 			    success: function (data, textStatus, XMLHttpRequest) {
 				//alert("button: "+data);
@@ -125,9 +125,11 @@ class create ::WubTk {
 			    $('#%ID%').replaceWith("%H%");
 			}]
 		    }
+		    Debug.wubtk {SCRIPT: ($result)}
 		    if {$result ne ""} {
 			append result $js
 		    }
+
 		    set r [Http Ok $r $result text/javascript]
 		}
 	    } [namespace current]::Coros::$cmd] $r]
