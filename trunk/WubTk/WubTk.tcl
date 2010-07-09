@@ -23,7 +23,10 @@ class create ::WubTk {
 	    return [Httpd NotFound $r]	;# the URL isn't in our domain
 	}
 
-	Debug.wubtk {process '$suffix' over $mount}
+	set extra [lassign [split $suffix /] cmd]
+	dict set r -extra [join $extra /]
+
+	Debug.wubtk {process '$suffix' over '$mount' extra: '$extra'}
 	
 	if {$suffix eq "/" || $suffix eq ""} {
 	    # this is a new call - create the coroutine
@@ -45,32 +48,87 @@ class create ::WubTk {
 	    Debug.wubtk {coroutine initialising - ($r) reply}
 	    
 	    set result [coroutine [namespace current]::Coros::${cmd}::_do ::apply [list {r} {
-		set r [::yield]
-		while {1} {
-		    # decode response from client
-		    Debug.wubtk {processing [info coroutine]}
-		    set r [jQ jquery $r]
-		    set r [jQ ready $r {
-			$(".command").change(function callback(eventObject) {
-			    .ajax({
-				context: this,
-				type: "GET",
-				url: "command",
-				data: {id: $(this).attr("id")},
-				dataType: "script",
-				success: function (data, textStatus, XMLHttpRequest) {
-				    alert("moop: "+data);
-				}
-			    });
+		set r [::yield]	;# we let the initial pass go
+
+		# initial client direct request
+		Debug.wubtk {processing [info coroutine]}
+		set r [jQ jquery $r]
+		set js {
+		    $(".button").click(function () { 
+			$.ajax({
+			    context: this,
+			    type: "GET",
+			    url: "button",
+			    data: {id: $(this).attr("name")},
+			    dataType: "script",
+			    success: function (data, textStatus, XMLHttpRequest) {
+				//alert("button: "+data);
+			    }
 			});
-		    }]
+		    });
 
-		    set content [grid render [namespace tail [info coroutine]]]
-		    Debug.wubtk {render: $content}
-		    dict set r -title [wm title]
-		    set r [Http Ok $r $content x-text/html-fragment]
+		    $(".variable").click(function () { 
+			$.ajax({
+			    context: this,
+			    type: "GET",
+			    url: "variable",
+			    data: {id: $(this).attr("name")},
+			    dataType: "script",
+			    success: function (data, textStatus, XMLHttpRequest) {
+				//alert("button: "+data);
+			    }
+			});
+		    });
 
-		    set r [::yield $r]	;# generate page
+		    $(".command").change(function callback(eventObject) {
+			$.ajax({
+			    context: this,
+			    type: "GET",
+			    url: "command",
+			    data: {id: $(this).attr("name")},
+			    dataType: "script",
+			    success: function (data, textStatus, XMLHttpRequest) {
+				//alert("command: "+data);
+			    }
+			});
+		    });
+		}
+		set r [jQ ready $r $js]
+		set content [grid render [namespace tail [info coroutine]]]
+		Debug.wubtk {render: $content}
+		dict set r -title [wm title]
+		set r [Http Ok $r $content x-text/html-fragment]
+
+		while {1} {
+		    set r [::yield $r]	;# generate page or changes
+		    # unpack query response
+		    set Q [Query parse $r]; dict set r -Query $Q; set Q [Query flatten $Q]
+		    Debug.wubtk {[info coroutine] Event: [dict get? $r -extra] ($Q)}
+		    switch -- [dict get? $r -extra] {
+			button {
+			    set cmd .[dict Q.id]
+			    if {[llength [info commands [namespace current]::$cmd]]} {
+				Debug.wubtk {button $cmd}
+				$cmd command
+			    } else {
+				Debug.wubtk {not found button [namespace current]::$cmd}
+			    }
+			}
+			var {
+			}
+			command {
+			}
+		    }
+		    set result ""
+		    dict for {id html} [grid changes] {
+			append result [string map [list %ID% $id %H% $html] {
+			    $('#%ID%').replaceWith("%H%");
+			}]
+		    }
+		    if {$result ne ""} {
+			append result $js
+		    }
+		    set r [Http Ok $r $result text/javascript]
 		}
 	    } [namespace current]::Coros::$cmd] $r]
 
@@ -83,9 +141,6 @@ class create ::WubTk {
 		return [Http Redirect $r [string trimright $mount /]/$cmd/]
 	    }
 	}
-
-	set extra [lassign [split $suffix /] cmd]
-	dict set r -extra [join $extra /]
 
 	if {[namespace which -command [namespace current]::Coros::${cmd}::_do] ne ""} {
 	    # this is an existing coroutine - call it and return result
@@ -100,6 +155,7 @@ class create ::WubTk {
 	    return $result
 	} else {
 	    Debug.wubtk {coroutine gone: $cmd}
+	    return [Http Redirect $r [string trimright $mount /]/]
 	    return [Http NotFound $r [<p> "WubTk '$cmd' has terminated."]]
 	}
     }
