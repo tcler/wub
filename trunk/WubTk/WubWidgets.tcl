@@ -1,17 +1,46 @@
 package require TclOO
 package require Debug
-Debug on wubwidgets 10
+Debug define wubwidgets 10
 
 package provide WubWidgets 1.0
 
 namespace eval ::WubWidgets {
     oo::class create widget {
+	method change {{to ""}} {
+	    variable change
+	    if {$to eq ""} {
+		incr change
+	    } else {
+		set change $to
+	    }
+	}
+	method reset {} {
+	    my change 0
+	}
+	method changed? {} {
+	    variable change
+	    return $change
+	}
+
+	# record widget id
+	method id {{_id ""}} {
+	    variable id
+	    if {$_id eq ""} {
+		return $id
+	    } elseif {![info exists id]} {
+		set id $_id
+	    }
+	}
+
 	method widget {} {
 	    return [string trim [namespace tail [self]] .]
 	}
 
 	method command {} {
-	    ::apply {{} [my cget command] [uplevel 1 {namespace current}]}
+	    set cmd [my cget command]
+	    set cmd [string map [list %W .[my widget]] $cmd]
+	    Debug.wubwidgets {[self] command ($cmd)}
+	    ::apply [list {} $cmd [uplevel 1 {namespace current}]]
 	}
 
 	# style - construct an HTML style form
@@ -29,9 +58,18 @@ namespace eval ::WubWidgets {
 
 	# configure - set variables to their values
 	method configure {args} {
+	    variable change
 	    dict for {n v} $args {
 		set n [string trim $n -]
+		incr change	;# remember if we've changed anything
 		variable $n $v
+		# some things create external dependencies ... variable,command, etc
+		switch -glob -- $n {
+		    textvariable {
+			# should create variable if necessary
+			# set write trace on variable, to record change.
+		    }
+		}
 	    }
 	}
 
@@ -42,13 +80,15 @@ namespace eval ::WubWidgets {
     }
 
     oo::class create buttonC {
-	method render {id} {
+	method render {{id ""}} {
+	    set id [my id $id]
 	    set command [my cget command]
 	    if {$command ne ""} {
-		set class {class cmd}
+		set class {class button}
 	    } else {
 		set class {}
 	    }
+	    my reset
 	    return [<button> [my widget] id $id {*}$class style [my style] [my cget -text]]
 	}
 
@@ -62,7 +102,8 @@ namespace eval ::WubWidgets {
     }
 
     oo::class create labelC {
-	method render {id} {
+	method render {{id ""}} {
+	    set id [my id $id]
 	    set var [my cget textvariable]
 	    if {$var ne ""} {
 		corovars $var
@@ -70,6 +111,7 @@ namespace eval ::WubWidgets {
 	    } else {
 		set val [my cget text]
 	    }
+	    my reset
 	    return [<div> id $id style [my style] $val]
 	}
 	
@@ -82,7 +124,8 @@ namespace eval ::WubWidgets {
     }
     
     oo::class create entryC {
-	method render {id} {
+	method render {{id ""}} {
+	    set id [my id $id]
 	    set var [my cget -textvariable]
 	    corovars $var
 	    
@@ -99,6 +142,7 @@ namespace eval ::WubWidgets {
 		set disabled disabled
 	    }
 
+	    my reset
 	    return [<text> [my widget] id $id {*}$class {*}$disabled style [my style] $val]
 	}
 
@@ -131,7 +175,8 @@ namespace eval ::WubWidgets {
 	    return $text
 	}
 	
-	method render {widget} {
+	method render {{id ""}} {
+	    set id [my id $id]
 	    set state [my cget -state]
 	    set val [my get]
 	    
@@ -140,7 +185,8 @@ namespace eval ::WubWidgets {
 		set disabled disabled
 	    }
 	    
-	    return [<textarea> [my widget] {*}$disabled style [my style] rows [my cget -height] cols [my cget -width] $val]
+	    my reset
+	    return [<textarea> [my widget] id $id {*}$disabled style [my style] rows [my cget -height] cols [my cget -width] $val]
 	}
 	
 	superclass ::WubWidgets::widget
@@ -165,20 +211,38 @@ namespace eval ::WubWidgets {
 
     # grid store grid info in an x/y array gridLayout(column.row)
     oo::class create gridC {
+	# traverse grid looking for changes.
+	method changes {} {
+	    variable grid
+	    set changes {}
+	    dict for {row rval} $grid {
+		dict for {col val} $rval {
+		    dict with val {
+			if {[uplevel 1 [list $widget changed?]]} {
+			    Debug.wubwidgets {changed ($row,$col) ($val)}
+			    lappend changes [uplevel 1 [list $widget id]] [uplevel 1 [list $widget render]]
+			}
+		    }
+		}
+	    }
+	    return $changes	;# return the dict of changes by id
+	}
+
 	method render {id} {
 	    global args sessid
-
-	    variable maxheight; variable maxwidth
-	    variable grid
+	    variable maxrows; variable maxcols; variable grid
+	    Debug.wubwidgets {GRID render rows:$maxrows cols:$maxcols ($grid)}
 	    set rows {}
 	    set interaction {};
-	    for {set row 0} {$row < $maxwidth} {incr row} {
+	    for {set row 0} {$row < $maxrows} {incr row} {
 		set cols {}
-		for {set col 0} {$col < $maxheight} {} {
+		for {set col 0} {$col < $maxcols} {} {
 		    if {[dict exists $grid $row $col]} {
 			set el [dict get $grid $row $col]
 			dict with el {
-			    lappend cols [<td> id colspan $colspan [uplevel 1 [list $widget render grid_${row}_$col]]]
+			    set id grid_${row}_$col
+			    Debug.wubwidgets {render $widget $id}
+			    lappend cols [<td> colspan $colspan [uplevel 1 [list $widget render $id]]]
 			}
 			incr col $colspan
 		    } else {
@@ -190,7 +254,7 @@ namespace eval ::WubWidgets {
 		lappend rows [<tr> align center valign middle [join $cols \n]]
 	    }
 	    
-	    set content [<form> $id [<table> [join $rows \n]]]
+	    set content [<table> [join $rows \n]]
 	    
 	}
 	
@@ -207,17 +271,16 @@ namespace eval ::WubWidgets {
 		set [string trim $var -] $val
 	    }
 	    
+	    variable maxcols
 	    set width [expr {$column + $colspan}]
-	    set height [expr {$row + $rowspan}]
-	    
-	    variable maxwidth
-	    if {$width > $maxwidth} {
-		set maxwidth $width
+	    if {$width > $maxcols} {
+		set maxcols $width
 	    }
 	    
-	    variable maxheight
-	    if {$height > $maxheight} {
-		set maxheight $height
+	    variable maxrows
+	    set height [expr {$row + $rowspan}]
+	    if {$height > $maxrows} {
+		set maxrows $height
 	    }
 	    
 	    variable grid
@@ -225,8 +288,8 @@ namespace eval ::WubWidgets {
 	}
 
 	constructor {args} {
-	    variable maxwidth 0
-	    variable maxheight 0
+	    variable maxcols 0
+	    variable maxrows 0
 	    variable {*}$args
 	    variable grid {}
 	}
