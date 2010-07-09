@@ -67,7 +67,8 @@ class create ::WubTk {
 			});
 		    });
 
-		    $(".variable").change(function () { 
+		    $(".variable").change(function () {
+			alert($(this).attr("name")+" changed: " + $(this).val());
 			$.ajax({
 			    context: this,
 			    type: "GET",
@@ -94,7 +95,8 @@ class create ::WubTk {
 		    });
 		}
 		set r [jQ ready $r $js]
-		set content [grid render [namespace tail [info coroutine]]]
+		append content [<div> id ErrDiv {}]
+		append content [grid render [namespace tail [info coroutine]]]
 		Debug.wubtk {render: $content}
 		dict set r -title [wm title]
 		set r [Http Ok $r $content x-text/html-fragment]
@@ -104,21 +106,31 @@ class create ::WubTk {
 		    # unpack query response
 		    set Q [Query parse $r]; dict set r -Query $Q; set Q [Query flatten $Q]
 		    Debug.wubtk {[info coroutine] Event: [dict get? $r -extra] ($Q)}
-		    switch -- [dict get? $r -extra] {
-			button {
-			    set cmd .[dict Q.id]
-			    if {[llength [info commands [namespace current]::$cmd]]} {
-				Debug.wubtk {button $cmd}
-				$cmd command
-			    } else {
-				Debug.wubtk {not found button [namespace current]::$cmd}
+		    set err [catch {
+			switch -- [dict get? $r -extra] {
+			    button {
+				set cmd .[dict Q.id]
+				if {[llength [info commands [namespace current]::$cmd]]} {
+				    Debug.wubtk {button $cmd}
+				    $cmd command
+				} else {
+				    Debug.wubtk {not found button [namespace current]::$cmd}
+				}
+			    }
+			    variable {
+				set cmd .[dict Q.id]
+				if {[llength [info commands [namespace current]::$cmd]]} {
+				    Debug.wubtk {button $cmd}
+				    $cmd var [dict Q.val]
+				} else {
+				    Debug.wubtk {not found button [namespace current]::$cmd}
+				}
+			    }
+			    command {
 			    }
 			}
-			var {
-			}
-			command {
-			}
-		    }
+		    } e eo]
+	    
 		    set result ""
 		    dict for {id html} [grid changes] {
 			append result [string map [list %ID% $id %H% $html] {
@@ -128,6 +140,16 @@ class create ::WubTk {
 		    Debug.wubtk {SCRIPT: ($result)}
 		    if {$result ne ""} {
 			append result $js
+		    }
+		    if {$err} {
+			set e [string map [list \" \\\" ' \\'] $e]
+			append result [string map [list %C% $cmd %OP% [dict get? $r -extra] %E% $e] {
+			    $('#ErrDiv').html('<p>%C% %OP% Error: %E% </p>');
+			}]
+		    } else {
+			append result {
+			    $('#ErrDiv').html('');
+			}
 		    }
 
 		    set r [Http Ok $r $result text/javascript]
@@ -157,8 +179,12 @@ class create ::WubTk {
 	    return $result
 	} else {
 	    Debug.wubtk {coroutine gone: $cmd}
-	    return [Http Redirect $r [string trimright $mount /]/]
-	    return [Http NotFound $r [<p> "WubTk '$cmd' has terminated."]]
+	    variable tolerant
+	    if {$tolerant} {
+		return [Http Redirect $r [string trimright $mount /]/]
+	    } else {
+		return [Http NotFound $r [<p> "WubTk '$cmd' has terminated."]]
+	    }
 	}
     }
 
@@ -168,7 +194,7 @@ class create ::WubTk {
 
     superclass FormClass	;# allow Form to work nicely
     constructor {args} {
-	variable hint 1
+	variable tolerant 1
 	variable {*}[Site var? WubTk]	;# allow .ini file to modify defaults
 	variable {*}$args
 	namespace eval [info object namespace [self]]::Coros {}
