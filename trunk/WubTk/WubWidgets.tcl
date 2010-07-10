@@ -108,8 +108,34 @@ namespace eval ::WubWidgets {
 	    }
 	}
 
+	method copytext {varname op value} {
+	    variable textvariable
+	    variable text
+	    corovars $textvariable
+	    set $textvariable $text
+	}
+
+	method copytextvar {varname op value} {
+	    variable textvariable
+	    variable text
+	    corovars $textvariable
+	    set text $textvariable
+	}
+
 	constructor {args} {
 	    my configure {*}$args
+	    if {[my cexists text]} {
+		variable text
+		if {![my cexists textvariable]} {
+		    trace add variable text write [list [self] changevar]
+		} else {
+		    trace add variable text write [list [self] copytext]
+		}
+	    } elseif {[my cexists textvariable]} {
+		variable textvariable
+		corovars $textvariable
+		trace add variable $textvariable write [list [self] copytextvar]
+	    }
 	}
     }
 
@@ -214,6 +240,16 @@ namespace eval ::WubWidgets {
 	    set state [my cget -state]
 	    set val [my get]
 	    
+	    if {[my cexists textvariable]} {
+		set var [my cget -textvariable]
+		corovars $var
+		set val [set $var]
+		set class {class variable}
+	    } else {
+		set val ""
+		set class {}
+	    }
+
 	    set disabled ""
 	    if {[my cget -state] ne "normal"} {
 		set disabled disabled
