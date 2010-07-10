@@ -231,15 +231,14 @@ namespace eval ::WubWidgets {
 	    return [string range [my cget text] $start $end]
 	}
 	
-	method delete {{start 0} {end end}} {		
+	method delete {{start 0} {end end}} {
 	    set text [my cget text]
 	    set text [string range $text 0 $start-1][string range $text $end end]
 	    my configure text $text
 	    return $text
 	}
 
-	method insert {start newtext} {
-	    set start 0
+	method insert {{start end} newtext} {
 	    set text [my cget text]
 	    set text [string range $text 0 $start]${newtext}[string range $text ${start}+1 end]
 	    my configure text $text
