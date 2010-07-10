@@ -43,11 +43,10 @@ class create ::WubTk {
 
 	    # install the user code in the coro's namespace
 	    variable lambda
-	    namespace eval [namespace current]::Coros::$cmd $lambda	;# install the user code
-
 	    Debug.wubtk {coroutine initialising - ($r) reply}
 	    
-	    set result [coroutine [namespace current]::Coros::${cmd}::_do ::apply [list {r} {
+	    set result [coroutine [namespace current]::Coros::${cmd}::_do ::apply [list {r lambda} {
+		eval $lambda	;# install the user code
 		set r [::yield]	;# we let the initial pass go
 
 		# initial client direct request
@@ -68,7 +67,7 @@ class create ::WubTk {
 		    });
 
 		    $(".variable").change(function () {
-			alert($(this).attr("name")+" changed: " + $(this).val());
+			//alert($(this).attr("name")+" changed: " + $(this).val());
 			$.ajax({
 			    context: this,
 			    type: "GET",
@@ -154,7 +153,7 @@ class create ::WubTk {
 
 		    set r [Http Ok $r $result text/javascript]
 		}
-	    } [namespace current]::Coros::$cmd] $r]
+	    } [namespace current]::Coros::$cmd] $r $lambda]
 
 	    if {$result ne ""} {
 		Debug.wubtk {coroutine initialised - ($r) reply}
