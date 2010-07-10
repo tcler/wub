@@ -322,9 +322,9 @@ namespace eval ::WubWidgets {
 			dict with el {
 			    set id grid_${row}_$col
 			    Debug.wubwidgets {render $widget $id}
-			    lappend cols [<td> colspan $colspan [uplevel 1 [list $widget render $id]]]
+			    lappend cols [<td> colspan $columnspan [uplevel 1 [list $widget render $id]]]
 			}
-			incr col $colspan
+			incr col $columnspan
 		    } else {
 			lappend cols [<td> "&nbsp;"]
 			incr col
@@ -342,7 +342,7 @@ namespace eval ::WubWidgets {
 	    #set defaults
 	    set column 0
 	    set row 0
-	    set colspan 1
+	    set columnspan 1
 	    set rowspan 1
 	    set sticky ""
 	    set in ""
@@ -352,7 +352,7 @@ namespace eval ::WubWidgets {
 	    }
 	    
 	    variable maxcols
-	    set width [expr {$column + $colspan}]
+	    set width [expr {$column + $columnspan}]
 	    if {$width > $maxcols} {
 		set maxcols $width
 	    }
@@ -364,7 +364,7 @@ namespace eval ::WubWidgets {
 	    }
 	    
 	    variable grid
-	    dict set grid $row $column [list widget $widget colspan $colspan rowspan $rowspan sticky $sticky in $in]
+	    dict set grid $row $column [list widget $widget columnspan $columnspan rowspan $rowspan sticky $sticky in $in]
 	}
 
 	constructor {args} {
