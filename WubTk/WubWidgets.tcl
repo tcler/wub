@@ -259,7 +259,7 @@ namespace eval ::WubWidgets {
 	    }
 	    
 	    my reset
-	    return [<textarea> [my widget] id $id {*}$disabled style [my style] rows [my cget -height] cols [my cget -width] $val]
+	    return [<textarea> [my widget] id $id {*}$class {*}$disabled style [my style] rows [my cget -height] cols [my cget -width] $val]
 	}
 	
 	superclass ::WubWidgets::widget
