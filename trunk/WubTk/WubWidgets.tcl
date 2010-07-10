@@ -278,6 +278,7 @@ namespace eval ::WubWidgets {
     }
 
     oo::class create wmC {
+	# TODO - make title change dynamically ... blerk.
 	method title {{widget .} args} {
 	    if {$widget != "."} {return}
 	    variable title
