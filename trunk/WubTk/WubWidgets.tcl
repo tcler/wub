@@ -21,6 +21,9 @@ namespace eval ::WubWidgets {
 	    variable change
 	    return $change
 	}
+	method changevar {args} {
+	    my change
+	}
 
 	# record widget id
 	method id {{_id ""}} {
@@ -43,6 +46,13 @@ namespace eval ::WubWidgets {
 	    ::apply [list {} $cmd [uplevel 1 {namespace current}]]
 	}
 
+	method var {value} {
+	    set var [my cget textvariable]
+	    corovars $var
+	    Debug.wubwidgets {[self] var $var <- '$value'}
+	    set $var $value
+	}
+
 	# style - construct an HTML style form
 	method style {} {
 	    variable background; variable foreground
@@ -55,26 +65,50 @@ namespace eval ::WubWidgets {
 	    variable $n
 	    return [set $n]
 	}
+	method cexists {n} {
+	    set n [string trim $n -]
+	    variable $n
+	    return [info exists $n]
+	}
 
 	# configure - set variables to their values
 	method configure {args} {
+	    Debug.wubwidgets {[info coroutine] configure [self] ($args)}
 	    variable change
+	    set vars {}
 	    dict for {n v} $args {
 		set n [string trim $n -]
 		incr change	;# remember if we've changed anything
+
 		variable $n $v
+		dict set vars $n $v
+
 		# some things create external dependencies ... variable,command, etc
 		switch -glob -- $n {
 		    textvariable {
 			# should create variable if necessary
 			# set write trace on variable, to record change.
 		    }
+		    default {
+		    }
 		}
+	    }
+
+	    Debug.wubwidgets {configured: $vars}
+	    if {[info exists textvariable]
+		&& $textvariable ne ""
+	    } {
+		corovars $textvariable
+		if {![info exists text]} {
+		    set text ""
+		}
+		Debug.wubwidgets {[info coroutine] setting -textvariable $textvariable to '$text'}
+		set $textvariable $text
+		trace add variable $textvariable write [list [self] changevar]
 	    }
 	}
 
 	constructor {args} {
-	    Debug.wubwidgets {construct [self] ($args)}
 	    my configure {*}$args
 	}
     }
@@ -94,7 +128,7 @@ namespace eval ::WubWidgets {
 
 	superclass ::WubWidgets::widget
 	constructor {args} {
-	    next {*}[dict merge {text ""  textvariable ""
+	    next {*}[dict merge {text ""
 		foreground black background white justify left
 		command ""
 	    } $args]
@@ -104,8 +138,8 @@ namespace eval ::WubWidgets {
     oo::class create labelC {
 	method render {{id ""}} {
 	    set id [my id $id]
-	    set var [my cget textvariable]
-	    if {$var ne ""} {
+	    if {[my cexists textvariable]} {
+		set var [my cget textvariable]
 		corovars $var
 		set val [set $var]
 	    } else {
@@ -117,7 +151,7 @@ namespace eval ::WubWidgets {
 	
 	superclass ::WubWidgets::widget
 	constructor {args} {
-	    next {*}[dict merge {text ""  textvariable ""
+	    next {*}[dict merge {text ""
 		foreground "black" background "white" justify "left"
 	    } $args]
 	}
@@ -125,13 +159,13 @@ namespace eval ::WubWidgets {
     
     oo::class create entryC {
 	method render {{id ""}} {
+	    Debug.wubwidgets {[info coroutine] rendering Entry [self]}
 	    set id [my id $id]
-	    set var [my cget -textvariable]
-	    corovars $var
-	    
-	    if {[info exists $var]} {
+	    if {[my cexists textvariable]} {
+		set var [my cget -textvariable]
+		corovars $var
 		set val [set $var]
-		set class {class var}
+		set class {class variable}
 	    } else {
 		set val ""
 		set class {}
@@ -148,7 +182,7 @@ namespace eval ::WubWidgets {
 
 	superclass ::WubWidgets::widget
 	constructor {args} {
-	    next {*}[dict merge {text ""  textvariable ""
+	    next {*}[dict merge {text ""
 		foreground black background white justify left
 		state normal
 	    } $args]
@@ -191,7 +225,7 @@ namespace eval ::WubWidgets {
 	
 	superclass ::WubWidgets::widget
 	constructor {args} {
-	    next {*}[dict merge {text ""  textvariable ""
+	    next {*}[dict merge {text ""
 		foreground black background white justify left
 		state normal height 10 width 40
 	    } $args]
