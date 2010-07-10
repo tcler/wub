@@ -50,10 +50,15 @@ namespace eval ::WubWidgets {
 	}
 
 	method var {value} {
-	    set var [my cget textvariable]
-	    corovars $var
-	    Debug.wubwidgets {[self] var $var <- '$value'}
-	    set $var $value
+	    if {[my cexists textvariable]} {
+		set var [my cget textvariable]
+		corovars $var
+		Debug.wubwidgets {[self] var $var <- '$value'}
+		set $var $value
+	    } elseif {[my cexists text]} {
+		variable text
+		set text $value
+	    }
 	}
 
 	# style - construct an HTML style form
@@ -116,6 +121,8 @@ namespace eval ::WubWidgets {
 	    variable text
 	    corovars $textvariable
 	    set $textvariable $text
+	    variable change
+	    incr change 
 	}
 
 	method copytextvar {varname op value} {
@@ -123,6 +130,8 @@ namespace eval ::WubWidgets {
 	    variable text
 	    corovars $textvariable
 	    set text $textvariable
+	    variable change
+	    incr change 
 	}
 
 	constructor {args} {
@@ -194,11 +203,10 @@ namespace eval ::WubWidgets {
 		set var [my cget -textvariable]
 		corovars $var
 		set val [set $var]
-		set class {class variable}
 	    } else {
 		set val ""
-		set class {}
 	    }
+	    set class {class variable}
 
 	    set disabled ""
 	    if {[my cget -state] ne "normal"} {
@@ -247,12 +255,11 @@ namespace eval ::WubWidgets {
 		set var [my cget -textvariable]
 		corovars $var
 		set val [set $var]
-		set class {class variable}
 	    } else {
 		set val ""
-		set class {}
 	    }
-
+	    set class {class variable}
+	    
 	    set disabled ""
 	    if {[my cget -state] ne "normal"} {
 		set disabled disabled
