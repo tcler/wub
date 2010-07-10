@@ -35,6 +35,8 @@ namespace eval ::WubWidgets {
 		return $id
 	    } elseif {![info exists id]} {
 		set id $_id
+	    } else {
+		return $id
 	    }
 	}
 
