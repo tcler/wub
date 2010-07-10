@@ -6,6 +6,9 @@ package provide WubWidgets 1.0
 
 namespace eval ::WubWidgets {
     oo::class create widget {
+	method type {} {
+	    set class [string range [namespace tail [info object class [self]]] 0 end-1]
+	}
 	method change {{to ""}} {
 	    variable change
 	    if {$to eq ""} {
@@ -290,7 +293,7 @@ namespace eval ::WubWidgets {
 		    dict with val {
 			if {[uplevel 1 [list $widget changed?]]} {
 			    Debug.wubwidgets {changed ($row,$col) ($val)}
-			    lappend changes [uplevel 1 [list $widget id]] [uplevel 1 [list $widget render]]
+			    lappend changes [uplevel 1 [list $widget id]] [uplevel 1 [list $widget render]] [uplevel 1 [list $widget type]]
 			}
 		    }
 		}
