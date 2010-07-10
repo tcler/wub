@@ -14,6 +14,60 @@ set ::API(Domains/WubTk) {
 }
 
 class create ::WubTk {
+    method buttonJS {{what {$('.button')}}} {
+	return [string map [list %B% $what] {
+	    %B%.click(function () { 
+		//alert($(this).attr("name")+" button pressed");
+		$.ajax({
+		    context: this,
+		    type: "GET",
+		    url: "button",
+		    data: {id: $(this).attr("name")},
+		    dataType: "script",
+		    success: function (data, textStatus, XMLHttpRequest) {
+			//alert("button: "+data);
+		    }
+		});
+	    });
+	}]
+    }
+
+    method variableJS {{what {$('.variable')}}} {
+	return [string map [list %B% $what] {
+	    %B%.change(function () {
+		//alert($(this).attr("name")+" changed: " + $(this).val());
+		$.ajax({
+		    context: this,
+		    type: "GET",
+		    url: "variable",
+		    data: {id: $(this).attr("name"), val: $(this).val()},
+		    dataType: "script",
+		    success: function (data, textStatus, XMLHttpRequest) {
+			//alert("button: "+data);
+		    }
+		});
+	    });
+	}]
+    }
+    
+    method commandJS {{what {$('.command')}}} {
+	return [string map [list %B% $what] {
+	    %B%.change(function callback(eventObject) {
+		//alert($(this).attr("name")+" command invoked");
+		$.ajax({
+		    context: this,
+		    type: "GET",
+		    url: "command",
+		    data: {id: $(this).attr("name")},
+		    dataType: "script",
+		    success: function (data, textStatus, XMLHttpRequest) {
+			//alert("command: "+data);
+		    }
+		});
+	    });
+	}]
+    }
+
     # process request helper
     method do {r} {
 	variable mount
@@ -50,47 +104,6 @@ class create ::WubTk {
 
 		# initial client direct request
 		Debug.wubtk {processing [info coroutine]}
-		set js {
-		    $(".button").click(function () { 
-			$.ajax({
-			    context: this,
-			    type: "GET",
-			    url: "button",
-			    data: {id: $(this).attr("name")},
-			    dataType: "script",
-			    success: function (data, textStatus, XMLHttpRequest) {
-				//alert("button: "+data);
-			    }
-			});
-		    });
-
-		    $(".variable").change(function () {
-			//alert($(this).attr("name")+" changed: " + $(this).val());
-			$.ajax({
-			    context: this,
-			    type: "GET",
-			    url: "variable",
-			    data: {id: $(this).attr("name"), val: $(this).val()},
-			    dataType: "script",
-			    success: function (data, textStatus, XMLHttpRequest) {
-				//alert("button: "+data);
-			    }
-			});
-		    });
-
-		    $(".command").change(function callback(eventObject) {
-			$.ajax({
-			    context: this,
-			    type: "GET",
-			    url: "command",
-			    data: {id: $(this).attr("name")},
-			    dataType: "script",
-			    success: function (data, textStatus, XMLHttpRequest) {
-				//alert("command: "+data);
-			    }
-			});
-		    });
-		}
 
 		set r {}
 		while {[dict size [set r [::yield $r]]]} {
@@ -122,7 +135,12 @@ class create ::WubTk {
 			    default {
 				# re-render whole page
 				set r [jQ jquery $r]
-				set r [jQ ready $r $js]
+
+				# send js to track widget state
+				set r [jQ ready $r [my buttonJS]]
+				set r [jQ ready $r [my variableJS]]
+				set r [jQ ready $r [my commandJS]]
+
 				set content [<div> id ErrDiv {}]
 				append content [grid render [namespace tail [info coroutine]]]
 				Debug.wubtk {render: $content}
@@ -135,15 +153,25 @@ class create ::WubTk {
 		    if {$err == 4} continue
 
 		    set result ""
-		    dict for {id html} [grid changes] {
+		    foreach {id html type} [grid changes] {
+			Debug.wubtk {changed id: $id type: $type}
+			dict lappend classified $type $id
 			append result [string map [list %ID% $id %H% $html] {
 			    $('#%ID%').replaceWith("%H%");
 			}]
+
+			# send js to track widget state
+			set jid "\$('#$id')"
+			switch -- $type {
+			    button {
+				append result [my buttonJS $jid]
+			    }
+			    entry {
+				append result [my variableJS $jid]
+			    }
+			}
 		    }
-		    Debug.wubtk {SCRIPT: ($result)}
-		    if {$result ne ""} {
-			append result $js
-		    }
+
 		    if {$err} {
 			set e [string map [list \" \\\" ' \\'] $e]
 			append result [string map [list %C% $cmd %OP% [dict get? $r -extra] %E% $e] {
@@ -154,11 +182,12 @@ class create ::WubTk {
 			    $('#ErrDiv').html('');
 			}
 		    }
-
+		    
+		    Debug.wubtk {SCRIPT: ($result)}
 		    set r [Http Ok $r $result text/javascript]
 		}
 	    } [namespace current]::Coros::$cmd] $r $lambda]
-
+	    
 	    if {$result ne ""} {
 		Debug.wubtk {coroutine initialised - ($r) reply}
 		return $result	;# allow coroutine lambda to reply
@@ -168,7 +197,7 @@ class create ::WubTk {
 		return [Http Redirect $r [string trimright $mount /]/$cmd/]
 	    }
 	}
-
+	
 	if {[namespace which -command [namespace current]::Coros::${cmd}::_do] ne ""} {
 	    # this is an existing coroutine - call it and return result
 	    Debug.wubtk {calling coroutine '$cmd' with extra '$extra'}
