@@ -65,11 +65,12 @@ class create ::FormClass {
     # default - set attribute defaults for a given tag
     method default {type args} {
 	variable Fdefaults
-	set d [dict get? $Fdefaults $type]
-	dict set Fdefaults $type [dict merge $d $args]
+	set d [dict Fdefaults.$type]
+	dict Fdefaults.$type [dict merge $d $args]
     }
 
     method attr {T args} {
+	Debug.form {attr: $T ($args)}
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
@@ -90,18 +91,18 @@ class create ::FormClass {
     method fieldsetS {name args} {
 	variable fieldsetA
 	variable Fdefaults
-	set config [dict merge [dict get? $Fdefaults fieldset] [lrange $args 0 end-1]]
+	set config [dict merge [dict Fdefaults.fieldset] [lrange $args 0 end-1]]
 	if {![dict exists $config id]} {
 	    if {$name ne ""} {
-		dict set config id $name
+		dict config.id $name
 	    } else {
 		variable uniqID
-		dict set config id F[incr uniqID]
+		dict config.id F[incr uniqID]
 	    }
 	}
 	set content "<[my attr fieldset [dict in $config $fieldsetA]]>\n"
 	if {[dict exists $config legend]} {
-	    append content [<legend> [dict get $config legend]] \n
+	    append content [<legend> [dict config.legend]] \n
 	}
 	return $content
     }
@@ -110,18 +111,18 @@ class create ::FormClass {
 	variable formA
 	variable Fdefaults
 	variable tabindex 0
-	set config [dict merge [dict get? $Fdefaults form] [lrange $args 0 end-1]]
+	set config [dict merge [dict Fdefaults.form] [lrange $args 0 end-1]]
 	if {![dict exists $config id]} {
 	    if {$name ne ""} {
-		dict set config id $name
+		dict config.id $name
 	    } else {
 		variable uniqID
-		dict set config id F[incr uniqID]
+		dict config.id F[incr uniqID]
 	    }
 	}
 	set content "<[my attr form [dict in $config $formA]]>\n"
 	if {[dict exists $config legend]} {
-	    append content [<legend> [dict get $config legend]] \n
+	    append content [<legend> [dict config.legend]] \n
 	}
 	return $content
     }
@@ -150,14 +151,14 @@ class create ::FormClass {
 		    set args [lassign $args name]
 		}
 
-		set config [dict merge [dict get? $Fdefaults %T%] $args]
+		set config [dict merge [dict Fdefaults.%T%?] $args]
 		%TI%
 
 		my metadata $name $config
 
 		variable tabular
 		set otab $tabular
-		if {[dict exists $config tabular] && [dict get $config tabular]} {
+		if {[dict exists $config tabular] && [dict config.tabular]} {
 		    set tabular 1
 		} else {
 		    set tabular 0
@@ -166,10 +167,10 @@ class create ::FormClass {
 		# ensure an id
 		if {![dict exists $config id]} {
 		    if {$name ne ""} {
-			dict set config id $name
+			dict config.id $name
 		    } else {
 			variable uniqID
-			dict set config id F[incr uniqID]
+			dict config.id F[incr uniqID]
 		    }
 		}
 
@@ -179,14 +180,12 @@ class create ::FormClass {
 
 		set content ""
 		if {[dict exists $config legend]} {
-		    append content [<legend> [dict get $config legend]] \n
+		    append content [<legend> [dict config.legend]] \n
 		}
 		if {$tabular} {
 		    set body [<tr> [string map {\n </tr>\n<tr>} $body]]
 		    append content \n [<table> $body] \n
-		} elseif {[dict exists $config vertical]
-			   && [dict get $config vertical]
-		      } {
+		} elseif {[dict config.vertical?] ne ""} {
 		    append content $body
 		    set content [string map {\n <br>\n} $content]
 		} else {
@@ -207,7 +206,7 @@ class create ::FormClass {
 	}
 
 	if {$config eq ""} {
-	    return [dict get? $metadata $name]	;# want metadata for field
+	    return [dict metadata.$name?]	;# want metadata for field
 	}
 
 	set n $name; set i 0
@@ -217,7 +216,7 @@ class create ::FormClass {
 	}
 
 	Debug.form {[self] metadata '$n': $config}
-	dict set metadata $n $config
+	dict metadata.$n $config
     }
 
     foreach {type} {legend} {
@@ -225,7 +224,7 @@ class create ::FormClass {
 	    method <%T%> {args} {
 		variable %T%A
 		variable Fdefaults
-		set config [dict merge [dict get? $Fdefaults %T%] [lrange $args 0 end-1]]
+		set config [dict merge [dict Fdefaults.%T%?] [lrange $args 0 end-1]]
 		return "<[my attr %T% [dict in $config $%T%A]]>[uplevel 1 [list subst [lindex $args end]]]</%T%>"
 	    }
 	}]
@@ -237,30 +236,30 @@ class create ::FormClass {
 
 	set content [lindex $args end]
 	set args [lrange $args 0 end-1]
-	set config [dict merge [dict get? $Fdefaults select] $args [list name $name]]
+	set config [dict merge [dict Fdefaults.select?] $args [list name $name]]
 
 	if {![dict exists $config id]} {
-	    dict set config id $name
+	    dict config.id $name
 	}
-	set id [dict get $config id]
+	set id [dict config.id]
 
 	if {![dict exists $config tabindex]} {
 	    variable tabindex
-	    dict set config tabindex [incr tabindex]
+	    dict config.tabindex [incr tabindex]
 	}
 
 	set content [uplevel 1 [list subst $content]]
 
-	set result "<[my attr select [dict in $config $selectA]]>$content</select>"
 	my metadata $name $config	;# remember config for field
+	set result "<[my attr select [dict in $config $selectA]]>$content</select>"
 
 	if {[dict exists $config title]} {
-	    set title [list title [dict get $config title]]
+	    set title [list title [dict config.title]]
 	} else {
 	    set title {}
 	}
 
-	set label [dict get? $config label]
+	set label [dict config.label?]
 	variable tabular
 	if {$tabular} {
 	    if {$label eq ""} {
@@ -270,19 +269,19 @@ class create ::FormClass {
 	} elseif {$label ne ""} {
 	    return "[<label> for $id $label] $result"
 	} elseif {[dict exists $config legend]} {
-	    set legend [dict get $config legend]
+	    set legend [dict config.legend]
 
 	    # get sub-attributes of form "{subel attr} value"
 	    set sattr {fieldset {} legend {}}
 	    dict for {k v} $config {
 		set k [split $k]
 		if {[llength $k] > 1} {
-		    dict set sattr [lindex $k 0] [lindex $k 1] $v
+		    dict sattr.[lindex $k 0].[lindex $k 1] $v
 		}
 	    }
 
-	    return [<fieldset> "" {*}[dict get $sattr fieldset] {*}$title {
-		[<legend> {*}[dict get $sattr legend] $legend]
+	    return [<fieldset> "" {*}[dict sattr.fieldset] {*}$title {
+		[<legend> {*}[dict sattr.legend] $legend]
 		$result
 	    }]
 	} else {
@@ -298,16 +297,16 @@ class create ::FormClass {
 
 		set content [lindex $args end]
 		set args [lrange $args 0 end-1]
-		set config [dict merge [dict get? $Fdefaults %T%] $args]
+		set config [dict merge [dict Fdefaults.%T%?] $args]
 		if {$content eq ""} {
-		    set content [dict get $config value]
+		    set content [dict config.value]
 		} else {
 		    set content [uplevel 1 [list subst $content]]
 		}
 
 		if {[dict exist $config select?]} {
-		    if {[dict get $config select?] eq [dict get $config value]} {
-			dict set config selected 1
+		    if {[dict get $config select?] eq [dict config.value]} {
+			dict config.selected 1
 		    }
 		}
 
@@ -325,21 +324,21 @@ class create ::FormClass {
 	} else {
 	    set content ""
 	}
-	set config [dict merge [dict get? $Fdefaults textarea] $args [list name $name]]
+	set config [dict merge [dict Fdefaults.textarea?] $args [list name $name]]
 
 	if {![dict exists $config tabindex]} {
 	    variable tabindex
-	    dict set config tabindex [incr tabindex]
+	    dict config.tabindex [incr tabindex]
 	}
 
 	# ensure an id
 	if {![dict exists $config id]} {
-	    dict set config id $name
+	    dict config.id $name
 	}
-	set id [dict get $config id]
+	set id [dict config.id]
 
 	if {[dict exists $config compact]} {
-	    if {[dict get $config compact]} {
+	    if {[dict config.compact]} {
 		# remove initial spaces from Form
 		set content [::textutil::undent [::textutil::untabify $content]]
 	    }
@@ -354,10 +353,11 @@ class create ::FormClass {
 	    set title [list title $title]
 	    dict unset config title
 	}
-	set result "<[my attr textarea [dict in $config $textareaA]]>$content</textarea>"
-	my metadata $name $config	;# remember config for field
 
-	set label [dict get? $config label]
+	my metadata $name $config	;# remember config for field
+	set result "<[my attr textarea [dict in $config $textareaA]]>$content</textarea>"
+
+	set label [dict config.label?]
 	variable tabular
 	if {$tabular} {
 	    if {$label eq ""} {
@@ -367,19 +367,19 @@ class create ::FormClass {
 	} elseif {$label ne ""} {
 	    return "[<label> for $id $label] $result"
 	} elseif {[dict exists $config legend]} {
-	    set legend [dict get $config legend]
+	    set legend [dict config.legend]
 
 	    # get sub-attributes of form "{subel attr} value"
 	    set sattr {fieldset {} legend {}}
 	    dict for {k v} $config {
 		set k [split $k]
 		if {[llength $k] > 1} {
-		    dict set sattr [lindex $k 0] [lindex $k 1] $v
+		    dict sattr.[lindex $k 0].[lindex $k 1] $v
 		}
 	    }
 
-	    return [<fieldset> "" {*}[dict get $sattr fieldset] {*}$title {
-		[<legend> {*}[dict get $sattr legend] $legend]
+	    return [<fieldset> "" {*}[dict sattr.fieldset] {*}$title {
+		[<legend> {*}[dict sattr.legend] $legend]
 		$result
 	    }]
 	} else {
@@ -398,16 +398,16 @@ class create ::FormClass {
 		} else {
 		    set content ""
 		}
-		set config [dict merge [dict get? $Fdefaults %T%] [list alt %T%] $args [list name $name type %T%]]
+		set config [dict merge [dict Fdefaults.%T%?] [list alt %T%] $args [list name $name type %T%]]
 		
 		if {![dict exists $config tabindex]} {
 		    variable tabindex
-		    dict set config tabindex [incr tabindex]
+		    dict config.tabindex [incr tabindex]
 		}
 
 		if {$content eq {}} {
 		    if {[dict exists $config content]} {
-			set content [dict get $config content]
+			set content [dict config.content]
 		    } else {
 			set content [string totitle %T%]
 		    }
@@ -430,11 +430,11 @@ class create ::FormClass {
 	    set content ""
 	}
 	variable Fdefaults
-	set config [dict merge [dict get? $Fdefaults button] $args [list name $name]]
+	set config [dict merge [dict Fdefaults.button?] $args [list name $name]]
 
 	if {![dict exists $config tabindex]} {
 	    variable tabindex
-	    dict set config tabindex [incr tabindex]
+	    dict config.tabindex [incr tabindex]
 	}
 
 	my metadata $name $config	;# remember config for field
@@ -460,31 +460,31 @@ class create ::FormClass {
 		
 		variable %A%A
 		variable Fdefaults
-		set config [dict merge [dict get? $Fdefaults %T%] $args [list name $name type %T% %F% [armour [uplevel 1 [list subst $value]]]]]
-
+		set config [dict merge [dict Fdefaults.%T%?] $args [list name $name type %T% %F% [armour [uplevel 1 [list subst $value]]]]]
+		
 		if {![dict exists $config tabindex]} {
 		    variable tabindex
-		    dict set config tabindex [incr tabindex]
+		    dict config.tabindex [incr tabindex]
 		}
 
 		if {![dict exists $config id]} {
-		    dict set config id $name
+		    dict config.id $name
 		}
-		set id [dict get $config id]
+		set id [dict config.id]
 
 		# get sub-attributes of form "{subel attr} value"
 		set sattr {label {} legend {}}
 		dict for {k v} $config {
 		    set k [split $k]
 		    if {[llength $k] > 1} {
-			dict set sattr [lindex $k 0] [lindex $k 1] $v
+			dict sattr.[lindex $k 0].[lindex $k 1] $v
 		    }
 		}
 
-		set result "<[my attr input [dict in $config $%A%A]]>"
 		my metadata $name $config	;# remember config for field
+		set result "<[my attr input [dict in $config $%A%A]]>"
 
-		set label [dict get? $config label]
+		set label [dict config.label?]
 		variable tabular
 		if {$tabular} {
 		    if {$label eq ""} {
@@ -492,13 +492,13 @@ class create ::FormClass {
 		    }
 		    return "[<td> class label [<label> for $id $label]] [<td> class field $result]"
 		} elseif {$label ne ""} {
-		    return "[<label> for $id $label] $result"
-		} elseif {[dict exists $config legend]} {
-		    set legend [dict get $config legend]
-		    return "[<span> {*}[dict get $sattr legend] $legend] $result"
-		} else {
-		    return $result
+		    set result "[<label> for $id $label] $result"
+		} elseif {[set legend [dict config.legend?]] ne ""} {
+		    set result "[<span> {*}[dict sattr.legend] $legend] $result"
 		}
+
+		Debug.form {[self] emit %T%: $result}
+		return $result
 	    }
 	}]
     }
@@ -527,26 +527,26 @@ class create ::FormClass {
 	eval [string map [list %T% $type %S% $sub] {
 	    method <%T%set> {name args} {
 		variable Fdefaults
-		set rsconfig [dict merge [dict get? $Fdefaults %T%] [lrange $args 0 end-1] [list name $name type %T%]]
+		set rsconfig [dict merge [dict Fdefaults.%T%?] [lrange $args 0 end-1] [list name $name type %T%]]
 		set boxes [lindex $args end]
 		set result {}
 		
 		set accum ""
 		foreach {content value} $boxes {
-		    set config [dict merge [dict get? $Fdefaults %T%%S%] $rsconfig]
+		    set config [dict merge [dict Fdefaults.%T%%S%?] $rsconfig]
 		    if {[string match +* $content]} {
-			dict set config checked 1
+			dict config.checked 1
 			set content [string trim $content +]
 		    } else {
 			catch {dict unset config checked}
 		    }
-		    dict set config value $value
+		    dict config.value $value
 		    lappend result [uplevel 1 [list <%T%%S%> $name {*}$config $content]]
 		    set accum ""
 		}
 
 		if {[dict exists $rsconfig vertical]
-		    && [dict get $rsconfig vertical]} {
+		    && [dict rsconfig.vertical]} {
 		    set joiner <br>
 		} else {
 		    set joiner \n
@@ -555,19 +555,19 @@ class create ::FormClass {
 		my metadata $name $config	;# remember config for field
 
 		if {[dict exists $rsconfig legend]} {
-		    set legend [dict get $rsconfig legend]
+		    set legend [dict rsconfig.legend]
 
 		    # get sub-attributes of form "{subel attr} value"
 		    set sattr {fieldset {} legend {}}
 		    dict for {k v} $config {
 			set k [split $k]
 			if {[llength $k] > 1} {
-			    dict set sattr [lindex $k 0] [lindex $k 1] $v
+			    dict sattr.[lindex $k 0].[lindex $k 1] $v
 			}
 		    }
 
-		    return [<fieldset> "" {*}[dict get $sattr fieldset] {
-			[<legend> {*}[dict get $sattr legend] $legend]
+		    return [<fieldset> "" {*}[dict sattr.fieldset] {
+			[<legend> {*}[dict sattr.legend] $legend]
 			[join $result $joiner]
 		    }]
 		} else {
@@ -586,33 +586,32 @@ class create ::FormClass {
 		}
 		variable boxA
 		variable Fdefaults
-		set config [dict merge $args [list name $name type %T%] [dict get? $Fdefaults %T%]]
+		set config [dict merge $args [list name $name type %T%] [dict Fdefaults.%T%?]]
 
 		set content [uplevel 1 [list subst $content]]
 		if {![dict exists $config label] && $content ne ""} {
-		    dict set config label $content
+		    dict config.label $content
 		    set content ""
 		}
 
 		if {![dict exists $config tabindex]} {
 		    variable tabindex
-		    dict set config tabindex [incr tabindex]
+		    dict config.tabindex [incr tabindex]
 		}
 
 		if {![dict exists $config id]} {
 		    variable uniqID
-		    dict set config id F[incr uniqID]
+		    dict config.id F[incr uniqID]
 		}
-		set id [dict get $config id]
-		set result "<[my attr input [dict in $config $boxA]]>$content"
+
 		my metadata $name $config	;# remember config for field
 
-		if {[dict exists $config label]
-		    && [dict get $config label] ne ""
-		} {
-		    set label [dict get $config label]
+		set id [dict config.id]
+		set result "<[my attr input [dict in $config $boxA]]>$content"
+
+		if {[set label [dict config.label?]] ne ""} {
 		    if {[dict exists $config title]} {
-			return "[<label> for $id title [dict get $config title] $label] $result"
+			return "[<label> for $id title [dict config.title] $label] $result"
 		    } else {
 			return "[<label> for $id $label] $result"
 		    }
@@ -624,6 +623,7 @@ class create ::FormClass {
     }
 
     method layout_parser {fname args} {
+	upvar 1 lmetadata lmetadata
 	variable layoutcache
 	if {[info exists layoutcache($fname-$args)]} {
 	    return $layoutcache($fname-$args)
@@ -634,6 +634,8 @@ class create ::FormClass {
 
 	set script [lindex $args end]
 	set args [lrange $args 0 end-1]
+	set control [dict filter $args key -*]	;# these are control args
+	set args [dict ni $args $control]	;# these are form args
 
 	variable tags
 	package require parsetcl
@@ -675,10 +677,10 @@ class create ::FormClass {
 			    
 			    # a fieldset's content is itself a form - recursively parse
 			    set content [lindex $content 2]
-			    set fs [lindex [uplevel 1 [list [self] layout_parser $name \n$content\n]] 1]
+			    set fs [lindex [uplevel 1 [list [self] layout_parser $name {*}$control \n$content\n]] 1]
 			    set fs "\[[self] <fieldset> $name $fsargs [list \n$fs\n]\]"
 			    Debug.form {fieldset: $name: '$content' -> ($fs)}
-			    dict set known $name \n$fs
+			    dict known.$name \n$fs
 			}
 			
 			select {
@@ -700,7 +702,7 @@ class create ::FormClass {
 			    set fs [lindex [uplevel 1 [list [self] layout_parser $name \n$content\n]] 1]
 			    set fs "\[[self] <select> $name $fsargs [list \n$fs\n]\]"
 			    Debug.form {select: $name: '$content' -> ($fs)}
-			    dict set known $name \n$fs
+			    dict known.$name \n$fs
 			}
 			
 			legend {
@@ -724,7 +726,7 @@ class create ::FormClass {
 				Debug.form {legend: $up}
 				lappend allargs $up
 			    }
-			    dict set known [incr frag] "\[[self] <$fc> [join $allargs]\]"
+			    dict known.[incr frag] "\[[self] <$fc> [join $allargs]\]"
 			}
 			
 			default {
@@ -741,18 +743,37 @@ class create ::FormClass {
 			    foreach a $cargs {
 				lappend allargs [parsetcl unparse $a]
 			    }
-			    dict set known $name "\[[self] <$fc> [join $allargs]\]"
+			    if {[llength $allargs]%2} {
+				# no content specified
+				set content ""
+				set allargs [lrange $allargs 1 end]
+			    } else {
+				# content specified
+				set content [lindex $allargs end]
+				set allargs [lrange $allargs 1 end-1]
+			    }
+
+			    set lmd [dict filter $allargs key -*]
+			    dict lmd.-content $content
+			    dict lmetadata.$name $lmd
+			    set allargs [dict ni $allargs $lmd]
+			    if {[dict control.-content?] ne ""} {
+				set content \[[list {*}[dict control.-content] $name]\]
+			    }
+			    Debug.form {[self] argsplitting: $name ($allargs) / ($lmd)}
+
+			    dict known.$name "\[[self] <$fc> $name [join $allargs] $content\]"
 			}
 		    }
 		} else {
 		    Debug.form {'$fc' is not a form tag}
-		    dict set known [incr frag] \[[parsetcl unparse $line]\]
+		    dict known.[incr frag] \[[parsetcl unparse $line]\]
 		}
 	    } else {
 		# this is a normal command within the body of a tag - leave it alone
 	    }
 	} C.* {
-	    dict set known [incr frag] \[[parsetcl unparse $line]\]
+	    dict known.[incr frag] \[[parsetcl unparse $line]\]
 	}
 
 	set result "$fname $args [list [join [dict values $known] \n]\n]"
