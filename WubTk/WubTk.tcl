@@ -47,11 +47,9 @@ class create ::WubTk {
 	    
 	    set result [coroutine [namespace current]::Coros::${cmd}::_do ::apply [list {r lambda} {
 		eval $lambda	;# install the user code
-		set r [::yield]	;# we let the initial pass go
 
 		# initial client direct request
 		Debug.wubtk {processing [info coroutine]}
-		set r [jQ jquery $r]
 		set js {
 		    $(".button").click(function () { 
 			$.ajax({
@@ -93,15 +91,9 @@ class create ::WubTk {
 			});
 		    });
 		}
-		set r [jQ ready $r $js]
-		append content [<div> id ErrDiv {}]
-		append content [grid render [namespace tail [info coroutine]]]
-		Debug.wubtk {render: $content}
-		dict set r -title [wm title]
-		set r [Http Ok $r $content x-text/html-fragment]
 
-		while {1} {
-		    set r [::yield $r]	;# generate page or changes
+		set r {}
+		while {[dict size [set r [::yield $r]]]} {
 		    # unpack query response
 		    set Q [Query parse $r]; dict set r -Query $Q; set Q [Query flatten $Q]
 		    Debug.wubtk {[info coroutine] Event: [dict get? $r -extra] ($Q)}
@@ -127,9 +119,21 @@ class create ::WubTk {
 			    }
 			    command {
 			    }
+			    default {
+				# re-render whole page
+				set r [jQ jquery $r]
+				set r [jQ ready $r $js]
+				set content [<div> id ErrDiv {}]
+				append content [grid render [namespace tail [info coroutine]]]
+				Debug.wubtk {render: $content}
+				dict set r -title [wm title]
+				set r [Http Ok $r $content x-text/html-fragment]
+				continue
+			    }
 			}
 		    } e eo]
-	    
+		    if {$err == 4} continue
+
 		    set result ""
 		    dict for {id html} [grid changes] {
 			append result [string map [list %ID% $id %H% $html] {
