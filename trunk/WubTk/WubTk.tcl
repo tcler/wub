@@ -177,6 +177,7 @@ class create ::WubTk {
 			append result [string map [list %C% $cmd %OP% [dict get? $r -extra] %E% $e] {
 			    $('#ErrDiv').html('<p>%C% %OP% Error: %E% </p>');
 			}]
+			Debug.wubtk {Error: $e ($eo)}
 		    } else {
 			append result {
 			    $('#ErrDiv').html('');
