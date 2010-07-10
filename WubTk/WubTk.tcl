@@ -235,3 +235,88 @@ class create ::WubTk {
 	next {*}$args
     }
 }
+
+if {0} {
+    # Here's a demo, put it in local.tcl
+
+    lappend ::auto_path [file join [file dirname [file dirname [file normalize [info script]]]] WubTk]
+
+    package require WubTk
+    Debug on wubwidgets 10
+    Debug on wubtk 10
+
+    Nub domain /tk/ WubTk lambda {
+	proc buttonA args {
+	    set bText [.b cget -text]
+	    set aText [.a cget -text]
+	    set bBg [.b cget -background]
+	    set aBg [.a cget -background]
+	    set bFg [.b cget -foreground]
+	    set aFg [.a cget -foreground]
+	    .a configure -text $bText -foreground $bFg -background $bBg
+	    .b configure -text $aText -foreground $aFg -background $aBg
+	}
+
+	proc buttonC args {
+	    global joe
+	    set joe "${joe}A"
+	    if {$joe != "bob" && [string first Mod [wm title .]] == -1} {
+		wm title . "[wm title .] - Text Modified"
+	    }
+	}
+
+	proc buttonH {sobj dobj} {
+	    set text [$sobj get 0.0 end]
+	    set output ""
+	    foreach word [split $text] {
+		for {set i 0} {$i<[string length $word]} {incr i} {
+		    set char [string index $word $i]
+		    append output "$char[string tolower $char$char]"
+		}
+		append output " "
+	    }
+	    $dobj configure -text $output
+	    wm title . "Done it!"
+	}
+
+	proc showCode {} {
+	    .g delete 0.0 end
+	    
+	    set err [catch {set fh [open test1.tk RDONLY]}]
+	    if {!$err} {
+		set code [read $fh]
+		close $fh
+		.g insert end $code
+		.i configure -text "Cut n paste the above code into wish to compare!" -foreground orange -background black
+	    } else {
+		.i configure -text "Source code not in current directory!" -foreground orange -background black
+	    }
+	}
+
+	wm title . "Demo #1"
+	button .a -text "Press Me" -command buttonA -background lightgreen -foreground purple
+	button .b -text "Don't Press Me" -command buttonA -background pink -foreground blue
+	button .c -text "Modify" -command buttonC
+	entry .d -textvariable joe
+	label .e -text "Text:"
+	button .f -text Logout -command exit
+	text .g -background lightyellow
+	label .i -text ""
+	#button .h -text "Do it" -command "buttonH .g .i" -background violet
+	button .h -text "Clear" -command {.g delete 0.0 end; .i configure -text ""} -background violet
+	button .j -text "Show Code" -command "showCode" -background lightblue
+
+	set joe bob
+
+	grid configure .a -column 0 -row 0
+	grid configure .b -column 1 -row 0
+	grid configure .c -column 0 -row 1
+	grid configure .e -column 0 -row 2
+	grid configure .d -column 1 -row 2
+	grid configure .f -column 2 -row 0 -columnspan 1
+	grid configure .g -column 0 -row 4 -columnspan 3
+	grid configure .i -column 0 -row 5 -columnspan 3
+	grid configure .h -column 0 -row 6 -columnspan 1
+	grid configure .j -column 2 -row 6 -columnspan 1
+    }
+}
