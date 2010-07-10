@@ -132,6 +132,7 @@ class create ::WubTk {
 			    }
 			    command {
 			    }
+
 			    default {
 				# re-render whole page
 				set r [jQ jquery $r]
@@ -175,7 +176,7 @@ class create ::WubTk {
 		    if {$err} {
 			set e [string map [list \" \\\" ' \\'] $e]
 			append result [string map [list %C% $cmd %OP% [dict get? $r -extra] %E% $e] {
-			    $('#ErrDiv').html('<p>%C% %OP% Error: %E% </p>');
+			    $('#ErrDiv').html('<p>%OP% %C% Error: %E% </p>');
 			}]
 			Debug.wubtk {Error: $e ($eo)}
 		    } else {
