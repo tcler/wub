@@ -340,7 +340,7 @@ namespace eval ::Site {
 	puts stderr "CFG1: ($C)"
 	if {[dict exists $C Wub config]} {
 	    set phase "Site user configuration"	;# move to site config files phase
-	    if {[file exists [dict get $C Wub config]] {
+	    if {[file exists [dict get $C Wub config]} {
 		config aggregate [Config create user file [dict get $C Wub config]]
 		set C [config extract]	;# extract configuration values
 		user destroy
