@@ -141,8 +141,8 @@ class create ::WubTk {
 				set r [jQ ready $r [my variableJS]]
 				set r [jQ ready $r [my commandJS]]
 
-				set content [<div> id ErrDiv {}]
-				append content [grid render [namespace tail [info coroutine]]]
+				set content [grid render [namespace tail [info coroutine]]]
+				append content [<div> id ErrDiv {}]
 				Debug.wubtk {render: $content}
 				dict set r -title [wm title]
 				set r [Http Ok $r $content x-text/html-fragment]
