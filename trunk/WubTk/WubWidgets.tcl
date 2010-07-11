@@ -252,6 +252,9 @@ namespace eval ::WubWidgets {
 
             #compute deletion start and ending points
             set nlpos 0
+	    set startpos 0
+	    set endpos 0
+
             for {set linepos 1} {$linepos <= $linecount} {incr linepos}    {
 
                 if {$linepos == $sline} {
@@ -292,6 +295,8 @@ namespace eval ::WubWidgets {
 
                 #compute deletion start and ending points
                 set nlpos 0
+		set startpos 0
+		set endpos 0
                 for {set linepos 1} {$linepos <= $linecount} {incr linepos}    {
                     Debug.wubwidgets {*** $linepos $nlpos}
                     if {$linepos == $sline} {
@@ -331,6 +336,8 @@ namespace eval ::WubWidgets {
 
                 #compute insertion point
                 set nlpos 0
+		set startpos 0
+		set endpos 0
                 for {set linepos 1} {$linepos <= $linecount} {incr linepos}    {
 
                     if {$linepos == $sline} {
