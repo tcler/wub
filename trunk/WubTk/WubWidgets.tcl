@@ -45,10 +45,12 @@ namespace eval ::WubWidgets {
 	}
 
 	method command {} {
-	    set cmd [my cget command]
-	    set cmd [string map [list %W .[my widget]] $cmd]
-	    Debug.wubwidgets {[self] command ($cmd)}
-	    ::apply [list {} $cmd [uplevel 1 {namespace current}]]
+	    if {[my cexists command]} {
+		set cmd [my cget command]
+		set cmd [string map [list %W .[my widget]] $cmd]
+		Debug.wubwidgets {[self] command ($cmd)}
+		::apply [list {} $cmd [uplevel 1 {namespace current}]]
+	    }
 	}
 
 	method var {value} {
@@ -61,6 +63,13 @@ namespace eval ::WubWidgets {
 		variable text
 		set text $value
 	    }
+	}
+
+	method cbutton {value} {
+	    variable variable
+	    corovars $variable
+	    set $variable $value
+	    my command
 	}
 
 	# style - construct an HTML style form
@@ -174,6 +183,34 @@ namespace eval ::WubWidgets {
 	    next {*}[dict merge {text ""
 		foreground black background white justify left
 		command ""
+	    } $args]
+	}
+    }
+
+    oo::class create checkbuttonC {
+	method render {{id ""}} {
+	    set id [my id $id]
+
+	    if {[my cexists textvariable]} {
+		set lvar [my cget textvariable]
+		corovars $lvar
+		set label [set $lvar]
+	    } else {
+		set label [my cget text]
+	    }
+	    set var [my cget variable]
+	    corovars $var
+	    set checked [expr {$var != 0}]
+	    my reset
+	    return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked $label]
+	}
+	
+	superclass ::WubWidgets::widget
+	constructor {args} {
+	    next {*}[dict merge [list variable [string trim [namespace tail [self]] .]] {
+		text ""
+		foreground black background white justify left
+		command ""  
 	    } $args]
 	}
     }
