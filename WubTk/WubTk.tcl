@@ -35,6 +35,27 @@ class create ::WubTk {
 	}]
     }
 
+    method cbuttonJS {{what {$('.cbutton')}}} {
+	return [string map [list %B% $what] {
+	    %B%.click(function () { 
+		//alert($(this).attr("name")+" cbutton pressed");
+		$.ajax({
+		    context: this,
+		    type: "GET",
+		    url: "cbutton",
+		    data: {id: $(this).attr("name")},
+		    dataType: "script",
+		    success: function (data, textStatus, XMLHttpRequest) {
+			//alert("cbutton: "+data);
+		    },
+		    error: function (xhr, status, error) {
+			alert("ajax fail:"+status);
+		    }
+		});
+	    });
+	}]
+    }
+
     method variableJS {{what {$('.variable')}}} {
 	return [string map [list %B% $what] {
 	    %B%.change(function () {
@@ -130,6 +151,15 @@ class create ::WubTk {
 				    Debug.wubtk {not found button [namespace current]::$cmd}
 				}
 			    }
+			    cbutton {
+				set cmd .[dict Q.id]
+				if {[llength [info commands [namespace current]::$cmd]]} {
+				    Debug.wubtk {button $cmd}
+				    $cmd cbutton [dicgt Q.val]
+				} else {
+				    Debug.wubtk {not found cbutton [namespace current]::$cmd}
+				}
+			    }
 			    variable {
 				set cmd .[dict Q.id]
 				if {[llength [info commands [namespace current]::$cmd]]} {
@@ -148,6 +178,7 @@ class create ::WubTk {
 
 				# send js to track widget state
 				set r [jQ ready $r [my buttonJS]]
+				set r [jQ ready $r [my cbuttonJS]]
 				set r [jQ ready $r [my variableJS]]
 				set r [jQ ready $r [my commandJS]]
 
@@ -175,6 +206,9 @@ class create ::WubTk {
 			set jid "\$('#$id')"
 			switch -- $type {
 			    button {
+				append result [my buttonJS $jid]
+			    }
+			    checkbutton {
 				append result [my buttonJS $jid]
 			    }
 			    entry {
