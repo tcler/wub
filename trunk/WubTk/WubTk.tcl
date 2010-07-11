@@ -211,7 +211,8 @@ class create ::WubTk {
 			    checkbutton {
 				append result [my buttonJS $jid]
 			    }
-			    entry {
+			    entry -
+			    text {
 				append result [my variableJS $jid]
 			    }
 			}
