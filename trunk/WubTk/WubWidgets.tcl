@@ -201,16 +201,17 @@ namespace eval ::WubWidgets {
 	    set var [my cget variable]
 	    corovars $var
 	    set checked [expr {$var != 0}]
+
 	    my reset
 	    return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked $label]
 	}
 	
 	superclass ::WubWidgets::widget
 	constructor {args} {
-	    next {*}[dict merge [list variable [string trim [namespace tail [self]] .]] {
+	    next {*}[dict merge [list -variable [string trim [namespace tail [self]] .]] {
 		text ""
 		foreground black background white justify left
-		command ""  
+		command ""
 	    } $args]
 	}
     }
@@ -225,6 +226,7 @@ namespace eval ::WubWidgets {
 	    } else {
 		set val [my cget text]
 	    }
+
 	    my reset
 	    return [<div> id $id style [my style] $val]
 	}
