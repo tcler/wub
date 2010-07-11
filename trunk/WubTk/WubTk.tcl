@@ -240,8 +240,14 @@ class create ::WubTk {
     constructor {args} {
 	variable tolerant 1
 	variable {*}[Site var? WubTk]	;# allow .ini file to modify defaults
+	variable lambda ""
 	variable {*}$args
 	namespace eval [info object namespace [self]]::Coros {}
+
+	if {[info exists file]} {
+	    append lambda [fileutil::cat -- $file]
+	}
+
 	next {*}$args
     }
 }
