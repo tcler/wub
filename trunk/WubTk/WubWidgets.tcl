@@ -99,6 +99,8 @@ namespace eval ::WubWidgets {
 			# should create variable if necessary
 			# set write trace on variable, to record change.
 		    }
+		    text {
+		    }
 		    default {
 		    }
 		}
@@ -108,11 +110,12 @@ namespace eval ::WubWidgets {
 	    if {[info exists textvariable]
 		&& $textvariable ne ""
 	    } {
-		corovars $textvariable
+		variable text
 		if {![info exists text]} {
 		    set text ""
 		}
 		Debug.wubwidgets {[info coroutine] setting -textvariable $textvariable to '$text'}
+		corovars $textvariable
 		set $textvariable $text
 		trace add variable $textvariable write [list [self] changevar]
 	    }
@@ -229,35 +232,136 @@ namespace eval ::WubWidgets {
     }
     
     oo::class create textC {
-	method get {{start 0} {end end}} {
-	    return [string range [my cget text] $start $end]
-	}
-	
-	method delete {{start 0} {end end}} {
-	    set text [my cget text]
-	    set text [string range $text 0 $start-1][string range $text $end end]
-	    my configure text $text
-	    return $text
-	}
+        method get {{start 1.0} {end end}} {
+            set text [my cget text]
 
-	method insert {{start end} newtext} {
-	    set text [my cget text]
-	    set text [string range $text 0 $start]${newtext}[string range $text ${start}+1 end]
-	    my configure text $text
-	    return $text
-	}
-	
+            if {$start == "1.0" && $end == "end"} {
+                return $text
+            }
+
+            #separate indices into line and char counts
+            foreach {sline schar} [split $start .] {}
+            foreach {eline echar} [split $end .] {}
+
+            set text [my cget text]
+            set linecount [regexp -all \n $text]
+
+            #convert end indicies into numerical indicies
+            if {$schar == "end"} {incr sline; set schar 0}
+            if {$eline == "end"} {set eline $linecount; set echar 0; incr linecount}
+
+            #compute deletion start and ending points
+            set nlpos 0
+            for {set linepos 1} {$linepos <= $linecount} {incr linepos}    {
+
+                if {$linepos == $sline} {
+                    set startpos $nlpos
+                    incr startpos $schar
+                    #now we got the start position
+                }
+
+                if {$linepos == $eline} {
+                    set endpos $nlpos
+                    incr endpos $echar
+                    #now we got the end point, lets blow this clam bake
+                    break
+                }
+
+                incr nlpos
+                set nlpos [string first \n $text $nlpos]
+            }
+
+            set text [string range $text $startpos+1 $endpos]
+            return $text
+        }
+
+        method delete {{start 1.0} {end end}} {
+            if {$start == "1.0" && $end == "end"} {
+                set text ""
+            } else {
+                #separate indices into line and char counts
+                foreach {sline schar} [split $start .] {}
+                foreach {eline echar} [split $end .] {}
+
+                set text [my cget text]
+                set linecount [regexp -all \n $text]
+
+                #convert end indicies into numerical indicies
+                if {$schar == "end"} {incr sline; set schar 0}
+                if {$eline == "end"} {set eline $linecount; set echar 0; incr linecount}
+
+                #compute deletion start and ending points
+                set nlpos 0
+                for {set linepos 1} {$linepos <= $linecount} {incr linepos}    {
+                    Debug.wubwidgets {*** $linepos $nlpos}
+                    if {$linepos == $sline} {
+                        set startpos $nlpos
+                        incr startpos $schar
+                        #now we got the start position
+                    }
+
+                    if {$linepos == $eline} {
+                        set endpos $nlpos
+                        incr endpos $echar
+			#now we got the end point, so finish
+                        break
+                    }
+
+                    incr nlpos
+                    set nlpos [string first \n $text $nlpos]
+                }
+
+                set text [string range $text 0 $startpos][string range $text $endpos+1 end]
+            }
+
+            my configure text $text
+            return $text
+        }
+
+        method insert {{start end} newtext} {
+            set text [my cget text]
+
+            if {$start == "end"} {
+                #just tack the new text on the end
+                append text $newtext
+            }    else {
+                #we got work to do
+                foreach {sline schar} [split $start .] {}
+                set linecount [regexp -all \n $text]
+
+                #compute insertion point
+                set nlpos 0
+                for {set linepos 1} {$linepos <= $linecount} {incr linepos}    {
+
+                    if {$linepos == $sline} {
+                        set startpos $nlpos
+                        incr startpos $schar
+                        #now we got the start position
+                        break
+                    }
+
+                    incr nlpos
+                    set nlpos [string first \n $text $nlpos]
+                }
+
+                #insett newtext at the char pos calculated in insertpos
+                set text [string range $text 0 $startpos]${newtext}[string range $text ${startpos}+1 end]
+            }
+
+            my configure text $text
+            return $text
+        }
+
 	method render {{id ""}} {
 	    set id [my id $id]
 	    set state [my cget -state]
-	    set val [my get]
 	    
 	    if {[my cexists textvariable]} {
 		set var [my cget -textvariable]
 		corovars $var
 		set val [set $var]
 	    } else {
-		set val ""
+		set val [my get]
 	    }
 	    set class {class variable}
 	    
@@ -337,7 +441,6 @@ namespace eval ::WubWidgets {
 	    }
 	    
 	    set content [<table> [join $rows \n]]
-	    
 	}
 	
 	method configure {widget args} {
