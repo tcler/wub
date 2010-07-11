@@ -155,7 +155,7 @@ class create ::WubTk {
 				set cmd .[dict Q.id]
 				if {[llength [info commands [namespace current]::$cmd]]} {
 				    Debug.wubtk {button $cmd}
-				    $cmd cbutton [dicgt Q.val]
+				    $cmd cbutton [dict Q.val]
 				} else {
 				    Debug.wubtk {not found cbutton [namespace current]::$cmd}
 				}
