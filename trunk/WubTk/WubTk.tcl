@@ -26,6 +26,9 @@ class create ::WubTk {
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
 			//alert("button: "+data);
+		    },
+		    error: function (xhr, status, error) {
+			alert("ajax fail:"+status);
 		    }
 		});
 	    });
@@ -44,6 +47,9 @@ class create ::WubTk {
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
 			//alert("button: "+data);
+		    },
+		    error: function (xhr, status, error) {
+			alert("ajax fail:"+status);
 		    }
 		});
 	    });
@@ -62,6 +68,9 @@ class create ::WubTk {
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
 			//alert("command: "+data);
+		    },
+		    error: function (xhr, status, error) {
+			alert("ajax fail:"+status);
 		    }
 		});
 	    });
