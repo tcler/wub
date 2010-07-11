@@ -17,7 +17,7 @@ class create ::WubTk {
     method buttonJS {{what {$('.button')}}} {
 	return [string map [list %B% $what] {
 	    %B%.click(function () { 
-		alert($(this).attr("name")+" button pressed");
+		//alert($(this).attr("name")+" button pressed");
 		$.ajax({
 		    context: this,
 		    type: "GET",
@@ -25,7 +25,7 @@ class create ::WubTk {
 		    data: {id: $(this).attr("name")},
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
-			alert("button: "+data);
+			//alert("button: "+data);
 		    },
 		    error: function (xhr, status, error) {
 			alert("ajax fail:"+status);
@@ -38,7 +38,7 @@ class create ::WubTk {
     method variableJS {{what {$('.variable')}}} {
 	return [string map [list %B% $what] {
 	    %B%.change(function () {
-		alert($(this).attr("name")+" changed: " + $(this).val());
+		//alert($(this).attr("name")+" changed: " + $(this).val());
 		$.ajax({
 		    context: this,
 		    type: "GET",
@@ -46,7 +46,7 @@ class create ::WubTk {
 		    data: {id: $(this).attr("name"), val: $(this).val()},
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
-			alert("button: "+data);
+			//alert("button: "+data);
 		    },
 		    error: function (xhr, status, error) {
 			alert("ajax fail:"+status);
@@ -59,7 +59,7 @@ class create ::WubTk {
     method commandJS {{what {$('.command')}}} {
 	return [string map [list %B% $what] {
 	    %B%.change(function callback(eventObject) {
-		alert($(this).attr("name")+" command invoked");
+		//alert($(this).attr("name")+" command invoked");
 		$.ajax({
 		    context: this,
 		    type: "GET",
@@ -67,7 +67,7 @@ class create ::WubTk {
 		    data: {id: $(this).attr("name")},
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
-			alert("command: "+data);
+			//alert("command: "+data);
 		    },
 		    error: function (xhr, status, error) {
 			alert("ajax fail:"+status);
