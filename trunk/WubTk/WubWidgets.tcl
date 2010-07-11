@@ -203,7 +203,7 @@ namespace eval ::WubWidgets {
 	    set checked [expr {$var != 0}]
 
 	    my reset
-	    return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked $label]
+	    return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked value 1 $label]
 	}
 	
 	superclass ::WubWidgets::widget
