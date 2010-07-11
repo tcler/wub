@@ -43,7 +43,7 @@ class create ::WubTk {
 		    context: this,
 		    type: "GET",
 		    url: "cbutton",
-		    data: {id: $(this).attr("name")},
+		    data: {id: $(this).attr("name"), val: $(this).val()},
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
 			//alert("cbutton: "+data);
