@@ -166,6 +166,7 @@ class create ::WubTk {
 		    foreach {id html type} [grid changes] {
 			Debug.wubtk {changed id: $id type: $type}
 			dict lappend classified $type $id
+			set html [string map {\n \\n} $html]
 			append result [string map [list %ID% $id %H% $html] {
 			    $('#%ID%').replaceWith("%H%");
 			}]
