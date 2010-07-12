@@ -8,6 +8,9 @@ package require md5
 package require WubWidgets
 
 package provide WubTk 1.0
+if {[catch {package present Tk}]} {
+    package provide Tk 8.6
+}
 
 set ::API(Domains/WubTk) {
     {WubTk - a Web emulation of Tk}
