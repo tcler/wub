@@ -130,7 +130,11 @@ class create ::WubTk {
 	    Debug.wubtk {coroutine initialising - ($r) reply}
 	    
 	    set result [coroutine [namespace current]::Coros::${cmd}::_do ::apply [list {r lambda} {
-		eval $lambda	;# install the user code
+		if {[catch {
+		    eval $lambda	;# install the user code
+		} e eo]} {
+		    return [Http ServerError $r $e $eo]
+		}
 
 		# initial client direct request
 		Debug.wubtk {processing [info coroutine]}
