@@ -8,8 +8,8 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 }
 
 package require Debug
-Debug define Httpd 10
-Debug define HttpdLow 10
+Debug define httpd 10
+Debug define httpdlow 10
 Debug define watchdog 10
 
 Debug define Entity 10
