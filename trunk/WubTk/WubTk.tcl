@@ -17,6 +17,10 @@ set ::API(Domains/WubTk) {
 }
 
 class create ::WubTk {
+    # refresh client on change
+    method refresh {} {
+    }
+
     method buttonJS {{what {$('.button')}}} {
 	return [string map [list %B% $what] {
 	    %B%.click(function () { 
@@ -79,26 +83,46 @@ class create ::WubTk {
 	    });
 	}]
     }
-    
-    method commandJS {{what {$('.command')}}} {
-	return [string map [list %B% $what] {
-	    %B%.change(function callback(eventObject) {
-		//alert($(this).attr("name")+" command invoked");
-		$.ajax({
-		    context: this,
-		    type: "GET",
-		    url: "command",
-		    data: {id: $(this).attr("name")},
-		    dataType: "script",
-		    success: function (data, textStatus, XMLHttpRequest) {
-			//alert("command: "+data);
-		    },
-		    error: function (xhr, status, error) {
-			alert("ajax fail:"+status);
-		    }
-		});
-	    });
-	}]
+
+    method update {r changes {err ""}} {
+	set result ""
+	foreach {id html type} $changes {
+	    Debug.wubtk {changed id: $id type: $type}
+	    dict lappend classified $type $id
+	    set html [string map {\n \\n} $html]
+	    append result [string map [list %ID% $id %H% $html] {
+		$('#%ID%').replaceWith("%H%");
+	    }]
+
+	    # send js to track widget state
+	    set jid "\$('#$id')"
+	    switch -- $type {
+		button {
+		    append result [my buttonJS $jid]
+		}
+		checkbutton {
+		    append result [my buttonJS $jid]
+		}
+		entry -
+		text {
+		    append result [my variableJS $jid]
+		}
+	    }
+	}
+
+	if {$err ne ""} {
+	    set err [string map [list \" \\\" ' \\'] $err]
+	    append result [string map [list %E% $err] {
+		$('#ErrDiv').html('<p>Error: %E% </p>');
+	    }]
+	} elseif {$result ne ""} {
+	    append result {
+		$('#ErrDiv').html('');
+	    }
+	}
+ 
+	Debug.wubtk {SCRIPT: ($result)}
+	return $result
     }
 
     # process request helper
@@ -126,6 +150,13 @@ class create ::WubTk {
 	    namespace eval [namespace current]::Coros::$cmd {
 		gridC create grid	;# make per-coro single instance of grid
 		wmC create wm		;# make per-coro single instance of wm
+
+		proc connection {args} {
+		    after 0 [list [info coroutine] prod]
+		}
+		proc destroy {} {
+		    namespace delete [namespace current]
+		}
 	    }
 
 	    # install the user code in the coro's namespace
@@ -143,13 +174,61 @@ class create ::WubTk {
 		Debug.wubtk {processing [info coroutine]}
 
 		set r {}
-		while {[dict size [set r [::yield $r]]]} {
+		while {1} {
+		    set r [::yield $r]
+		    if {[catch {dict size $r} sz]} {
+			# this is not a dict... is it a prod?
+			if {$r eq "prod"} {
+			    # our grid has prodded us - there are changes
+			    if {[info exists _refresh]} {
+				Debug.wubtk {prodded with suspended refresh}
+				# we've been prodded by grid with a pending refresh
+				set r [Http Ok $_refresh [my update $r [grid changes]] text/javascript]
+				unset _refresh
+				set r [Httpd Resume $r]
+			    } else {
+				Debug.wubtk {prodded without suspended refresh}
+				grid prod 0	;# no registered interest
+			    }
+			    continue
+			} else {
+			    Debug.error {WubTk [info coroutine] got bad call '$r'}
+			    grid prod 0	;# no registered interest
+			    error "WubTk [info coroutine] got bad call '$r'"
+			}
+		    } elseif {$sz == 0} {
+			Debug.wubtk {requested termination}
+			break	;# we've been asked to terminate
+		    }
+
 		    # unpack query response
 		    set Q [Query parse $r]; dict set r -Query $Q; set Q [Query flatten $Q]
 		    Debug.wubtk {[info coroutine] Event: [dict get? $r -extra] ($Q)}
+		    set cmd ""; set op ""
 		    set err [catch {
 			switch -- [dict get? $r -extra] {
+			    refresh {
+				# client has asked us to push changes
+				set update [my update $r [grid changes]]
+				if {$update eq ""} {
+				    # no updates to send
+				    if {[info exists _refresh]} {
+					# we already have a pending _refresh
+					# this is very bad news.
+					Debug.error {WubTk [info coroutine] - double refresh}
+				    }
+				    set _refresh $r	;# remember request
+				    set r [Httpd Suspend $r]	;# suspend until changes
+				    grid prod 1	;# register interest
+				} else {
+				    grid prod 0	;# no registered interest
+				    set r [Http Ok $r $update text/javascript]
+				}
+				continue	;# we've served this request
+			    }
+
 			    button {
+				# client button has been pressed
 				set cmd .[dict Q.id]
 				if {[llength [info commands [namespace current]::$cmd]]} {
 				    Debug.wubtk {button $cmd}
@@ -158,7 +237,9 @@ class create ::WubTk {
 				    Debug.wubtk {not found button [namespace current]::$cmd}
 				}
 			    }
+
 			    cbutton {
+				# client checkbutton has been pressed
 				set cmd .[dict Q.id]
 				if {[llength [info commands [namespace current]::$cmd]]} {
 				    Debug.wubtk {button $cmd}
@@ -167,7 +248,9 @@ class create ::WubTk {
 				    Debug.wubtk {not found cbutton [namespace current]::$cmd}
 				}
 			    }
+
 			    variable {
+				# client variable has been set
 				set cmd .[dict Q.id]
 				if {[llength [info commands [namespace current]::$cmd]]} {
 				    Debug.wubtk {button $cmd}
@@ -175,8 +258,6 @@ class create ::WubTk {
 				} else {
 				    Debug.wubtk {not found button [namespace current]::$cmd}
 				}
-			    }
-			    command {
 			    }
 
 			    default {
@@ -187,7 +268,6 @@ class create ::WubTk {
 				set r [jQ ready $r [my buttonJS]]
 				set r [jQ ready $r [my cbuttonJS]]
 				set r [jQ ready $r [my variableJS]]
-				set r [jQ ready $r [my commandJS]]
 
 				set content [grid render [namespace tail [info coroutine]]]
 				append content [<div> id ErrDiv {}]
@@ -198,48 +278,20 @@ class create ::WubTk {
 			    }
 			}
 		    } e eo]
-		    if {$err == 4} continue
 
-		    set result ""
-		    foreach {id html type} [grid changes] {
-			Debug.wubtk {changed id: $id type: $type}
-			dict lappend classified $type $id
-			set html [string map {\n \\n} $html]
-			append result [string map [list %ID% $id %H% $html] {
-			    $('#%ID%').replaceWith("%H%");
-			}]
-
-			# send js to track widget state
-			set jid "\$('#$id')"
-			switch -- $type {
-			    button {
-				append result [my buttonJS $jid]
-			    }
-			    checkbutton {
-				append result [my buttonJS $jid]
-			    }
-			    entry -
-			    text {
-				append result [my variableJS $jid]
-			    }
-			}
+		    switch -- $err {
+			4 continue
+			3 break
 		    }
 
 		    if {$err} {
-			set e [string map [list \" \\\" ' \\'] $e]
-			append result [string map [list %C% $cmd %OP% [dict get? $r -extra] %E% $e] {
-			    $('#ErrDiv').html('<p>%OP% %C% Error: %E% </p>');
-			}]
-			Debug.wubtk {Error: $e ($eo)}
+			set e "$cmd: $e"
 		    } else {
-			append result {
-			    $('#ErrDiv').html('');
-			}
+			set e ""
 		    }
-		    
-		    Debug.wubtk {SCRIPT: ($result)}
-		    set r [Http Ok $r $result text/javascript]
+		    set r [Http Ok $r [my update $r [grid changes] $e] text/javascript]
 		}
+		destroy	;# destroy all resources
 	    } [namespace current]::Coros::$cmd] $r $lambda]
 	    
 	    if {$result ne ""} {
@@ -285,7 +337,6 @@ class create ::WubTk {
 	variable lambda ""
 	variable {*}$args
 	namespace eval [info object namespace [self]]::Coros {}
-
 	if {[info exists file]} {
 	    append lambda [fileutil::cat -- $file]
 	}
