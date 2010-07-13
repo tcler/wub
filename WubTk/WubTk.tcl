@@ -184,9 +184,9 @@ class create ::WubTk {
 			    if {[info exists _refresh]} {
 				Debug.wubtk {prodded with suspended refresh}
 				# we've been prodded by grid with a pending refresh
-				set r [Http Ok $_refresh [my update $r [grid changes]] application/javascript]
+				set re [Http Ok $_refresh [my update $r [grid changes]] application/javascript]
 				unset _refresh
-				set r [Httpd Resume $r]
+				Httpd Resume $re
 			    } else {
 				Debug.wubtk {prodded without suspended refresh}
 				grid prod 0	;# no registered interest
@@ -218,7 +218,7 @@ class create ::WubTk {
 					# likely the connection has timed out
 					Debug.wubtk {WubTk [info coroutine] - double refresh}
 					set _refresh [Http Ok $_refresh {} application/javascript]
-					Httpd Result $_refresh
+					Httpd Resume $_refresh
 				    }
 				    set _refresh $r	;# remember request
 				    set r [Httpd Suspend $r]	;# suspend until changes
@@ -294,6 +294,18 @@ class create ::WubTk {
 		    } else {
 			set e ""
 		    }
+
+		    # clear out any old refresh
+		    if {[info exists _refresh]} {
+			Debug.wubtk {satisfy old refresh}
+			set re [Http Ok $_refresh {} application/javascript]
+			unset _refresh
+			Httpd Resume $re
+		    } else {
+			Debug.wubtk {prodded without suspended refresh}
+			grid prod 0	;# no registered interest
+		    }
+
 		    set r [Http Ok $r [my update $r [grid changes] $e] application/javascript]
 		}
 		destroy	;# destroy all resources
