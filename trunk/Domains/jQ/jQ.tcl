@@ -798,6 +798,64 @@ namespace eval ::jQ {
 	}]
     }
 
+    proc comet {r url args} {
+	set url '[string trim $url ']'
+	set opts [opts datepicker {*}$args]
+	if {$opts eq ""} {
+	    set opts "{}"
+	}
+	return [weave $r {
+	    jquery.js
+	} %URL $url %OPTS $opts {
+	    jQuery.comet = {
+		fetching: false,
+		url: %URL,
+
+		timeout: 60000,
+		wait: 10000,
+		onError: null,
+		type: 'GET',
+		dataType: "script",
+		async: true,
+		cache: false,
+		ifModified: false,
+
+		success: function(xhr, status, error) {
+		    this.fetching = false;
+		    //alert("success");
+		    this.fetch();	// got result - refetch
+		},
+		
+		error: function (xhr, status, error) {
+		    this.fetching = false;
+		    if (status == 'timeout') {
+			//alert("timeout");
+			this.fetch();	// on timeout - refetch
+		    } else if (status == 'timeout') {
+			//alert("notmodified");
+			this.fetch();	// on timeout - refetch
+		    } else {
+			if (this.onError != null) {
+			    this.onError(xhr, status, error);
+			}
+			// on error, wait then refetch
+			//alert("ajax fail:"+status);
+			setTimeout(this.fetch, this.wait);
+		    }
+		},
+		
+		fetch: function() {
+		    if (!this.fetching) {
+			this.fetching = true;
+			$.ajax(this);
+		    }
+		}
+	    };
+	    jQuery.comet = jQuery.extend(jQuery.comet, %OPTS);
+	    $.comet.fetch();	// start fetching
+	}]
+    }
+
     proc do {r} {
 	fs do $r
     }
