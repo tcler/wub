@@ -449,6 +449,9 @@ namespace eval ::WubWidgets {
 	    }
 	    return $title
 	}
+	constructor {args} {
+	    variable title "WubTk"
+	}
     }
 
     # grid store grid info in an x/y array gridLayout(column.row)
