@@ -10,7 +10,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 package require Debug
 Debug define Httpd 10
 Debug define HttpdLow 10
-Debug define Watchdog 10
+Debug define watchdog 10
 
 Debug define Entity 10
 Debug define slow 10
@@ -148,7 +148,7 @@ namespace eval Httpd {
 	set code [catch {uplevel 1 [list ::chan {*}$args]} e eo]
 	if {$code} {
 	    if {[info coroutine] ne ""} {
-		Debug.Httpd {[info coroutine]: chan error $code - $e ($eo)}
+		Debug.httpd {[info coroutine]: chan error $code - $e ($eo)}
 		if {[lindex $args 0] ne "close"} {
 		    terminate $e	;# clean up and close unless we're already closing
 		}
@@ -163,7 +163,7 @@ namespace eval Httpd {
     # shut down socket and reader
     proc terminate {{reason ""}} {
 	# this is the reader - trying to terminate
-	Debug.Httpd {[info coroutine] terminate: ($reason)}
+	Debug.httpd {[info coroutine] terminate: ($reason)}
 
 	# disable inactivity reaper for this coro
 	variable activity
@@ -191,7 +191,7 @@ namespace eval Httpd {
 	}
 
 	# destroy reader - that's all she wrote
-	Debug.Httpd {reader [info coroutine]: terminated}
+	Debug.httpd {reader [info coroutine]: terminated}
 	rename [info coroutine] ""; ::yieldm	;# terminate coro
     }
 
@@ -230,12 +230,12 @@ namespace eval Httpd {
     proc close? {r} {
 	# don't honour 1.0 keep-alives - why?
 	set close [expr {[dict get $r -version] < 1.1}]
-	Debug.HttpdLow {version [dict get $r -version] implies close=$close}
+	Debug.httpdlow {version [dict get $r -version] implies close=$close}
 
 	# handle 'connection: close' request from client
 	foreach ct [split [dict get? $r connection] ,] {
 	    if {[string tolower [string trim $ct]] eq "close"} {
-		Debug.HttpdLow {Tagging close at connection:close request}
+		Debug.httpdlow {Tagging close at connection:close request}
 		set close 1
 		break	;# don't need to keep going
 	    }
@@ -391,7 +391,7 @@ namespace eval Httpd {
 
     # format4send - format up a reply for sending.
     proc format4send {reply args} {
-	Debug.Httpd {format4send $args}
+	Debug.httpd {format4send $args}
 	set file ""
 	set sock [dict get $reply -sock]
 	set cache [expr {[dict get? $args -cache] eq "1"}]
@@ -420,7 +420,7 @@ namespace eval Httpd {
 		    # 204 (no content),
 		    # and 304 (not modified)
 		    # responses MUST NOT include a message-body
-		    Debug.HttpdLow {format4send: code is $code}
+		    Debug.httpdlow {format4send: code is $code}
 		    set reply [Http expunge $reply]
 		    set content ""
 		    catch {dict unset reply -content}
@@ -435,21 +435,21 @@ namespace eval Httpd {
 			# correctly charset-encode content
 			set reply [charset $reply]
 
-			#Debug.HttpdLow {pre-CE content length [string length [dict get $reply -content]]}
+			#Debug.httpdlow {pre-CE content length [string length [dict get $reply -content]]}
 			# also gzip content so cache can store that.
 			lassign [CE $reply {*}$args] reply content
 			set file ""	;# this is not a file
 
 			# ensure content-length is correct
 			dict set reply content-length [string length $content]
-			#Debug.HttpdLow {post-CE content length [string length $content]}
+			#Debug.httpdlow {post-CE content length [string length $content]}
 		    } elseif {[dict exists $reply -file]} {
 			# the app has returned the pathname of a file instead of content
 			set file [dict get $reply -file]
 			dict set reply content-length [file size $file]
 			set content ""
 		    } else {
-			Debug.HttpdLow {format4send: response empty - no content in reply}
+			Debug.httpdlow {format4send: response empty - no content in reply}
 			set content ""	;# there is no content
 			set file ""	;# this is not a file
 			set empty 1	;# it's empty
@@ -484,7 +484,7 @@ namespace eval Httpd {
 			    dict set reply content-range "bytes $from-$to/$size"
 			    dict set reply content-length [expr {$from-$to+1}]
 
-			    Debug.Httpd {range: [dict get $reply content-range]}
+			    Debug.httpd {range: [dict get $reply content-range]}
 			}
 		    }
 		}
@@ -603,7 +603,7 @@ namespace eval Httpd {
 
 	    Debug.error {Sending Error: '$r' ($eo) Sending Error}
 	} else {
-	    Debug.HttpdLow {format4send: ($header)}
+	    Debug.httpdlow {format4send: ($header)}
 	}
 	return [list $reply $header $content $file $empty $cache $range]
     }
@@ -611,7 +611,7 @@ namespace eval Httpd {
     # our outbound fcopy has completed
     proc fcopy_complete {fd bytes written {error ""}} {
 	corovars replies closing socket
-	Debug.Httpd {[info coroutine] fcopy_complete: $fd $bytes $written '$error'}
+	Debug.httpd {[info coroutine] fcopy_complete: $fd $bytes $written '$error'}
 	watchdog
 
 	catch {close $fd}	;# remove file descriptor
@@ -620,7 +620,7 @@ namespace eval Httpd {
 	set gone [catch {chan eof $socket} eof]
 	if {$gone || $eof} {
 	    # detect socket closure ASAP in sending
-	    Debug.Httpd {[info coroutine] Lost connection on fcopy}
+	    Debug.httpd {[info coroutine] Lost connection on fcopy}
 	    if {$error eq ""} {
 		set error "eof on $socket in fcopy"
 	    }
@@ -637,10 +637,10 @@ namespace eval Httpd {
 	} elseif {![chan pending output $socket]} {
 	    # only when the client has consumed our output do we
 	    # restart reading input
-	    Debug.HttpdLow {[info coroutine] fcopy_complete: restarting reader}
+	    Debug.httpdlow {[info coroutine] fcopy_complete: restarting reader}
 	    readable
 	} else {
-	    Debug.HttpdLow {[info coroutine] fcopy_complete: suspending reader [chan pending output $socket]}
+	    Debug.httpdlow {[info coroutine] fcopy_complete: suspending reader [chan pending output $socket]}
 	}
 
 	# see if the writer needs service
@@ -719,13 +719,13 @@ namespace eval Httpd {
     proc respond {} {
 	corovars replies response sequence generation satisfied transaction closing unsatisfied socket
 	if {[string match DEAD* [info coroutine]]} {
-	    Debug.Httpd {[info coroutine] appears to be dead}
+	    Debug.httpd {[info coroutine] appears to be dead}
 	    terminate "oops - we're dead in respond"
 	    return
 	}
 	if {$closing && ![dict size $unsatisfied]} {
 	    # we have no more requests to satisfy and we want to close
-	    Debug.Httpd {[info coroutine] closing as there's nothing pending}
+	    Debug.httpd {[info coroutine] closing as there's nothing pending}
 	    terminate "finally close in responder"
 	    return
 	}
@@ -738,14 +738,14 @@ namespace eval Httpd {
 	variable activity
 
 	# send all responses in sequence from the next expected to the last available
-	Debug.Httpd {[info coroutine] pending to send: ([dict keys $replies])}
+	Debug.httpd {[info coroutine] pending to send: ([dict keys $replies])}
 	foreach next [lsort -integer [dict keys $replies]] {
 	    watchdog	;# tickle the watchdog
 
 	    set gone [catch {chan eof $socket} eof]
 	    if {$gone || $eof} {
 		# detect socket closure ASAP in sending
-		Debug.Httpd {[info coroutine] Lost connection on transmit}
+		Debug.httpd {[info coroutine] Lost connection on transmit}
 		terminate "eof on $socket"
 		return 1	;# socket's gone - terminate session
 	    }
@@ -756,7 +756,7 @@ namespace eval Httpd {
 		# so we don't have a response for the next transaction.
 		# we must therefore wait until all the preceding transactions
 		# have something to send
-		Debug.Httpd {[info coroutine] no pending or $next doesn't follow $response}
+		Debug.httpd {[info coroutine] no pending or $next doesn't follow $response}
 		unwritable	;# no point in trying to write
 
 		if {[chan pending output $socket]} {
@@ -783,16 +783,16 @@ namespace eval Httpd {
 	    # have been satisfied.
 	    if {$close} {
 		# inform client of intention to close
-		Debug.HttpdLow {close requested on $socket - sending header}
+		Debug.httpdlow {close requested on $socket - sending header}
 		append head "Connection: close" \r\n	;# send a close just in case
 		# Once this header's been sent, we're committed to closing
 	    }
 
 	    # send headers with terminating nl
 	    chan puts -nonewline $socket "$head\r\n"
-	    Debug.Httpd {[info coroutine] SENT HEADER: $socket '[lindex [split $head \r] 0]' [string length $head] bytes} 4
+	    Debug.httpd {[info coroutine] SENT HEADER: $socket '[lindex [split $head \r] 0]' [string length $head] bytes} 4
 	    chan flush $socket	;# try to flush as early as possible
-	    Debug.HttpdLow {[info coroutine] flushed $socket} 4
+	    Debug.httpdlow {[info coroutine] flushed $socket} 4
 
 	    # send the content/entity (if any)
 	    # note: we must *not* send a trailing newline, as this
@@ -817,10 +817,10 @@ namespace eval Httpd {
 			lassign $range from to
 			chan seek $fd $from
 			set bytes [expr {$to-$from+1}]
-			Debug.Httpd {[info coroutine] FCOPY RANGE: '$file' bytes $from-$to/$bytes} 8
+			Debug.httpd {[info coroutine] FCOPY RANGE: '$file' bytes $from-$to/$bytes} 8
 			chan copy $fd $raw -command [list [info coroutine] FCOPY $fd $bytes]
 		    } else {
-			Debug.Httpd {[info coroutine] FCOPY ENTITY: '$file' $bytes bytes} 8
+			Debug.httpd {[info coroutine] FCOPY ENTITY: '$file' $bytes bytes} 8
 			set raw [chan configure $socket -fd]
 			chan copy $fd $raw -command [list [info coroutine] FCOPY $fd $bytes]
 		    }
@@ -829,10 +829,10 @@ namespace eval Httpd {
 		    # send literal content
 		    lassign $range from to
 		    chan puts -nonewline $socket [string range $content $from $to]
-		    Debug.Httpd {[info coroutine] SENT RANGE: bytes $from-$to/[string length $content] bytes} 8
+		    Debug.httpd {[info coroutine] SENT RANGE: bytes $from-$to/[string length $content] bytes} 8
 		} else {
 		    chan puts -nonewline $socket $content	;# send the content
-		    Debug.Httpd {[info coroutine] SENT ENTITY: [string length $content] bytes} 8
+		    Debug.httpd {[info coroutine] SENT ENTITY: [string length $content] bytes} 8
 		}
 	    }
 	    #chan flush $socket
@@ -881,7 +881,7 @@ namespace eval Httpd {
 	    # but their responses will only be returned in strict and close order.
 	}
 
-	Debug.Httpd {write: [info coroutine] ([rdump $r]) satisfied: ($satisfied) unsatisfied: ($unsatisfied)}
+	Debug.httpd {write: [info coroutine] ([rdump $r]) satisfied: ($satisfied) unsatisfied: ($unsatisfied)}
 
 	# fetch transaction from the caller's identity
 	if {![dict exists $r -transaction]} {
@@ -936,7 +936,7 @@ namespace eval Httpd {
 	# close? - is the connection to be closed after this response?
 	# chunked? - is the content to be sent in chunked mode?
 	# empty? - is there actually no content, as distinct from 0-length content?
-	Debug.Httpd {[info coroutine] ADD TRANS: ([dict keys $replies])}
+	Debug.httpd {[info coroutine] ADD TRANS: ([dict keys $replies])}
 	dict set replies $trx [list $header $content $file [close? $r] $empty $range]
 	dict set satisfied $trx [dict merge $r {-content <elided>}]	;# record satisfaction of transaction
 
@@ -966,7 +966,7 @@ namespace eval Httpd {
     #	Send transaction responses to client
     #	Possibly close socket, possibly cache response
     proc send {r {cache 1}} {
-	Debug.Httpd {[info coroutine] send: ([rdump $r]) $cache [expr {[dict get? $r -ua_class] ni {browser unknown}}]}
+	Debug.httpd {[info coroutine] send: ([rdump $r]) $cache [expr {[dict get? $r -ua_class] ni {browser unknown}}]}
 	dict set r -sent [clock microseconds]
 
 	# precheck generation
@@ -977,7 +977,7 @@ namespace eval Httpd {
 
 	# if this isn't a browser - do not cache!
 	if {[dict get? $r -ua_class] ni {browser unknown}} {
-	    Debug.Httpd {not a browser - do not cache [dict get $r -uri]}
+	    Debug.httpd {not a browser - do not cache [dict get $r -uri]}
 	    set cache 0	;# ??? TODO
 	}
 
@@ -999,7 +999,7 @@ namespace eval Httpd {
 	    set r [Cache put $r]	;# cache it before it's sent
 	    dict set r -caching inserted
 	} else {
-	    Debug.Httpd {Do Not Cache put: ([rdump $r]) cache:$cache}
+	    Debug.httpd {Do Not Cache put: ([rdump $r]) cache:$cache}
 	}
 
 	if {[catch {
@@ -1029,7 +1029,7 @@ namespace eval Httpd {
 	}
 	variable crs
 	while {1} {
-	    Debug.HttpdLow {coro [info coroutine] yielding}
+	    Debug.httpdlow {coro [info coroutine] yielding}
 	    set x [after info]
 	    if {[llength $x] > 10} {
 		Debug.log {After: [llength $x]}
@@ -1049,18 +1049,18 @@ namespace eval Httpd {
 
 		set last [logtransition $op]
 	    } e eo]} {
-		Debug.HttpdLow {yield crashed $e ($eo)}
+		Debug.httpdlow {yield crashed $e ($eo)}
 		terminate yieldcrash
 	    }
 
 	    set gone [catch {chan eof $socket} eof]
 	    if {$gone || $eof || [string match DEAD* [info coroutine]]} {
-		Debug.HttpdLow {[info coroutine] yield - eof $socket}
+		Debug.httpdlow {[info coroutine] yield - eof $socket}
 		terminate "oops - we're dead in yield"
 		return
 	    }
 
-	    Debug.HttpdLow {back from yield [info coroutine] -> $op}
+	    Debug.httpdlow {back from yield [info coroutine] -> $op}
 
 	    # record a log of our activity to fend off the reaper
 	    variable activity
@@ -1080,7 +1080,7 @@ namespace eval Httpd {
 		    # check the channel
 		    set gone [catch {eof $socket} eof]
 		    if {$gone || $eof} {
-			Debug.Httpd {[info coroutine] eof detected from yield}
+			Debug.httpd {[info coroutine] eof detected from yield}
 			terminate "EOF on reading"
 		    } else {
 			watchdog
@@ -1100,7 +1100,7 @@ namespace eval Httpd {
 			# just read incoming data
 			watchdog
 			set x [chan read $socket]
-			Debug.Httpd {[info coroutine] is closing, read [string length $x] bytes}
+			Debug.httpd {[info coroutine] is closing, read [string length $x] bytes}
 		    }
 		}
 
@@ -1123,7 +1123,7 @@ namespace eval Httpd {
 		REAPED {
 		    # we've been reaped
 		    corovars satisfied ipaddr closing headering
-		    Debug.Watchdog {[info coroutine] Reaped - satisfied:($satisfied) unsatisfied:($unsatisfied) ipaddr:$ipaddr closing:$closing headering:$headering}
+		    Debug.watchdog {[info coroutine] Reaped - satisfied:($satisfied) unsatisfied:($unsatisfied) ipaddr:$ipaddr closing:$closing headering:$headering}
 
 		    terminate {*}$args
 		}
@@ -1192,29 +1192,29 @@ namespace eval Httpd {
 
     # coroutine-enabled gets
     proc get {socket {reason ""}} {
-	Debug.HttpdLow {[info coroutine] get started}
+	Debug.httpdlow {[info coroutine] get started}
 	variable maxline
 	set result [yield]
 	set line ""
    	set gone [catch {eof $socket} eof]
 	while {[set status [chan gets $socket line]] == -1 && !$gone && !$eof} {
-	    Debug.HttpdLow {[info coroutine] gets $socket - status:$status '$line'}
+	    Debug.httpdlow {[info coroutine] gets $socket - status:$status '$line'}
 	    set result [yield]
 	    if {$maxline && [chan pending input $socket] > $maxline} {
 		error "Line too long (over $maxline) '[string range $line 0 20]..."
 	    }
 	    set gone [catch {eof $socket} eof]
 	}
-	Debug.HttpdLow {[info coroutine] get - success:$status}
+	Debug.httpdlow {[info coroutine] get - success:$status}
 
 	set gone [catch {chan eof $socket} eof]
 	if {$gone || $eof} {
-	    Debug.HttpdLow {[info coroutine] eof in get}
+	    Debug.httpdlow {[info coroutine] eof in get}
 	    terminate $reason	;# check the socket for closure
 	}
 
 	# return the line
-	Debug.HttpdLow {[info coroutine] get: '$line' [chan blocked $socket] [chan eof $socket]}
+	Debug.httpdlow {[info coroutine] get: '$line' [chan blocked $socket] [chan eof $socket]}
 	return $line
     }
 
@@ -1233,12 +1233,12 @@ namespace eval Httpd {
 
 	set gone [catch {chan eof $socket} eof]
 	if {$gone || $eof} {
-	    Debug.HttpdLow {[info coroutine] eof in read}
+	    Debug.httpdlow {[info coroutine] eof in read}
 	    terminate "eof in reading entity - $size"	;# check the socket for closure
 	}
 
 	# return the chunk
-	Debug.HttpdLow {[info coroutine] read: '$chunk'}
+	Debug.httpdlow {[info coroutine] read: '$chunk'}
     	return $chunk
     }
 
@@ -1283,7 +1283,7 @@ namespace eval Httpd {
 	    dict set cached -caching retrieved
 	    dict set cached -sent [clock microseconds]
 
-	    Debug.Httpd {[info coroutine] sending cached [dict get $r -uri] ([rdump $cached])}
+	    Debug.httpd {[info coroutine] sending cached [dict get $r -uri] ([rdump $cached])}
 	    logtransition CACHED
 	    set fail [catch {
 		write [dict merge $r $cached] 0	;# write cached response directly into outgoing structs
@@ -1329,7 +1329,7 @@ namespace eval Httpd {
 			set duration [dict get $rsp -suspend]
 		    }
 		    
-		    Debug.Httpd {SUSPEND: $duration}
+		    Debug.httpd {SUSPEND: $duration}
 		    logtransition SUSPEND
 		    grace $duration	;# response has been suspended
 		    incr done
@@ -1363,7 +1363,7 @@ namespace eval Httpd {
 		send [::convert convert [Http ServerError $r $rspp $eo]]
 	    } else {
 		# send the response to client
-		Debug.Httpd {[info coroutine] postprocess: [rdump $rspp]} 10
+		Debug.httpd {[info coroutine] postprocess: [rdump $rspp]} 10
 		watchdog
 		
 		# does post-process want to suspend?
@@ -1376,7 +1376,7 @@ namespace eval Httpd {
 			set duration [dict get $rspp -suspend]
 		    }
 		    
-		    Debug.Httpd {SUSPEND in postprocess: $duration}
+		    Debug.httpd {SUSPEND in postprocess: $duration}
 		    grace $duration	;# response has been suspended for $duration
 		} elseif {[dict exists $rspp -passthrough]} {
 		    # the output is handled elsewhere (as for WOOF.)
@@ -1516,7 +1516,7 @@ namespace eval Httpd {
     }
 
     proc reader {args} {
-	Debug.Httpd {create reader [info coroutine] - $args}
+	Debug.httpd {create reader [info coroutine] - $args}
 
 	# unpack all the passed-in args
 	set replies {}	;# dict of replies pending
@@ -1552,7 +1552,7 @@ namespace eval Httpd {
 		if {!$hstart} {
 		    set hstart [clock microseconds]
 		}
-		Debug.HttpdLow {reader [info coroutine] got line: ($line)}
+		Debug.httpdlow {reader [info coroutine] got line: ($line)}
 		if {[string trim $line] eq ""} {
 		    # rfc2616 4.1: In the interest of robustness,
 		    # servers SHOULD ignore any empty line(s)
@@ -1616,7 +1616,7 @@ namespace eval Httpd {
 		handle [Http Bad $r "URI too long '[dict get $r -uri]'" 414] "URI too long"
 	    }
 
-	    Debug.Httpd {[info coroutine] reader got request: ($r)}
+	    Debug.httpd {[info coroutine] reader got request: ($r)}
 
 	    # parse the URL
 	    set r [dict merge $r [Url parse [dict get $r -uri] 1]]
@@ -1700,7 +1700,7 @@ namespace eval Httpd {
 	    }
 
 	    # completed request header decode - now dispatch on the URL
-	    Debug.Httpd {[info coroutine] reader complete: $header ([rdump $r])}
+	    Debug.httpd {[info coroutine] reader complete: $header ([rdump $r])}
 
 	    # rename fields whose names are the same in request/response
 	    foreach n {cache-control pragma} {
@@ -1888,13 +1888,13 @@ namespace eval Httpd {
 		} else {
 		    set entity ""
 		    chan configure $socket -translation {binary binary}
-		    Debug.HttpdLow {[info coroutine] reader getting entity of length ($left)}
+		    Debug.httpdlow {[info coroutine] reader getting entity of length ($left)}
 		    while {$left > 0} {
 			set chunk [read $socket $left]
 			incr left -[string length $chunk]
-			Debug.HttpdLow {[info coroutine] reader getting remainder of entity of length ($left)}
+			Debug.httpdlow {[info coroutine] reader getting remainder of entity of length ($left)}
 			dict append r -entity $chunk
-			Debug.HttpdLow {[info coroutine] reader got whole entity}
+			Debug.httpdlow {[info coroutine] reader got whole entity}
 		    }
 		}
 		Debug.entity {entity of length: [string length [dict get $r -entity]]}
@@ -1953,33 +1953,33 @@ namespace eval Httpd {
 	variable activity
 	if {$grace < 0} {
 	    # take this coro off the reaper's list until next activity
-	    Debug.Watchdog {Giving [info coroutine] infinite grace}
+	    Debug.watchdog {Giving [info coroutine] infinite grace}
 	    catch {unset activity([info coroutine])}
 	} else {
-	    Debug.Watchdog {Giving [info coroutine] $grace grace}
+	    Debug.watchdog {Giving [info coroutine] $grace grace}
 	    set activity([info coroutine]) [expr {$grace + [clock milliseconds]}]
 	}
     }
 
     # format something to suspend this packet
     proc Suspend {r {grace -1}} {
-	Debug.Httpd {Suspending [rdump $r]}
+	Debug.httpd {Suspending [rdump $r]}
 	dict set r -suspend $grace
 	return $r
     }
 
     # resume this request
     proc Resume {r {cache 1}} {
-	Debug.Httpd {Resuming [rdump $r]}
+	Debug.httpd {Resuming [rdump $r]}
         # ask socket coro to send the response for us
 	# we inject the SEND event into the coro so Resume may be called from any
 	# event, thread or coroutine
 	set r [post $r]
 	set code [catch {{*}[dict get $r -send] SEND $r} e eo]
 	if {$code != 0} {
-	    Debug.error {Failed Resumption $code '$e' ($eo)}
+	    Debug.httpd {Failed Resumption $code '$e' ($eo)}
 	} else {
-	    Debug.Httpd {Resumption $code '$e' ($eo)}
+	    Debug.httpd {Resumption $code '$e' ($eo)}
 	}
 	return [list $code $e $eo]
     }
@@ -2016,7 +2016,7 @@ namespace eval Httpd {
     }
 
     proc kill {args} {
-	Debug.Watchdog {killing: "$args"}
+	Debug.watchdog {killing: "$args"}
 	variable files
 	variable crs
 	foreach what $args {
@@ -2044,7 +2044,7 @@ namespace eval Httpd {
 	variable timeout
 	set now [clock milliseconds]
 	set then [expr {$now - $timeout}]
-	Debug.Watchdog {Reaper Running [Http Now]}
+	Debug.watchdog {Reaper Running [Http Now]}
 
 	# kill any moribund coroutines
 	variable reaper
@@ -2060,7 +2060,7 @@ namespace eval Httpd {
 	    catch {
 		if {[catch {chan eof $s} eof] || $eof} {
 		    if {[catch {chan close $s} e eo]} {
-			Debug.Watchdog {closing $s: $e ($eo)}
+			Debug.watchdog {closing $s: $e ($eo)}
 		    }
 		}
 	    }
@@ -2074,7 +2074,7 @@ namespace eval Httpd {
 		    Debug.log {Bogus watchdog over $n}
 		    catch {unset activity($n)}	;# this is bogus
 		} elseif {$v < $then} {
-		    Debug.Watchdog {Reaping $n}
+		    Debug.watchdog {Reaping $n}
 		    catch {unset activity($n)}	;# prevent double-triggering
 		    catch {$n REAPED}	;# alert coro to its fate
 		    set reaper($n) [expr {$now + 2 * $timeout}]	;# if it doesn't respond, kill it.
@@ -2161,7 +2161,7 @@ namespace eval Httpd {
     }
 
     proc Forbid {sock} {
-	Debug.Httpd {Forbid $sock}
+	Debug.httpd {Forbid $sock}
 	variable server_id
 	puts $sock "HTTP/1.1 403 Forbidden\r"
 	puts $sock "Date: [Http Now]\r"
@@ -2175,7 +2175,7 @@ namespace eval Httpd {
 
     # connect - process a connection request
     proc Connect {sock ipaddr rport args} {
-	Debug.Httpd {Connect $sock $ipaddr $rport $args}
+	Debug.httpd {Connect $sock $ipaddr $rport $args}
 	if {[catch {
 	    set s [Socket new chan $sock -file sock.dump -capture 0]
 	    chan create {read write} $s
