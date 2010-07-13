@@ -9,10 +9,18 @@ namespace eval ::WubWidgets {
 	method type {} {
 	    set class [string range [namespace tail [info object class [self]]] 0 end-1]
 	}
+	method grid {grid} {
+	    variable _grid $grid
+	}
+
 	method change {{to ""}} {
 	    variable change
 	    if {$to eq ""} {
 		incr change
+		variable _grid
+		if {$_grid ne ""} {
+		    $_grid prod
+		}
 	    } else {
 		set change $to
 	    }
@@ -94,6 +102,7 @@ namespace eval ::WubWidgets {
 	method configure {args} {
 	    Debug.wubwidgets {[info coroutine] configure [self] ($args)}
 	    variable change
+	    variable _grid ""
 	    set vars {}
 	    dict for {n v} $args {
 		set n [string trim $n -]
@@ -149,6 +158,7 @@ namespace eval ::WubWidgets {
 	}
 
 	constructor {args} {
+	    variable _refresh ""
 	    my configure {*}$args
 	    if {[my cexists text]} {
 		variable text
@@ -460,6 +470,18 @@ namespace eval ::WubWidgets {
 	    return $changes	;# return the dict of changes by id
 	}
 
+	# something has changed us
+	method prod {{prod ""}} {
+	    variable interest
+	    if {$prod eq ""} {
+		if {$interest} {
+		    connection prod
+		}
+	    } else {
+		set interest $prod
+	    }
+	}
+
 	method render {id} {
 	    global args sessid
 	    variable maxrows; variable maxcols; variable grid
@@ -474,6 +496,7 @@ namespace eval ::WubWidgets {
 			dict with el {
 			    set id grid_${row}_$col
 			    Debug.wubwidgets {render $widget $id}
+			    uplevel 1 [list $widget grid [self]]	;# record grid
 			    lappend cols [<td> colspan $columnspan [uplevel 1 [list $widget render $id]]]
 			}
 			incr col $columnspan
@@ -490,6 +513,7 @@ namespace eval ::WubWidgets {
 	}
 	
 	method configure {widget args} {
+	    Debug.wubwidgets {grid configure $widget $args}
 	    #set defaults
 	    set column 0
 	    set row 0
@@ -516,6 +540,10 @@ namespace eval ::WubWidgets {
 	    
 	    variable grid
 	    dict set grid $row $column [list widget $widget columnspan $columnspan rowspan $rowspan sticky $sticky in $in]
+
+	    set id grid_${row}_$column
+	    uplevel 1 [list $widget grid [self]]	;# record grid
+	    uplevel 1 [list $widget id $id]	;# inform widget of its id
 	}
 
 	constructor {args} {
@@ -523,6 +551,7 @@ namespace eval ::WubWidgets {
 	    variable maxrows 0
 	    variable {*}$args
 	    variable grid {}
+	    variable interest 0
 	}
     }
 
