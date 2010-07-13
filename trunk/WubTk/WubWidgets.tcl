@@ -478,7 +478,7 @@ namespace eval ::WubWidgets {
 	    variable interest
 	    if {$prod eq ""} {
 		if {$interest} {
-		    connection prod
+		    catch {uplevel 1 {connection prod}}
 		}
 	    } else {
 		set interest $prod
