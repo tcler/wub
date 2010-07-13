@@ -479,7 +479,10 @@ namespace eval ::Dict {
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
     set a {b {c 1 d 0} c 2 d 3}
-    puts [dict a.b.c]
-    puts [dict a.b.q?]
+    puts [time {dict a.b.c}]
+    puts [time {dict a.b.c}]
+    puts [time {dict get $a b c}]
+    puts [time {dict get? $a b c}]
+    puts [time {dict a.b.q?}]
 }
 # vim: ts=8:sw=4:noet
