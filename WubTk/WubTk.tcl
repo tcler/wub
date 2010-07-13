@@ -161,9 +161,10 @@ class create ::WubTk {
 
 	    # install the user code in the coro's namespace
 	    variable lambda
+	    variable timeout
 	    Debug.wubtk {coroutine initialising - ($r) reply}
 	    
-	    set result [coroutine [namespace current]::Coros::${cmd}::_do ::apply [list {r lambda} {
+	    set result [coroutine [namespace current]::Coros::${cmd}::_do ::apply [list {r lambda timeout} {
 		if {[catch {
 		    eval $lambda	;# install the user code
 		} e eo]} {
@@ -183,7 +184,7 @@ class create ::WubTk {
 			    if {[info exists _refresh]} {
 				Debug.wubtk {prodded with suspended refresh}
 				# we've been prodded by grid with a pending refresh
-				set r [Http Ok $_refresh [my update $r [grid changes]] text/javascript]
+				set r [Http Ok $_refresh [my update $r [grid changes]] application/javascript]
 				unset _refresh
 				set r [Httpd Resume $r]
 			    } else {
@@ -214,15 +215,17 @@ class create ::WubTk {
 				    # no updates to send
 				    if {[info exists _refresh]} {
 					# we already have a pending _refresh
-					# this is very bad news.
-					Debug.error {WubTk [info coroutine] - double refresh}
+					# likely the connection has timed out
+					Debug.wubtk {WubTk [info coroutine] - double refresh}
+					set _refresh [Http Ok $_refresh {} application/javascript]
+					Httpd Result $_refresh
 				    }
 				    set _refresh $r	;# remember request
 				    set r [Httpd Suspend $r]	;# suspend until changes
 				    grid prod 1	;# register interest
 				} else {
 				    grid prod 0	;# no registered interest
-				    set r [Http Ok $r $update text/javascript]
+				    set r [Http Ok $r $update application/javascript]
 				}
 				continue	;# we've served this request
 			    }
@@ -268,7 +271,9 @@ class create ::WubTk {
 				set r [jQ ready $r [my buttonJS]]
 				set r [jQ ready $r [my cbuttonJS]]
 				set r [jQ ready $r [my variableJS]]
-
+				if {$timeout > 0} {
+				    set r [jQ comet $r refresh]
+				}
 				set content [grid render [namespace tail [info coroutine]]]
 				append content [<div> id ErrDiv {}]
 				Debug.wubtk {render: $content}
@@ -289,10 +294,10 @@ class create ::WubTk {
 		    } else {
 			set e ""
 		    }
-		    set r [Http Ok $r [my update $r [grid changes] $e] text/javascript]
+		    set r [Http Ok $r [my update $r [grid changes] $e] application/javascript]
 		}
 		destroy	;# destroy all resources
-	    } [namespace current]::Coros::$cmd] $r $lambda]
+	    } [namespace current]::Coros::$cmd] $r $lambda $timeout]
 	    
 	    if {$result ne ""} {
 		Debug.wubtk {coroutine initialised - ($r) reply}
@@ -335,6 +340,7 @@ class create ::WubTk {
 	variable tolerant 1
 	variable {*}[Site var? WubTk]	;# allow .ini file to modify defaults
 	variable lambda ""
+	variable timeout 0
 	variable {*}$args
 	namespace eval [info object namespace [self]]::Coros {}
 	if {[info exists file]} {
