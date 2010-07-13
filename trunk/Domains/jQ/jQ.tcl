@@ -798,6 +798,7 @@ namespace eval ::jQ {
 	}]
     }
 
+    # comet - server side push
     proc comet {r url args} {
 	set url '[string trim $url ']'
 	set opts [opts datepicker {*}$args]
