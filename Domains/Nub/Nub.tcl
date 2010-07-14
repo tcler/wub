@@ -239,7 +239,7 @@ namespace eval ::Nub {
     }
 
     proc /css {r} {
-	set css "* {zoom: 1.0;}"
+	set css {* {zoom: 1.0;}}
 	return [Http Ok $r $css text/css]
     }
 
