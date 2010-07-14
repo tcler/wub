@@ -295,7 +295,7 @@ namespace eval ::Nub {
 		[<p> "Load nub file."]
 	    }]
 	}]
-	append content [<br> clear both] [<hr>]
+	append content [<br> clear both]
 
 	# construct Save Nubs section
 	append content [<form> save action save style {width:99%; float:left;} {
