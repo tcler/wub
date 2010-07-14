@@ -310,7 +310,7 @@ namespace eval ::Site {
 	if {[info exists ::starkit::topdir]} {
 	    # starkit startup
 	    config assign Wub topdir $::starkit::topdir
-	    config assign Wub docroot [file join $topdir docroot]
+	    config assign Wub docroot [file join $::starkit::topdir docroot]
 	} else {
 	    # unpacked startup
 	    ::variable home
@@ -386,18 +386,26 @@ namespace eval ::Site {
 	    if {![dict exists $section url]} {
 		error "nub '$sect' declared in .config must have a url value"
 	    }
+
+	    # handler and domain are synonyms ... le sigh
 	    if {![dict exists $section handler]} {
 		set domain [dict get $section domain]
 	    } else {
 		set domain [dict get $section handler]
 	    }
 	    dict unset section domain
+
 	    if {![string match {[A-Z]*} $domain]
 		|| [string map {" " ""} $domain] ne $domain} {
 		error "Nub '$sect' domain arg '$domain' is badly formed."
 	    }
 	    set url [dict get $section url]
 	    dict unset section url
+
+	    if {[dict exists $section auto_path]} {
+		lappend ::auto_path [dict exists $section auto_path]
+		dict unset section auto_path
+	    }
 
 	    set a {}
 	    foreach {n v} $section {
