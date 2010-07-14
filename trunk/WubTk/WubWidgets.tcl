@@ -25,9 +25,12 @@ namespace eval ::WubWidgets {
 		set change $to
 	    }
 	}
+
 	method reset {} {
-	    my change 0
+	    variable change
+	    set change 0
 	}
+
 	method changed? {} {
 	    variable change
 	    return $change
@@ -56,7 +59,7 @@ namespace eval ::WubWidgets {
 	    if {[my cexists command]} {
 		set cmd [my cget command]
 		set cmd [string map [list %W .[my widget]] $cmd]
-		Debug.wubwidgets {[self] command ($cmd)}
+		Debug.wubwidgets {[self] calling command ($cmd)}
 		::apply [list {} $cmd [uplevel 1 {namespace current}]]
 	    }
 	}
@@ -76,8 +79,14 @@ namespace eval ::WubWidgets {
 	method cbutton {value} {
 	    variable variable
 	    corovars $variable
-	    set $variable $value
+	    Debug.wubwidgets {[self] cbutton: setting '$variable' to '$value'}
+	    if {$value} {
+		set $variable 1
+	    } else {
+		set $variable 0
+	    }
 	    my command
+	    Debug.wubwidgets {[self] cbutton: post-command '$variable' is '[set $variable]'}
 	}
 
 	# style - construct an HTML style form
@@ -210,12 +219,16 @@ namespace eval ::WubWidgets {
 	    }
 	    set var [my cget variable]
 	    corovars $var
-	    set checked [expr {$var != 0}]
-
+	    if {[set $var]} {
+		set checked 1
+	    } else {
+		set checked 0
+	    }
+	    Debug.wubwidgets {[self] checkbox render: checked:$checked, var:[set $var]}
 	    my reset
-	    return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked value 1 $label]
+	    return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked $label]
 	}
-	
+
 	superclass ::WubWidgets::widget
 	constructor {args} {
 	    next {*}[dict merge [list -variable [string trim [namespace tail [self]] .]] {
@@ -281,132 +294,132 @@ namespace eval ::WubWidgets {
     }
     
     oo::class create textC {
-        method get {{start 1.0} {end end}} {
-            set text [my cget text]
+	method get {{start 1.0} {end end}} {
+	    set text [my cget text]
 
-            if {$start == "1.0" && $end == "end"} {
-                return $text
-            }
+	    if {$start == "1.0" && $end == "end"} {
+		return $text
+	    }
 
-            #separate indices into line and char counts
-            foreach {sline schar} [split $start .] {}
-            foreach {eline echar} [split $end .] {}
+	    #separate indices into line and char counts
+	    foreach {sline schar} [split $start .] {}
+	    foreach {eline echar} [split $end .] {}
 
-            set text [my cget text]
-            set linecount [regexp -all \n $text]
+	    set text [my cget text]
+	    set linecount [regexp -all \n $text]
 
-            #convert end indicies into numerical indicies
-            if {$schar == "end"} {incr sline; set schar 0}
-            if {$eline == "end"} {set eline $linecount; set echar 0; incr linecount}
+	    #convert end indicies into numerical indicies
+	    if {$schar == "end"} {incr sline; set schar 0}
+	    if {$eline == "end"} {set eline $linecount; set echar 0; incr linecount}
 
-            #compute deletion start and ending points
-            set nlpos 0
+	    #compute deletion start and ending points
+	    set nlpos 0
 	    set startpos 0
 	    set endpos 0
 
-            for {set linepos 1} {$linepos <= $linecount} {incr linepos}    {
+	    for {set linepos 1} {$linepos <= $linecount} {incr linepos}    {
 
-                if {$linepos == $sline} {
-                    set startpos $nlpos
-                    incr startpos $schar
-                    #now we got the start position
-                }
+		if {$linepos == $sline} {
+		    set startpos $nlpos
+		    incr startpos $schar
+		    #now we got the start position
+		}
 
-                if {$linepos == $eline} {
-                    set endpos $nlpos
-                    incr endpos $echar
-                    #now we got the end point, lets blow this clam bake
-                    break
-                }
+		if {$linepos == $eline} {
+		    set endpos $nlpos
+		    incr endpos $echar
+		    #now we got the end point, lets blow this clam bake
+		    break
+		}
 
-                incr nlpos
-                set nlpos [string first \n $text $nlpos]
-            }
+		incr nlpos
+		set nlpos [string first \n $text $nlpos]
+	    }
 
-            set text [string range $text $startpos+1 $endpos]
-            return $text
-        }
+	    set text [string range $text $startpos+1 $endpos]
+	    return $text
+	}
 
-        method delete {{start 1.0} {end end}} {
-            if {$start == "1.0" && $end == "end"} {
-                set text ""
-            } else {
-                #separate indices into line and char counts
-                foreach {sline schar} [split $start .] {}
-                foreach {eline echar} [split $end .] {}
+	method delete {{start 1.0} {end end}} {
+	    if {$start == "1.0" && $end == "end"} {
+		set text ""
+	    } else {
+		#separate indices into line and char counts
+		foreach {sline schar} [split $start .] {}
+		foreach {eline echar} [split $end .] {}
 
-                set text [my cget text]
-                set linecount [regexp -all \n $text]
+		set text [my cget text]
+		set linecount [regexp -all \n $text]
 
-                #convert end indicies into numerical indicies
-                if {$schar == "end"} {incr sline; set schar 0}
-                if {$eline == "end"} {set eline $linecount; set echar 0; incr linecount}
+		#convert end indicies into numerical indicies
+		if {$schar == "end"} {incr sline; set schar 0}
+		if {$eline == "end"} {set eline $linecount; set echar 0; incr linecount}
 
-                #compute deletion start and ending points
-                set nlpos 0
+		#compute deletion start and ending points
+		set nlpos 0
 		set startpos 0
 		set endpos 0
-                for {set linepos 1} {$linepos <= $linecount} {incr linepos}    {
-                    Debug.wubwidgets {*** $linepos $nlpos}
-                    if {$linepos == $sline} {
-                        set startpos $nlpos
-                        incr startpos $schar
-                        #now we got the start position
-                    }
+		for {set linepos 1} {$linepos <= $linecount} {incr linepos}    {
+		    Debug.wubwidgets {*** $linepos $nlpos}
+		    if {$linepos == $sline} {
+			set startpos $nlpos
+			incr startpos $schar
+			#now we got the start position
+		    }
 
-                    if {$linepos == $eline} {
-                        set endpos $nlpos
-                        incr endpos $echar
+		    if {$linepos == $eline} {
+			set endpos $nlpos
+			incr endpos $echar
 			#now we got the end point, so finish
-                        break
-                    }
+			break
+		    }
 
-                    incr nlpos
-                    set nlpos [string first \n $text $nlpos]
-                }
+		    incr nlpos
+		    set nlpos [string first \n $text $nlpos]
+		}
 
-                set text [string range $text 0 $startpos][string range $text $endpos+1 end]
-            }
+		set text [string range $text 0 $startpos][string range $text $endpos+1 end]
+	    }
 
-            my configure text $text
-            return $text
-        }
+	    my configure text $text
+	    return $text
+	}
 
-        method insert {{start end} newtext} {
-            set text [my cget text]
+	method insert {{start end} newtext} {
+	    set text [my cget text]
 
-            if {$start == "end"} {
-                #just tack the new text on the end
-                append text $newtext
-            }    else {
-                #we got work to do
-                foreach {sline schar} [split $start .] {}
-                set linecount [regexp -all \n $text]
+	    if {$start == "end"} {
+		#just tack the new text on the end
+		append text $newtext
+	    }    else {
+		#we got work to do
+		foreach {sline schar} [split $start .] {}
+		set linecount [regexp -all \n $text]
 
-                #compute insertion point
-                set nlpos 0
+		#compute insertion point
+		set nlpos 0
 		set startpos 0
 		set endpos 0
-                for {set linepos 1} {$linepos <= $linecount} {incr linepos}    {
+		for {set linepos 1} {$linepos <= $linecount} {incr linepos}    {
 
-                    if {$linepos == $sline} {
-                        set startpos $nlpos
-                        incr startpos $schar
-                        #now we got the start position
-                        break
-                    }
+		    if {$linepos == $sline} {
+			set startpos $nlpos
+			incr startpos $schar
+			#now we got the start position
+			break
+		    }
 
-                    incr nlpos
-                    set nlpos [string first \n $text $nlpos]
-                }
+		    incr nlpos
+		    set nlpos [string first \n $text $nlpos]
+		}
 
-                #insett newtext at the char pos calculated in insertpos
-                set text [string range $text 0 $startpos]${newtext}[string range $text ${startpos}+1 end]
-            }
+		#insett newtext at the char pos calculated in insertpos
+		set text [string range $text 0 $startpos]${newtext}[string range $text ${startpos}+1 end]
+	    }
 
-            my configure text $text
-            return $text
-        }
+	    my configure text $text
+	    return $text
+	}
 
 	method render {{id ""}} {
 	    set id [my id $id]
@@ -559,7 +572,7 @@ namespace eval ::WubWidgets {
     }
 
     # make shims for each kind of widget
-    foreach n {button label entry text} {
+    foreach n {button label entry text checkbutton} {
 	proc $n {name args} [string map [list %T% $n] {
 	    set ns [uplevel 1 {namespace current}]
 	    return [%T%C create ${ns}::$name {*}$args]
