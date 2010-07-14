@@ -105,7 +105,7 @@ namespace eval ::Nub {
 		set val [tclarmour [armour [dict get? $body $opt]]]
 		set text [tclarmour [armour $text]]
 		if {[string match +* $text]} {
-		    append extra [<br>] [<textarea> ${opt}_$count cols 80 class autogrow label "[string totitle $opt]: " title $text $val] \n
+		    append extra [<br>] [<textarea> ${opt}_$count cols 60 class autogrow label "[string totitle $opt]: " title $text $val] \n
 		} else {
 		    append extra [<br>] [<text> ${opt}_$count label "[string totitle $opt]: " title $text $val] \n
 		}
@@ -138,12 +138,12 @@ namespace eval ::Nub {
 	    
 	    switch -- [string tolower $domain] {
 		redirect {
-		    set extra [Form <text> to_$count class autogrow size 80 label "To:" [tclarmour $body]]
+		    set extra [Form <text> to_$count class autogrow size 40 label "To:" [tclarmour $body]]
 		    set preamble [<p> "Redirect $section URL to the $body URL"]
 		} 
 
 		rewrite {
-		    set extra [Form <textarea> to_$count class autogrow cols 80 label "To:" [tclarmour $body]]
+		    set extra [Form <textarea> to_$count class autogrow cols 60 label "To:" [tclarmour $body]]
 		    set preamble [<p> "Rewrite $section URL to $body"]
 		}
 		
@@ -157,7 +157,7 @@ namespace eval ::Nub {
 		    set section $url
 		    dict with body {
 			append extra [<br>]
-			append extra [Form <textarea> content_$count class autogrow cols 80 label "Content: " [tclarmour [armour $content]]]
+			append extra [Form <textarea> content_$count class autogrow cols 60 label "Content: " [tclarmour [armour $content]]]
 			append extra [Form <text> ctype_$count label "Mime Type: " [tclarmour $ctype]]
 		    }
 		    set preamble [<p> "Return the literal content of the given mime type."]
@@ -167,7 +167,7 @@ namespace eval ::Nub {
 		    set section $url
 		    dict with body {
 			append extra [<br>]
-			append extra [Form <textarea> content_$count class autogrow cols 80 label "Content: " [tclarmour [armour $content]]]
+			append extra [Form <textarea> content_$count class autogrow cols 60 label "Content: " [tclarmour [armour $content]]]
 			append extra [Form <text> ctype_$count label "Mime Type: " [armour $ctype]]
 		    }
 		    set preamble [<p> "Return the result of evaluating content as a Tcl expression, with the given mime type."]
