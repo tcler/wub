@@ -13,8 +13,8 @@ Step 1:  Download the code (which you've probably done already)
 Step 2: Change into the Wub directory:
      cd wub/Wub/
 
-Step 3: configure the site.ini (optional, the defaults are sensible)
-     cp example.ini site.ini
+Step 3: configure the site.config (optional, the defaults are sensible)
+     cp example.config site.config
      # edit to your taste
 
 Step 4: Run the demo application:
