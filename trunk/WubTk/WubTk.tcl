@@ -163,6 +163,7 @@ class create ::WubTk {
 		proc destroy {} {
 		    namespace delete [namespace current]
 		}
+		proc update {args} {}
 	    }
 
 	    # install the user code in the coro's namespace
