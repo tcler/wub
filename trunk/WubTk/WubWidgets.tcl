@@ -481,7 +481,7 @@ namespace eval ::WubWidgets {
 	    if {[string is integer -strict $value]} {
 		variable exiting ""
 	    } else {
-		variable exiting $args
+		variable exiting $value
 	    }
 	}
 
