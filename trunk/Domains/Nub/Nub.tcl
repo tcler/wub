@@ -260,7 +260,7 @@ namespace eval ::Nub {
 	    lappend domnames [file tail $n]
 	}
 	set selection [lsort -dictionary [list Rewrite Block Redirect {*}$domnames Literal Code]]
-	append content [<form> new action add style {float:left;} {
+	append content [<form> new action add style {width:99%;float:left;} {
 	    [<fieldset> {
 		[<legend> "New Nub"]
 		[<selectlist> domain_new label "Type: " $selection]
@@ -271,14 +271,13 @@ namespace eval ::Nub {
 	}]
 
 	# construct Apply Nubs section
-	append content [<form> compile action apply style {float:left;} {
+	append content [<form> compile action apply style {width:49%; float:left;} {
 	    [<fieldset> {
 		[<legend> "Apply Nubs"]
 		[<submit> submit style {float:right} value apply Apply]
 		[<p> "Compile nubs and attempt to reconfigure the server."]
 	    }]
 	}]	
-	append content [<br> clear both]
 
 	# construct Load Nubs section
 	variable nubdirSys; variable nubdir
@@ -288,7 +287,7 @@ namespace eval ::Nub {
 	}
 	lappend selection {*}[glob -nocomplain -tails -directory $nubdirSys *.nub]
 	set selection [lsort -dictionary $selection]
-	append content [<form> load action load style {float:left;} {
+	append content [<form> load action load style {width:49%; float:right;} {
 	    [<fieldset> {
 		[<legend> "Load Nubs"]
 		[<selectlist> load_file label "File: " $selection]
@@ -296,9 +295,10 @@ namespace eval ::Nub {
 		[<p> "Load nub file."]
 	    }]
 	}]
+	append content [<br> clear both] [<hr>]
 
 	# construct Save Nubs section
-	append content [<form> save action save style {float:left;} {
+	append content [<form> save action save style {width:99%; float:left;} {
 	    [<fieldset> {
 		[<legend> "Save Nubs"]
 		[<text> save_file label "Name: " ""]
