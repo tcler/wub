@@ -44,13 +44,19 @@ class create ::WubTk {
 
     method cbuttonJS {{what {$('.cbutton')}}} {
 	return [string map [list %B% $what] {
-	    %B%.click(function () { 
+	    %B%.change(function () { 
 		//alert($(this).attr("name")+" cbutton pressed");
+		var data = {id: $(this).attr("name"), val: 0};
+		var val = this.value;
+		if($(this).is(":checked")) {
+		    data['val'] = val;
+		}
+
 		$.ajax({
 		    context: this,
 		    type: "GET",
 		    url: "cbutton",
-		    data: {id: $(this).attr("name"), val: $(this).val()},
+		    data: data,
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
 			//alert("cbutton: "+data);
@@ -234,7 +240,7 @@ class create ::WubTk {
 				# client button has been pressed
 				set cmd .[dict Q.id]
 				if {[llength [info commands [namespace current]::$cmd]]} {
-				    Debug.wubtk {button $cmd}
+				    Debug.wubtk {button $cmd ($Q)}
 				    $cmd command
 				} else {
 				    Debug.wubtk {not found button [namespace current]::$cmd}
@@ -245,7 +251,7 @@ class create ::WubTk {
 				# client checkbutton has been pressed
 				set cmd .[dict Q.id]
 				if {[llength [info commands [namespace current]::$cmd]]} {
-				    Debug.wubtk {button $cmd}
+				    Debug.wubtk {cbutton $cmd ($Q)}
 				    $cmd cbutton [dict Q.val]
 				} else {
 				    Debug.wubtk {not found cbutton [namespace current]::$cmd}
@@ -256,7 +262,7 @@ class create ::WubTk {
 				# client variable has been set
 				set cmd .[dict Q.id]
 				if {[llength [info commands [namespace current]::$cmd]]} {
-				    Debug.wubtk {button $cmd}
+				    Debug.wubtk {button $cmd ($Q)}
 				    $cmd var [dict Q.val]
 				} else {
 				    Debug.wubtk {not found button [namespace current]::$cmd}
@@ -302,7 +308,6 @@ class create ::WubTk {
 			unset _refresh
 			Httpd Resume $re
 		    } else {
-			Debug.wubtk {prodded without suspended refresh}
 			grid prod 0	;# no registered interest
 		    }
 
