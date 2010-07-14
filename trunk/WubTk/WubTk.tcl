@@ -25,6 +25,7 @@ class create ::WubTk {
 	return [string map [list %B% $what] {
 	    %B%.click(function () { 
 		//alert($(this).attr("name")+" button pressed");
+		$("#Spinner_").show();
 		$.ajax({
 		    context: this,
 		    type: "GET",
@@ -32,6 +33,7 @@ class create ::WubTk {
 		    data: {id: $(this).attr("name")},
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
+			$("#Spinner_").hide();
 			//alert("button: "+data);
 		    },
 		    error: function (xhr, status, error) {
@@ -46,6 +48,7 @@ class create ::WubTk {
 	return [string map [list %B% $what] {
 	    %B%.change(function () { 
 		//alert($(this).attr("name")+" cbutton pressed");
+		$("#Spinner_").show();
 		var data = {id: $(this).attr("name"), val: 0};
 		var val = this.value;
 		if($(this).is(":checked")) {
@@ -59,6 +62,7 @@ class create ::WubTk {
 		    data: data,
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
+			$("#Spinner_").hide();
 			//alert("cbutton: "+data);
 		    },
 		    error: function (xhr, status, error) {
@@ -73,6 +77,7 @@ class create ::WubTk {
 	return [string map [list %B% $what] {
 	    %B%.change(function () {
 		//alert($(this).attr("name")+" changed: " + $(this).val());
+		$("#Spinner_").show();
 		$.ajax({
 		    context: this,
 		    type: "GET",
@@ -81,6 +86,7 @@ class create ::WubTk {
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
 			//alert("button: "+data);
+			$("#Spinner_").hide();
 		    },
 		    error: function (xhr, status, error) {
 			alert("ajax fail:"+status);
@@ -169,9 +175,10 @@ class create ::WubTk {
 	    # install the user code in the coro's namespace
 	    variable lambda
 	    variable timeout
+	    variable icons
 	    Debug.wubtk {coroutine initialising - ($r) reply}
 	    
-	    set result [coroutine [namespace current]::Coros::${cmd}::_do ::apply [list {r lambda timeout} {
+	    set result [coroutine [namespace current]::Coros::${cmd}::_do ::apply [list {r lambda timeout icons} {
 		if {[catch {
 		    eval $lambda	;# install the user code
 		} e eo]} {
@@ -283,6 +290,7 @@ class create ::WubTk {
 				}
 				set content [grid render [namespace tail [info coroutine]]]
 				append content [<div> id ErrDiv {}]
+				append content [<img> id Spinner_ style {float:right; display:none;} src $icons/bigrotation.gif]
 				Debug.wubtk {render: $content}
 				dict set r -title [wm title]
 				set r [Http Ok $r $content x-text/html-fragment]
@@ -315,7 +323,7 @@ class create ::WubTk {
 		    set r [Http Ok $r [my update $r [grid changes] $e] application/javascript]
 		}
 		destroy	;# destroy all resources
-	    } [namespace current]::Coros::$cmd] $r $lambda $timeout]
+	    } [namespace current]::Coros::$cmd] $r $lambda $timeout $icons]
 	    
 	    if {$result ne ""} {
 		Debug.wubtk {coroutine initialised - ($r) reply}
@@ -359,6 +367,7 @@ class create ::WubTk {
 	variable {*}[Site var? WubTk]	;# allow .ini file to modify defaults
 	variable lambda ""
 	variable timeout 0
+	variable icons /icons/
 	variable {*}$args
 	namespace eval [info object namespace [self]]::Coros {}
 	if {[info exists file]} {
@@ -366,90 +375,5 @@ class create ::WubTk {
 	}
 
 	next {*}$args
-    }
-}
-
-if {0} {
-    # Here's a demo, put it in local.tcl
-
-    lappend ::auto_path [file join [file dirname [file dirname [file normalize [info script]]]] WubTk]
-
-    package require WubTk
-    Debug on wubwidgets 10
-    Debug on wubtk 10
-
-    Nub domain /tk/ WubTk lambda {
-	proc buttonA args {
-	    set bText [.b cget -text]
-	    set aText [.a cget -text]
-	    set bBg [.b cget -background]
-	    set aBg [.a cget -background]
-	    set bFg [.b cget -foreground]
-	    set aFg [.a cget -foreground]
-	    .a configure -text $bText -foreground $bFg -background $bBg
-	    .b configure -text $aText -foreground $aFg -background $aBg
-	}
-
-	proc buttonC args {
-	    global joe
-	    set joe "${joe}A"
-	    if {$joe != "bob" && [string first Mod [wm title .]] == -1} {
-		wm title . "[wm title .] - Text Modified"
-	    }
-	}
-
-	proc buttonH {sobj dobj} {
-	    set text [$sobj get 0.0 end]
-	    set output ""
-	    foreach word [split $text] {
-		for {set i 0} {$i<[string length $word]} {incr i} {
-		    set char [string index $word $i]
-		    append output "$char[string tolower $char$char]"
-		}
-		append output " "
-	    }
-	    $dobj configure -text $output
-	    wm title . "Done it!"
-	}
-
-	proc showCode {} {
-	    .g delete 0.0 end
-	    
-	    set err [catch {set fh [open test1.tk RDONLY]}]
-	    if {!$err} {
-		set code [read $fh]
-		close $fh
-		.g insert end $code
-		.i configure -text "Cut n paste the above code into wish to compare!" -foreground orange -background black
-	    } else {
-		.i configure -text "Source code not in current directory!" -foreground orange -background black
-	    }
-	}
-
-	wm title . "Demo #1"
-	button .a -text "Press Me" -command buttonA -background lightgreen -foreground purple
-	button .b -text "Don't Press Me" -command buttonA -background pink -foreground blue
-	button .c -text "Modify" -command buttonC
-	entry .d -textvariable joe
-	label .e -text "Text:"
-	button .f -text Logout -command exit
-	text .g -background lightyellow
-	label .i -text ""
-	#button .h -text "Do it" -command "buttonH .g .i" -background violet
-	button .h -text "Clear" -command {.g delete 0.0 end; .i configure -text ""} -background violet
-	button .j -text "Show Code" -command "showCode" -background lightblue
-
-	set joe bob
-
-	grid configure .a -column 0 -row 0
-	grid configure .b -column 1 -row 0
-	grid configure .c -column 0 -row 1
-	grid configure .e -column 0 -row 2
-	grid configure .d -column 1 -row 2
-	grid configure .f -column 2 -row 0 -columnspan 1
-	grid configure .g -column 0 -row 4 -columnspan 3
-	grid configure .i -column 0 -row 5 -columnspan 3
-	grid configure .h -column 0 -row 6 -columnspan 1
-	grid configure .j -column 2 -row 6 -columnspan 1
     }
 }
