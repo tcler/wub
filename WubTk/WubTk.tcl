@@ -327,10 +327,10 @@ class create ::WubTk {
 		    set r [Http Ok $r [my update $r [grid changes] $e] application/javascript]
 		}
 		destroy	;# destroy all resources
-		if {[info exists redirect]} {
+		if {[info exists redirect] && $redirect ne ""} {
 		    set redirect [Url redir $r $redirect]
 		    Debug.wubtk {[info coroutine] redirecting to '$redirect'}
-		    ::yield [Http Ok $r "window.location='$redirect';" application/javascript]
+		    return [Http Ok $r "window.location='$redirect';" application/javascript]
 		}
 		Debug.wubtk {[info coroutine] exiting}
 	    } [namespace current]::Coros::$cmd] $r $lambda $timeout $icons]
