@@ -185,11 +185,12 @@ class create ::FormClass {
 		if {$tabular} {
 		    set body [<tr> [string map {\n </tr>\n<tr>} $body]]
 		    append content \n [<table> $body] \n
-		} elseif {[dict config.vertical?] ne ""} {
-		    append content $body
-		    set content [string map {\n <br>\n} $content]
 		} else {
 		    append content $body
+		    set vertical [dict config.vertical?]
+		    if {$vertical ne "" && $vertical} {
+			set content [string map {\n <br>\n} $content]
+		    }
 		}
 		set tabular $otab	;# restore old tabular value
 
