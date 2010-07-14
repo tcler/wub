@@ -477,8 +477,12 @@ namespace eval ::WubWidgets {
 	    variable exiting
 	    return $exiting
 	}
-	method exit {args} {
-	    variable exiting $args
+	method exit {value} {
+	    if {[string is integer -strict $value]} {
+		variable exiting ""
+	    } else {
+		variable exiting $args
+	    }
 	}
 
 	# traverse grid looking for changes.
