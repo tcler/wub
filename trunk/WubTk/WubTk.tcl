@@ -187,7 +187,6 @@ class create ::WubTk {
 
 		# initial client direct request
 		Debug.wubtk {processing [info coroutine]}
-
 		set r {}
 		while {1} {
 		    set r [::yield $r]
@@ -304,6 +303,11 @@ class create ::WubTk {
 			3 break
 		    }
 
+		    if {[grid exiting?]} {
+			Debug.wubtk {exit redirect: [grid redirect]}
+			set redirect [grid redirect]
+			break
+		    }
 		    if {$err} {
 			set e "$cmd: $e"
 		    } else {
@@ -323,6 +327,12 @@ class create ::WubTk {
 		    set r [Http Ok $r [my update $r [grid changes] $e] application/javascript]
 		}
 		destroy	;# destroy all resources
+		if {[info exists redirect]} {
+		    set redirect [Url redir $r $redirect]
+		    Debug.wubtk {[info coroutine] redirecting to '$redirect'}
+		    ::yield [Http Ok $r "window.location='$redirect';" application/javascript]
+		}
+		Debug.wubtk {[info coroutine] exiting}
 	    } [namespace current]::Coros::$cmd] $r $lambda $timeout $icons]
 	    
 	    if {$result ne ""} {
