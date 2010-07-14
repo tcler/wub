@@ -409,7 +409,7 @@ namespace eval ::Site {
 
 	    set a {}
 	    foreach {n v} $section {
-		lappend a $n [sectvar $v]
+		lappend a $n $v
 	    }
 	    if {[dict exists $a -threaded]} {
 		set targs [dict get $a -threaded]
@@ -432,7 +432,7 @@ namespace eval ::Site {
 		if {![info exists mime]} {
 		    set mime x-text/html-fragment
 		} else {
-		    set mime [sectvar $mime]
+		    set mime $mime
 		}
 		Debug.nubsite {Nub code $url $code $mime}
 		Nub code $url $code $mime
@@ -442,11 +442,10 @@ namespace eval ::Site {
 		if {![info exists mime]} {
 		    set mime x-text/html-fragment
 		} else {
-		    set mime [sectvar $mime]
+		    set mime $mime
 		}
-		set lit [subst -nocommands -novariables [lindex $literal 0]]
-		Debug.nubsite {Nub literal [lindex $url 0] '$lit' $mime}
-		Nub literal $url $lit $mime
+		Debug.nubsite {Nub literal [lindex $url 0] '$literal' $mime}
+		Nub literal $url $literal $mime
 	    }
 	} elseif {[dict exists $section redirect]} {
 	    dict with section {
@@ -672,15 +671,6 @@ namespace eval ::Site {
 	    Listener new sscgi {*}[config section Sscgi] -httpd Sscgi
 	}
 
-    }
-
-    proc sectvar {expr} {
-	set expr [lindex $expr 0]
-	if {[string match {$*} $expr]} {
-	    return [subst -nocommands $expr]
-	} else {
-	    return $expr
-	}
     }
 
     # this will shut down the whole system
