@@ -469,6 +469,18 @@ namespace eval ::WubWidgets {
 
     # grid store grid info in an x/y array gridLayout(column.row)
     oo::class create gridC {
+	method exiting? {} {
+	    variable exiting
+	    return [info exists exiting]
+	}
+	method redirect {} {
+	    variable exiting
+	    return $exiting
+	}
+	method exit {args} {
+	    variable exiting $args
+	}
+
 	# traverse grid looking for changes.
 	method changes {} {
 	    variable grid
@@ -581,8 +593,9 @@ namespace eval ::WubWidgets {
 
     # add some shims to make things look a little like an interp
     proc exit {args} {
-	rename [info coroutine] {}
+	uplevel 1 [list grid exit $args]	;# informs coroutine we want to exit
     }
+
     proc global {args} {
 	foreach n $args {lappend v $n $n}
 	uplevel 1 [list upvar #1 {*}$v]
