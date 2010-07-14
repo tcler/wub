@@ -194,7 +194,7 @@ namespace eval ::WubWidgets {
 		set class {}
 	    }
 	    my reset
-	    return [<button> [my widget] id $id {*}$class style [my style] [my cget -text]]
+	    return [<button> [my widget] id $id {*}$class style [my style] [armour [my cget -text]]]
 	}
 
 	superclass ::WubWidgets::widget
@@ -226,7 +226,7 @@ namespace eval ::WubWidgets {
 	    }
 	    Debug.wubwidgets {[self] checkbox render: checked:$checked, var:[set $var]}
 	    my reset
-	    return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked $label]
+	    return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked [armour $label]]
 	}
 
 	superclass ::WubWidgets::widget
@@ -251,7 +251,7 @@ namespace eval ::WubWidgets {
 	    }
 
 	    my reset
-	    return [<div> id $id style [my style] $val]
+	    return [<div> id $id style [my style] [armour $val]]
 	}
 	
 	superclass ::WubWidgets::widget
@@ -281,7 +281,7 @@ namespace eval ::WubWidgets {
 	    }
 
 	    my reset
-	    return [<text> [my widget] id $id {*}$class {*}$disabled style [my style] $val]
+	    return [<text> [my widget] id $id {*}$class {*}$disabled style [my style] [armour $val]]
 	}
 
 	superclass ::WubWidgets::widget
