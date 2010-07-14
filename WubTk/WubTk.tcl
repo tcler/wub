@@ -1,5 +1,17 @@
 # WubTk.tcl - a domain built around coroutines from tcl8.6
 
+# TODO:
+#* comet - ajax push - for mods to local vars ... push them to client DONE?
+#* fix Site so it grabs WubTk
+#* rename to Toplevel?
+#* [exit] to redirect DONE
+#* [toplevel] to create a new window/tab - the old Tk hangs around
+#* frame -> fieldset
+#* ensure text is working
+#* enable/push wm title changes
+#* what to do about event [update] stuff? - currently stubbed
+#* spinning wheel on updates DONE
+
 package require Debug
 Debug define wubtk 10
 package require Http
