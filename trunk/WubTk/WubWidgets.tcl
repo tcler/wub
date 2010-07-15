@@ -369,14 +369,15 @@ namespace eval ::WubWidgets {
 	    if {![my cexists type]} {
 		return $r
 	    }
+	    Debug.wubwidgets {entry js: [my cget type] - [my id]}
 	    switch -- [my cget type] {
 		date {
 		    set r [jQ datepicker $r #[my id]]
+		    Debug.wubwidgets {entry js: [dict get $r -script]}
 		}
 	    }
 	    return $r
 	}
-
 
 	superclass ::WubWidgets::widget
 	constructor {args} {
@@ -594,6 +595,7 @@ namespace eval ::WubWidgets {
 		    }
 		}
 	    }
+
 	    return [list $r $changes]	;# return the dict of changes by id
 	}
 
@@ -650,6 +652,7 @@ namespace eval ::WubWidgets {
 		    set r [uplevel 1 [list [dict get $col widget] js $r]]
 		}
 	    }
+
 	    return $r
 	}
 	
