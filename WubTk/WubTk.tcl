@@ -140,6 +140,19 @@ class create ::WubTk {
 	return $result
     }
 
+    # strip any of the js donated by changed components
+    # and plug it on the end of the generic stuff.
+    method stripjs {r} {
+	set content {}
+	dict for {n v} [dict get $r -script] {
+	    if {[string match !* $n]} {
+		set v [join [lrange [split $v \n] 1 end-1] \n]
+		lappend content $v
+	    }
+	}
+	return [join $content \n]
+    }
+
     # process request helper
     method do {r} {
 	variable mount
@@ -209,6 +222,7 @@ class create ::WubTk {
 				# we've been prodded by grid with a pending refresh
 				lassign [grid changes $_refresh] _refresh changes
 				set content [my update $changes]
+				append content [my stripjs $_refresh]
 				set re [Http Ok $_refresh $content application/javascript]
 				unset _refresh
 				Httpd Resume $re
@@ -239,6 +253,8 @@ class create ::WubTk {
 
 				lassign [grid changes $r] r changes
 				set update [my update $changes]
+				append update [my stripjs $r]
+
 				if {$update eq ""} {
 				    # no updates to send
 				    if {[info exists _refresh]} {
@@ -369,6 +385,7 @@ class create ::WubTk {
 		    Debug.wubtk {sending pending updates - $e}
 		    lassign [grid changes $r] r changes
 		    set content [my update $changes]
+		    append content [my stripjs $r]
 
 		    if {$e ne ""} {
 			set e [string map [list \" \\\" ' \\'] $e]
@@ -378,15 +395,6 @@ class create ::WubTk {
 		    } elseif {$content ne ""} {
 			append content {
 			    $('#ErrDiv').html('');
-			}
-		    }
-
-		    # strip any of the js donated by changed components
-		    # and plug it on the end of the generic stuff.
-		    dict for {n v} [dict get $r -script] {
-			if {[string match !* $n]} {
-			    set v [join [lrange [split $v \n] 1 end-1] \n]
-			    append content \n $v
 			}
 		    }
 
