@@ -402,9 +402,10 @@ namespace eval ::Site {
 	    set url [dict get $section url]
 	    dict unset section url
 
-	    if {[dict exists $section auto_path]} {
-		lappend ::auto_path [dict exists $section auto_path]
-		dict unset section auto_path
+	    if {[dict exists $section -loaddir]} {
+		set dir [dict get $section -loaddir]
+		::source [file join $dir pkgIndex.tcl]
+		dict unset section -loaddir
 	    }
 
 	    set a {}
