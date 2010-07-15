@@ -109,6 +109,7 @@ class create ::WubTk {
     }
 
     method update {r changes {err ""}} {
+	Debug.wubtk {[self] update - $err}
 	set result ""
 	foreach {id html type} $changes {
 	    Debug.wubtk {changed id: $id type: $type}
@@ -235,6 +236,7 @@ class create ::WubTk {
 			switch -- [dict get? $r -extra] {
 			    refresh {
 				# client has asked us to push changes
+				Debug.wubtk {[self] client has asked us to push changes}
 				set update [my update $r [grid changes]]
 				if {$update eq ""} {
 				    # no updates to send
@@ -320,6 +322,7 @@ class create ::WubTk {
 			set redirect [grid redirect]
 			break
 		    }
+
 		    if {$err} {
 			set e "$cmd: $e"
 		    } else {
@@ -336,6 +339,7 @@ class create ::WubTk {
 			grid prod 0	;# no registered interest
 		    }
 
+		    Debug.wubtk {[self] sending pending updates - $e}
 		    set r [Http Ok $r [my update $r [grid changes] $e] application/javascript]
 		}
 		destroy	;# destroy all resources
