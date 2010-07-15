@@ -385,7 +385,7 @@ namespace eval ::WubWidgets {
 	    switch -- [my cget type] {
 		date {
 		    set r [jQ datepicker $r #[my id]]
-		    Debug.wubwidgets {entry js: [dict get $r -script]}
+		    Debug.wubwidgets {entry js: [dict get? $r -script]}
 		}
 	    }
 	    return $r
