@@ -857,6 +857,14 @@ namespace eval ::jQ {
 	}]
     }
 
+    proc slider {r selector args} {
+	return [weave $r {
+	    jquery.js jquery.ui.js
+	} %SEL $selector %OPTS [opts slider {*}$args] {
+	    $('%SEL').slider(%OPTS);
+	}]
+    }
+
     proc do {r} {
 	fs do $r
     }
