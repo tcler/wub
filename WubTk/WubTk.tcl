@@ -144,7 +144,7 @@ class create ::WubTk {
     # and plug it on the end of the generic stuff.
     method stripjs {r} {
 	set content {}
-	dict for {n v} [dict get $r -script] {
+	dict for {n v} [dict get? $r -script] {
 	    if {[string match !* $n]} {
 		set v [join [lrange [split $v \n] 1 end-1] \n]
 		lappend content $v
