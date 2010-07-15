@@ -195,11 +195,6 @@ namespace eval ::WubWidgets {
 		corovars $textvariable
 		trace add variable $textvariable write [list [self] copytextvar]
 	    }
-	    if {[my cexists variable]} {
-		variable variable
-		corovars $variable
-		trace add variable $variable write [list [self] changevar]
-	    }
 	}
     }
 
@@ -339,11 +334,12 @@ namespace eval ::WubWidgets {
 		-from 0 -to 100 -tickinterval 0
 		-orient horizontal
 	    } $args]
-	    set var [my cget variable]
-	    corovars $var
-	    if {![info exists $var]} {
-		set $var [my cget from]
+	    set variable [my cget variable]
+	    corovars $variable
+	    if {![info exists $variable]} {
+		set $variable [my cget from]
 	    }
+	    trace add variable variable write [list [self] changevar]
 	}
     }
     
