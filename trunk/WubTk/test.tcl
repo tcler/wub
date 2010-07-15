@@ -1,3 +1,5 @@
+# Steve Redler's WubTk demo
+
 package require Tk
 
 proc buttonA args {
