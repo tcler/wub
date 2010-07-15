@@ -365,6 +365,19 @@ namespace eval ::WubWidgets {
 	    return [<text> [my widget] id $id {*}$class {*}$disabled style [my style] size [my cget -width] [armour $val]]
 	}
 
+	method js {r} {
+	    if {![my cexists type]} {
+		return $r
+	    }
+	    switch -- [my cget type] {
+		date {
+		    set r [jQ datepicker $r #[my id]]
+		}
+	    }
+	    return $r
+	}
+
+
 	superclass ::WubWidgets::widget
 	constructor {args} {
 	    next {*}[dict merge {text ""
