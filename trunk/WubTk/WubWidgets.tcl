@@ -36,7 +36,7 @@ namespace eval ::WubWidgets {
 	    return $change
 	}
 	method changevar {args} {
-	    my change
+	    my change	;# signal that a variable has changed value
 	}
 
 	# record widget id
@@ -55,12 +55,18 @@ namespace eval ::WubWidgets {
 	    return [string trim [namespace tail [self]] .]
 	}
 
+	method js {r} {
+	    return $r
+	}
+
 	method command {} {
 	    if {[my cexists command]} {
 		set cmd [my cget command]
-		set cmd [string map [list %W .[my widget]] $cmd]
-		Debug.wubwidgets {[self] calling command ($cmd)}
-		::apply [list {} $cmd [uplevel 1 {namespace current}]]
+		if {$cmd ne ""} {
+		    set cmd [string map [list %W .[my widget]] $cmd]
+		    Debug.wubwidgets {[self] calling command ($cmd)}
+		    ::apply [list {} $cmd [uplevel 1 {namespace current}]]
+		}
 	    }
 	}
 
@@ -74,6 +80,14 @@ namespace eval ::WubWidgets {
 		variable text
 		set text $value
 	    }
+	}
+
+	method scale {value} {
+	    set var [my cget variable]
+	    corovars $var
+	    Debug.wubwidgets {[self] scale $var <- '$value'}
+	    set $var $value
+	    my command
 	}
 
 	method cbutton {value} {
@@ -181,6 +195,11 @@ namespace eval ::WubWidgets {
 		corovars $textvariable
 		trace add variable $textvariable write [list [self] copytextvar]
 	    }
+	    if {[my cexists variable]} {
+		variable variable
+		corovars $variable
+		trace add variable $variable write [list [self] changevar]
+	    }
 	}
     }
 
@@ -231,7 +250,7 @@ namespace eval ::WubWidgets {
 
 	superclass ::WubWidgets::widget
 	constructor {args} {
-	    next {*}[dict merge [list -variable [string trim [namespace tail [self]] .]] {
+	    next {*}[dict merge [list -variable [my widget]] {
 		text ""
 		foreground black background white justify left
 		command ""
@@ -259,6 +278,72 @@ namespace eval ::WubWidgets {
 	    next {*}[dict merge {text ""
 		foreground "black" background "white" justify "left"
 	    } $args]
+	}
+    }
+    
+    oo::class create scaleC {
+	method render {{id ""}} {
+	    set id [my id $id]
+	    my reset
+	    set result ""
+
+	    if {[my cget label] ne ""} {
+		set result [<label> [my cget label]]
+	    }
+
+	    set var [my cget -variable]
+	    corovars $var
+	    set val [set $var]
+	    append result [<div> id $id class slider style [my style] [armour $val]]
+
+	    return $result
+	}
+
+	method js {r} {
+	    # need to generate the slider interaction
+	    foreach {n v} [list orientation '[my cget orient]' min [my cget from] max [my cget to]] {
+		lappend args $n $v
+	    }
+	    lappend args change [string map [list %ID% [my widget]] {
+		function (event, ui) {
+		    $("#Spinner_").show();
+		    $.ajax({
+			context: this,
+			type: "GET",
+			url: "slider",
+			data: {id: '%ID%', val: ui.value},
+			dataType: "script",
+			success: function (data, textStatus, XMLHttpRequest) {
+			    $("#Spinner_").hide();
+			    //alert("slider: "+data);
+			},
+			error: function (xhr, status, error) {
+			    alert("ajax fail:"+status);
+			}
+		    });
+		}
+	    }]
+	    return [jQ slider $r #[my id] {*}$args]
+	    #$( ".selector" ).slider({
+	    #change: function(event, ui) { ... }
+	    #});
+	    # getter - var values = $( ".selector" ).slider( "option", "values" );
+	    # setter - $( ".selector" ).slider( "option", "values", [1,5,9] );
+	}
+
+	superclass ::WubWidgets::widget
+	constructor {args} {
+	    next {*}[dict merge [list -variable [my widget]] {
+		foreground black background white justify left state active
+		label "" command "" -length 100 -width 10 -showvalue 0
+		-from 0 -to 100 -tickinterval 0
+		-orient horizontal
+	    } $args]
+	    set var [my cget variable]
+	    corovars $var
+	    if {![info exists $var]} {
+		set $var [my cget from]
+	    }
 	}
     }
     
@@ -486,7 +571,7 @@ namespace eval ::WubWidgets {
 	}
 
 	# traverse grid looking for changes.
-	method changes {} {
+	method changes {r} {
 	    variable grid
 	    set changes {}
 	    dict for {row rval} $grid {
@@ -495,11 +580,12 @@ namespace eval ::WubWidgets {
 			if {[uplevel 1 [list $widget changed?]]} {
 			    Debug.wubwidgets {changed ($row,$col) ($val)}
 			    lappend changes [uplevel 1 [list $widget id]] [uplevel 1 [list $widget render]] [uplevel 1 [list $widget type]]
+			    set r [uplevel 1 [list $widget js $r]]
 			}
 		    }
 		}
 	    }
-	    return $changes	;# return the dict of changes by id
+	    return [list $r $changes]	;# return the dict of changes by id
 	}
 
 	# something has changed us
@@ -514,7 +600,7 @@ namespace eval ::WubWidgets {
 	    }
 	}
 
-	method render {id} {
+	method render {} {
 	    global args sessid
 	    variable maxrows; variable maxcols; variable grid
 	    Debug.wubwidgets {GRID render rows:$maxrows cols:$maxcols ($grid)}
@@ -542,6 +628,20 @@ namespace eval ::WubWidgets {
 	    }
 	    
 	    set content [<table> [join $rows \n]]
+	}
+
+	method js {r {w ""}} {
+	    variable grid
+	    if {$w ne ""} {
+		return [uplevel 1 [list $w js $r]]
+	    }
+
+	    dict for {rc row} $grid {
+		dict for {cc col} $row {
+		    set r [uplevel 1 [list [dict get $col widget] js $r]]
+		}
+	    }
+	    return $r
 	}
 	
 	method configure {widget args} {
@@ -588,7 +688,7 @@ namespace eval ::WubWidgets {
     }
 
     # make shims for each kind of widget
-    foreach n {button label entry text checkbutton} {
+    foreach n {button label entry text checkbutton scale} {
 	proc $n {name args} [string map [list %T% $n] {
 	    set ns [uplevel 1 {namespace current}]
 	    return [%T%C create ${ns}::$name {*}$args]
