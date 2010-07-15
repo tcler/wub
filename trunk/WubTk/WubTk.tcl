@@ -145,7 +145,7 @@ class create ::WubTk {
 		$('#ErrDiv').html('');
 	    }
 	}
- 
+	
 	Debug.wubtk {SCRIPT: ($result)}
 	return $result
     }
@@ -187,12 +187,18 @@ class create ::WubTk {
 
 	    # install the user code in the coro's namespace
 	    variable lambda
-	    variable timeout
-	    variable icons
-	    variable theme
+
+	    # collect options to pass to coro
+	    set options {}
+	    foreach v {timeout icons theme spinner_style spinner_size} {
+		variable $v
+		lappend options $v [set $v]
+	    }
+
 	    Debug.wubtk {coroutine initialising - ($r) reply}
 	    
-	    set result [coroutine [namespace current]::Coros::${cmd}::_do ::apply [list {r lambda timeout icons theme} {
+	    set result [coroutine [namespace current]::Coros::${cmd}::_do ::apply [list {r lambda options} {
+		dict with options {}
 		if {[catch {
 		    eval $lambda	;# install the user code
 		} e eo]} {
@@ -331,7 +337,7 @@ class create ::WubTk {
 				} else {
 
 				    append content [<div> id ErrDiv {}]
-				    append content [<img> id Spinner_ style {float:right; display:none;} src $icons/bigrotation.gif]
+				    append content [string map [list %SS% $spinner_style] [<img> id Spinner_ style {%SS%; display:none;} width $spinner_size src $icons/bigrotation.gif]]
 				    Debug.wubtk {render: $content}
 				    dict set r -title [wm title]
 				    set r [Http Ok $r $content x-text/html-fragment]
@@ -379,7 +385,7 @@ class create ::WubTk {
 		    return [Http Ok $r "window.location='$redirect';" application/javascript]
 		}
 		Debug.wubtk {[info coroutine] exiting}
-	    } [namespace current]::Coros::$cmd] $r $lambda $timeout $icons $theme]
+	    } [namespace current]::Coros::$cmd] $r $lambda $options]
 	    
 	    if {$result ne ""} {
 		Debug.wubtk {coroutine initialised - ($r) reply}
@@ -428,6 +434,8 @@ class create ::WubTk {
 	variable timeout 0
 	variable icons /icons/
 	variable theme dark
+	variable spinner_size 20
+	variable spinner_style "position: fixed; top:10px; left: 10px%;"
 	variable {*}$args
 	namespace eval [info object namespace [self]]::Coros {}
 	if {[info exists file]} {
