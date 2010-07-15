@@ -288,7 +288,7 @@ namespace eval ::WubWidgets {
 	constructor {args} {
 	    next {*}[dict merge {text ""
 		foreground black background white justify left
-		state normal
+		state normal width 16
 	    } $args]
 	}
     }
