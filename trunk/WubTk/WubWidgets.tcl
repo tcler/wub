@@ -362,7 +362,19 @@ namespace eval ::WubWidgets {
 	    }
 
 	    my reset
-	    return [<text> [my widget] id $id {*}$class {*}$disabled style [my style] size [my cget -width] [armour $val]]
+	    set cmd <text>
+	    set extra {}
+	    if {[my cexists type]} {
+		switch -- [my cget type] {
+		    password {
+			set cmd <password>
+		    }
+		    date -
+		    default {
+		    }
+		}
+	    }
+	    return [$cmd [my widget] id $id {*}$class {*}$disabled style [my style] size [my cget -width] [armour $val]]
 	}
 
 	method js {r} {
