@@ -91,8 +91,8 @@ namespace eval ::WubWidgets {
 
 	# style - construct an HTML style form
 	method style {} {
-	    variable background; variable foreground
-	    return "background-color: $background; color: $foreground;"
+	    variable background; variable foreground; variable justify
+	    return "background-color: $background; color: $foreground; text-align: $justify;"
 	}
 
 	# cget - get a variable's value
@@ -281,7 +281,7 @@ namespace eval ::WubWidgets {
 	    }
 
 	    my reset
-	    return [<text> [my widget] id $id {*}$class {*}$disabled style [my style] [armour $val]]
+	    return [<text> [my widget] id $id {*}$class {*}$disabled style [my style] size [my cget -width] [armour $val]]
 	}
 
 	superclass ::WubWidgets::widget
