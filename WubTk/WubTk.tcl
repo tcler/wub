@@ -412,6 +412,12 @@ class create ::WubTk {
 	    Debug.wubtk {coroutine gone: $cmd}
 	    variable tolerant
 	    set app [string trimright $mount /]/
+	    set extra [dict get? $r -extra]
+	    if {$extra ne ""} {
+		# this is an old invocation trying to get javascript
+		return [Http Ok $r "window.location='$app';" application/javascript]
+	    }
+
 	    if {$tolerant} {
 		return [Http Redirect $r $app]
 	    } else {
