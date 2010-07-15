@@ -108,8 +108,9 @@ class create ::WubTk {
 	}]
     }
 
-    method update {r changes {err ""}} {
-	Debug.wubtk {[self] update - $err}
+    method update {changes} {
+	Debug.wubtk {[self] update}
+
 	set result ""
 	foreach {id html type} $changes {
 	    Debug.wubtk {changed id: $id type: $type}
@@ -135,17 +136,6 @@ class create ::WubTk {
 	    }
 	}
 
-	if {$err ne ""} {
-	    set err [string map [list \" \\\" ' \\'] $err]
-	    append result [string map [list %E% $err] {
-		$('#ErrDiv').html('<p>Error: %E% </p>');
-	    }]
-	} elseif {$result ne ""} {
-	    append result {
-		$('#ErrDiv').html('');
-	    }
-	}
-	
 	Debug.wubtk {SCRIPT: ($result)}
 	return $result
     }
@@ -207,7 +197,7 @@ class create ::WubTk {
 
 		# initial client direct request
 		Debug.wubtk {processing [info coroutine]}
-		set r {}
+		set r {}	;# initial response is empty - let WubTk redirect
 		while {1} {
 		    set r [::yield $r]
 		    if {[catch {dict size $r} sz]} {
@@ -218,7 +208,8 @@ class create ::WubTk {
 				Debug.wubtk {prodded with suspended refresh}
 				# we've been prodded by grid with a pending refresh
 				lassign [grid changes $_refresh] _refresh changes
-				set re [Http Ok $_refresh [my update $_refresh $changes] application/javascript]
+				set content [my update $changes]
+				set re [Http Ok $_refresh $content application/javascript]
 				unset _refresh
 				Httpd Resume $re
 			    } else {
@@ -247,7 +238,7 @@ class create ::WubTk {
 				Debug.wubtk {[self] client has asked us to push changes}
 
 				lassign [grid changes $r] r changes
-				set update [my update $r $changes]
+				set update [my update $changes]
 				if {$update eq ""} {
 				    # no updates to send
 				    if {[info exists _refresh]} {
@@ -353,6 +344,7 @@ class create ::WubTk {
 		    }
 
 		    if {[grid exiting?]} {
+			# exit's been called by the app - arrange for redirect/exit
 			Debug.wubtk {exit redirect: [grid redirect]}
 			set redirect [grid redirect]
 			break
@@ -364,7 +356,7 @@ class create ::WubTk {
 			set e ""
 		    }
 
-		    # clear out any old refresh
+		    # clear out any old refresh - this response will satisfy it
 		    if {[info exists _refresh]} {
 			Debug.wubtk {satisfy old refresh}
 			set re [Http Ok $_refresh {} application/javascript]
@@ -376,8 +368,33 @@ class create ::WubTk {
 
 		    Debug.wubtk {sending pending updates - $e}
 		    lassign [grid changes $r] r changes
-		    set r [Http Ok $r [my update $r $changes $e] application/javascript]
+		    set content [my update $changes]
+
+		    if {$e ne ""} {
+			set e [string map [list \" \\\" ' \\'] $e]
+			append content [string map [list %E% $e] {
+			    $('#ErrDiv').html('<p>Error: %E% </p>');
+			}]
+		    } elseif {$content ne ""} {
+			append content {
+			    $('#ErrDiv').html('');
+			}
+		    }
+
+		    # strip any of the js donated by changed components
+		    # and plug it on the end of the generic stuff.
+		    dict for {n v} [dict get $r -script] {
+			if {[string match !* $n]} {
+			    set v [join [lrange [split $v \n] 1 end-1] \n]
+			    append content \n $v
+			}
+		    }
+
+		    Debug.wubtk {update SCRIPT: $content}
+		    set r [Http Ok $r $content application/javascript]
 		}
+
+		# fallen out of loop - time to go
 		destroy	;# destroy all resources
 		if {[info exists redirect] && $redirect ne ""} {
 		    set redirect [Url redir $r $redirect]
