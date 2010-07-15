@@ -208,7 +208,7 @@ namespace eval ::WubWidgets {
 		set class {}
 	    }
 	    my reset
-	    return [<button> [my widget] id $id {*}$class style [my style] [armour [my cget -text]]]
+	    return [<button> [my widget] id $id {*}$class style [my style] [tclarmour [armour [my cget -text]]]]
 	}
 
 	superclass ::WubWidgets::widget
@@ -240,7 +240,7 @@ namespace eval ::WubWidgets {
 	    }
 	    Debug.wubwidgets {[self] checkbox render: checked:$checked, var:[set $var]}
 	    my reset
-	    return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked [armour $label]]
+	    return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked [tclarmour [armour $label]]]
 	}
 
 	superclass ::WubWidgets::widget
@@ -265,7 +265,7 @@ namespace eval ::WubWidgets {
 	    }
 
 	    my reset
-	    return [<div> id $id style [my style] [armour $val]]
+	    return [<div> id $id style [my style] [tclarmour [armour $val]]]
 	}
 	
 	superclass ::WubWidgets::widget
@@ -289,7 +289,7 @@ namespace eval ::WubWidgets {
 	    set var [my cget -variable]
 	    corovars $var
 	    set val [set $var]
-	    append result [<div> id $id class slider style [my style] [armour $val]]
+	    append result [<div> id $id class slider style [my style] [tclarmour [armour $val]]]
 
 	    return $result
 	}
@@ -374,7 +374,7 @@ namespace eval ::WubWidgets {
 		    }
 		}
 	    }
-	    return [$cmd [my widget] id $id {*}$class {*}$disabled style [my style] size [my cget -width] [armour $val]]
+	    return [$cmd [my widget] id $id {*}$class {*}$disabled style [my style] size [my cget -width] [tclarmour [armour $val]]]
 	}
 
 	method js {r} {
@@ -550,7 +550,7 @@ namespace eval ::WubWidgets {
 	    }
 	    
 	    my reset
-	    return [<textarea> [my widget] id $id {*}$class {*}$disabled style [my style] rows [my cget -height] cols [my cget -width] [armour $val]]
+	    return [<textarea> [my widget] id $id {*}$class {*}$disabled style [my style] rows [my cget -height] cols [my cget -width] [tclarmour [armour $val]]]
 	}
 	
 	superclass ::WubWidgets::widget
