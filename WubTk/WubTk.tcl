@@ -28,11 +28,9 @@ set ::API(Domains/WubTk) {
     {WubTk - a Web emulation of Tk}
 }
 
-class create ::WubTk {
-    # refresh client on change
-    method refresh {} {
-    }
+set ::WubTk_dir [file normalize [file dirname [info script]]]
 
+class create ::WubTk {
     method buttonJS {{what {$('.button')}}} {
 	return [string map [list %B% $what] {
 	    %B%.click(function () { 
@@ -471,6 +469,8 @@ class create ::WubTk {
 	namespace eval [info object namespace [self]]::Coros {}
 	if {[info exists file]} {
 	    append lambda [fileutil::cat -- $file]
+	} elseif {![info exists lambda] || $lambda eq ""} {
+	    variable lambda [fileutil::cat -- [file join $::WubTk_dir test.tcl]]
 	}
 
 	next {*}$args
