@@ -397,6 +397,9 @@ namespace eval ::WubWidgets {
 		foreground black background white justify left
 		state normal width 16
 	    } $args]
+	    if {[my cexists -show] && ![my cexists -type]} {
+		my configure -type password
+	    }
 	}
     }
     
