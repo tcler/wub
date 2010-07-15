@@ -86,7 +86,7 @@ proc findpaths {} {
 
 	# find Wub stuff
 	set top [file dirname $::Site::home]
-	foreach lib {extensions Wub Domains Utilities Client Tuple} {
+	foreach lib {extensions Wub Domains Utilities Client} {
 	    dict set apath [file join $top $lib] {}
 	}
     } else {
