@@ -216,7 +216,12 @@ class create ::Coco {
 	    return $result
 	} else {
 	    Debug.coco {coroutine gone: @$cmd}
-	    return [Http NotFound $r [<p> "Coco '$cmd' has terminated."]]
+	    variable tolerant
+	    if {$tolerant} {
+		return [Http Redirect $r [string trimright $mount /]/]
+	    } else {
+		return [Http NotFound $r [<p> "WubTk '$cmd' has terminated."]]
+	    }
 	}
     }
 
@@ -227,6 +232,7 @@ class create ::Coco {
     superclass FormClass	;# allow Form to work nicely
     constructor {args} {
 	variable hint 1
+	variable tolerant 0
 	variable {*}[Site var? Coco]	;# allow .ini file to modify defaults
 	variable {*}$args
 	namespace eval [info object namespace [self]]::Coros {}
