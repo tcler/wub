@@ -189,9 +189,10 @@ class create ::WubTk {
 	    variable lambda
 	    variable timeout
 	    variable icons
+	    variable theme
 	    Debug.wubtk {coroutine initialising - ($r) reply}
 	    
-	    set result [coroutine [namespace current]::Coros::${cmd}::_do ::apply [list {r lambda timeout icons} {
+	    set result [coroutine [namespace current]::Coros::${cmd}::_do ::apply [list {r lambda timeout icons theme} {
 		if {[catch {
 		    eval $lambda	;# install the user code
 		} e eo]} {
@@ -210,7 +211,8 @@ class create ::WubTk {
 			    if {[info exists _refresh]} {
 				Debug.wubtk {prodded with suspended refresh}
 				# we've been prodded by grid with a pending refresh
-				set re [Http Ok $_refresh [my update $r [grid changes]] application/javascript]
+				lassign [grid changes $_refresh] _refresh changes
+				set re [Http Ok $_refresh [my update $_refresh $changes] application/javascript]
 				unset _refresh
 				Httpd Resume $re
 			    } else {
@@ -237,7 +239,9 @@ class create ::WubTk {
 			    refresh {
 				# client has asked us to push changes
 				Debug.wubtk {[self] client has asked us to push changes}
-				set update [my update $r [grid changes]]
+
+				lassign [grid changes $r] r changes
+				set update [my update $r $changes]
 				if {$update eq ""} {
 				    # no updates to send
 				    if {[info exists _refresh]} {
@@ -279,6 +283,17 @@ class create ::WubTk {
 				}
 			    }
 
+			    slider {
+				# client variable has been set
+				set cmd .[dict Q.id]
+				if {[llength [info commands [namespace current]::$cmd]]} {
+				    Debug.wubtk {scale $cmd ($Q)}
+				    $cmd scale [dict Q.val]
+				} else {
+				    Debug.wubtk {not found scale [namespace current]::$cmd}
+				}
+			    }
+
 			    variable {
 				# client variable has been set
 				set cmd .[dict Q.id]
@@ -301,12 +316,26 @@ class create ::WubTk {
 				if {$timeout > 0} {
 				    set r [jQ comet $r refresh]
 				}
-				set content [grid render [namespace tail [info coroutine]]]
-				append content [<div> id ErrDiv {}]
-				append content [<img> id Spinner_ style {float:right; display:none;} src $icons/bigrotation.gif]
-				Debug.wubtk {render: $content}
-				dict set r -title [wm title]
-				set r [Http Ok $r $content x-text/html-fragment]
+
+				# add some CSS
+				set r [jQ theme $r $theme]
+				set content [<style> {
+				    .slider { margin: 10px; }
+				}]
+
+				if {[catch {
+				    append content [grid render]
+				    set r [grid js $r]
+				} e eo]} {
+				    set r [Http ServerError $r $e $eo]
+				} else {
+
+				    append content [<div> id ErrDiv {}]
+				    append content [<img> id Spinner_ style {float:right; display:none;} src $icons/bigrotation.gif]
+				    Debug.wubtk {render: $content}
+				    dict set r -title [wm title]
+				    set r [Http Ok $r $content x-text/html-fragment]
+				}
 				continue
 			    }
 			}
@@ -339,8 +368,9 @@ class create ::WubTk {
 			grid prod 0	;# no registered interest
 		    }
 
-		    Debug.wubtk {[self] sending pending updates - $e}
-		    set r [Http Ok $r [my update $r [grid changes] $e] application/javascript]
+		    Debug.wubtk {sending pending updates - $e}
+		    lassign [grid changes $r] r changes
+		    set r [Http Ok $r [my update $r $changes $e] application/javascript]
 		}
 		destroy	;# destroy all resources
 		if {[info exists redirect] && $redirect ne ""} {
@@ -349,7 +379,7 @@ class create ::WubTk {
 		    return [Http Ok $r "window.location='$redirect';" application/javascript]
 		}
 		Debug.wubtk {[info coroutine] exiting}
-	    } [namespace current]::Coros::$cmd] $r $lambda $timeout $icons]
+	    } [namespace current]::Coros::$cmd] $r $lambda $timeout $icons $theme]
 	    
 	    if {$result ne ""} {
 		Debug.wubtk {coroutine initialised - ($r) reply}
@@ -397,6 +427,7 @@ class create ::WubTk {
 	variable lambda ""
 	variable timeout 0
 	variable icons /icons/
+	variable theme dark
 	variable {*}$args
 	namespace eval [info object namespace [self]]::Coros {}
 	if {[info exists file]} {
