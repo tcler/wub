@@ -371,10 +371,13 @@ class create ::WubTk {
 	} else {
 	    Debug.wubtk {coroutine gone: $cmd}
 	    variable tolerant
+	    set app [string trimright $mount /]/
 	    if {$tolerant} {
-		return [Http Redirect $r [string trimright $mount /]/]
+		return [Http Redirect $r $app]
 	    } else {
-		return [Http NotFound $r [<p> "WubTk '$cmd' has terminated."]]
+		set msg [<p> "WubTk '$cmd' has terminated."]
+		append msg [<p> [<a> href $app "Restart"]]
+		return [Http Ok $r $msg]
 	    }
 	}
     }
