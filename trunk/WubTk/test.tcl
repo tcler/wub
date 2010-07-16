@@ -104,3 +104,6 @@ grid configure .m -column 2 -row 7 -columnspan 1
 #grid configure .n -column 2 -row 7 -columnspan 1
 grid configure .p -column 0 -row 8 -columnspan 2
 grid configure .q -column 2 -row 8 -columnspan 1
+
+image create photo .image -file ../Domains/Icons/images/graph.png
+grid configure .image -column 0 -row 9
