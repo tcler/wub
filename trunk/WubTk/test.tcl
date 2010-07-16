@@ -42,11 +42,7 @@ proc showCode {} {
     .g delete 1.0 end
     global lambda
     set a 0
-    foreach line [split $lambda \n] {
-	.g insert end "$line \n"
-	incr a
-	#update
-    }
+    .g insert end $lambda
     .i configure -text "Cut n paste the above code into wish to compare!" -foreground orange -background black
 }
 proc readckrd {} {
