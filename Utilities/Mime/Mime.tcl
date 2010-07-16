@@ -86,14 +86,14 @@ namespace eval ::Mime {
 	variable e2m; variable default
 	dict set e2m "" $default
 
-	proc MimeOf {ext} {
+	proc MimeOf [list ext [list default $default]] {
 	    variable e2m
 	    
 	    set ext ".[string trim [string tolower $ext] .]"
 	    if {[dict exist $e2m $ext]} {
 		return [dict get $e2m $ext]	;# mime type of extension
 	    } else {
-		return [dict get $e2m ""]	;# default mime type
+		return $default	;# default mime type
 	    }
 	}
 	
