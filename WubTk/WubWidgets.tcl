@@ -217,7 +217,11 @@ namespace eval ::WubWidgets {
 		set class {}
 	    }
 	    my reset
-	    return [<button> [my widget] id $id {*}$class style [my style] [tclarmour [armour [my cget -text]]]]
+	    if {[my cget? -image] ne ""} {
+		return [<button> [my widget] id $id {*}$class style [my style] [uplevel 1 [list [my cget -image] render]]]
+	    } else {
+		return [<button> [my widget] id $id {*}$class style [my style] [tclarmour [armour [my cget -text]]]]
+	    }
 	}
 
 	superclass ::WubWidgets::widget
