@@ -948,6 +948,9 @@ namespace eval ::WubWidgets {
 	    return [%T%C create ${ns}::$name {*}$args]
 	}]
     }
+    proc labelframe {args} {
+	return [frame {*}$args]
+    }
 
     # add some shims to make things look a little like an interp
     proc exit {args} {
