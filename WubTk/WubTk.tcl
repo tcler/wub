@@ -34,9 +34,9 @@ set ::API(Domains/WubTk) {
 set ::WubTk_dir [file normalize [file dirname [info script]]]
 
 class create ::WubTk {
-    method buttonJS {{what {$('.button')}}} {
+    method buttonJS {{what .button}} {
 	return [string map [list %B% [jQ S $what]] {
-	    %B%.click(function () { 
+	    $('%B%').click(function () { 
 		//alert($(this).attr("name")+" button pressed");
 		$("#Spinner_").show();
 		$.ajax({
@@ -57,9 +57,9 @@ class create ::WubTk {
 	}]
     }
 
-    method cbuttonJS {{what {$('.cbutton')}}} {
+    method cbuttonJS {{what .cbutton}} {
 	return [string map [list %B% [jQ S $what]] {
-	    %B%.change(function () { 
+	    $('%B%').change(function () { 
 		//alert($(this).attr("name")+" cbutton pressed");
 		$("#Spinner_").show();
 		var data = {id: $(this).attr("name"), val: 0};
@@ -86,9 +86,9 @@ class create ::WubTk {
 	}]
     }
 
-    method variableJS {{what {$('.variable')}}} {
+    method variableJS {{what .variable}} {
 	return [string map [list %B% [jQ S $what]] {
-	    %B%.change(function () {
+	    $('%B%').change(function () {
 		//alert($(this).attr("name")+" changed: " + $(this).val());
 		$("#Spinner_").show();
 		$.ajax({
@@ -110,19 +110,19 @@ class create ::WubTk {
     }
 
     method update {changes} {
-	Debug.wubtk {[self] update}
+	Debug.wubtk {[self] UPDATE ($changes)}
 
 	set result ""
 	foreach {id html type} $changes {
-	    Debug.wubtk {changed id: $id type: $type}
+	    Debug.wubtk {[namespace tail [self]] changed id: $id type: $type}
 	    dict lappend classified $type $id
 	    set html [string map {\n \\n} $html]
-	    append result [string map [list %ID% [jQ S #$id] %H% $html] {
+	    set jid #$id
+	    append result [string map [list %ID% [jQ S $jid] %H% $html] {
 		$('%ID%').replaceWith("%H%");
 	    }]
 
 	    # send js to track widget state
-	    set jid "\$('[jQ S #$id]')"
 	    switch -- $type {
 		button {
 		    append result [my buttonJS $jid]
@@ -147,6 +147,7 @@ class create ::WubTk {
 	set content {}
 	dict for {n v} [dict get? $r -script] {
 	    if {[string match !* $n]} {
+		Debug.wubtk {stripjs: $n}
 		set v [join [lrange [split $v \n] 1 end-1] \n]
 		lappend content $v
 	    }
@@ -252,7 +253,6 @@ class create ::WubTk {
 			    refresh {
 				# client has asked us to push changes
 				Debug.wubtk {[self] client has asked us to push changes}
-
 				lassign [grid changes $r] r changes
 				set update [my update $changes]
 				append update [my stripjs $r]
@@ -353,6 +353,7 @@ class create ::WubTk {
 				if {[catch {
 				    append content [grid render]
 				    set r [grid js $r]
+				    Debug.wubtk {RENDER JS: [my stripjs $r]}
 				} e eo]} {
 				    set r [Http ServerError $r $e $eo]
 				} else {
