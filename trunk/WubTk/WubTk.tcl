@@ -1,4 +1,6 @@
 # WubTk.tcl - a domain built around coroutines from tcl8.6
+#
+# Inspired by Roy Keene's http://www.rkeene.org/projects/tkweb/
 
 # TODO:
 #* comet - ajax push - for mods to local vars ... push them to client DONE?
