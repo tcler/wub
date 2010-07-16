@@ -296,7 +296,9 @@ namespace eval ::Query {
 	    set count 0
 	}
     
-	if {[dict exists $r content-type]} {
+	if {[dict exists $r -entity]
+	    || [dict exists $r -entitypath]
+	} {
 	    # there is an entity body
 	    set ct [dict get $r content-type]
 	    Debug.query {parsing entity part of type '$ct'}
