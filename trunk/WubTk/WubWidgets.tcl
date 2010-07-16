@@ -743,6 +743,7 @@ namespace eval ::WubWidgets {
 
 	# traverse grid looking for changes.
 	method changes {r} {
+	    Debug.wubwidgets {[namespace tail [self]] changes}
 	    variable grid
 	    set changes {}
 	    dict for {row rval} $grid {
@@ -751,10 +752,14 @@ namespace eval ::WubWidgets {
 			if {[uplevel 1 [list $widget changed?]]} {
 			    Debug.wubwidgets {changed ($row,$col) ($val)}
 			    if {[uplevel 1 [list $widget type]] eq "frame"} {
-				lappend changes {*}[uplevel 1 [list $widget changes $r]]
+				Debug.wubwidgets {[namespace tail [self]] frame changes to '$widget'}
+				lassign [uplevel 1 [list $widget changes $r]] r changed
+				lappend changes {*}$changed
 			    } else {
+				Debug.wubwidgets {[namespace tail [self]] changes to '$widget'}
 				lappend changes [uplevel 1 [list $widget id]] [uplevel 1 [list $widget render]] [uplevel 1 [list $widget type]]
 			    }
+
 			    set r [uplevel 1 [list $widget js $r]]
 			}
 		    }
@@ -917,9 +922,13 @@ namespace eval ::WubWidgets {
 	}
 
 	method changed? {} {return 1}
+
 	method changes {r} {
 	    variable grid
-	    return [uplevel 1 [list $grid changes $r]]
+	    Debug.wubwidgets {[namespace tail [self]] sub-grid changes}
+	    lassign [uplevel 1 [list $grid changes $r]] r changes
+	    Debug.wubwidgets {[namespace tail [self]] sub-grid changed: ($changes)}
+	    return [list $r $changes]
 	}
 
 	method js {r} {
