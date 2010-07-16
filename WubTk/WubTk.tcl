@@ -11,6 +11,9 @@
 #* enable/push wm title changes
 #* what to do about event [update] stuff? - currently stubbed
 #* spinning wheel on updates DONE
+#* menus
+#* comboboxes, spinboxes
+#* frames, labelframes
 
 package require Debug
 Debug define wubtk 10
@@ -32,7 +35,7 @@ set ::WubTk_dir [file normalize [file dirname [info script]]]
 
 class create ::WubTk {
     method buttonJS {{what {$('.button')}}} {
-	return [string map [list %B% $what] {
+	return [string map [list %B% [jQ S $what]] {
 	    %B%.click(function () { 
 		//alert($(this).attr("name")+" button pressed");
 		$("#Spinner_").show();
@@ -55,7 +58,7 @@ class create ::WubTk {
     }
 
     method cbuttonJS {{what {$('.cbutton')}}} {
-	return [string map [list %B% $what] {
+	return [string map [list %B% [jQ S $what]] {
 	    %B%.change(function () { 
 		//alert($(this).attr("name")+" cbutton pressed");
 		$("#Spinner_").show();
@@ -84,7 +87,7 @@ class create ::WubTk {
     }
 
     method variableJS {{what {$('.variable')}}} {
-	return [string map [list %B% $what] {
+	return [string map [list %B% [jQ S $what]] {
 	    %B%.change(function () {
 		//alert($(this).attr("name")+" changed: " + $(this).val());
 		$("#Spinner_").show();
@@ -114,12 +117,12 @@ class create ::WubTk {
 	    Debug.wubtk {changed id: $id type: $type}
 	    dict lappend classified $type $id
 	    set html [string map {\n \\n} $html]
-	    append result [string map [list %ID% $id %H% $html] {
-		$('#%ID%').replaceWith("%H%");
+	    append result [string map [list %ID% [jQ S #$id] %H% $html] {
+		$('%ID%').replaceWith("%H%");
 	    }]
 
 	    # send js to track widget state
-	    set jid "\$('#$id')"
+	    set jid "\$('[jQ S #$id]')"
 	    switch -- $type {
 		button {
 		    append result [my buttonJS $jid]
@@ -353,10 +356,9 @@ class create ::WubTk {
 				} e eo]} {
 				    set r [Http ServerError $r $e $eo]
 				} else {
-
 				    append content [<div> id ErrDiv {}]
 				    append content [string map [list %SS% $spinner_style] [<img> id Spinner_ style {%SS%; display:none;} width $spinner_size src $icons/bigrotation.gif]]
-				    Debug.wubtk {render: $content}
+				    Debug.wubtk {RENDERED: $content}
 				    dict set r -title [wm title]
 				    set r [Http Ok $r $content x-text/html-fragment]
 				}

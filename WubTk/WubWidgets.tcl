@@ -6,10 +6,26 @@ package provide WubWidgets 1.0
 
 namespace eval ::WubWidgets {
     oo::class create widget {
+	method compose {text} {
+	    set image [my cget? -image]
+	    if {$image ne ""} {
+		set image [uplevel 2 [list $image render]]
+	    }
+	    switch -- [my cget? justify] {
+		left {
+		    return $text$image
+		}
+		right -
+		default {
+		    return $image$text
+		}
+	    }
+	}
+
 	method type {} {
 	    set class [string range [namespace tail [info object class [self]]] 0 end-1]
 	}
-	method grid {grid} {
+	method gridder {grid} {
 	    variable _grid $grid
 	}
 
@@ -56,6 +72,10 @@ namespace eval ::WubWidgets {
 	}
 
 	method js {r} {
+	    set js [my cget? -js]
+	    if {$js ne ""} {
+		set r [jQ postscript $r $js]
+	    }
 	    return $r
 	}
 
@@ -105,8 +125,20 @@ namespace eval ::WubWidgets {
 
 	# style - construct an HTML style form
 	method style {} {
-	    variable background; variable foreground; variable justify
-	    return "background-color: $background; color: $foreground; text-align: $justify;"
+	    set result {}
+	    foreach {css tk} {background-color background
+		color foreground
+		text-align justify
+		vertical-align valign
+		border borderwidth
+	    } {
+		variable $tk
+		if {[info exists $tk] && [set $tk] ne ""} {
+		    lappend result "$css: [set $tk]"
+		}
+	    }
+	    # todo - padding
+	    return [join $result ";"]
 	}
 
 	# cget - get a variable's value
@@ -217,11 +249,8 @@ namespace eval ::WubWidgets {
 		set class {}
 	    }
 	    my reset
-	    if {[my cget? -image] ne ""} {
-		return [<button> [my widget] id $id {*}$class style [my style] [uplevel 1 [list [my cget -image] render]]]
-	    } else {
-		return [<button> [my widget] id $id {*}$class style [my style] [tclarmour [armour [my cget -text]]]]
-	    }
+	    set text [tclarmour [armour [my cget -text]]]
+	    return [<button> [my widget] id $id {*}$class style [my style] [my compose $text]]
 	}
 
 	superclass ::WubWidgets::widget
@@ -253,11 +282,7 @@ namespace eval ::WubWidgets {
 	    }
 	    Debug.wubwidgets {[self] checkbox render: checked:$checked, var:[set $var]}
 	    my reset
-	    if {[my cget? -image] ne ""} {
-		return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked [uplevel 1 [list [my cget -image] render]]]
-	    } else {
-		return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked [tclarmour [armour $label]]]
-	    }
+	    return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked [my compose $label]]
 	}
 
 	superclass ::WubWidgets::widget
@@ -282,11 +307,8 @@ namespace eval ::WubWidgets {
 	    }
 
 	    my reset
-	    if {[my cget? -image] ne ""} {
-		return [<div> id $id style [my style] [uplevel 1 [list [my cget -image] render]]]
-	    } else {
-		return [<div> id $id style [my style] [tclarmour [armour $val]]]
-	    }
+	    set text [tclarmour [armour $val]]
+	    return [<div> id $id style [my style] [my compose $text]]
 	}
 	
 	superclass ::WubWidgets::widget
@@ -409,7 +431,7 @@ namespace eval ::WubWidgets {
 		    Debug.wubwidgets {entry js: [dict get? $r -script]}
 		}
 	    }
-	    return $r
+	    return [next? $r]
 	}
 
 	superclass ::WubWidgets::widget
@@ -423,7 +445,24 @@ namespace eval ::WubWidgets {
 	    }
 	}
     }
-    
+
+    # widget template
+    oo::class create junkC {
+	# render widget
+	method render {{id ""}} {
+	}
+
+	# optional - add per-widget js
+	method js {r} {
+	    return $r
+	}
+
+	superclass ::WubWidgets::widget
+	constructor {args} {
+	    next {*}[dict merge {default args} $args]
+	}
+    }
+
     oo::class create textC {
 	method get {{start 1.0} {end end}} {
 	    set text [my cget text]
@@ -593,12 +632,19 @@ namespace eval ::WubWidgets {
 	    }
 	    return $title
 	}
+	method background {{widget .} image} {
+	    # todo - make background image
+	}
+
 	constructor {args} {
 	    variable title "WubTk"
 	}
     }
 
     oo::class create imageC {
+	method changed? {} {return 0}
+
+	# record widget id
 	method style {} {
 	    set result {}
 	    foreach a {alt longdesc height width usemap ismap} {
@@ -617,13 +663,14 @@ namespace eval ::WubWidgets {
 	    }
 	}
 
-	method render {{id ""}} {
-	    return [<img> id [my id $id] {*}[my style] src image/[my widget]]
+	method render {{junk ""}} {
+	    variable id
+	    return [<img> id [my widget] {*}[my style] src image/[my widget]]
 	}
 
 	superclass ::WubWidgets::widget
 	constructor {args} {
-	    next {*}[dict merge {} $args]
+	    next {*}[dict merge [list id [my widget]] $args]
 
 	    set fmt [my cget? -format]
 	    switch -glob -nocase -- $fmt {
@@ -703,7 +750,11 @@ namespace eval ::WubWidgets {
 		    dict with val {
 			if {[uplevel 1 [list $widget changed?]]} {
 			    Debug.wubwidgets {changed ($row,$col) ($val)}
-			    lappend changes [uplevel 1 [list $widget id]] [uplevel 1 [list $widget render]] [uplevel 1 [list $widget type]]
+			    if {[uplevel 1 [list $widget type]] eq "frame"} {
+				lappend changes {*}[uplevel 1 [list $widget changes $r]]
+			    } else {
+				lappend changes [uplevel 1 [list $widget id]] [uplevel 1 [list $widget render]] [uplevel 1 [list $widget type]]
+			    }
 			    set r [uplevel 1 [list $widget js $r]]
 			}
 		    }
@@ -725,10 +776,16 @@ namespace eval ::WubWidgets {
 	    }
 	}
 
+	method id {row col} {
+	    variable name
+	    return [join [list grid {*}[string trim $name .] $row $col] .]
+	}
+
 	method render {} {
+	    variable name
 	    global args sessid
 	    variable maxrows; variable maxcols; variable grid
-	    Debug.wubwidgets {GRID render rows:$maxrows cols:$maxcols ($grid)}
+	    Debug.wubwidgets {'[namespace tail [self]]' GRID render rows:$maxrows cols:$maxcols ($grid)}
 	    set rows {}
 	    set interaction {};
 	    for {set row 0} {$row < $maxrows} {incr row} {
@@ -737,10 +794,11 @@ namespace eval ::WubWidgets {
 		    if {[dict exists $grid $row $col]} {
 			set el [dict get $grid $row $col]
 			dict with el {
-			    set id grid_${row}_$col
-			    Debug.wubwidgets {render $widget $id}
-			    uplevel 1 [list $widget grid [self]]	;# record grid
-			    lappend cols [<td> colspan $columnspan [uplevel 1 [list $widget render $id]]]
+			    set id [my id $row $col]
+			    Debug.wubwidgets {'[namespace tail [self]]' render $widget ($id)}
+			    uplevel 1 [list $widget gridder [self]]	;# record grid
+			    set rendered [uplevel 1 [list $widget render $id]]
+			    lappend cols [<td> colspan $columnspan $rendered]
 			}
 			incr col $columnspan
 		    } else {
@@ -748,11 +806,14 @@ namespace eval ::WubWidgets {
 			incr col
 		    }
 		}
+
 		# now we have a complete row - accumulate it
 		lappend rows [<tr> align center valign middle [join $cols \n]]
 	    }
 	    
 	    set content [<table> [join $rows \n]]
+	    Debug.wubwidgets {'[namespace tail [self]]' RENDERED ($content)}
+	    return $content
 	}
 
 	method js {r {w ""}} {
@@ -766,13 +827,28 @@ namespace eval ::WubWidgets {
 		    set r [uplevel 1 [list [dict get $col widget] js $r]]
 		}
 	    }
-
 	    return $r
 	}
-	
+
 	method configure {widget args} {
-	    Debug.wubwidgets {grid configure $widget $args}
-	    #set defaults
+	    variable name
+	    if {[string match .* $widget]} {
+		set frame [lrange [split $widget .] 1 end]
+		set widget $name$widget
+	    } else {
+		set frame [split $widget .]
+		set widget $name.$widget
+	    }
+	    
+	    if {[llength $frame] > 1} {
+		Debug.wubwidgets {'[namespace tail [self]]' sub-grid .[join $frame .]}
+		uplevel 1 [list $name.[lindex $frame 0] grid configure [join [lrange $frame 1 end] .] {*}$args]
+		return $widget
+	    } else {
+		Debug.wubwidgets {'[namespace tail [self]]' grid configure ($frame) $widget $args}
+	    }
+
+	    # set defaults
 	    set column 0
 	    set row 0
 	    set columnspan 1
@@ -799,22 +875,74 @@ namespace eval ::WubWidgets {
 	    variable grid
 	    dict set grid $row $column [list widget $widget columnspan $columnspan rowspan $rowspan sticky $sticky in $in]
 
-	    set id grid_${row}_$column
-	    uplevel 1 [list $widget grid [self]]	;# record grid
+	    variable name
+	    Debug.wubwidgets {[namespace tail [self]] configure gridding $widget}
+	    uplevel 1 [list $widget gridder [self]]	;# record grid
+
+	    set id [my id $row $column]
 	    uplevel 1 [list $widget id $id]	;# inform widget of its id
+
+	    return $widget
 	}
 
 	constructor {args} {
 	    variable maxcols 0
 	    variable maxrows 0
+	    variable name ""
+
 	    variable {*}$args
+
 	    variable grid {}
 	    variable interest 0
 	}
     }
 
+    # frame widget
+    oo::class create frameC {
+	method grid {args} {
+	    variable grid
+	    Debug.wubwidgets {Frame [namespace tail [self]] calling: $grid $args}
+	    uplevel 1 [list $grid {*}$args]
+	}
+
+	# render widget
+	method render {{id ""}} {
+	    set label [my cget? -text]
+	    if {$label ne ""} {
+		set content [<legend> $label]
+	    }
+	    variable grid
+	    append content \n [uplevel 1 [list $grid render]]
+	    return [<fieldset> [my widget] -raw 1 $content]
+	}
+
+	method changed? {} {return 1}
+	method changes {r} {
+	    variable grid
+	    return [uplevel 1 [list $grid changes $r]]
+	}
+
+	method js {r} {
+	    variable grid
+	    return [uplevel 1 [list $grid js $r]]
+	}
+
+	destructor {
+	    variable grid
+	    catch {$grid destroy}
+	}
+
+	superclass ::WubWidgets::widget
+	constructor {args} {
+	    next {*}[dict merge {} $args]
+	    set name [self]..grid
+	    variable grid [uplevel 1 [list gridC create $name name .[my widget]]]
+	    Debug.wubwidgets {created Frame [self]}
+	}
+    }
+
     # make shims for each kind of widget
-    foreach n {button label entry text checkbutton scale} {
+    foreach n {button label entry text checkbutton scale frame} {
 	proc $n {name args} [string map [list %T% $n] {
 	    set ns [uplevel 1 {namespace current}]
 	    return [%T%C create ${ns}::$name {*}$args]
