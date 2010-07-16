@@ -253,7 +253,11 @@ namespace eval ::WubWidgets {
 	    }
 	    Debug.wubwidgets {[self] checkbox render: checked:$checked, var:[set $var]}
 	    my reset
-	    return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked [tclarmour [armour $label]]]
+	    if {[my cget? -image] ne ""} {
+		return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked [uplevel 1 [list [my cget -image] render]]]
+	    } else {
+		return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked [tclarmour [armour $label]]]
+	    }
 	}
 
 	superclass ::WubWidgets::widget
