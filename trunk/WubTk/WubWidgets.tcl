@@ -164,6 +164,16 @@ namespace eval ::WubWidgets {
 
 	# configure - set variables to their values
 	method configure {args} {
+	    if {$args eq {}} {
+		Debug.wubwidgets {[info coroutine] fetching configuration [self]}
+		set result {}
+		foreach var [info object vars [self]] {
+		    variable $var
+		    lappend result $var [set $var]
+		}
+		return $result
+	    }
+
 	    Debug.wubwidgets {[info coroutine] configure [self] ($args)}
 	    variable change
 	    variable _grid ""
@@ -751,13 +761,17 @@ namespace eval ::WubWidgets {
 		    dict with val {
 			if {[uplevel 1 [list $widget changed?]]} {
 			    Debug.wubwidgets {changed ($row,$col) ($val)}
-			    if {[uplevel 1 [list $widget type]] eq "frame"} {
-				Debug.wubwidgets {[namespace tail [self]] frame changes to '$widget'}
-				lassign [uplevel 1 [list $widget changes $r]] r changed
-				lappend changes {*}$changed
-			    } else {
-				Debug.wubwidgets {[namespace tail [self]] changes to '$widget'}
-				lappend changes [uplevel 1 [list $widget id]] [uplevel 1 [list $widget render]] [uplevel 1 [list $widget type]]
+			    set type [uplevel 1 [list $widget type]]
+			    Debug.wubwidgets {[namespace tail [self]] $type changes to '$widget' at ($row,$col) ($val)}
+			    switch -- $type {
+				notebook -
+				frame {
+				    lassign [uplevel 1 [list $widget changes $r]] r changed
+				    lappend changes {*}$changed
+				}
+				default {
+				    lappend changes [uplevel 1 [list $widget id]] [uplevel 1 [list $widget render]] [uplevel 1 [list $widget type]]
+				}
 			    }
 
 			    set r [uplevel 1 [list $widget js $r]]
@@ -766,7 +780,7 @@ namespace eval ::WubWidgets {
 		}
 	    }
 
-	    return [list $r $changes]	;# return the dict of changes by id
+	    return [list $r {*}$changes]	;# return the dict of changes by id
 	}
 
 	# something has changed us
@@ -912,13 +926,20 @@ namespace eval ::WubWidgets {
 
 	# render widget
 	method render {{id ""}} {
-	    set label [my cget? -text]
-	    if {$label ne ""} {
-		set content [<legend> $label]
+	    if {[my cexists -div]} {
+		set id [my id $id]
+		variable grid
+		append content \n [uplevel 1 [list $grid render]]
+		return [<div> id $id $content]
+	    } else {
+		set label [my cget? -text]
+		if {$label ne ""} {
+		    set content [<legend> $label]
+		}
+		variable grid
+		append content \n [uplevel 1 [list $grid render]]
+		return [<fieldset> [my widget] -raw 1 $content]
 	    }
-	    variable grid
-	    append content \n [uplevel 1 [list $grid render]]
-	    return [<fieldset> [my widget] -raw 1 $content]
 	}
 
 	method changed? {} {return 1}
@@ -926,9 +947,9 @@ namespace eval ::WubWidgets {
 	method changes {r} {
 	    variable grid
 	    Debug.wubwidgets {[namespace tail [self]] sub-grid changes}
-	    lassign [uplevel 1 [list $grid changes $r]] r changes
+	    set changes [lassign [uplevel 1 [list $grid changes $r]] r]
 	    Debug.wubwidgets {[namespace tail [self]] sub-grid changed: ($changes)}
-	    return [list $r $changes]
+	    return [list $r {*}$changes]
 	}
 
 	method js {r} {
@@ -950,8 +971,98 @@ namespace eval ::WubWidgets {
 	}
     }
 
+    # widget template
+    oo::class create notebookC {
+	method grid {cmd w args} {
+	    if {$cmd eq "configure"} {
+		set w [lassign [split $w .] frame]
+		return [uplevel 1 [list .[my widget].$frame grid $cmd [join $w .] {*}$args]]
+	    }
+	}
+
+	# render widget
+	method render {{id ""}} {
+	    set id [my id $id]
+	    variable tabs
+	    set body {}; set js {}; set cnt 0
+	    set li {}
+	    foreach tab $tabs {
+		set tid $id.$cnt
+		lappend body [uplevel 1 [list $tab render $tid]]
+		set cnf [uplevel 1 [list $tab configure]]
+		lappend li [<li> [<a> href #$tid [dict cnf.text]]]
+		incr cnt
+	    }
+	    set content [<ul> [join $li \n]]
+	    append content [join $body \n]
+	    
+	    return [<div> id $id $content]
+	}
+
+	method changed? {} {return 1}
+
+	method changes {r} {
+	    variable tabs
+	    set changes {}
+	    foreach tab $tabs {
+		lassign [uplevel 1 [list $tab changes $r]] r changed
+		lappend changes {*}$changed
+	    }
+	    return [list $r {*}$changes]
+	}
+
+	# optional - add per-widget js
+	method js {r} {
+	    set id [my id]
+	    variable tabs
+	    set js {}; set cnt 0
+	    foreach tab $tabs {
+		set r [uplevel 1 [list $tab js $r]]
+		set cnf [uplevel 1 [list $tab configure]]
+		switch -- [dict cnf.state] {
+		    normal {
+			set r [jQ script $r "\$([jQ S #$id]).tabs('enable',$cnt)"]
+		    }
+		    disabled {
+			set r [jQ script $r "\$([jQ S #$id]).tabs('disable',$cnt)"]
+		    }
+		}
+		incr cnt
+	    }
+	    return [jQ tabs $r #[my id]]
+	}
+
+	method add {w args} {
+	    set type [uplevel 1 [list $w type]]
+	    if {$type ne "frame"} {
+		error "Can only add Frames to Notebooks.  $w is a $type"
+	    }
+	    variable tabs
+	    uplevel 1 [list $w configure {*}[dict merge [list -state normal -text "Tab[llength $tabs]"] $args {-div 1}]]
+	    lappend tabs $w
+	}
+
+	method insert {index w args} {
+	    set type [uplevel 1 [list $w type]]
+	    if {$type ne "frame"} {
+		error "Can only add Frames to Notebooks.  $w is a $type"
+	    }
+	    variable tabs
+	    uplevel 1 [list $w configure {*}[dict merge [list -state normal -text "Tab$index"] $args] {-div 1}]
+	    set tabs [linsert $tabs $index $w]
+	}
+
+	superclass ::WubWidgets::widget
+	constructor {args} {
+	    next {*}[dict merge {} $args]
+	    variable tabs {}
+	}
+    }
+
+    
+
     # make shims for each kind of widget
-    foreach n {button label entry text checkbutton scale frame} {
+    foreach n {button label entry text checkbutton scale frame notebook} {
 	proc $n {name args} [string map [list %T% $n] {
 	    set ns [uplevel 1 {namespace current}]
 	    return [%T%C create ${ns}::$name {*}$args]
