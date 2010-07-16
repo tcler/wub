@@ -224,7 +224,7 @@ class create ::WubTk {
 			    if {[info exists _refresh]} {
 				Debug.wubtk {prodded with suspended refresh}
 				# we've been prodded by grid with a pending refresh
-				lassign [grid changes $_refresh] _refresh changes
+				set changes [lassign [grid changes $_refresh] _refresh]
 				set content [my update $changes]
 				append content [my stripjs $_refresh]
 				set re [Http Ok $_refresh $content application/javascript]
@@ -255,7 +255,7 @@ class create ::WubTk {
 			    refresh {
 				# client has asked us to push changes
 				Debug.wubtk {[self] client has asked us to push changes}
-				lassign [grid changes $r] r changes
+				set changes [lassign [grid changes $r] r]
 				set update [my update $changes]
 				append update [my stripjs $r]
 
@@ -399,7 +399,7 @@ class create ::WubTk {
 		    }
 
 		    Debug.wubtk {sending pending updates - $e}
-		    lassign [grid changes $r] r changes
+		    set changes [lassign [grid changes $r] r]
 		    set content [my update $changes]
 		    append content [my stripjs $r]
 
