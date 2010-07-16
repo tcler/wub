@@ -107,3 +107,9 @@ grid configure .q -column 2 -row 8 -columnspan 1
 
 image create photo .image -file ../Domains/Icons/images/graph.png
 grid configure .image -column 0 -row 9
+
+label .limage -image .image
+grid configure .limage -column 1 -row 9
+
+button .ibutton -image .image -command buttonC
+grid configure .ibutton -column 2 -row 9
