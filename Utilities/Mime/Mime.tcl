@@ -69,7 +69,7 @@ namespace eval ::Mime {
     }
 
     # determine type by file extension
-    proc MimeOf {ext} {
+    proc MimeOf {ext {def ""}} {
 	# try to prime the e2m array
 	variable prime
 	variable home
@@ -97,7 +97,7 @@ namespace eval ::Mime {
 	    }
 	}
 	
-	return [MimeOf $ext]
+	return [MimeOf $ext $def]
     }
 
     # init the thing
