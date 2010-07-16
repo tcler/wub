@@ -115,6 +115,15 @@ namespace eval ::WubWidgets {
 	    variable $n
 	    return [set $n]
 	}
+	method cget? {n} {
+	    set n [string trim $n -]
+	    variable $n
+	    if {[info exists $n]} {
+		return [set $n]
+	    } else {
+		return ""
+	    }
+	}
 	method cexists {n} {
 	    set n [string trim $n -]
 	    variable $n
@@ -576,6 +585,84 @@ namespace eval ::WubWidgets {
 	    variable title "WubTk"
 	}
     }
+
+    oo::class create imageC {
+	method style {} {
+	    set result {}
+	    foreach a {alt longdesc height width usemap ismap} {
+		if {[my cexists $a]} {
+		    lappend result $a [my cget $a]
+		}
+	    }
+	    return $result
+	}
+
+	method fetch {r} {
+	    if {[my cexists -data]} {
+		return [Http Ok $r [my cget -data] [my cget -format]]
+	    } else {
+		return [Http File $r [my cget -file] [my cget -format]]
+	    }
+	}
+
+	method render {{id ""}} {
+	    return [<img> id [my id $id] {*}[my style] src image/[my widget]]
+	}
+
+	superclass ::WubWidgets::widget
+	constructor {args} {
+	    next {*}[dict merge {} $args]
+
+	    set fmt [my cget? -format]
+	    switch -glob -nocase -- $fmt {
+		gif* {
+		    set fmt image/gif
+		}
+		png {
+		    set fmt image/png
+		}
+		jpeg -
+		jpg {
+		    # no format specified
+		    set fmt image/jpeg
+		}
+		default {
+		    set fmt ""
+		}
+	    }
+
+	    if {[my cexists -data]} {
+		if {$fmt eq ""} {
+		    set fmt image/jpeg
+		}
+	    } elseif {[my cexists -file]} {
+		set fmt [Mime MimeOf [file extension [my cget -file]] $fmt]
+	    } else {
+		error "Must specify either -data or -file"
+	    }
+
+	    next -format $fmt
+	}
+    }
+
+    proc image {op args} {
+	switch -- $op {
+	    create {
+		Debug.wubwidgets {image creation: $args}
+		set args [lassign $args type]
+		if {[llength $args]%2} {
+		    set args [lassign $args name]
+		    set ns [uplevel 1 {namespace current}]
+		    set result [imageC create ${ns}::$name type $type {*}$args]
+		} else {
+		    set result [uplevel 1 [list imageC new type $type {*}$args]]
+		}
+		Debug.wubwidgets {image created: $result}
+		return $result
+	    }
+	}
+    }
+
 
     # grid store grid info in an x/y array gridLayout(column.row)
     oo::class create gridC {
