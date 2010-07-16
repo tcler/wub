@@ -244,7 +244,8 @@ class create ::WubTk {
 		    Debug.wubtk {[info coroutine] Event: [dict get? $r -extra] ($Q)}
 		    set cmd ""; set op ""
 		    set err [catch {
-			switch -- [dict get? $r -extra] {
+			set extra [dict get? $r -extra]
+			switch -glob -- $extra {
 			    refresh {
 				# client has asked us to push changes
 				Debug.wubtk {[self] client has asked us to push changes}
@@ -314,6 +315,18 @@ class create ::WubTk {
 				} else {
 				    Debug.wubtk {not found button [namespace current]::$cmd}
 				}
+			    }
+
+			    image/* {
+				set cmd .[lindex [split $extra /] end]
+				if {[llength [info commands [namespace current]::$cmd]]} {
+				    Debug.wubtk {image $cmd}
+				    set r [$cmd fetch $r]
+				} else {
+				    Debug.wubtk {not found image [namespace current]::$cmd}
+				    set r [Http NotFound $r]
+				}
+				continue
 			    }
 
 			    default {
