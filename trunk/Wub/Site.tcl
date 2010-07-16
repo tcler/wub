@@ -1,3 +1,5 @@
+#! /usr/bin/env tclsh
+
 # Site - simple configuration for single-threaded Wub Server.
 package require Tcl 8.6	;# minimum version of tcl required
 
@@ -739,4 +741,20 @@ namespace eval ::Site {
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
+
+if {[info exists argv0] && ($argv0 eq [info script])} {
+    if {0} {
+	# this will run Wub under the experimental Package facility
+	lappend auto_path [file dirname [pwd]]/Utilities/
+	package require Package	;# start the cooption of [package]
+    }
+    set auto_path [list [pwd] {*}$auto_path]
+
+    # Initialize Site
+    Site init home [file normalize [file dirname [info script]]] ini site.ini debug 10
+
+    # Start Site Server(s)
+    Site start 
+}
+
 # vim: ts=8:sw=4:noet
