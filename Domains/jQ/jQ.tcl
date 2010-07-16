@@ -83,8 +83,8 @@ namespace eval ::jQ {
     variable expires "next week"
     variable google 0
 
-    variable version 1.3.2
-    variable uiversion 1.7.2
+    variable version 1.4.2
+    variable uiversion 1.8.2
     variable min 1
 
     proc script {r script args} {
