@@ -174,8 +174,13 @@ class create ::FormClass {
 		    }
 		}
 
-		# evaluate form content
-		set body [uplevel 1 [list subst $body]]
+		if {![dict exists $config -raw] || ![dict get $config -raw]} {
+		    # evaluate form content
+		    set body [uplevel 1 [list subst $body]]
+		} else {
+		    # don't evaluate form content
+		    dict unset config -raw
+		}
 		set body [string trim $body " \t\n\r"]
 
 		set content ""
