@@ -281,7 +281,7 @@ namespace eval ::WubWidgets {
 	superclass ::WubWidgets::widget
 	constructor {args} {
 	    next {*}[dict merge {text ""
-		foreground black background white justify left
+		justify left
 		command ""
 	    } $args]
 	}
@@ -314,7 +314,7 @@ namespace eval ::WubWidgets {
 	constructor {args} {
 	    next {*}[dict merge [list -variable [my widget]] {
 		text ""
-		foreground black background white justify left
+		justify left
 		command ""
 	    } $args]
 	}
@@ -339,7 +339,7 @@ namespace eval ::WubWidgets {
 	superclass ::WubWidgets::widget
 	constructor {args} {
 	    next {*}[dict merge {text ""
-		foreground "black" background "white" justify "left"
+		justify "left"
 	    } $args]
 	}
     }
@@ -397,7 +397,7 @@ namespace eval ::WubWidgets {
 	superclass ::WubWidgets::widget
 	constructor {args} {
 	    next {*}[dict merge [list -variable [my widget]] {
-		foreground black background white justify left state active
+		justify left state active
 		label "" command "" -length 100 -width 10 -showvalue 0
 		-from 0 -to 100 -tickinterval 0
 		-orient horizontal
@@ -462,7 +462,7 @@ namespace eval ::WubWidgets {
 	superclass ::WubWidgets::widget
 	constructor {args} {
 	    next {*}[dict merge {text ""
-		foreground black background white justify left
+		justify left
 		state normal width 16
 	    } $args]
 	    if {[my cexists -show] && ![my cexists -type]} {
@@ -641,7 +641,7 @@ namespace eval ::WubWidgets {
 	superclass ::WubWidgets::widget
 	constructor {args} {
 	    next {*}[dict merge {text ""
-		foreground black background white justify left
+		justify left
 		state normal height 10 width 40
 	    } $args]
 	}
@@ -832,7 +832,12 @@ namespace eval ::WubWidgets {
 			    Debug.wubwidgets {'[namespace tail [self]]' render $widget ($id)}
 			    uplevel 1 [list $widget gridder [self]]	;# record grid
 			    set rendered [uplevel 1 [list $widget render $id]]
-			    lappend cols [<td> colspan $columnspan $rendered]
+			    if {$rowspan != 1} {
+				set rowspan [list rowspan $rowspan]
+			    } else {
+				set rowspan {}
+			    }
+			    lappend cols [<td> colspan $columnspan {*}$rowspan $rendered]
 			}
 			incr col $columnspan
 		    } else {
