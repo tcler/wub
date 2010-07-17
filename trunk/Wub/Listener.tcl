@@ -76,10 +76,20 @@ class create ::Listener {
     method accept {opts sock ipaddr rport} {
 	Debug.listener {accepted: $sock $ipaddr $rport}
 
-	if {[catch {
-	    if {[dict exists $opts -tls]} {
+	if {[dict exists $opts -tls]} {
+	    variable defaults
+	    if {[catch {
+		chan configure $sock -blocking 1 -translation {binary binary}
+		tls::import $sock -server 1 {*}[dict in $opts [dict keys $defaults]] -command [list [self] progress] -password [list [self] password]
 		tls::handshake $sock
+	    } e eo]} {
+		Debug.error {Error accepting HTTPS connection: '$e'}
+		catch {close $sock}
+		return
 	    }
+	}
+
+	if {[catch {
 	    # select an Http object to handle incoming
 	    {*}[dict get $opts -httpd] Connect $sock $ipaddr $rport {*}$opts
 	} result eo]} {
@@ -92,51 +102,51 @@ class create ::Listener {
 	return 1
     }
 
-    variable listener
+    method password {args} {
+	puts stderr "TLS password: $args"
+	return 1
+    }
 
     constructor {args} {
-	if {[catch {
-	    set args [dict merge [subst {
-		-host [info hostname]
-		-port 8080
-		-httpd Httpd
-	    }] $args]
-	    dict set args -id [self]
+	Debug.listener {construct [self] ($args)}
+	set args [dict merge [subst {
+	    -host [info hostname]
+	    -port 8080
+	    -httpd Httpd
+	}] $args]
+	dict set args -id [self]
 
-	    if {[dict exists $args -tls] && [dict get $args -tls]} {
-		# TLS / HTTPS socket
-		set defaults {
-		    -certfile server-public.pem
-		    -keyfile server-private.pem
-		    -ssl2 1
-		    -ssl3 1
-		    -tls1 0
-		    -require 0
-		    -request 0
-		}
-		set args [dict merge $defaults $args]
-		set cmd [list tls::socket -server [list [self] accept $args] -command [list [self] progress] {*}[dict in $args [dict keys $defaults]]]
-	    } else {
-		# non-TLS socket
-		set cmd [list socket -server [list [self] accept $args]]
+	if {[dict exists $args -tls] && [dict get $args -tls]} {
+	    # TLS / HTTPS socket
+	    Debug.listener {TLS required}
+	    variable defaults {
+		-certfile server-public.pem
+		-keyfile server-private.pem
+		-ssl2 0
+		-ssl3 1
+		-tls1 1
+		-require 0
+		-request 0
 	    }
-	    
-	    if {[dict exists $args -myaddr] &&
-		[dict get $args -myaddr] != 0
-	    } {
-		lappend cmd -myaddr [dict get $args -myaddr]
-	    }
-	    
-	    lappend cmd [dict get $args -port]
-
-	    Debug.listener {server: $cmd}
-	    if {[catch $cmd listener eo]} {
-		Debug.error {Listener Failed: '$cmd' $listener ($eo)}
-	    }
-	    Debug.log {Listener $listener on [fconfigure $listener]}
-	} error eo]} {
-	    Debug.error {constructor err: $eo}
+	    set args [dict merge $defaults $args]
 	}
+
+	set cmd [list socket -server [list [self] accept $args]]
+	if {[dict exists $args -myaddr] &&
+	    [dict get $args -myaddr] != 0
+	} {
+	    lappend cmd -myaddr [dict get $args -myaddr]
+	}
+	
+	lappend cmd [dict get $args -port]
+	
+	Debug.listener {server: $cmd}
+	variable listener
+	if {[catch $cmd listener eo]} {
+	    Debug.error {Listener Failed: '$cmd' $listener ($eo)}
+	}
+
+	Debug.log {Listener $listener on [fconfigure $listener]}
     }
 
     destructor {
@@ -205,7 +215,6 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 
     # start Listener
     set listener [Listener %AUTO% -port 8080 -dispatcher Dispatch]
-    #puts stderr "Listener $listener"
 
     package require Stdin
 
