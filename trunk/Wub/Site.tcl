@@ -227,10 +227,9 @@ namespace eval ::Site {
 
 	Https {
 	    # HTTPS Listener configuration
-	    -port 8081	;# Wub listener port
-	    #-host	;# listening host (default [info hostname]
-	    #-http	;# dispatch handler (default Http)
-	    -tls {}
+	    # -port 8081	;# Wub listener port
+	    # -host	;# listening host (default [info hostname]
+	    # -http	;# dispatch handler (default Http)
 	}
 
 	Sscgi {
@@ -663,7 +662,7 @@ namespace eval ::Site {
 	    #package require CA
 	    #CA init dir $home/CA host $host port [dict get $https -port]
 	    #dict lappend https -tls -cafile [CA cafile] -certfile [CA certificate $host] 
-	    Listener new {*}[config section Https] -httpd Httpd
+	    Listener new {*}[config section Https] -tls 1 -httpd Httpd
 	}
 
 	#### start scgi Listener
