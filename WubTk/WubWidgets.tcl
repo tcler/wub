@@ -800,7 +800,7 @@ namespace eval ::WubWidgets {
 			    switch -- $type {
 				notebook -
 				frame {
-				    lassign [uplevel 1 [list $widget changes $r]] r changed
+				    set changed [lassign [uplevel 1 [list $widget changes $r]] r]
 				    lappend changes {*}$changed
 				}
 				default {
