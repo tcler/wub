@@ -107,12 +107,12 @@ grid configure .image -column 0 -row 9
 label .limage -image .image
 grid configure .limage -column 1 -row 9
 
-button .ibutton -image .image -command buttonC -text "image button" -valign middle
+button .ibutton -image .image -command buttonC -text "image button" -valign middle -compound bottom
 grid configure .ibutton -column 2 -row 9
 
 frame .frame -text "A Frame"
 image create photo .image2 -file ../Domains/Icons/images/java.png
-button .frame.button -image .image2 -command buttonC -text "press me"
+button .frame.button -image .image2 -command buttonC -text "press me" -compound top
 grid configure .frame.button -column 1 -row 1
 
 grid configure .frame -column 4 -row 0
