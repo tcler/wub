@@ -89,7 +89,7 @@ namespace eval ::WubWidgets {
 	method js {r} {
 	    set js [my cget? -js]
 	    if {$js ne ""} {
-		set r [jQ postscript $r $js]
+		set r [Html postscript $r $js]
 	    }
 	    return $r
 	}
@@ -812,7 +812,7 @@ namespace eval ::WubWidgets {
 
 	method id {row col} {
 	    variable name
-	    return [join [list grid {*}[string trim $name .] $row $col] .]
+	    return [join [list grid {*}[string trim $name .] $row $col] _]
 	}
 
 	method render {} {
@@ -1007,7 +1007,7 @@ namespace eval ::WubWidgets {
 	    set body {}; set js {}; set cnt 0
 	    set li {}
 	    foreach tab $tabs {
-		set tid $id.$cnt
+		set tid ${id}_$cnt
 		lappend body [uplevel 1 [list $tab render $tid]]
 		set cnf [uplevel 1 [list $tab configure]]
 		lappend li [<li> [<a> href #$tid [dict cnf.text]]]
@@ -1041,10 +1041,10 @@ namespace eval ::WubWidgets {
 		set cnf [uplevel 1 [list $tab configure]]
 		switch -- [dict cnf.state] {
 		    normal {
-			set r [jQ script $r "\$([jQ S #$id]).tabs('enable',$cnt)"]
+			set r [Html postscript $r "\$('#$id').tabs('enable',$cnt)"]
 		    }
 		    disabled {
-			set r [jQ script $r "\$([jQ S #$id]).tabs('disable',$cnt)"]
+			set r [Html postscript $r "\$('#$id').tabs('disable',$cnt)"]
 		    }
 		}
 		incr cnt
@@ -1078,8 +1078,6 @@ namespace eval ::WubWidgets {
 	    variable tabs {}
 	}
     }
-
-    
 
     # make shims for each kind of widget
     foreach n {button label entry text checkbutton scale frame notebook} {
