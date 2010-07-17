@@ -101,7 +101,7 @@ grid configure .m -column 2 -row 7 -columnspan 1
 grid configure .p -column 0 -row 8 -columnspan 2
 grid configure .q -column 2 -row 8 -columnspan 1
 
-image create photo .image -file ../Domains/Icons/images/graph.png
+image create photo .image -file ../Domains/Icons/images/chart_accept.gif
 grid configure .image -column 0 -row 9
 
 label .limage -image .image
@@ -111,7 +111,7 @@ button .ibutton -image .image -command buttonC -text "image button" -valign midd
 grid configure .ibutton -column 2 -row 9
 
 frame .frame -text "A Frame"
-image create photo .image2 -file ../Domains/Icons/images/java.png
+image create photo .image2 -file ../Domains/Icons/images/clock.gif
 button .frame.button -image .image2 -command buttonC -text "press me" -compound top
 grid configure .frame.button -column 0 -row 0
 
