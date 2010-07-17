@@ -116,23 +116,3 @@ button .frame.button -image .image2 -command buttonC -text "press me"
 grid configure .frame.button -column 1 -row 1
 
 grid configure .frame -column 4 -row 0
-if {0} {
-    # make a notebook - not working
-    notebook .nb
-    grid configure .nb -column 0 -row 10 -columnspan 5
-    
-    frame .nb.tab1 -text "Tab 1"
-    .nb add .nb.tab1
-    label .nb.tab1.limage -text "This is Tab1"
-    grid configure .nb.tab1.limage -column 0 -row 0
-    
-    frame .nb.tab2 -text "Tab 2"
-    .nb add .nb.tab2
-    label .nb.tab2.limage -text "This is Tab2"
-    grid configure .nb.tab2.limage -column 0 -row 0
-    
-    frame .nb.tab3 -text "Tab 3"
-    .nb add .nb.tab3
-    label .nb.tab3.limage -text "This is Tab3"
-    grid configure .nb.tab3.limage -column 0 -row 0
-}
