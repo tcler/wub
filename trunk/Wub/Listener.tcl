@@ -103,9 +103,8 @@ class create ::Listener {
 	    }] $args]
 	    dict set args -id [self]
 
-	    if {![dict exists $args -tls]} {
-		set cmd [list socket -server [list [self] accept $args]]
-	    } else {
+	    if {[dict exists $args -tls] && [dict get $args -tls]} {
+		# TLS / HTTPS socket
 		set defaults {
 		    -certfile server-public.pem
 		    -keyfile server-private.pem
@@ -117,6 +116,9 @@ class create ::Listener {
 		}
 		set args [dict merge $defaults $args]
 		set cmd [list tls::socket -server [list [self] accept $args] -command [list [self] progress] {*}[dict in $args [dict keys $defaults]]]
+	    } else {
+		# non-TLS socket
+		set cmd [list socket -server [list [self] accept $args]]
 	    }
 	    
 	    if {[dict exists $args -myaddr] &&
