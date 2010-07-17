@@ -113,6 +113,6 @@ grid configure .ibutton -column 2 -row 9
 frame .frame -text "A Frame"
 image create photo .image2 -file ../Domains/Icons/images/java.png
 button .frame.button -image .image2 -command buttonC -text "press me" -compound top
-grid configure .frame.button -column 1 -row 1
+grid configure .frame.button -column 0 -row 0
 
-grid configure .frame -column 4 -row 0
+grid configure .frame -column 3 -row 0 -rowspan 3
