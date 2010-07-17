@@ -122,18 +122,39 @@ if {1} {
     notebook .nb
     grid configure .nb -column 0 -row 10 -columnspan 5
     
-    frame .nb.tab1 -text "Tab 1"
+    frame .nb.tab1 -text "Tab 0"
     .nb add .nb.tab1
-    label .nb.tab1.limage -text "This is Tab1"
+    label .nb.tab1.limage -text "This is Tab 0"
     grid configure .nb.tab1.limage -column 0 -row 0
     
-    frame .nb.tab2 -text "Tab 2"
+    frame .nb.tab2 -text "Tab 1"
     .nb add .nb.tab2
-    label .nb.tab2.limage -text "This is Tab2"
+    label .nb.tab2.limage -text "This is Tab 1"
     grid configure .nb.tab2.limage -column 0 -row 0
     
-    frame .nb.tab3 -text "Tab 3"
+    frame .nb.tab3 -text "Tab 2"
     .nb add .nb.tab3
-    label .nb.tab3.limage -text "This is Tab3"
+    label .nb.tab3.limage -text "This is Tab 2"
     grid configure .nb.tab3.limage -column 0 -row 0
+}
+
+if {1} {
+    # make an accordion
+    accordion .acc
+    grid configure .acc -column 0 -row 11 -columnspan 5
+    
+    frame .acc.tab1 -text "Tab 0"
+    .acc add .acc.tab1
+    label .acc.tab1.limage -text "This is Tab 0"
+    grid configure .acc.tab1.limage -column 0 -row 0
+    
+    frame .acc.tab2 -text "Tab 1"
+    .acc add .acc.tab2
+    label .acc.tab2.limage -text "This is Tab 1"
+    grid configure .acc.tab2.limage -column 0 -row 0
+    
+    frame .acc.tab3 -text "Tab 2"
+    .acc add .acc.tab3
+    label .acc.tab3.limage -text "This is Tab 2"
+    grid configure .acc.tab3.limage -column 0 -row 0
 }
