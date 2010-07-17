@@ -689,8 +689,7 @@ namespace eval ::WubWidgets {
 	}
 
 	method render {{junk ""}} {
-	    variable id
-	    return [<img> id [my widget] {*}[my style] src image/[my widget]]
+	    return [<img> {*}[my style] src image/[my widget]]
 	}
 
 	superclass ::WubWidgets::widget
@@ -1076,6 +1075,22 @@ namespace eval ::WubWidgets {
 	constructor {args} {
 	    next {*}[dict merge {} $args]
 	    variable tabs {}
+	}
+    }
+
+    oo::class create panedwindowC {
+	# render widget
+	method render {{id ""}} {
+	}
+
+	# optional - add per-widget js
+	method js {r} {
+	    return $r
+	}
+
+	superclass ::WubWidgets::widget
+	constructor {args} {
+	    next {*}[dict merge {default args} $args]
 	}
     }
 
