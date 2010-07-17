@@ -6,18 +6,33 @@ package provide WubWidgets 1.0
 
 namespace eval ::WubWidgets {
     oo::class create widget {
-	method compose {text} {
+	method compound {text} {
 	    set image [my cget? -image]
 	    if {$image ne ""} {
 		set image [uplevel 2 [list $image render]]
 	    }
-	    switch -- [my cget? justify] {
+	    switch -- [my cget? compound] {
 		left {
+		    return $image$text
+		}
+		right {
 		    return $text$image
 		}
-		right -
+		center -
+		top {
+		    return "$image[<br>]$text"
+		}
+		bottom {
+		    return "$text[<br>]$image"
+		}
+		none -
 		default {
-		    return $image$text
+		    # image instead of text
+		    if {$image ne ""} {
+			return "$image"
+		    } else {
+			return "$text"
+		    }
 		}
 	    }
 	}
@@ -260,7 +275,7 @@ namespace eval ::WubWidgets {
 	    }
 	    my reset
 	    set text [tclarmour [armour [my cget -text]]]
-	    return [<button> [my widget] id $id {*}$class style [my style] [my compose $text]]
+	    return [<button> [my widget] id $id {*}$class style [my style] [my compound $text]]
 	}
 
 	superclass ::WubWidgets::widget
@@ -292,7 +307,7 @@ namespace eval ::WubWidgets {
 	    }
 	    Debug.wubwidgets {[self] checkbox render: checked:$checked, var:[set $var]}
 	    my reset
-	    return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked [my compose $label]]
+	    return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked [my compound $label]]
 	}
 
 	superclass ::WubWidgets::widget
@@ -318,7 +333,7 @@ namespace eval ::WubWidgets {
 
 	    my reset
 	    set text [tclarmour [armour $val]]
-	    return [<div> id $id style [my style] [my compose $text]]
+	    return [<div> id $id style [my style] [my compound $text]]
 	}
 	
 	superclass ::WubWidgets::widget
