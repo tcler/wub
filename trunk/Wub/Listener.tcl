@@ -100,20 +100,23 @@ class create ::Listener {
 		-host [info hostname]
 		-port 8080
 		-httpd Httpd
-		-id [self]
 	    }] $args]
+	    dict set args -id [self]
 
 	    if {![dict exists $args -tls]} {
 		set cmd [list socket -server [list [self] accept $args]]
 	    } else {
-		puts stderr "TLS:$args"
-		dict set args -tls [dict merge {
-		    -ssl3 1 -ssl2 0 -tls1 1
-		} [dict get $args -tls]]
-		dict set args -certfile server-public.pem
-		dict set args -keyfile  server-private.pem
-		#  tls::init -certfile server-public.pem -keyfile server-private.pem -ssl2 1 -ssl3 1 -tls1 0 -require 0 -request 0
-		set cmd [list tls::socket -server [list [self] accept $args] -command [list [self] progress] {*}[dict get $args -tls]]
+		set defaults {
+		    -certfile server-public.pem
+		    -keyfile server-private.pem
+		    -ssl2 1
+		    -ssl3 1
+		    -tls1 0
+		    -require 0
+		    -request 0
+		}
+		set args [dict merge $defaults $args]
+		set cmd [list tls::socket -server [list [self] accept $args] -command [list [self] progress] {*}[dict in $args [dict keys $defaults]]]
 	    }
 	    
 	    if {[dict exists $args -myaddr] &&
@@ -126,7 +129,7 @@ class create ::Listener {
 
 	    Debug.listener {server: $cmd}
 	    if {[catch $cmd listener eo]} {
-		error "[dict get $args -host]:[dict get $args -port] $listener\ncmd=$cmd"
+		Debug.error {Listener Failed: '$cmd' $listener ($eo)}
 	    }
 	    Debug.log {Listener $listener on [fconfigure $listener]}
 	} error eo]} {
