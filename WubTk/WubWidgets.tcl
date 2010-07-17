@@ -472,6 +472,26 @@ namespace eval ::WubWidgets {
     }
 
     # widget template
+    oo::class create htmlC {
+	# render widget
+	method render {{id ""}} {
+	    if {[my cexists textvariable]} {
+		set var [my cget -textvariable]
+		corovars $var
+		set val [set $var]
+	    } else {
+		set val [my cget? -text]
+	    }
+	    return $val
+	}
+
+	superclass ::WubWidgets::widget
+	constructor {args} {
+	    next {*}[dict merge {} $args]
+	}
+    }
+
+    # widget template
     oo::class create junkC {
 	# render widget
 	method render {{id ""}} {
@@ -1088,6 +1108,29 @@ namespace eval ::WubWidgets {
 	    return $r
 	}
 
+	method add {args} {
+	    set ws {}
+	    set options {}
+	    set wmode 1
+	    foreach n $args {
+		if {$wmode && [string match .* $n]} {
+		    lappend ws $n
+		} else {
+		    set wmode 0
+		    lappend options
+		}
+	    }
+	    foreach w $ws {
+		set type [uplevel 1 [list $w type]]
+		if {$type ne "frame"} {
+		    error "Can only add Frames to Panes.  $w is a $type"
+		}
+		variable tabs
+		uplevel 1 [list $w configure {*}[dict merge [list -state normal] $args {-div 1}]]
+		lappend tabs $w
+	    }
+	}
+
 	superclass ::WubWidgets::widget
 	constructor {args} {
 	    next {*}[dict merge {default args} $args]
@@ -1095,7 +1138,7 @@ namespace eval ::WubWidgets {
     }
 
     # make shims for each kind of widget
-    foreach n {button label entry text checkbutton scale frame notebook} {
+    foreach n {button label entry text checkbutton scale frame notebook html} {
 	proc $n {name args} [string map [list %T% $n] {
 	    set ns [uplevel 1 {namespace current}]
 	    return [%T%C create ${ns}::$name {*}$args]
