@@ -1054,7 +1054,7 @@ namespace eval ::WubWidgets {
 	method js {r} {
 	    set id [my id]
 	    variable tabs
-	    set js {}; set cnt 0
+	    set cnt 0
 	    foreach tab $tabs {
 		set r [uplevel 1 [list $tab js $r]]
 		set cnf [uplevel 1 [list $tab configure]]
@@ -1098,14 +1098,54 @@ namespace eval ::WubWidgets {
 	}
     }
 
-    oo::class create panedwindowC {
+    oo::class create accordionC {
+	method grid {cmd w args} {
+	    if {$cmd eq "configure"} {
+		set w [lassign [split $w .] frame]
+		return [uplevel 1 [list .[my widget].$frame grid $cmd [join $w .] {*}$args]]
+	    }
+	}
+
 	# render widget
 	method render {{id ""}} {
+	    set id [my id $id]
+	    variable panes
+	    set body {}; set cnt 0
+	    foreach pane $panes {
+		set tid ${id}_$cnt
+		set cnf [uplevel 1 [list $pane configure]]
+		lappend body [<h3> [<a> href # [dict cnf.text]]]
+		lappend body [uplevel 1 [list $pane render $tid]]
+		incr cnt
+	    }
+	    set content [join $body \n]
+	    
+	    return [<div> id $id $content]
+	}
+
+	method changed? {} {return 1}
+
+	method changes {r} {
+	    variable panes
+	    set changes {}
+	    foreach pane $panes {
+		lassign [uplevel 1 [list $pane changes $r]] r changed
+		lappend changes {*}$changed
+	    }
+	    return [list $r {*}$changes]
 	}
 
 	# optional - add per-widget js
 	method js {r} {
-	    return $r
+	    set id [my id]
+	    variable panes
+	    set cnt 0
+	    foreach pane $panes {
+		set r [uplevel 1 [list $pane js $r]]
+		set cnf [uplevel 1 [list $pane configure]]
+		incr cnt
+	    }
+	    return [jQ accordion $r #[my id]]
 	}
 
 	method add {args} {
@@ -1117,28 +1157,29 @@ namespace eval ::WubWidgets {
 		    lappend ws $n
 		} else {
 		    set wmode 0
-		    lappend options
+		    lappend options $n
 		}
 	    }
 	    foreach w $ws {
 		set type [uplevel 1 [list $w type]]
 		if {$type ne "frame"} {
-		    error "Can only add Frames to Panes.  $w is a $type"
+		    error "Can only add Frames to Accordions.  $w is a $type"
 		}
-		variable tabs
-		uplevel 1 [list $w configure {*}[dict merge [list -state normal] $args {-div 1}]]
-		lappend tabs $w
+		variable panes
+		uplevel 1 [list $w configure {*}[dict merge [list -state normal -text "Tab [llength $panes]"] $options {-div 1}]]
+		lappend panes $w
 	    }
 	}
 
 	superclass ::WubWidgets::widget
 	constructor {args} {
-	    next {*}[dict merge {default args} $args]
+	    next {*}[dict merge {} $args]
+	    variable panes {}
 	}
     }
 
     # make shims for each kind of widget
-    foreach n {button label entry text checkbutton scale frame notebook html} {
+    foreach n {button label entry text checkbutton scale frame notebook accordion html} {
 	proc $n {name args} [string map [list %T% $n] {
 	    set ns [uplevel 1 {namespace current}]
 	    return [%T%C create ${ns}::$name {*}$args]
