@@ -1118,7 +1118,7 @@ namespace eval ::WubWidgets {
 	    set content [<ul> [join $li \n]]
 	    append content [join $body \n]
 	    
-	    return [<div> id $id $content]
+	    return [<div> id $id class notebook $content]
 	}
 
 	method changed? {} {return 1}
@@ -1221,7 +1221,7 @@ namespace eval ::WubWidgets {
 	    }
 	    set content [join $body \n]
 	    
-	    return [<div> id $id $content]
+	    return [<div> id $id class accordion $content]
 	}
 
 	method changed? {} {return 1}
