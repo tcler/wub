@@ -166,7 +166,7 @@ class create ::WubTk {
 
 	# create an interpreter within which to evaluate user code
 	# install its command within our namespace
-	set interp [interp create {*}[dict options.interp?] -- [namespace current]::$cmd::wkinterp]
+	set interp [interp create {*}[dict options.interp?] -- [namespace current]::${cmd}_$wkinterp]
 	set ${ns}::interp $interp	;# copy the interp value to the coro's namespace
 	Debug.wubtk {[info coroutine] INTERP $interp ([interp slaves])}
 
