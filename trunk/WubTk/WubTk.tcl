@@ -193,10 +193,11 @@ class create ::WubTkI {
 	    }
 	}
 	
-	foreach n {grid wm connection destroy update exit rq} {
+	foreach n {grid wm connection destroy update exit} {
 	    interp alias $n [namespace current]::$n
 	}
-	
+	interp alias $n [self] rq
+
 	# install aliases for Tk Widgets
 	foreach n $::WubWidgets::tks {
 	    proc [namespace current]::$n {w args} [string map [list %N% $n] {
