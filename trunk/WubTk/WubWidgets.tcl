@@ -86,6 +86,14 @@ namespace eval ::WubWidgets {
 	    return [string trim [namespace tail [self]] .]
 	}
 
+	# calculate name relative to widget's gridder
+	method relative {} {
+	    return [lindex [split [namespace tail [self]] .] end]
+	}
+	method gridname {} {
+	    return [join [lrange [split [namespace tail [self]] .] 0 end-1] .]
+	}
+
 	method js {r} {
 	    set js [my cget? -js]
 	    if {$js ne ""} {
@@ -214,6 +222,20 @@ namespace eval ::WubWidgets {
 	    }
 
 	    Debug.wubwidgets {configured: $vars}
+	    if {[info exists grid]} {
+		# the widget needs to be gridded
+		variable grid
+		lassign $grid r c rs cs
+		set ga {}
+		foreach {v1 v2} {r row c column rs rowspan cs columnspan} {
+		    if {[info exists $v1] && [set $v1] ne ""} {
+			lappend ga -$v2 [set $v1]
+		    }
+		}
+		Debug.wubwidgets {option -grid: 'grid configure .[my widget] $ga'}
+		uplevel 3 [list grid configure .[my widget] {*}$ga]
+	    }
+
 	    if {[info exists textvariable]
 		&& $textvariable ne ""
 	    } {
@@ -798,6 +820,7 @@ namespace eval ::WubWidgets {
 			    set type [uplevel 1 [list $widget type]]
 			    Debug.wubwidgets {[namespace tail [self]] $type changes to '$widget' at ($row,$col) ($val)}
 			    switch -- $type {
+				accordion -
 				notebook -
 				frame {
 				    set changed [lassign [uplevel 1 [list $widget changes $r]] r]
@@ -911,7 +934,7 @@ namespace eval ::WubWidgets {
 	    }
 	    
 	    if {[llength $frame] > 1} {
-		Debug.wubwidgets {'[namespace tail [self]]' sub-grid .[join $frame .]}
+		Debug.wubwidgets {SubGrid '[namespace tail [self]]'/$frame gridding .[join $frame .]: '$name.[lindex $frame 0] grid configure [join [lrange $frame 1 end] .] $args'}
 		uplevel 1 [list $name.[lindex $frame 0] grid configure [join [lrange $frame 1 end] .] {*}$args]
 		return $widget
 	    } else {
@@ -971,7 +994,7 @@ namespace eval ::WubWidgets {
     oo::class create frameC {
 	method grid {args} {
 	    variable grid
-	    Debug.wubwidgets {Frame [namespace tail [self]] calling: $grid $args}
+	    Debug.wubwidgets {Frame [namespace tail [self]] gridding: $grid $args}
 	    uplevel 1 [list $grid {*}$args]
 	}
 
