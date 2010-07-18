@@ -425,7 +425,7 @@ namespace eval ::WubWidgets {
 	    set var [my cget -variable]
 	    variable interp
 	    set val [my iget $var]
-	    append result [<div> id $id class slider style [my style] [tclarmour [armour $val]]]
+	    append result [<div> id $id class slider style [my style] {}]
 
 	    return $result
 	}
@@ -1309,16 +1309,6 @@ namespace eval ::WubWidgets {
 	return [frame {*}$args]
     }
 
-    # add some shims to make things look a little like an interp
-    proc exit {args} {
-	uplevel 1 [list grid exit $args]	;# informs coroutine we want to exit
-    }
-
-    proc global {args} {
-	foreach n $args {lappend v $n $n}
-	uplevel 1 [list upvar #1 {*}$v]
-    }
-    
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
