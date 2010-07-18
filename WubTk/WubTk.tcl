@@ -196,7 +196,7 @@ class create ::WubTkI {
 	foreach n {grid wm connection destroy update exit} {
 	    interp alias $n [namespace current]::$n
 	}
-	interp alias $n [self] rq
+	interp alias rq [self] rq
 
 	# install aliases for Tk Widgets
 	foreach n $::WubWidgets::tks {
@@ -204,7 +204,7 @@ class create ::WubTkI {
 		Debug.wubtk {SHIM: 'WubWidgets %N%C create [namespace current]::$w'}
 		set obj [WubWidgets %N%C create [namespace current]::$w -interp [list [namespace current]::interp eval] {*}$args]
 		interp alias [namespace tail $obj] $obj
-		Debug.wubtk {aliases: [interp aliases]}
+		#Debug.wubtk {aliases: [interp aliases]}
 		
 		return [namespace tail $obj]
 	    }]
@@ -220,7 +220,7 @@ class create ::WubTkI {
 	}
 	interp alias image [namespace current]::image
 	
-	Debug.wubtk {aliases: [$interp aliases]}
+	#Debug.wubtk {aliases: [$interp aliases]}
 	
 	interp eval {package provide Tk 8.6}
 	if {[catch {
