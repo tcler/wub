@@ -897,7 +897,6 @@ namespace eval ::WubWidgets {
 
 	method render {} {
 	    variable name
-	    global args sessid
 	    variable maxrows; variable maxcols; variable grid
 	    Debug.wubwidgets {'[namespace tail [self]]' GRID render rows:$maxrows cols:$maxcols ($grid)}
 	    set rows {}
