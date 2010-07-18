@@ -366,8 +366,8 @@ class create ::WubTkI {
 			set r [jQ ready $r [my buttonJS]]
 			set r [jQ ready $r [my cbuttonJS]]
 			set r [jQ ready $r [my variableJS]]
-			set r [jQ tabs $r '.notebook']
-			set r [jQ accordion $r '.accordion']
+			set r [jQ tabs $r .notebook]
+			set r [jQ accordion $r .accordion]
 
 			variable timeout
 			if {$timeout > 0} {
