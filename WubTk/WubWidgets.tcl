@@ -871,7 +871,7 @@ namespace eval ::WubWidgets {
 			incr col $columnspan
 		    } else {
 			if {[info exists wid] && ![info exists rspan($wid,$row.$col)]} {
-			    lappend cols [<td> &nbsp;]
+			    lappend cols [<td> "&nbsp;"]
 			}
 			incr col $columnspan
 		    }
