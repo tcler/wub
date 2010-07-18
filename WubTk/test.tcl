@@ -158,3 +158,8 @@ if {1} {
     label .acc.tab3.limage -text "This is Tab 2"
     grid configure .acc.tab3.limage -column 0 -row 0
 }
+
+frame .test -text "Test multivar update" -grid {12 0}
+label .test.l1 -textvariable tl1 -text "initial 1" -grid {0 0}
+label .test.l2 -textvariable tl2 -text "initial 2" -grid {0 1}
+button .test.b1 -text "Test Change" -command {global tl1; global tl2; set tl1 "changed 1"; set tl2 "changed 2"} -grid {0 2}
