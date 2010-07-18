@@ -38,7 +38,7 @@ set ::API(Domains/WubTk) {
 
 set ::WubTk_dir [file normalize [file dirname [info script]]]
 
-class create ::WubTk {
+class create ::WubTkI {
     method buttonJS {{what .button}} {
 	return [string map [list %B% [jQ S $what]] {
 	    $('%B%').click(function () { 
@@ -160,16 +160,15 @@ class create ::WubTk {
 	return [join $content \n]
     }
 
-    method process {r lambda options} {
-	Debug.wubtk {[info coroutine] PROCESS - ($options) in namespace:[namespace current]}
-	dict with options {}
+    method do {r lambda} {
+	Debug.wubtk {[info coroutine] PROCESS in namespace:[namespace current]}
 
 	# create an interpreter within which to evaluate user code
 	# install its command within our namespace
-	set interp [interp create {*}[dict options.interp?] -- [namespace current]::${cmd}_wkinterp]
-	set ${ns}::interp $interp	;# copy the interp value to the coro's namespace
+	variable interp
+	set interp [interp create {*}$interp -- [namespace current]::interp]
 	Debug.wubtk {[info coroutine] INTERP $interp ([interp slaves])}
-
+	
 	# create per-coro namespace commands
 	namespace eval [namespace current] {
 	    WubWidgets gridC create grid	;# per-coro grid instance
@@ -182,47 +181,47 @@ class create ::WubTk {
 		namespace delete [namespace current]
 	    }
 	    proc update {args} {}
-
+	    
 	    proc exit {args} {
 		grid exit {*}$args
 	    }
 	}
 	
 	foreach n {grid wm connection destroy update exit} {
-	    $interp alias $n [namespace current]::$n
+	    interp alias $n [namespace current]::$n
 	}
-    
+	
 	# install aliases for Tk Widgets
 	foreach n $::WubWidgets::tks {
-	    proc $n {w args} [string map [list %N% $n %I% $interp] {
+	    proc [namespace current]::$n {w args} [string map [list %N% $n] {
 		Debug.wubtk {SHIM: 'WubWidgets %N%C create [namespace current]::$w'}
-		set obj [WubWidgets %N%C create [namespace current]::$w -interp [list %I% eval] {*}$args]
-		%I% alias [namespace tail $obj] $obj
-		Debug.wubtk {aliases: [%I% aliases]}
+		set obj [WubWidgets %N%C create [namespace current]::$w -interp [list [namespace current]::interp eval] {*}$args]
+		interp alias [namespace tail $obj] $obj
+		Debug.wubtk {aliases: [interp aliases]}
 		
 		return [namespace tail $obj]
 	    }]
-	    $interp alias $n [namespace current]::$n
+	    interp alias $n [namespace current]::$n
 	}
-
-	proc image {args} [string map [list %I% $interp] {
+	
+	proc image {args} {
 	    Debug.wubtk {SHIM: 'WubWidgets image $args'}
 	    set obj [WubWidgets image {*}$args]
 	    Debug.wubtk {SHIMAGE: $obj}
-	    %I% alias [namespace tail $obj] $obj
+	    interp alias [namespace tail $obj] $obj
 	    return [namespace tail $obj]
-	}]
-	$interp alias image [namespace current]::image
-
+	}
+	interp alias image [namespace current]::image
+	
 	Debug.wubtk {aliases: [$interp aliases]}
-
-	$interp eval {package provide Tk 8.6}
+	
+	interp eval {package provide Tk 8.6}
 	if {[catch {
-	    $interp eval $lambda	;# install the user code
+	    interp eval $lambda	;# install the user code
 	} e eo]} {
 	    return [Http ServerError $r $e $eo]
 	}
-
+	
 	# initial client direct request
 	Debug.wubtk {processing [info coroutine]}
 	set r {}	;# initial response is empty - let WubTk redirect
@@ -255,7 +254,7 @@ class create ::WubTk {
 		Debug.wubtk {requested termination}
 		break	;# we've been asked to terminate
 	    }
-
+	    
 	    # unpack query response
 	    set Q [Query parse $r]; dict set r -Query $Q; set Q [Query flatten $Q]
 	    Debug.wubtk {[info coroutine] Event: [dict get? $r -extra] ($Q)}
@@ -353,11 +352,13 @@ class create ::WubTk {
 			set r [jQ ready $r [my buttonJS]]
 			set r [jQ ready $r [my cbuttonJS]]
 			set r [jQ ready $r [my variableJS]]
+			variable timeout
 			if {$timeout > 0} {
 			    set r [jQ comet $r refresh]
 			}
 
 			# add some CSS
+			variable theme
 			set r [jQ theme $r $theme]
 			set content [<style> {
 			    .slider { margin: 10px; }
@@ -371,6 +372,9 @@ class create ::WubTk {
 			    set r [Http ServerError $r $e $eo]
 			} else {
 			    append content [<div> id ErrDiv {}]
+			    variable icons
+			    variable spinner_size
+			    variable spinner_style
 			    append content [string map [list %SS% $spinner_style] [<img> id Spinner_ style {%SS%; display:none;} width $spinner_size src $icons/bigrotation.gif]]
 			    Debug.wubtk {RENDERED: $content}
 			    dict set r -title [wm title]
@@ -439,6 +443,14 @@ class create ::WubTk {
 	Debug.wubtk {[info coroutine] exiting}
     }
 
+    constructor {args} {
+	variable interp {}
+	variable {*}$args
+	Debug.wubtk {constructed WubTkI [self] $args}
+    }
+}
+
+class create ::WubTk {
     # process request helper
     method do {r} {
 	variable mount
@@ -459,36 +471,28 @@ class create ::WubTk {
 	    set cmd [::md5::md5 -hex $uniq[clock microseconds]]
 	    dict set r -cmd $cmd
 
-	    # construct a namespace for this command
-	    namespace eval [namespace current]::Coros::$cmd [list namespace path [list ::WubWidgets [info object namespace [self]]]]	;# get WubWidgets and WubTk on the command path
-
 	    # collect options to pass to coro
 	    set options {}
 	    foreach v {timeout icons theme spinner_style spinner_size} {
 		variable $v
 		lappend options $v [set $v]
 	    }
-	    lappend options cmd $cmd
-	    lappend options ns [namespace current]::Coros::${cmd}
 
 	    variable lambda
-	    set result [coroutine [namespace current]::Coros::${cmd}::_do my process $r $lambda $options]
+	    set o [::WubTkI create [namespace current]::O_$cmd {*}$options]
+	    Debug.wubtk {coroutine initializing: $o - [namespace current]}
+	    set result [coroutine $cmd $o do $r $lambda]
 
-	    if {$result ne ""} {
-		Debug.wubtk {coroutine initialised - ($r) reply}
-		return $result	;# allow coroutine lambda to reply
-	    } else {
-		# otherwise simply redirect to coroutine lambda
-		Debug.wubtk {coroutine initialised - redirect to ${mount}$cmd}
-		return [Http Redirect $r [string trimright $mount /]/$cmd/]
-	    }
+	    # redirect to coroutine lambda
+	    Debug.wubtk {coroutine initialised - redirect to ${mount}$cmd}
+	    return [Http Redirect $r [string trimright $mount /]/$cmd/]
 	}
-	
-	if {[namespace which -command [namespace current]::Coros::${cmd}::_do] ne ""} {
+
+	if {[namespace which -command [namespace current]::${cmd}] ne ""} {
 	    # this is an existing coroutine - call it and return result
 	    Debug.wubtk {calling coroutine '$cmd' with extra '$extra'}
 	    if {[catch {
-		[namespace current]::Coros::${cmd}::_do $r
+		[namespace current]::$cmd $r
 	    } result eo]} {
 		Debug.error {'$cmd' error: $result ($eo)}
 		return [Http ServerError $r $result $eo]
@@ -515,10 +519,6 @@ class create ::WubTk {
 	}
     }
 
-    destructor {
-	namespace delete Coros
-    }
-
     superclass FormClass	;# allow Form to work nicely
     constructor {args} {
 	variable tolerant 1
@@ -530,7 +530,6 @@ class create ::WubTk {
 	variable spinner_size 20
 	variable spinner_style "position: fixed; top:10px; left: 10px%;"
 	variable {*}$args
-	namespace eval [info object namespace [self]]::Coros {}
 	if {[info exists file]} {
 	    append lambda [fileutil::cat -- $file]
 	} elseif {![info exists lambda] || $lambda eq ""} {
