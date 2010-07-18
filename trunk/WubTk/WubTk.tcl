@@ -160,7 +160,13 @@ class create ::WubTkI {
 	return [join $content \n]
     }
 
-    method do {r lambda} {
+    method _request {} {
+	variable r
+	return $r
+    }
+
+    method do {req lambda} {
+	variable r $req
 	Debug.wubtk {[info coroutine] PROCESS in namespace:[namespace current]}
 
 	# create an interpreter within which to evaluate user code
@@ -187,7 +193,7 @@ class create ::WubTkI {
 	    }
 	}
 	
-	foreach n {grid wm connection destroy update exit} {
+	foreach n {grid wm connection destroy update exit _request} {
 	    interp alias $n [namespace current]::$n
 	}
 	
