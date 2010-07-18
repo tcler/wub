@@ -165,6 +165,13 @@ class create ::WubTkI {
 	return $r
     }
 
+    destructor {
+	catch {interp destroy}
+    }
+    method destroyme {args} {
+	[self] destroy
+    }
+
     method do {req lambda} {
 	variable r $req
 	Debug.wubtk {[info coroutine] PROCESS in namespace:[namespace current]}
@@ -359,9 +366,13 @@ class create ::WubTkI {
 			set r [jQ ready $r [my buttonJS]]
 			set r [jQ ready $r [my cbuttonJS]]
 			set r [jQ ready $r [my variableJS]]
+
 			variable timeout
 			if {$timeout > 0} {
+			    Debug.wubtk {Comet push $timeout}
 			    set r [jQ comet $r refresh]
+			} else {
+			    Debug.wubtk {Comet no push}
 			}
 
 			# add some CSS
@@ -441,7 +452,6 @@ class create ::WubTkI {
 	}
 
 	# fallen out of loop - time to go
-	destroy	;# destroy all resources
 	if {[info exists redirect] && $redirect ne ""} {
 	    set redirect [Url redir $r $redirect]
 	    Debug.wubtk {[info coroutine] redirecting to '$redirect'}
@@ -489,6 +499,7 @@ class create ::WubTk {
 	    set o [::WubTkI create [namespace current]::O_$cmd {*}$options]
 	    Debug.wubtk {coroutine initializing: $o - [namespace current]}
 	    set result [coroutine $cmd $o do $r $lambda]
+	    trace add command $cmd delete [list $o destroyme]
 
 	    # redirect to coroutine lambda
 	    Debug.wubtk {coroutine initialised - redirect to ${mount}$cmd}
