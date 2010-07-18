@@ -182,9 +182,13 @@ class create ::WubTk {
 		namespace delete [namespace current]
 	    }
 	    proc update {args} {}
+
+	    proc exit {args} {
+		grid exit {*}$args
+	    }
 	}
 	
-	foreach n {grid wm connection destroy update} {
+	foreach n {grid wm connection destroy update exit} {
 	    $interp alias $n [namespace current]::$n
 	}
     
