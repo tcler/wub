@@ -174,7 +174,7 @@ class create ::WubTk {
 	namespace eval [namespace current] {
 	    WubWidgets gridC create grid	;# per-coro grid instance
 	    WubWidgets wmC create wm	;# per-coro wm instance
-
+	    
 	    proc connection {args} {
 		after 0 [list [info coroutine] prod]
 	    }
@@ -183,31 +183,31 @@ class create ::WubTk {
 	    }
 	    proc update {args} {}
 	}
-
+	
 	foreach n {grid wm connection destroy update} {
 	    $interp alias $n [namespace current]::$n
 	}
-
+    
 	# install aliases for Tk Widgets
 	foreach n $::WubWidgets::tks {
-	    proc $n {w args} [string map [list %N% $n] {
+	    proc $n {w args} [string map [list %N% $n %I% $interp] {
 		Debug.wubtk {SHIM: 'WubWidgets %N%C create [namespace current]::$w'}
-		set obj [WubWidgets %N%C create [namespace current]::$w -interp [list [namespace current]::wkinterp eval] {*}$args]
-		wkinterp alias [namespace tail $obj] $obj
-		Debug.wubtk {aliases: [wkinterp aliases]}
-
+		set obj [WubWidgets %N%C create [namespace current]::$w -interp [list %I% eval] {*}$args]
+		%I% alias [namespace tail $obj] $obj
+		Debug.wubtk {aliases: [%I% aliases]}
+		
 		return [namespace tail $obj]
 	    }]
 	    $interp alias $n [namespace current]::$n
 	}
 
-	proc image {args} {
+	proc image {args} [string map [list %I% $interp] {
 	    Debug.wubtk {SHIM: 'WubWidgets image $args'}
 	    set obj [WubWidgets image {*}$args]
 	    Debug.wubtk {SHIMAGE: $obj}
-	    wkinterp alias [namespace tail $obj] $obj
+	    %I% alias [namespace tail $obj] $obj
 	    return [namespace tail $obj]
-	}
+	}]
 	$interp alias image [namespace current]::image
 
 	Debug.wubtk {aliases: [$interp aliases]}
