@@ -844,6 +844,7 @@ namespace eval ::WubWidgets {
 	    for {set row 0} {$row < $maxrows} {incr row} {
 		set cols {}
 		for {set col 0} {$col < $maxcols} {} {
+		    set columnspan 1
 		    if {[dict exists $grid $row $col]} {
 			set el [dict get $grid $row $col]
 			dict with el {
@@ -851,6 +852,15 @@ namespace eval ::WubWidgets {
 			    Debug.wubwidgets {'[namespace tail [self]]' render $widget ($id)}
 			    uplevel 1 [list $widget gridder [self]]	;# record grid
 			    set rendered [uplevel 1 [list $widget render $id]]
+
+			    set wid .[string map {" " .} [lrange [split $id _] 1 end-2]]
+			    for {set rt $row} {$rt < $rowspan} {incr rt} {
+				set rspan($wid,[expr {$row + $rt}].$col) 1
+				for {set ct $col} {$ct < $columnspan} {incr ct} {
+				    set rspan($wid,$rt.[expr {$col + $ct}]) 1
+				}
+			    }
+
 			    if {$rowspan != 1} {
 				set rowspan [list rowspan $rowspan]
 			    } else {
@@ -860,8 +870,10 @@ namespace eval ::WubWidgets {
 			}
 			incr col $columnspan
 		    } else {
-			lappend cols [<td> "&nbsp;"]
-			incr col
+			if {[info exists wid] && ![info exists rspan($wid,$row.$col)]} {
+			    lappend cols [<td> &nbsp;]
+			}
+			incr col $columnspan
 		    }
 		}
 
