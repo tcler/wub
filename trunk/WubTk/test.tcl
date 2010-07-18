@@ -143,23 +143,23 @@ if {1} {
     accordion .acc
     grid configure .acc -column 0 -row 11 -columnspan 5
     
-    frame .acc.tab1 -text "Tab 0"
-    .acc add .acc.tab1
-    label .acc.tab1.limage -text "This is Tab 0"
-    grid configure .acc.tab1.limage -column 0 -row 0
+    frame .acc.acc1 -text "Accordion 0"
+    .acc add .acc.acc1
+    label .acc.acc1.limage -text "This is Accordion 0"
+    grid configure .acc.acc1.limage -column 0 -row 0
     
-    frame .acc.tab2 -text "Tab 1"
-    .acc add .acc.tab2
-    label .acc.tab2.limage -text "This is Tab 1"
-    grid configure .acc.tab2.limage -column 0 -row 0
+    frame .acc.acc2 -text "Accordion 1"
+    .acc add .acc.acc2
+    label .acc.acc2.limage -text "This is Accordion 1"
+    grid configure .acc.acc2.limage -column 0 -row 0
     
-    frame .acc.tab3 -text "Tab 2"
-    .acc add .acc.tab3
-    label .acc.tab3.limage -text "This is Tab 2"
-    grid configure .acc.tab3.limage -column 0 -row 0
+    frame .acc.acc3 -text "Accordion 2"
+    .acc add .acc.acc3
+    label .acc.acc3.limage -text "This is Accordion 2"
+    grid configure .acc.acc3.limage -column 0 -row 0
 }
 
 frame .test -text "Test multivar update" -grid {12 0}
 label .test.l1 -textvariable tl1 -text "initial 1" -grid {0 0}
 label .test.l2 -textvariable tl2 -text "initial 2" -grid {0 1}
-button .test.b1 -text "Test Change" -command {global tl1; global tl2; set tl1 "changed 1"; set tl2 "changed 2"} -grid {0 2}
+button .test.b1 -text "Test Change" -command {after 10000 {global tl1; global tl2; set tl1 "changed 1"; set tl2 "changed 2"}} -grid {0 2}
