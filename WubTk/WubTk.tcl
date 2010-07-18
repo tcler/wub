@@ -160,7 +160,7 @@ class create ::WubTkI {
 	return [join $content \n]
     }
 
-    method _request {} {
+    method rq {} {
 	variable r
 	return $r
     }
@@ -193,7 +193,7 @@ class create ::WubTkI {
 	    }
 	}
 	
-	foreach n {grid wm connection destroy update exit _request} {
+	foreach n {grid wm connection destroy update exit rq} {
 	    interp alias $n [namespace current]::$n
 	}
 	
