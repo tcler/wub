@@ -394,6 +394,10 @@ class create ::WubTkI {
 				-moz-border-radius: 7px;
 				-webkit-border-radius: 7px;
 			    }
+			    input {
+				-moz-border-radius: 7px;
+				-webkit-border-radius: 7px;
+			    }
 			}]
 
 			if {[catch {
