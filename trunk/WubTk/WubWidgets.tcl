@@ -713,7 +713,7 @@ namespace eval ::WubWidgets {
 	    
 	    set disabled ""
 	    if {[my cget -state] ne "normal"} {
-		set disabled disabled
+		set disabled {disabled 1}
 	    }
 	    
 	    my reset
@@ -739,12 +739,23 @@ namespace eval ::WubWidgets {
 	    }
 	    return $title
 	}
+
+	method header {{widget .} args} {
+	    if {$widget != "."} {return}
+	    variable header
+	    if {[llength $args]} {
+		set header [lindex $args 0]
+	    }
+	    return $header
+	}
+
 	method background {{widget .} image} {
 	    # todo - make background image
 	}
 
 	constructor {args} {
 	    variable title "WubTk"
+	    variable header ""
 	}
     }
 
