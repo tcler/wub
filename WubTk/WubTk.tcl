@@ -414,6 +414,8 @@ class create ::WubTkI {
 			    append content [string map [list %SS% $spinner_style] [<img> id Spinner_ style {%SS%; display:none;} width $spinner_size src $icons/bigrotation.gif]]
 			    Debug.wubtk {RENDERED: $content}
 			    dict set r -title [wm title]
+			    dict lappend r -headers [wm headers]
+			    
 			    set r [Http Ok $r $content x-text/html-fragment]
 			}
 			continue
