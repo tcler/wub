@@ -295,10 +295,13 @@ namespace eval ::WubWidgets {
 		text-align justify
 		vertical-align valign
 		border borderwidth
+		radius {moz-border-radius webkit-border-radius}
 	    } {
 		variable $tk
 		if {[info exists $tk] && [set $tk] ne ""} {
-		    lappend result "$css: [set $tk]"
+		    foreach n $css {
+			lappend result "$n: [set $tk]"
+		    }
 		}
 	    }
 	    # todo - padding
