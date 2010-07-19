@@ -382,6 +382,18 @@ class create ::WubTkI {
 			set r [jQ theme $r $theme]
 			set content [<style> {
 			    .slider { margin: 10px; }
+			    fieldset {
+				-moz-border-radius: 7px;
+				-webkit-border-radius: 7px;
+			    }
+			    textarea {
+				-moz-border-radius: 7px;
+				-webkit-border-radius: 7px;
+			    }
+			    button {
+				-moz-border-radius: 7px;
+				-webkit-border-radius: 7px;
+			    }
 			}]
 
 			if {[catch {
