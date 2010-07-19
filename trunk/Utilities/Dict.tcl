@@ -195,11 +195,11 @@ namespace eval ::tcl::dict {
     # set a dict element, only if it doesn't already exist
     proc set? {var args} {
 	upvar 1 $var dvar
-	set val [lindex $args end]
-	set name [lrange $args 0 end-1]
+	::set val [lindex $args end]
+	::set name [lrange $args 0 end-1]
 	
-	if {![dict exists $dvar {*}$name]} {
-	    dict set dvar {*}$name $v
+	if {![::info exists dvar] || ![dict exists $dvar {*}$name]} {
+	    dict set dvar {*}$name $val
 	    return $args
 	} else {
 	    return {}
