@@ -489,7 +489,7 @@ namespace eval ::WubWidgets {
 
 	    set disabled ""
 	    if {[my cget -state] ne "normal"} {
-		set disabled disabled
+		set disabled {disabled 1}
 	    }
 
 	    my reset
@@ -1162,7 +1162,7 @@ namespace eval ::WubWidgets {
 			    set r [Html postscript $r "\$('#$id').tabs('enable',$cnt)"]
 			}
 			disabled {
-			set r [Html postscript $r "\$('#$id').tabs('disable',$cnt)"]
+			    set r [Html postscript $r "\$('#$id').tabs('disable',$cnt)"]
 			}
 		    }
 		    incr cnt
