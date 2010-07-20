@@ -338,7 +338,6 @@ namespace eval ::Site {
 
 	# read Wub.config configuration file
 	set C [config extract]
-	puts stderr "CFG1: ($C)"
 	if {[dict exists $C Wub config]} {
 	    set phase "Site user configuration"	;# move to site config files phase
 	    if {[file exists [dict get $C Wub config]]} {
@@ -349,7 +348,6 @@ namespace eval ::Site {
 		Debug.site {Site ERROR: config file [dict get $C Wub config] does not exist.}
 	    }
 	}
-	puts stderr "CFG: ($C)"
 
 	# define docroot
 	if {[dict get $C Wub globaldocroot]} {
@@ -654,15 +652,21 @@ namespace eval ::Site {
 	#### start HTTPS Listener
 	if {[config exists Https -port]
 	    && ([config get Https -port] > 0)
-	    && ![catch {
-		package require tls
-	    }]
 	} {
-	    #### Simplistic Certificate Authority
-	    #package require CA
-	    #CA init dir $home/CA host $host port [dict get $https -port]
-	    #dict lappend https -tls -cafile [CA cafile] -certfile [CA certificate $host] 
-	    Listener new {*}[config section Https] -tls 1 -httpd Httpd
+	    Debug.site {Loading HTTPS listener}
+	    if {[catch {
+		package require tls
+	    } e eo]} {
+		Debug.error {Failed to load tls package for Https.  '$e' ($eo)}
+	    } else {
+		#### Simplistic Certificate Authority
+		#package require CA
+		#CA init dir $home/CA host $host port [dict get $https -port]
+		#dict lappend https -tls -cafile [CA cafile] -certfile [CA certificate $host] 
+		Listener new {*}[config section Https] -tls 1 -httpd ::Httpd
+	    }
+	} else {
+	    Debug.site {Not loading HTTPS listener}
 	}
 
 	#### start scgi Listener
