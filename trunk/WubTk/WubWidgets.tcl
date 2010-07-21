@@ -1127,6 +1127,10 @@ namespace eval ::WubWidgets {
 		set title [my widget]
 	    }
 	    dict set r -title $title
+	    set header [my cget? -header]
+	    if {$header ne ""} {
+		dict lappend r -headers $header
+	    }
 
 	    variable tgrid
 	    append content \n [uplevel 1 [list $tgrid render]]
