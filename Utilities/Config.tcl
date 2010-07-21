@@ -139,6 +139,14 @@ oo::class create Config {
 	variable raw; dict set raw {*}$args
 	variable clean 0	
     }
+    method assign? {args} {
+	variable raw; 
+	if {![dict exists $raw {*}[lrange $args 0 end-1]]} {
+	    dict set raw {*}$args
+	}
+	variable clean 0	
+    }
+
     method get {args} {
 	my eval
 	variable extracted
@@ -147,7 +155,8 @@ oo::class create Config {
 
     # substitute section-relative names into value scripts
     method VarSub {script} {
-	set NS [info object namespace [self]]
+	#set NS [info object namespace [self]]
+	set NS [namespace current]
 
 	# perform variable rewrite
 	set body [parsetcl simple_parse_script $script]
