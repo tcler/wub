@@ -730,33 +730,44 @@ namespace eval ::WubWidgets {
     }
 
     oo::class create wmC {
-	# TODO - make title change dynamically ... blerk.
-	method title {{widget .} args} {
-	    if {$widget eq "."} {
-		variable title
-		if {[llength $args]} {
-		    set title [lindex $args 0]
+	foreach n {title header style background} {
+	    method $n {widget args} [string map [list %N% $n] {
+		if {$widget eq "."} {
+		    variable %N%
+		    if {[llength $args]} {
+			set %N% [lindex $args 0]
+		    }
+		    if {[info exists %N%]} {
+			return $%N%
+		    } else {
+			return ""
+		    }
+		} elseif {[llength $args]} {
+		    return [$widget configure %N% [lindex $args 0]]
+		} else {
+		    return [$widget cget? %N%]
 		}
-		return $title
-	    } else {
-		return [$widget cget? title]
-	    }
+	    }]
 	}
 
-	method header {{widget .} args} {
-	    if {$widget eq "."} {
-		variable header
-		if {[llength $args]} {
-		    set header [lindex $args 0]
+	foreach n {stylesheet} {
+	    method $n {widget args} [string map [list %N% $n] {
+		if {$widget eq "."} {
+		    variable %N%
+		    if {[llength $args]} {
+			set %N% $args
+		    }
+		    if {[info exists %N%]} {
+			return $%N%
+		    } else {
+			return ""
+		    }
+		} elseif {[llength $args]} {
+		    return [$widget configure %N% $args]
+		} else {
+		    return [$widget cget? %N%]
 		}
-		return $header
-	    } else {
-		return [$widget cget header]
-	    }
-	}
-
-	method background {{widget .} image} {
-	    # todo - make background image
+	    }]
 	}
 
 	constructor {args} {
