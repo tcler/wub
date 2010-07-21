@@ -730,7 +730,7 @@ namespace eval ::WubWidgets {
     }
 
     oo::class create wmC {
-	foreach n {title header style background} {
+	foreach n {title header css background} {
 	    method $n {widget args} [string map [list %N% $n] {
 		if {$widget eq "."} {
 		    variable %N%
