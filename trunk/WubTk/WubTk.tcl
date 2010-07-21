@@ -202,6 +202,7 @@ class create ::WubTkI {
     method render {r} {
 	set r [my prep $r]
 	variable timeout
+
 	if {$timeout > 0} {
 	    Debug.wubtk {Comet push $timeout}
 	    set r [jQ comet $r refresh]
@@ -631,6 +632,7 @@ class create ::WubTk {
 	if {$wubapp ne ""
 	    && [namespace which -command [namespace current]::Coros::$wubapp] ne ""
 	} {
+	    dict set r -wubapp $wubapp
 	    return [my call $r $wubapp $suffix $extra]
 	} else {
 	    Debug.wubtk {coroutine gone: $wubapp -> $mount$widget}
