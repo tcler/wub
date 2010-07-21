@@ -155,7 +155,6 @@ oo::class create Config {
 
     # substitute section-relative names into value scripts
     method VarSub {script} {
-	#set NS [info object namespace [self]]
 	set NS [namespace current]
 
 	# perform variable rewrite
