@@ -160,6 +160,10 @@ if {1} {
 }
 
 frame .test -text "Test multivar update" -grid {12 0}
-label .test.l1 -textvariable tl1 -text "initial 1" -grid {0 0}
-label .test.l2 -textvariable tl2 -text "initial 2" -grid {0 1}
-button .test.b1 -text "Test Change" -command {after 10000 {global tl1; global tl2; set tl1 "changed 1"; set tl2 "changed 2"}} -grid {0 2}
+label .test.l1 -textvariable tl1 -text [incr tl1] -grid {0 0}
+button .test.b1 -text "Test Change" -command {after 10000 {global tl1; incr tl1}} -grid {0 1}
+
+toplevel .tl -title "A New Toplevel"
+label .tl.l1 -textvariable tl1 -text [incr tl1] -grid {0 0}
+button .tl.b1 -text "Test Change" -command {after 10000 {global tl1; incr tl1}} -grid {0 1}
+
