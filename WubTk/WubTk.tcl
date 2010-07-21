@@ -47,8 +47,8 @@ class create ::WubTkI {
 		$.ajax({
 		    context: this,
 		    type: "GET",
-		    url: "button",
-		    data: {id: $(this).attr("name")},
+		    url: ".",
+		    data: {id: $(this).attr("name"), _op_: "command"},
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
 			$("#Spinner_").hide();
@@ -67,7 +67,7 @@ class create ::WubTkI {
 	    $('%B%').change(function () { 
 		//alert($(this).attr("name")+" cbutton pressed");
 		$("#Spinner_").show();
-		var data = {id: $(this).attr("name"), val: 0};
+		var data = {id: $(this).attr("name"), val: 0, _op_: "cbutton"};
 		var val = this.value;
 		if($(this).is(":checked")) {
 		    data['val'] = val;
@@ -76,7 +76,7 @@ class create ::WubTkI {
 		$.ajax({
 		    context: this,
 		    type: "GET",
-		    url: "cbutton",
+		    url: ".",
 		    data: data,
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
@@ -99,11 +99,11 @@ class create ::WubTkI {
 		$.ajax({
 		    context: this,
 		    type: "GET",
-		    url: "variable",
-		    data: {id: $(this).attr("name"), val: $(this).val()},
+		    url: ".",
+		    data: {id: $(this).attr("name"), val: $(this).val(), _op_: "var"},
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
-			//alert("button: "+data);
+			//alert("variable: "+data);
 			$("#Spinner_").hide();
 		    },
 		    error: function (xhr, status, error) {
@@ -152,7 +152,7 @@ class create ::WubTkI {
 	set content {}
 	dict for {n v} [dict get? $r -script] {
 	    if {[string match !* $n]} {
-		Debug.wubtk {stripjs: $n}
+		#Debug.wubtk {stripjs: $n}
 		set v [join [lrange [split $v \n] 1 end-1] \n]
 		lappend content $v
 	    }
@@ -172,15 +172,319 @@ class create ::WubTkI {
 	[self] destroy
     }
 
+    method tl {op widget args} {
+	variable toplevels
+	switch -- $op {
+	    add {
+		dict set toplevels $widget visible
+	    }
+	    delete {
+		dict set toplevels $widget delete
+	    }
+	    hide {
+		dict set toplevels $widget hide
+	    }
+	}
+    }
+
+    method render {r} {
+	# re-render whole page
+	set r [jQ jquery $r]
+
+	# send js to track widget state
+	set r [jQ ready $r [my buttonJS]]
+	set r [jQ ready $r [my cbuttonJS]]
+	set r [jQ ready $r [my variableJS]]
+	set r [jQ tabs $r .notebook]
+	set r [jQ accordion $r .accordion]
+
+	variable timeout
+	if {$timeout > 0} {
+	    Debug.wubtk {Comet push $timeout}
+	    set r [jQ comet $r refresh]
+	} else {
+	    Debug.wubtk {Comet no push}
+	}
+
+	# add some CSS
+	variable theme
+	set r [jQ theme $r $theme]
+	set content [<style> {
+	    .slider { margin: 10px; }
+	    fieldset {
+		-moz-border-radius: 7px;
+		-webkit-border-radius: 7px;
+	    }
+	    textarea {
+		-moz-border-radius: 7px;
+		-webkit-border-radius: 7px;
+	    }
+	    button {
+		-moz-border-radius: 7px;
+		-webkit-border-radius: 7px;
+	    }
+	    input {
+		-moz-border-radius: 7px;
+		-webkit-border-radius: 7px;
+	    }
+	}]
+
+	try {
+	    append content [grid render]
+	    set r [grid js $r]
+	    Debug.wubtk {RENDER JS: [my stripjs $r]}
+	    append content [<div> id ErrDiv {}]
+
+	    variable toplevels
+	    set tljs {}
+	    foreach {tl tv} $toplevels {
+		set tlw [$tl widget]
+		# render visible toplevels
+		Debug.wubtk {TV $tl: $tv}
+		switch -- $tv {
+		    visible {
+			# open the toplevel window/tab
+			set title [$tl cget? -title]
+			if {$title eq ""} {
+			    set title $tlw
+			}
+			set opts [list '$tlw/' '$title']
+			if {0} {
+			    foreach opt {titlebar menubar toolbar
+				location scrollbars status resizable} {
+				if {[$tl cget $opt]} {
+				    lappend opts $opt='yes'
+				} else {
+				    lappend opts $opt='no'
+				}
+			    }
+			    foreach opt {width height left top} {
+				if {[$tl cget? $opt] ne ""} {
+				    lappend opts $opt=[$tl cget $opt]
+				}
+			    }
+			}
+			lappend tljs "$.toplevels\['$tlw'\]=window.open([join $opts ,])"
+		    }
+		    delete {
+			# close the toplevel window/tab
+			lappend tljs "$.toplevels\['$tlw'\].close()"
+			dict unset toplevels $tl
+		    }
+		    hide {
+			# close the toplevel window/tab
+			lappend tljs "$.toplevels\['$tlw'\].close()"
+		    }
+		}
+		if {[llength $tljs]} {
+
+		    set tljs [join $tljs ";\n"]
+		    set r [Html postscript $r "\$(\$.extend({toplevels: {junk:1}}); $tljs;\n);"]
+		}
+	    }
+
+	    variable icons
+	    variable spinner_size
+	    variable spinner_style
+	    append content [string map [list %SS% $spinner_style] [<img> id Spinner_ style {%SS%; display:none;} width $spinner_size src $icons/bigrotation.gif]]
+	    Debug.wubtk {RENDERED: $content}
+
+	    dict set r -title [wm title]
+	    dict lappend r -headers [wm header]
+	    
+	    set r [Http Ok $r $content x-text/html-fragment]
+	} on error {e eo} {
+	    set r [Http ServerError $r $e $eo]
+	}
+
+	return $r
+    }
+
+    method do_refresh {r Q} {
+	# client has asked us to push changes
+	Debug.wubtk {[self] client has asked us to push changes}
+	set changes [lassign [grid changes $r] r]
+	set update [my update $changes]
+	append update [my stripjs $r]
+
+	if {$update eq ""} {
+	    # no updates to send
+	    if {[info exists _refresh]} {
+		# we already have a pending _refresh
+		# likely the connection has timed out
+		Debug.wubtk {WubTk [info coroutine] - double refresh}
+		set _refresh [Http Ok $_refresh {} application/javascript]
+		Httpd Resume $_refresh
+	    }
+	    set _refresh $r	;# remember request
+	    set r [Httpd Suspend $r]	;# suspend until changes
+	    grid prod 1	;# register interest
+	} else {
+	    grid prod 0	;# no registered interest
+	    set r [Http Ok $r $update application/javascript]
+	}
+	return $r
+    }
+
+    method changes {r} {
+	set changes [lassign [grid changes $r] r]
+	set content [my update $changes]
+	append content [my stripjs $r]
+	return $content
+    }
+
+    # process a browser event
+    method event {r} {
+	# client event has been received
+	set Q [Query flatten [Query parse $r]]
+	set cmd .[dict Q.id]
+
+	if {[llength [info commands [namespace current]::$cmd]]} {
+	    Debug.wubtk {event $cmd ($Q)}
+	    set e {$('#ErrDiv').html('');}
+	    try {
+		$cmd [dict r.-op] [dict Q.val?]
+	    } on error {e eo} {
+		set e "cmd: [string map [list \" \\\" ' \\'] $e]"
+		set e [string map [list %E% $e] {
+		    $('#ErrDiv').html('<p>Error: %E% </p>');
+		}]
+	    } finally {
+		append content [my changes $r]
+		append content $e
+	    }
+	} else {
+	    Debug.wubtk {not found [namespace current]::$cmd}
+	    set content "\$('#ErrDiv').html('Widget "$cmd" not found');"
+	}
+
+	# clear out any old refresh - this response will satisfy it
+	if {[info exists _refresh]} {
+	    Debug.wubtk {satisfy old refresh}
+	    set re [Http Ok $_refresh {} application/javascript]
+	    unset _refresh
+	    Httpd Resume $re
+	} else {
+	    grid prod 0	;# no registered interest
+	}
+	
+	return [Http Ok $r $content application/javascript]
+    }
+
+    method do_image {r} {
+	set cmd .$widget
+	if {[llength [info commands [namespace current]::$cmd]]} {
+	    Debug.wubtk {image $cmd}
+	    set r [$cmd fetch $r]
+	} else {
+	    Debug.wubtk {not found image [namespace current]::$cmd}
+	    set r [Http NotFound $r]
+	}
+	return $r
+    }
+
     method do {req lambda} {
 	variable r $req
 	Debug.wubtk {[info coroutine] PROCESS in namespace:[namespace current]}
 
+	# run user code - return result
+	if {[catch {
+	    interp eval $lambda	;# install the user code
+	    set r [my render $r]
+	} e eo]} {
+	    Debug.wubtk {[info coroutine] error '$e' ($eo)}
+	    return [Http ServerError $r $e $eo]
+	}
+	
+	# initial client direct request
+	while {1} {
+	    lassign [::yieldm $r] what r
+	    Debug.wubtk {[info coroutine] processing}
+	    switch -- $what {
+		prod {
+		    # our grid has prodded us - there are changes
+		    if {[info exists _refresh]} {
+			Debug.wubtk {prodded with suspended refresh}
+			# we've been prodded by grid with a pending refresh
+			set changes [lassign [grid changes $_refresh] _refresh]
+			set content [my update $changes]
+			append content [my stripjs $_refresh]
+			set re [Http Ok $_refresh $content application/javascript]
+			unset _refresh
+			Httpd Resume $re
+		    } else {
+			Debug.wubtk {prodded without suspended refresh}
+			grid prod 0	;# no registered interest
+		    }
+		}
+
+		terminate {
+		    Debug.wubtk {requested termination}
+		    break	;# we've been asked to terminate
+		}
+
+		client {
+		    # unpack query response
+		    Debug.wubtk {[info coroutine] Event: [dict r.-op?]}
+		    switch -glob -- [dict r.-op?] {
+			command -
+			cbutton -
+			slider -
+			var {
+			    # process browser event
+			    set r [my event $r]
+			}
+
+			refresh {
+			    # process refresh event
+			    set r [my do_refresh $r $Q]
+			}
+
+			default {
+			    set widget [dict r.-widget]
+			    if {$widget eq ""} {
+				Debug.wubtk {render .}
+				set r [my render $r]
+			    } else {
+				Debug.wubtk {fetch and render $widget}
+				try {
+				    set r [.$widget fetch $r]
+				} on error {e eo} {
+				    set r [Http ServerError $r $e $eo]
+				}
+			    }
+			}
+		    }
+		    
+		    if {[grid exiting?]} {
+			# exit's been called by the app - arrange for redirect/exit
+			Debug.wubtk {exit redirect: [grid redirect]}
+			set redirect [grid redirect]
+			break
+		    }
+		}
+	    }
+	}
+
+	# fallen out of loop - time to go
+	if {[info exists redirect] && $redirect ne ""} {
+	    set redirect [Url redir $r $redirect]
+	    Debug.wubtk {[info coroutine] redirecting to '$redirect'}
+	    return [Http Ok $r "window.location='$redirect';" application/javascript]
+	}
+	Debug.wubtk {[info coroutine] exiting}
+    }
+
+    constructor {args} {
+	variable interp {}
+	variable {*}$args
+	variable toplevels {}	;# keep track of toplevels
+	Debug.wubtk {constructed WubTkI [self] $args}
+
 	# create an interpreter within which to evaluate user code
 	# install its command within our namespace
-	variable interp
 	set interp [interp create {*}$interp -- [namespace current]::interp]
-	Debug.wubtk {[info coroutine] INTERP $interp ([interp slaves])}
+	Debug.wubtk {[info coroutine] INTERP $interp}
 	
 	# create per-coro namespace commands
 	namespace eval [namespace current] {
@@ -207,9 +511,9 @@ class create ::WubTkI {
 
 	# install aliases for Tk Widgets
 	foreach n $::WubWidgets::tks {
-	    proc [namespace current]::$n {w args} [string map [list %N% $n] {
+	    proc [namespace current]::$n {w args} [string map [list %N% $n %C% [self]] {
 		Debug.wubtk {SHIM: 'WubWidgets %N%C create [namespace current]::$w'}
-		set obj [WubWidgets %N%C create [namespace current]::$w -interp [list [namespace current]::interp eval] {*}$args]
+		set obj [WubWidgets %N%C create [namespace current]::$w -interp [list [namespace current]::interp eval] -connection %C% {*}$args]
 		interp alias [namespace tail $obj] $obj
 		#Debug.wubtk {aliases: [interp aliases]}
 		
@@ -217,7 +521,8 @@ class create ::WubTkI {
 	    }]
 	    interp alias $n [namespace current]::$n
 	}
-	
+
+	# construct an image command
 	proc image {args} {
 	    Debug.wubtk {SHIM: 'WubWidgets image $args'}
 	    set obj [WubWidgets image {*}$args]
@@ -225,269 +530,80 @@ class create ::WubTkI {
 	    interp alias [namespace tail $obj] $obj
 	    return [namespace tail $obj]
 	}
+
 	interp alias image [namespace current]::image
-	
-	#Debug.wubtk {aliases: [$interp aliases]}
-	
 	interp eval {package provide Tk 8.6}
-	if {[catch {
-	    interp eval $lambda	;# install the user code
-	} e eo]} {
-	    return [Http ServerError $r $e $eo]
-	}
-	
-	# initial client direct request
-	Debug.wubtk {processing [info coroutine]}
-	set r {}	;# initial response is empty - let WubTk redirect
-	while {1} {
-	    set r [::yield $r]
-	    if {[catch {dict size $r} sz]} {
-		# this is not a dict... is it a prod?
-		if {$r eq "prod"} {
-		    # our grid has prodded us - there are changes
-		    if {[info exists _refresh]} {
-			Debug.wubtk {prodded with suspended refresh}
-			# we've been prodded by grid with a pending refresh
-			set changes [lassign [grid changes $_refresh] _refresh]
-			set content [my update $changes]
-			append content [my stripjs $_refresh]
-			set re [Http Ok $_refresh $content application/javascript]
-			unset _refresh
-			Httpd Resume $re
-		    } else {
-			Debug.wubtk {prodded without suspended refresh}
-			grid prod 0	;# no registered interest
-		    }
-		    continue
-		} else {
-		    Debug.error {WubTk [info coroutine] got bad call '$r'}
-		    grid prod 0	;# no registered interest
-		    error "WubTk [info coroutine] got bad call '$r'"
-		}
-	    } elseif {$sz == 0} {
-		Debug.wubtk {requested termination}
-		break	;# we've been asked to terminate
-	    }
-	    
-	    # unpack query response
-	    set Q [Query parse $r]; dict set r -Query $Q; set Q [Query flatten $Q]
-	    Debug.wubtk {[info coroutine] Event: [dict get? $r -extra] ($Q)}
-	    set cmd ""; set op ""
-	    set err [catch {
-		set extra [dict get? $r -extra]
-		switch -glob -- $extra {
-		    refresh {
-			# client has asked us to push changes
-			Debug.wubtk {[self] client has asked us to push changes}
-			set changes [lassign [grid changes $r] r]
-			set update [my update $changes]
-			append update [my stripjs $r]
-
-			if {$update eq ""} {
-			    # no updates to send
-			    if {[info exists _refresh]} {
-				# we already have a pending _refresh
-				# likely the connection has timed out
-				Debug.wubtk {WubTk [info coroutine] - double refresh}
-				set _refresh [Http Ok $_refresh {} application/javascript]
-				Httpd Resume $_refresh
-			    }
-			    set _refresh $r	;# remember request
-			    set r [Httpd Suspend $r]	;# suspend until changes
-			    grid prod 1	;# register interest
-			} else {
-			    grid prod 0	;# no registered interest
-			    set r [Http Ok $r $update application/javascript]
-			}
-			continue	;# we've served this request
-		    }
-
-		    button {
-			# client button has been pressed
-			set cmd .[dict Q.id]
-			if {[llength [info commands [namespace current]::$cmd]]} {
-			    Debug.wubtk {button $cmd ($Q)}
-			    $cmd command
-			} else {
-			    Debug.wubtk {not found button [namespace current]::$cmd}
-			}
-		    }
-
-		    cbutton {
-			# client checkbutton has been pressed
-			set cmd .[dict Q.id]
-			if {[llength [info commands [namespace current]::$cmd]]} {
-			    Debug.wubtk {cbutton $cmd ($Q)}
-			    $cmd cbutton [dict Q.val]
-			} else {
-			    Debug.wubtk {not found cbutton [namespace current]::$cmd}
-			}
-		    }
-
-		    slider {
-			# client variable has been set
-			set cmd .[dict Q.id]
-			if {[llength [info commands [namespace current]::$cmd]]} {
-			    Debug.wubtk {scale $cmd ($Q)}
-			    $cmd scale [dict Q.val]
-			} else {
-			    Debug.wubtk {not found scale [namespace current]::$cmd}
-			}
-		    }
-
-		    variable {
-			# client variable has been set
-			set cmd .[dict Q.id]
-			if {[llength [info commands [namespace current]::$cmd]]} {
-			    Debug.wubtk {button $cmd ($Q)}
-			    $cmd var [dict Q.val]
-			} else {
-			    Debug.wubtk {not found button [namespace current]::$cmd}
-			}
-		    }
-
-		    image/* {
-			set cmd .[lindex [split $extra /] end]
-			if {[llength [info commands [namespace current]::$cmd]]} {
-			    Debug.wubtk {image $cmd}
-			    set r [$cmd fetch $r]
-			} else {
-			    Debug.wubtk {not found image [namespace current]::$cmd}
-			    set r [Http NotFound $r]
-			}
-			continue
-		    }
-
-		    default {
-			# re-render whole page
-			set r [jQ jquery $r]
-
-			# send js to track widget state
-			set r [jQ ready $r [my buttonJS]]
-			set r [jQ ready $r [my cbuttonJS]]
-			set r [jQ ready $r [my variableJS]]
-			set r [jQ tabs $r .notebook]
-			set r [jQ accordion $r .accordion]
-
-			variable timeout
-			if {$timeout > 0} {
-			    Debug.wubtk {Comet push $timeout}
-			    set r [jQ comet $r refresh]
-			} else {
-			    Debug.wubtk {Comet no push}
-			}
-
-			# add some CSS
-			variable theme
-			set r [jQ theme $r $theme]
-			set content [<style> {
-			    .slider { margin: 10px; }
-			    fieldset {
-				-moz-border-radius: 7px;
-				-webkit-border-radius: 7px;
-			    }
-			    textarea {
-				-moz-border-radius: 7px;
-				-webkit-border-radius: 7px;
-			    }
-			    button {
-				-moz-border-radius: 7px;
-				-webkit-border-radius: 7px;
-			    }
-			    input {
-				-moz-border-radius: 7px;
-				-webkit-border-radius: 7px;
-			    }
-			}]
-
-			if {[catch {
-			    append content [grid render]
-			    set r [grid js $r]
-			    Debug.wubtk {RENDER JS: [my stripjs $r]}
-			} e eo]} {
-			    set r [Http ServerError $r $e $eo]
-			} else {
-			    append content [<div> id ErrDiv {}]
-			    variable icons
-			    variable spinner_size
-			    variable spinner_style
-			    append content [string map [list %SS% $spinner_style] [<img> id Spinner_ style {%SS%; display:none;} width $spinner_size src $icons/bigrotation.gif]]
-			    Debug.wubtk {RENDERED: $content}
-			    dict set r -title [wm title]
-			    dict lappend r -headers [wm header]
-			    
-			    set r [Http Ok $r $content x-text/html-fragment]
-			}
-			continue
-		    }
-		}
-	    } e eo]
-
-	    switch -- $err {
-		4 continue
-		3 break
-	    }
-
-	    if {[grid exiting?]} {
-		# exit's been called by the app - arrange for redirect/exit
-		Debug.wubtk {exit redirect: [grid redirect]}
-		set redirect [grid redirect]
-		break
-	    }
-
-	    if {$err} {
-		set e "$cmd: $e"
-	    } else {
-		set e ""
-	    }
-
-	    # clear out any old refresh - this response will satisfy it
-	    if {[info exists _refresh]} {
-		Debug.wubtk {satisfy old refresh}
-		set re [Http Ok $_refresh {} application/javascript]
-		unset _refresh
-		Httpd Resume $re
-	    } else {
-		grid prod 0	;# no registered interest
-	    }
-
-	    Debug.wubtk {sending pending updates - $e}
-	    set changes [lassign [grid changes $r] r]
-	    set content [my update $changes]
-	    append content [my stripjs $r]
-
-	    if {$e ne ""} {
-		set e [string map [list \" \\\" ' \\'] $e]
-		append content [string map [list %E% $e] {
-		    $('#ErrDiv').html('<p>Error: %E% </p>');
-		}]
-	    } elseif {$content ne ""} {
-		append content {
-		    $('#ErrDiv').html('');
-		}
-	    }
-
-	    Debug.wubtk {update SCRIPT: $content}
-	    set r [Http Ok $r $content application/javascript]
-	}
-
-	# fallen out of loop - time to go
-	if {[info exists redirect] && $redirect ne ""} {
-	    set redirect [Url redir $r $redirect]
-	    Debug.wubtk {[info coroutine] redirecting to '$redirect'}
-	    return [Http Ok $r "window.location='$redirect';" application/javascript]
-	}
-	Debug.wubtk {[info coroutine] exiting}
-    }
-
-    constructor {args} {
-	variable interp {}
-	variable {*}$args
-	Debug.wubtk {constructed WubTkI [self] $args}
     }
 }
 
 class create ::WubTk {
+    method getcookie {r} {
+	variable cookie
+	# try to find the human cookie
+	set cl [Cookies Match $r -name $cookie]
+	if {[llength $cl]} {
+	    # we know they're human - they return cookies (?)
+	    return [dict get [Cookies Fetch $r -name $cookie] -value]
+	} else {
+	    return ""
+	}
+    }
+
+    method newcookie {r {cmd ""}} {
+	if {$cmd eq ""} {
+	    # create a new cookie
+	    variable uniq; incr uniq
+	    set cmd [::md5::md5 -hex $uniq[clock microseconds]]
+	}
+
+	# add a cookie to reply
+	if {[dict exists $r -cookies]} {
+	    set cdict [dict get $r -cookies]
+	} else {
+	    set cdict [dict create]
+	}
+
+	# include an optional expiry age
+	variable expires
+	if {$expires ne ""} {
+	    if {[string is integer -strict $expires]} {
+		# it's an age
+		if {$expires != 0} {
+		    set expiresC [Http Date [expr {[clock seconds] + $expires}]]
+		    set expiresC [list -expires $expires]
+		} else {
+		    set expiresC {}
+		}
+	    } else {
+		set expiresC [Http Date [clock scan $expires]]
+		set expiresC [list -expires $expires]
+	    }
+	} else {
+	    set expiresC {}
+	}
+	
+	# add the cookie
+	variable cookie; variable mount
+	set cdict [Cookies add $cdict -path $mount -name $cookie -value $cmd {*}$expiresC]
+	Debug.wubtk {created wubapp cookie $cdict}
+	
+	dict set r -cookies $cdict
+	return $r
+    }
+
+    method call {r cmd suffix extra} {
+	# this is an existing coroutine - call it and return result
+	Debug.wubtk {calling coroutine '$cmd' with extra '$extra'}
+	if {[catch {
+	    [namespace current]::Coros::$cmd client $r
+	} result eo]} {
+	    Debug.error {'$cmd' error: $result ($eo)}
+	    return [Http ServerError $r $result $eo]
+	}
+	Debug.wubtk {'$cmd' yielded: ($result)}
+	return $result
+    }
+
     # process request helper
     method do {r} {
 	variable mount
@@ -497,16 +613,37 @@ class create ::WubTk {
 	    return [Httpd NotFound $r]	;# the URL isn't in our domain
 	}
 
-	set extra [lassign [split $suffix /] cmd]
-	dict set r -extra [join $extra /]
+	# decode stuff to the right of the mount URL
+	set widget ""
+	dict set r -extra [join [set extra [lassign [split $suffix /] widget]] /]
+	dict set r -widget $widget
 
-	Debug.wubtk {process '$suffix' over '$mount' extra: '$extra'}
+	# get op from query
+	set Q [Query parse $r]; dict set r -Query $Q; set Q [Query flatten $Q]
+	dict set r -op [set op [dict Q._op_?]]
+
+	set wubapp [my getcookie $r]	;# get the wubapp cookie
+	Debug.wubtk {process cookie: '$wubapp' widget:'$widget' op:'$op' extra:'$extra' suffix:'$suffix' over '$mount'}
 	
-	if {$suffix eq "/" || $suffix eq ""} {
-	    # this is a new call - create the coroutine
-	    variable uniq; incr uniq
-	    set cmd [::md5::md5 -hex $uniq[clock microseconds]]
-	    dict set r -cmd $cmd
+	if {$wubapp ne ""
+	    && [namespace which -command [namespace current]::Coros::$wubapp] ne ""
+	} {
+	    return [my call $r $wubapp $suffix $extra]
+	} else {
+	    Debug.wubtk {coroutine gone: $wubapp -> $mount$widget}
+	    if {$wubapp ne ""} {
+		# they handed us a cookie relating to a defunct coro,
+		# doesn't matter, the value is purely nominal,
+		# go with it.
+		if {$op ne ""} {
+		    # this is an old invocation trying to get javascript
+		    # make it redirect
+		    set app "$mount/$widget/"
+		    return [Http Ok $r "window.location='$app';" application/javascript]
+		}
+	    } else {
+		set r [my newcookie $r]	;# brand new webapp
+	    }
 
 	    # collect options to pass to coro
 	    set options {}
@@ -515,65 +652,46 @@ class create ::WubTk {
 		lappend options $v [set $v]
 	    }
 
+	    # create the coroutine
 	    variable lambda
-	    set o [::WubTkI create [namespace current]::O_$cmd {*}$options]
+	    try {
+		set o [::WubTkI create [namespace current]::Coros::O_$wubapp {*}$options]
+	    } on error {e eo} {
+		return [Http ServerError $r $e $eo]
+	    }
+
 	    Debug.wubtk {coroutine initializing: $o - [namespace current]}
-	    set result [coroutine $cmd $o do $r $lambda]
-	    trace add command $cmd delete [list $o destroyme]
-
-	    # redirect to coroutine lambda
-	    Debug.wubtk {coroutine initialised - redirect to ${mount}$cmd}
-	    return [Http Redirect $r [string trimright $mount /]/$cmd/]
-	}
-
-	if {[namespace which -command [namespace current]::${cmd}] ne ""} {
-	    # this is an existing coroutine - call it and return result
-	    Debug.wubtk {calling coroutine '$cmd' with extra '$extra'}
-	    if {[catch {
-		[namespace current]::$cmd $r
-	    } result eo]} {
-		Debug.error {'$cmd' error: $result ($eo)}
-		return [Http ServerError $r $result $eo]
-	    }
-	    Debug.wubtk {'$cmd' yielded: ($result)}
-	    return $result
-	} else {
-	    Debug.wubtk {coroutine gone: $cmd}
-	    variable tolerant
-	    set app [string trimright $mount /]/
-	    set extra [dict get? $r -extra]
-	    if {$extra ne ""} {
-		# this is an old invocation trying to get javascript
-		return [Http Ok $r "window.location='$app';" application/javascript]
-	    }
-
-	    if {$tolerant} {
-		return [Http Redirect $r $app]
-	    } else {
-		set msg [<p> "WubTk '$cmd' has terminated."]
-		append msg [<p> [<a> href $app "Restart"]]
-		return [Http Ok $r $msg]
-	    }
+	    set r [coroutine [namespace current]::Coros::$wubapp $o do $r $lambda]
+	    trace add command [namespace current]::Coros::$wubapp delete [list $o destroyme]
+	    return $r
 	}
     }
 
     superclass FormClass	;# allow Form to work nicely
     constructor {args} {
-	variable tolerant 1
 	variable {*}[Site var? WubTk]	;# allow .ini file to modify defaults
 	variable lambda ""
+	variable expires ""
 	variable timeout 0
 	variable icons /icons/
 	variable theme dark
 	variable spinner_size 20
 	variable spinner_style "position: fixed; top:10px; left: 10px%;"
 	variable {*}$args
+
 	if {[info exists file]} {
 	    append lambda [fileutil::cat -- $file]
 	} elseif {![info exists lambda] || $lambda eq ""} {
 	    variable lambda [fileutil::cat -- [file join $::WubTk_dir test.tcl]]
 	}
 
+	if {![info exists cookie]} {
+	    variable cookie [string map {/ _} $mount]
+	}
+
+	namespace eval [namespace current]::Coros {}
+
 	next {*}$args
+
     }
 }
