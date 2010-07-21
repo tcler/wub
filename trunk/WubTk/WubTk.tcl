@@ -213,6 +213,7 @@ class create ::WubTkI {
 	# add some CSS
 	variable theme
 	set r [jQ theme $r $theme]
+
 	set content [<style> {
 	    .slider { margin: 10px; }
 	    fieldset {
@@ -487,9 +488,11 @@ class create ::WubTkI {
 
 	# create an interpreter within which to evaluate user code
 	# install its command within our namespace
-	set interp [interp create {*}$interp -- [namespace current]::interp]
+	set interp [::interp create {*}$interp -- [namespace current]::interp]
+
 	Debug.wubtk {[info coroutine] INTERP $interp}
-	
+	interp eval [list set ::auto_path $::auto_path]
+
 	# create per-coro namespace commands
 	namespace eval [namespace current] {
 	    WubWidgets gridC create grid	;# per-coro grid instance
@@ -543,7 +546,7 @@ class create ::WubTkI {
 class create ::WubTk {
     method getcookie {r} {
 	variable cookie
-	# try to find the human cookie
+	# try to find the application cookie
 	set cl [Cookies Match $r -name $cookie]
 	if {[llength $cl]} {
 	    # we know they're human - they return cookies (?)
