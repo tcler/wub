@@ -1148,13 +1148,13 @@ namespace eval ::WubWidgets {
 	    if {$css ne ""} {
 		set content [<style> $css]
 	    } else {
-		set content [wm . css]
+		set content [uplevel 1 [list wm css .]]
 	    }
 
 	    if {$style ne ""} {
 		set r [Html postscript $r [<stylesheet> {*}$style]]
 	    } else {
-		set style [wm stylesheet .]
+		set style [uplevel 1 [list wm stylesheet .]]
 		if {$style ne ""} {
 		    set r [Html postscript $r [<stylesheet> {*}$style]]
 		}
