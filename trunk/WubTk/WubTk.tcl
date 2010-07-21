@@ -214,16 +214,16 @@ class create ::WubTkI {
 	variable theme
 	set r [jQ theme $r $theme]
 
-	set style [wm style .]
-	if {$style ne ""} {
-	    set content [<style> $style]
+	set css [wm css .]
+	if {$css ne ""} {
+	    set content [<style> $css]
 	} else {
 	    set content ""
 	}
 
 	set style [wm stylesheet .]
 	if {$style ne ""} {
-	    set r [Html postscript r [<stylesheet> {*}$style]]
+	    set r [Html postscript $r [<stylesheet> {*}$style]]
 	}
 
 	try {
@@ -506,7 +506,7 @@ class create ::WubTkI {
 	if {[info exists css]
 	    && $css ne ""
 	} {
-	    wm style . $css
+	    wm css . $css
 	}
 
 	if {[info exists stylesheet]
