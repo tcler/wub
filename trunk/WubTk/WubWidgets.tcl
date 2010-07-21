@@ -1116,6 +1116,12 @@ namespace eval ::WubWidgets {
 	    variable connection
 	    set r [$connection prep $r]
 
+	    set title [$tl cget? -title]
+	    if {$title eq ""} {
+		set title $tlw
+	    }
+	    dict set r -title $title
+
 	    variable tgrid
 	    append content \n [uplevel 1 [list $tgrid render]]
 	    return [Http Ok $r $content x-text/html-fragment]
