@@ -1138,9 +1138,26 @@ namespace eval ::WubWidgets {
 		set title [my widget]
 	    }
 	    dict set r -title $title
+
 	    set header [my cget? -header]
 	    if {$header ne ""} {
 		dict lappend r -headers $header
+	    }
+
+	    set css [my cget? css]
+	    if {$css ne ""} {
+		set content [<style> $css]
+	    } else {
+		set content [wm . css]
+	    }
+
+	    if {$style ne ""} {
+		set r [Html postscript $r [<stylesheet> {*}$style]]
+	    } else {
+		set style [wm stylesheet .]
+		if {$style ne ""} {
+		    set r [Html postscript $r [<stylesheet> {*}$style]]
+		}
 	    }
 
 	    variable tgrid
