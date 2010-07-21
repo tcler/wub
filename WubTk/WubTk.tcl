@@ -214,25 +214,17 @@ class create ::WubTkI {
 	variable theme
 	set r [jQ theme $r $theme]
 
-	set content [<style> {
-	    .slider { margin: 10px; }
-	    fieldset {
-		-moz-border-radius: 7px;
-		-webkit-border-radius: 7px;
-	    }
-	    textarea {
-		-moz-border-radius: 7px;
-		-webkit-border-radius: 7px;
-	    }
-	    button {
-		-moz-border-radius: 7px;
-		-webkit-border-radius: 7px;
-	    }
-	    input {
-		-moz-border-radius: 7px;
-		-webkit-border-radius: 7px;
-	    }
-	}]
+	set style [wm style .]
+	if {$style ne ""} {
+	    set content [<style> $style]
+	} else {
+	    set content ""
+	}
+
+	set style [wm stylesheet .]
+	if {$style ne ""} {
+	    set r [Html postscript r [<stylesheet> {*}$style]]
+	}
 
 	try {
 	    append content [grid render]
@@ -294,7 +286,7 @@ class create ::WubTkI {
 	    append content [string map [list %SS% $spinner_style] [<img> id Spinner_ style {%SS%; display:none;} width $spinner_size src $icons/bigrotation.gif]]
 	    Debug.wubtk {RENDERED: $content}
 
-	    dict set r -title [wm title]
+	    dict set r -title [wm title .]
 	    dict lappend r -headers [wm header .]
 	    
 	    set r [Http Ok $r $content x-text/html-fragment]
@@ -510,7 +502,19 @@ class create ::WubTkI {
 		grid exit {*}$args
 	    }
 	}
-	
+
+	if {[info exists css]
+	    && $css ne ""
+	} {
+	    wm style . $css
+	}
+
+	if {[info exists stylesheet]
+	    && $stylesheet ne ""
+	} {
+	    wm stylesheet . {*}$stylesheet
+	}
+
 	foreach n {grid wm connection destroy update exit} {
 	    interp alias $n [namespace current]::$n
 	}
@@ -657,9 +661,11 @@ class create ::WubTk {
 
 	    # collect options to pass to coro
 	    set options {}
-	    foreach v {timeout icons theme spinner_style spinner_size} {
+	    foreach v {timeout icons theme spinner_style spinner_size css stylesheet} {
 		variable $v
-		lappend options $v [set $v]
+		if {[info exists $v]} {
+		    lappend options $v [set $v]
+		}
 	    }
 
 	    # create the coroutine
@@ -682,6 +688,27 @@ class create ::WubTk {
 	variable {*}[Site var? WubTk]	;# allow .ini file to modify defaults
 	variable lambda ""
 	variable expires ""
+	variable css {
+	    .slider { margin: 10px; }
+	    fieldset {
+		-moz-border-radius: 7px;
+		-webkit-border-radius: 7px;
+	    }
+	    textarea {
+		-moz-border-radius: 7px;
+		-webkit-border-radius: 7px;
+	    }
+	    button {
+		-moz-border-radius: 7px;
+		-webkit-border-radius: 7px;
+	    }
+	    input {
+		-moz-border-radius: 7px;
+		-webkit-border-radius: 7px;
+	    }
+	}
+
+	variable stylesheet ""
 	variable timeout 0
 	variable icons /icons/
 	variable theme dark
