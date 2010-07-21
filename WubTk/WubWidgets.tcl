@@ -247,7 +247,7 @@ namespace eval ::WubWidgets {
 	    return $r
 	}
 
-	method command {} {
+	method command {args} {
 	    set cmd [my cget? command]
 	    if {$cmd ne ""} {
 		set cmd [string map [list %W .[my widget]] $cmd]
@@ -268,7 +268,7 @@ namespace eval ::WubWidgets {
 	    }
 	}
 
-	method scale {value} {
+	method slider {value} {
 	    set var [my cget variable]
 	    Debug.wubwidgets {[self] scale $var <- '$value'}
 	    my iset $var $value
@@ -444,8 +444,8 @@ namespace eval ::WubWidgets {
 		    $.ajax({
 			context: this,
 			type: "GET",
-			url: "slider",
-			data: {id: '%ID%', val: ui.value},
+			url: ".",
+			data: {id: '%ID%', val: ui.value, _op_: "slider"},
 			dataType: "script",
 			success: function (data, textStatus, XMLHttpRequest) {
 			    $("#Spinner_").hide();
@@ -772,7 +772,7 @@ namespace eval ::WubWidgets {
 	    }
 	    return $result
 	}
-
+	
 	method fetch {r} {
 	    if {[my cexists -data]} {
 		return [Http Ok $r [my cget -data] [my cget -format]]
@@ -782,9 +782,9 @@ namespace eval ::WubWidgets {
 	}
 
 	method render {{junk ""}} {
-	    return [<img> {*}[my style] src image/[my widget]]
+	    return [<img> {*}[my style] src [my widget]]
 	}
-
+	
 	superclass ::WubWidgets::widget
 	constructor {args} {
 	    next {*}[dict merge [list id [my widget]] $args]
@@ -838,7 +838,6 @@ namespace eval ::WubWidgets {
 	    }
 	}
     }
-
 
     # grid store grid info in an x/y array gridLayout(column.row)
     oo::class create gridC {
@@ -1086,12 +1085,10 @@ namespace eval ::WubWidgets {
 	}
 
 	destructor {
+	    # TODO destroy all child widgets
+
 	    variable fgrid
 	    catch {$fgrid destroy}
-	}
-
-	method gch {args} {
-	    puts stderr "[self] GCH: $args '[info level -1]'"
 	}
 
 	superclass ::WubWidgets::widget
@@ -1101,21 +1098,73 @@ namespace eval ::WubWidgets {
 	    # create a grid for this frame
 	    set name [self]..grid
 	    variable fgrid [WubWidgets gridC create $name name .[my widget]]
-	    trace add variable fgrid write [list my gch]
 	    Debug.wubwidgets {created Frame [self] gridded by $fgrid}
+	}
+    }
+
+    # toplevel widget
+    oo::class create toplevelC {
+	method grid {args} {
+	    variable tgrid
+	    Debug.wubwidgets {Toplevel [namespace tail [self]] gridding: $tgrid $args}
+	    uplevel 1 [list $tgrid {*}$args]
+	}
+
+	# render widget
+	method fetch {r} {
+	    variable tgrid
+	    Debug.wubwidgets {[namespace tail [self]] toplevel render gridded by $tgrid}
+	    append content \n [uplevel 1 [list $tgrid render]]
+	    return [Http Ok $r $content x-text/html-fragment]
+	}
+
+	method changed? {} {return 1}
+
+	method changes {r} {
+	    variable tgrid
+	    Debug.wubwidgets {[namespace tail [self]] sub-grid changes}
+	    set changes [lassign [uplevel 1 [list $tgrid changes $r]] r]
+	    Debug.wubwidgets {[namespace tail [self]] sub-grid changed: ($changes)}
+	    return [list $r {*}$changes]
+	}
+
+	method js {r} {
+	    variable tgrid
+	    return [uplevel 1 [list $tgrid js $r]]
+	}
+
+	destructor {
+	    # TODO destroy all child widgets
+
+	    variable tgrid
+	    catch {$tgrid destroy}
+	    variable connection
+	    $connection tl delete [self]
+	}
+
+	superclass ::WubWidgets::widget
+	constructor {args} {
+	    next {*}[dict merge {titlebar 1 menubar 1 toolbar 1 location 1 scrollbars 1 status 1 resizable 1} $args]
+
+	    # create a grid for this toplevel
+	    set name [self]..grid
+	    variable tgrid [WubWidgets gridC create $name name .[my widget]]
+	    Debug.wubwidgets {created Toplevel [self] gridded by $tgrid - alerting '$connection'}
+	    [my cget connection] tl add [self] $args
 	}
     }
 
     # widget template
     oo::class create notebookC {
+
 	method grid {cmd w args} {
 	    if {$cmd eq "configure"} {
 		set w [lassign [split $w .] frame]
-		Debug.wubwidgets {notebook grid: '.[my widget].$frame grid $cmd [join $w .] {*}$args]'}
+		Debug.wubwidgets {notebook grid: '.[my widget].$frame grid $cmd [join $w .] $args'}
 		return [uplevel 1 [list .[my widget].$frame grid $cmd [join $w .] {*}$args]]
 	    }
 	}
-
+	
 	# render widget
 	method render {{id ""}} {
 	    set id [my id $id]
@@ -1126,7 +1175,7 @@ namespace eval ::WubWidgets {
 		set tid ${id}_$cnt
 		lappend body [uplevel 1 [list $tab render $tid]]
 		set cnf [uplevel 1 [list $tab configure]]
-		lappend li [<li> [<a> href #$tid [dict cnf.text]]]
+		lappend li [<li> [<a> href "#$tid" [dict cnf.text]]]
 		incr cnt
 	    }
 	    set content [<ul> [join $li \n]]
@@ -1136,7 +1185,7 @@ namespace eval ::WubWidgets {
 	}
 
 	method changed? {} {return 1}
-
+	
 	method changes {r} {
 	    variable tabs
 	    set changes {}
@@ -1173,7 +1222,7 @@ namespace eval ::WubWidgets {
 		return $r
 	    } else {
 		incr set
-		return [jQ tabs $r #[my id]]
+		return [jQ tabs $r "#[my id]"]
 	    }
 	}
 
@@ -1307,20 +1356,7 @@ namespace eval ::WubWidgets {
     }
 
     # make shims for each kind of widget
-    variable tks {button label entry text checkbutton scale frame notebook accordion html}
-    foreach n $tks {
-	proc $n {name args} [string map [list %T% $n] {
-	    set ns [uplevel 1 {namespace current}]
-	    set obj [%T%C create ${ns}::$name {*}$args]
-	    set interp [set ${ns}::interp]	;# interp is recorded in per-coro ns
-	    Debug.wubtk {ISHIM $name '$interp alias [namespace tail $obj] $obj'}
-	    $interp alias [namespace tail $obj] $obj
-	    return $obj
-	}]
-    }
-    proc labelframe {args} {
-	return [frame {*}$args]
-    }
+    variable tks {button label entry text checkbutton scale frame notebook accordion html toplevel}
 
     namespace export -clear *
     namespace ensemble create -subcommands {}
