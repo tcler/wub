@@ -158,8 +158,9 @@ namespace eval Install {
 	variable base [string trimright $base /]
 	variable version [string trimright $version /]
 
-	if {!$overwrite} {
-	    if {[file exists [file join $home .svn]]} {
+	if {!$overwrite
+	    && [file exists [file join $home .svn]]
+	} {
 		error "Refusing to overwrite subversion-controlled directory.  Use 'overwrite 1' if you insist upon this."
 	}
 
