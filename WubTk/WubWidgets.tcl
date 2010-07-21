@@ -732,21 +732,27 @@ namespace eval ::WubWidgets {
     oo::class create wmC {
 	# TODO - make title change dynamically ... blerk.
 	method title {{widget .} args} {
-	    if {$widget != "."} {return}
-	    variable title
-	    if {[llength $args]} {
-		set title [lindex $args 0]
+	    if {$widget eq "."} {
+		variable title
+		if {[llength $args]} {
+		    set title [lindex $args 0]
+		}
+		return $title
+	    } else {
+		return [$widget cget? title]
 	    }
-	    return $title
 	}
 
 	method header {{widget .} args} {
-	    if {$widget != "."} {return}
-	    variable header
-	    if {[llength $args]} {
-		set header [lindex $args 0]
+	    if {$widget eq "."} {
+		variable header
+		if {[llength $args]} {
+		    set header [lindex $args 0]
+		}
+		return $header
+	    } else {
+		return [$widget cget header]
 	    }
-	    return $header
 	}
 
 	method background {{widget .} image} {
