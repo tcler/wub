@@ -187,7 +187,7 @@ class create ::WubTkI {
 	}
     }
 
-    method render {r} {
+    method prep {r} {
 	# re-render whole page
 	set r [jQ jquery $r]
 
@@ -197,7 +197,10 @@ class create ::WubTkI {
 	set r [jQ ready $r [my variableJS]]
 	set r [jQ tabs $r .notebook]
 	set r [jQ accordion $r .accordion]
+    }
 
+    method render {r} {
+	set r [my prep $r]
 	variable timeout
 	if {$timeout > 0} {
 	    Debug.wubtk {Comet push $timeout}
