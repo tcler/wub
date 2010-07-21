@@ -592,6 +592,7 @@ class create ::WubTk {
 	Debug.wubtk {created wubapp cookie $cdict}
 	
 	dict set r -cookies $cdict
+	dict set r -wubapp $cmd
 	return $r
     }
 
@@ -648,6 +649,7 @@ class create ::WubTk {
 		}
 	    } else {
 		set r [my newcookie $r]	;# brand new webapp
+		set wubapp [dict get $r -wubapp]
 	    }
 
 	    # collect options to pass to coro
