@@ -1151,6 +1151,7 @@ namespace eval ::WubWidgets {
 		set content [uplevel 1 [list wm css .]]
 	    }
 
+	    set style [my cget? stylesheet]
 	    if {$style ne ""} {
 		set r [Html postscript $r [<stylesheet> {*}$style]]
 	    } else {
