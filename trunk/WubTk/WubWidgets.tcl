@@ -1112,8 +1112,11 @@ namespace eval ::WubWidgets {
 
 	# render widget
 	method fetch {r} {
-	    variable tgrid
 	    Debug.wubwidgets {[namespace tail [self]] toplevel render gridded by $tgrid}
+	    variable connection
+	    set r [$connection prep $r]
+
+	    variable tgrid
 	    append content \n [uplevel 1 [list $tgrid render]]
 	    return [Http Ok $r $content x-text/html-fragment]
 	}
