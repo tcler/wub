@@ -661,6 +661,18 @@ namespace eval ::Cookies {
     proc Fetch {r args} {
 	return [fetch [dict get $r -cookies] {*}$args]
     }
+
+    proc Fetch? {r args} {
+	# try to find a matching cookie
+	set cl [Cookies Match $r {*}$args]
+	if {[llength $cl]} {
+	    # we know they're human - they return cookies (?)
+	    return [dict get [Cookies Fetch $r {*}$args] -value]
+	} else {
+	    return ""
+	}
+    }
+
     proc FetchAll {r args} {
 	return [fetchAll [dict get $r -cookies] {*}$args]
     }
