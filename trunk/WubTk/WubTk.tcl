@@ -205,7 +205,7 @@ class create ::WubTkI {
 
 	if {$timeout > 0} {
 	    Debug.wubtk {Comet push $timeout}
-	    set r [jQ comet $r refresh]
+	    set r [jQ comet $r ./?_op_=refresh]
 	} else {
 	    Debug.wubtk {Comet no push}
 	}
@@ -304,7 +304,7 @@ class create ::WubTkI {
 	return $r
     }
 
-    method do_refresh {r Q} {
+    method do_refresh {r} {
 	# client has asked us to push changes
 	Debug.wubtk {[self] client has asked us to push changes}
 	set changes [lassign [grid changes $r] r]
@@ -441,7 +441,7 @@ class create ::WubTkI {
 
 			refresh {
 			    # process refresh event
-			    set r [my do_refresh $r $Q]
+			    set r [my do_refresh $r]
 			}
 
 			default {
