@@ -1116,9 +1116,9 @@ namespace eval ::WubWidgets {
 	    variable connection
 	    set r [$connection prep $r]
 
-	    set title [$tl cget? -title]
+	    set title [my cget? -title]
 	    if {$title eq ""} {
-		set title $tlw
+		set title [my widget]
 	    }
 	    dict set r -title $title
 
