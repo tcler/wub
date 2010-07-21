@@ -234,6 +234,7 @@ class create ::WubTkI {
 	    set r [grid js $r]
 	    Debug.wubtk {RENDER JS: [my stripjs $r]}
 	    append content [<div> id ErrDiv {}]
+	    append content [<span> id STORE {}]
 
 	    variable toplevels
 	    set tljs {}
@@ -264,22 +265,21 @@ class create ::WubTkI {
 				}
 			    }
 			}
-			lappend tljs "$.toplevels\['$tlw'\]=window.open([join $opts ,])"
+			lappend tljs "\$('#STORE').data('$tlw', window.open([join $opts ,]))"
 		    }
 		    delete {
 			# close the toplevel window/tab
-			lappend tljs "$.toplevels\['$tlw'\].close()"
+			lappend tljs "\$('#STORE').data('$tlw').close()"
 			dict unset toplevels $tl
 		    }
 		    hide {
 			# close the toplevel window/tab
-			lappend tljs "$.toplevels\['$tlw'\].close()"
+			lappend tljs "\$('#STORE').data('$tlw').close()"
 		    }
 		}
 		if {[llength $tljs]} {
-
 		    set tljs [join $tljs ";\n"]
-		    set r [Html postscript $r "\$(\$.extend({toplevels: {junk:1}}); $tljs;\n);"]
+		    set r [Html postscript $r $tljs]
 		}
 	    }
 
