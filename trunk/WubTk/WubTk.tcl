@@ -294,7 +294,7 @@ class create ::WubTkI {
 	    Debug.wubtk {RENDERED: $content}
 
 	    dict set r -title [wm title]
-	    dict lappend r -headers [wm header]
+	    dict lappend r -headers [wm header .]
 	    
 	    set r [Http Ok $r $content x-text/html-fragment]
 	} on error {e eo} {
