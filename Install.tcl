@@ -150,13 +150,18 @@ namespace eval Install {
     proc fetch {args} {
 	variable limit 10
 	variable version trunk
-
+	variable overwrite 0
 	variable {*}$args	;# set variables passed in
 
 	# clean up directories and URLs
 	variable home [file normalize $home]
 	variable base [string trimright $base /]
 	variable version [string trimright $version /]
+
+	if {!$overwrite} {
+	    if {[file exists [file join $home .svn]]} {
+		error "Refusing to overwrite subversion-controlled directory.  Use 'overwrite 1' if you insist upon this."
+	}
 
 	# work on release
 	switch -glob -- $version {
