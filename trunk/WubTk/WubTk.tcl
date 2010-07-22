@@ -114,14 +114,6 @@ class create ::WubTkI {
 	}]
     }
 
-    method uploadJS {{what .upload}} {
-	return [string map [list %B% $what] {
-	    $('%B').MultiFile();
-            $('%B_form').ajaxForm(function() { 
-            }); 
-	}]
-    }
-
     method update {changes} {
 	Debug.wubtk {[self] UPDATE ($changes)}
 
@@ -198,13 +190,14 @@ class create ::WubTkI {
     method prep {r} {
 	# re-render whole page
 	set r [jQ jquery $r]
+	set r [jQ scripts $r jquery.form.js]
+	set r [jQ tabs $r .notebook]
+	set r [jQ accordion $r .accordion]
 
 	# send js to track widget state
 	set r [jQ ready $r [my buttonJS]]
 	set r [jQ ready $r [my cbuttonJS]]
 	set r [jQ ready $r [my variableJS]]
-	set r [jQ tabs $r .notebook]
-	set r [jQ accordion $r .accordion]
     }
 
     method render {r} {
@@ -393,13 +386,8 @@ class create ::WubTkI {
 	Debug.wubtk {[info coroutine] PROCESS in namespace:[namespace current]}
 
 	# run user code - return result
-	if {[catch {
-	    interp eval $lambda	;# install the user code
-	    set r [my render $r]
-	} e eo]} {
-	    Debug.wubtk {[info coroutine] error '$e' ($eo)}
-	    return [Http ServerError $r $e $eo]
-	}
+	interp eval $lambda	;# install the user code
+	set r [my render $r]
 	
 	# initial client direct request
 	while {1} {
@@ -435,10 +423,21 @@ class create ::WubTkI {
 			command -
 			cbutton -
 			slider -
-			upload -
 			var {
 			    # process browser event
 			    set r [my event $r]
+			}
+
+			upload {
+			    # client event has been received
+			    set Q [Query flatten [Query parse $r]]
+			    set widget .[dict Q.id]
+
+			    if {[llength [info commands [namespace current]::$widget]]} {
+				Debug.wubtk {event $widget ($Q)}
+				$widget [dict r.-op] [dict Q.val?]
+			    }
+			    set r [my render $r]
 			}
 
 			refresh {
@@ -678,17 +677,17 @@ class create ::WubTk {
 	    }
 
 	    # create the coroutine
-	    variable lambda
 	    try {
+		variable lambda
 		set o [::WubTkI create [namespace current]::Coros::O_$wubapp {*}$options]
+		set r [coroutine [namespace current]::Coros::$wubapp $o do $r $lambda]
+		trace add command [namespace current]::Coros::$wubapp delete [list $o destroyme]
 	    } on error {e eo} {
-		return [Http ServerError $r $e $eo]
+		Debug.wubtk {[info coroutine] error '$e' ($eo)}
+		set r [Http ServerError $r $e $eo]
+	    } finally {
+		return $r
 	    }
-
-	    Debug.wubtk {coroutine initializing: $o - [namespace current]}
-	    set r [coroutine [namespace current]::Coros::$wubapp $o do $r $lambda]
-	    trace add command [namespace current]::Coros::$wubapp delete [list $o destroyme]
-	    return $r
 	}
     }
 
@@ -721,7 +720,7 @@ class create ::WubTk {
 	variable icons /icons/
 	variable theme dark
 	variable spinner_size 20
-	variable spinner_style "position: fixed; top:10px; left: 10px%;"
+	variable spinner_style "position: fixed; top:10px; left: 10px;"
 	variable {*}$args
 
 	if {[info exists file]} {
