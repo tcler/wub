@@ -320,6 +320,7 @@ namespace eval ::Site {
 	    # find Wub stuff
 	    ::variable wubdir; ::variable topdir
 	    config assign Wub topdir [file normalize $wubdir]
+	    config assign Wub docroot [file join $topdir docroot]
 	}
 
 	# evaluate Wub section + $args
