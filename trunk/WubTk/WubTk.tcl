@@ -114,6 +114,14 @@ class create ::WubTkI {
 	}]
     }
 
+    method uploadJS {{what .upload}} {
+	return [string map [list %B% $what] {
+	    $('%B').MultiFile();
+            $('%B_form').ajaxForm(function() { 
+            }); 
+	}]
+    }
+
     method update {changes} {
 	Debug.wubtk {[self] UPDATE ($changes)}
 
@@ -334,13 +342,13 @@ class create ::WubTkI {
     method event {r} {
 	# client event has been received
 	set Q [Query flatten [Query parse $r]]
-	set cmd .[dict Q.id]
+	set widget .[dict Q.id]
 
-	if {[llength [info commands [namespace current]::$cmd]]} {
-	    Debug.wubtk {event $cmd ($Q)}
+	if {[llength [info commands [namespace current]::$widget]]} {
+	    Debug.wubtk {event $widget ($Q)}
 	    set e {$('#ErrDiv').html('');}
 	    try {
-		$cmd [dict r.-op] [dict Q.val?]
+		$widget [dict r.-op] [dict Q.val?]
 	    } on error {e eo} {
 		set e "cmd: [string map [list \" \\\" ' \\'] $e]"
 		set e [string map [list %E% $e] {
@@ -351,8 +359,8 @@ class create ::WubTkI {
 		append content $e
 	    }
 	} else {
-	    Debug.wubtk {not found [namespace current]::$cmd}
-	    set content "\$('#ErrDiv').html('Widget "$cmd" not found');"
+	    Debug.wubtk {not found [namespace current]::$widget}
+	    set content "\$('#ErrDiv').html('Widget "$widget" not found');"
 	}
 
 	# clear out any old refresh - this response will satisfy it
@@ -427,6 +435,7 @@ class create ::WubTkI {
 			command -
 			cbutton -
 			slider -
+			upload -
 			var {
 			    # process browser event
 			    set r [my event $r]
@@ -457,25 +466,25 @@ class create ::WubTkI {
 			# exit's been called by the app - arrange for redirect/exit
 			Debug.wubtk {exit redirect: [grid redirect]}
 			set redirect [grid redirect]
-			break
+			set redirect [Url redir $r $redirect]
+			Debug.wubtk {[info coroutine] redirecting to '$redirect'}
+			return [Http Ok $r "window.location='$redirect';" application/javascript]
 		    }
 		}
 	    }
 	}
 
 	# fallen out of loop - time to go
-	if {[info exists redirect] && $redirect ne ""} {
-	    set redirect [Url redir $r $redirect]
-	    Debug.wubtk {[info coroutine] redirecting to '$redirect'}
-	    return [Http Ok $r "window.location='$redirect';" application/javascript]
-	}
 	Debug.wubtk {[info coroutine] exiting}
     }
 
+    superclass FormClass
     constructor {args} {
 	variable interp {}
 	variable {*}$args
+	next? {*}$args		;# construct Form
 	variable toplevels {}	;# keep track of toplevels
+
 	Debug.wubtk {constructed WubTkI [self] $args}
 
 	# create an interpreter within which to evaluate user code
@@ -683,7 +692,6 @@ class create ::WubTk {
 	}
     }
 
-    superclass FormClass	;# allow Form to work nicely
     constructor {args} {
 	variable {*}[Site var? WubTk]	;# allow .ini file to modify defaults
 	variable lambda ""
@@ -728,7 +736,7 @@ class create ::WubTk {
 
 	namespace eval [namespace current]::Coros {}
 
-	next {*}$args
+	next? {*}$args
 
     }
 }
