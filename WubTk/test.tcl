@@ -53,6 +53,7 @@ proc readckrd {} {
 	.m configure -background pink
     }
 }
+
 wm title . "Demo #1"
 button .a -text "Press Me" -command buttonA -background lightgreen -foreground purple
 button .b -text "Don't Press Me" -command buttonA -background pink -foreground blue
@@ -167,3 +168,8 @@ toplevel .tl -title "A New Toplevel"
 label .tl.l1 -textvariable tl1 -text [incr tl1] -grid {0 0}
 button .tl.b1 -text "Test Change" -command {after 10000 {global tl1; incr tl1}} -grid {0 1}
 
+proc gotfile {args} {
+    puts stderr "GOT A FILE"
+}
+
+upload .f1 -title "Upload a file" -command gotfile -grid {13 0}
