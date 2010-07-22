@@ -877,10 +877,17 @@ namespace eval ::WubWidgets {
 	# traverse grid looking for changes.
 	method changes {r} {
 	    Debug.wubwidgets {[namespace tail [self]] changes}
-	    variable grid
+	    variable grid;variable oldgrid
 	    set changes {}
 	    dict for {row rval} $grid {
 		dict for {col val} $rval {
+		    if {$val ne [dict oldgrid.$row.$col?]} {
+			# grid has changed ... force reload
+			catch {dict unset -r -script}
+			set r [Html postscript $r {window.location='.';}]
+			dict set r -repaint 1
+			return [list $r {}]	;# return the dict of changes by id
+		    }
 		    dict with val {
 			if {[uplevel 1 [list $widget changed?]]} {
 			    Debug.wubwidgets {changed ($row,$col) ($val)}
@@ -891,6 +898,9 @@ namespace eval ::WubWidgets {
 				notebook -
 				frame {
 				    set changed [lassign [uplevel 1 [list $widget changes $r]] r]
+				    if {[dict exists $r -repaint]} {
+					return [list $r {}]	;# repaint
+				    }
 				}
 				default {
 				    set changed [list [uplevel 1 [list $widget id]] [uplevel 1 [list $widget render]] [uplevel 1 [list $widget type]]]
@@ -971,7 +981,8 @@ namespace eval ::WubWidgets {
 		# now we have a complete row - accumulate it
 		lappend rows [<tr> align center valign middle [join $cols \n]]
 	    }
-	    
+
+	    variable oldgrid $grid	;# record the old grid
 	    set content [<table> [join $rows \n]]
 	    Debug.wubwidgets {'[namespace tail [self]]' RENDERED ($content)}
 	    return $content
@@ -1210,7 +1221,7 @@ namespace eval ::WubWidgets {
 	    set id [my id $id]
 	    variable connection
 	    set content [$connection layout form_$id enctype multipart/form-data class upload_form [subst {
-		file [my widget] id $id class upload {}
+		file id $id {}
 		submit send_$id Upload
 		hidden id [my widget]
 		hidden _op_ upload
