@@ -535,7 +535,7 @@ namespace eval ::WubWidgets {
 	}
     }
 
-    # widget template
+    # Html widget
     oo::class create htmlC {
 	# render widget
 	method render {{id ""}} {
@@ -913,7 +913,8 @@ namespace eval ::WubWidgets {
 	    variable interest
 	    if {$prod eq ""} {
 		if {$interest} {
-		    catch {uplevel 1 {connection prod}}
+		    variable connection
+		    $connection prod
 		}
 	    } else {
 		set interest $prod
@@ -1202,7 +1203,41 @@ namespace eval ::WubWidgets {
 	}
     }
 
-    # widget template
+    # upload template
+    oo::class create uploadC {
+	# render widget
+	method render {{id ""}} {
+	    set id [my id $id]
+	    variable connection
+	    return [$connection layout form_$id class upload_form [subst {
+		submit send_$id upload
+		file [my widget] id $id class upload {}
+		hidden id [my widget]
+		hidden _op_ upload
+	    }]]
+	}
+
+	method changed? {} {
+	    return 0	;# we never change
+	}
+
+	method upload {args} {
+	    return [my command {*}$args]
+	}
+
+	# optional - add per-widget js
+	method js {r} {
+	    set r [jQ form $r "#form_[my id]"]
+	    return [jQ multifile $r "#[my id]"]
+	}
+
+	superclass ::WubWidgets::widget
+	constructor {args} {
+	    next {*}[dict merge {} $args]
+	}
+    }
+
+    # notebook widget
     oo::class create notebookC {
 
 	method grid {cmd w args} {
@@ -1404,7 +1439,7 @@ namespace eval ::WubWidgets {
     }
 
     # make shims for each kind of widget
-    variable tks {button label entry text checkbutton scale frame notebook accordion html toplevel}
+    variable tks {button label entry text checkbutton scale frame notebook accordion html toplevel upload}
 
     namespace export -clear *
     namespace ensemble create -subcommands {}
