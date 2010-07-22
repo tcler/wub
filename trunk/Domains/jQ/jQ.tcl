@@ -409,9 +409,18 @@ namespace eval ::jQ {
     }
 
     # http://www.fyneworks.com/jquery/multiple-file-upload/
-    proc multifile {r} {
-	# just supports the simple case
-	return [scripts $r jquery.js jquery.MultiFile.js]
+    proc multifile {r args} {
+	if {[llength $args]} {
+	    set args [lassign $args selector]
+	    return [weave $r {
+		jquery.js jquery.MultiFile.js
+	    }  %SEL [S $selector] %OPTS [opts multifile {*}$args] {
+		$('%SEL').MultiFile(%OPTS);
+	    }]
+	} else {
+	    # just supports the simple case
+	    return [scripts $r jquery.js jquery.MultiFile.js]
+	}
     }
 
     # http://plugins.jquery.com/project/mbContainerPlus
