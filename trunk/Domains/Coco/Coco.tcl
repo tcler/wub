@@ -187,7 +187,7 @@ class create ::Coco {
 
 	    Debug.coco {coroutine initialising - ($r) reply}
 	    variable lambda
-	    set s [lrange [list {*}$lambda [info object namespace [self]]] 0 2]
+	    set s [lrange [list {*}$lambda [namespace current]] 0 2]
 	    set result [coroutine Coros::@$cmd ::apply $s $r]
 
 	    if {$result ne ""} {
@@ -235,7 +235,7 @@ class create ::Coco {
 	variable tolerant 0
 	variable {*}[Site var? Coco]	;# allow .ini file to modify defaults
 	variable {*}$args
-	namespace eval [info object namespace [self]]::Coros {}
+	namespace eval [namespace current]::Coros {}
 	next {*}$args
     }
 }
