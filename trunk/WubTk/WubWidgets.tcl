@@ -878,16 +878,22 @@ namespace eval ::WubWidgets {
 	method changes {r} {
 	    Debug.wubwidgets {[namespace tail [self]] changes}
 	    variable grid;variable oldgrid
-	    set changes {}
 	    dict for {row rval} $grid {
 		dict for {col val} $rval {
 		    if {$val ne [dict oldgrid.$row.$col?]} {
 			# grid has changed ... force reload
+			Debug.wubwidgets {[namespace tail [self]] repainting}
 			catch {dict unset -r -script}
 			set r [Html postscript $r {window.location='.';}]
 			dict set r -repaint 1
 			return [list $r {}]	;# return the dict of changes by id
 		    }
+		}
+	    }
+
+	    set changes {}
+	    dict for {row rval} $grid {
+		dict for {col val} $rval {
 		    dict with val {
 			if {[uplevel 1 [list $widget changed?]]} {
 			    Debug.wubwidgets {changed ($row,$col) ($val)}
@@ -899,6 +905,7 @@ namespace eval ::WubWidgets {
 				frame {
 				    set changed [lassign [uplevel 1 [list $widget changes $r]] r]
 				    if {[dict exists $r -repaint]} {
+					Debug.wubwidgets {[namespace tail [self]] repainting}
 					return [list $r {}]	;# repaint
 				    }
 				}
@@ -1222,6 +1229,7 @@ namespace eval ::WubWidgets {
 	    variable connection
 	    set content [$connection layout form_$id enctype multipart/form-data class upload_form [subst {
 		file $id upload
+
 		submit send_$id Upload
 		hidden id [my widget]
 		hidden _op_ upload
