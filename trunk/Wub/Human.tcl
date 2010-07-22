@@ -25,7 +25,7 @@ set ::API(Server/Human) {
 namespace eval Human {
     proc update {from to} {
 	variable logdir
-	::fileutil::appendToFile [file join $logdir human] "$from [list $to]\n"
+	::fileutil::appendToFile [file join $logdir human] "$from [list $to] "
     }
 
     proc track {r} {
