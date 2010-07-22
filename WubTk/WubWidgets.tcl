@@ -1209,26 +1209,17 @@ namespace eval ::WubWidgets {
 	method render {{id ""}} {
 	    set id [my id $id]
 	    variable connection
-	    return [$connection layout form_$id class upload_form [subst {
-		submit send_$id upload
+	    set content [$connection layout form_$id enctype multipart/form-data class upload_form [subst {
 		file [my widget] id $id class upload {}
+		submit send_$id Upload
 		hidden id [my widget]
 		hidden _op_ upload
 	    }]]
+	    return $content
 	}
-
-	method changed? {} {
-	    return 0	;# we never change
-	}
-
+	method changed? {args} {return 0}
 	method upload {args} {
 	    return [my command {*}$args]
-	}
-
-	# optional - add per-widget js
-	method js {r} {
-	    set r [jQ form $r "#form_[my id]"]
-	    return [jQ multifile $r "#[my id]"]
 	}
 
 	superclass ::WubWidgets::widget
