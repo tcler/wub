@@ -320,7 +320,6 @@ namespace eval ::Site {
 	    # find Wub stuff
 	    ::variable wubdir; ::variable topdir
 	    config assign Wub topdir [file normalize $wubdir]
-	    config assign Wub docroot [file join $topdir docroot]
 	}
 
 	# evaluate Wub section + $args
@@ -497,6 +496,7 @@ namespace eval ::Site {
 	    #### initialize Block
 	    Debug.site {Module Block: YES}
 	    package require Block
+	    variable docroot
 	    Block new logdir $docroot [config section Block]
 	} else {
 	    # NULL Block
