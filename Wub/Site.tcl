@@ -496,7 +496,7 @@ namespace eval ::Site {
 	    #### initialize Block
 	    Debug.site {Module Block: YES}
 	    package require Block
-	    variable docroot
+	    ::variable docroot
 	    Block new logdir $docroot [config section Block]
 	} else {
 	    # NULL Block
