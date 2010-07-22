@@ -1156,6 +1156,7 @@ namespace eval ::WubWidgets {
 
 	# render widget
 	method fetch {r} {
+	    variable tgrid
 	    Debug.wubwidgets {[namespace tail [self]] toplevel render gridded by $tgrid}
 	    variable connection
 	    set r [$connection prep $r]
