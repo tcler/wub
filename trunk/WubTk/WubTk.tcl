@@ -324,13 +324,6 @@ class create ::WubTkI {
 	return $r
     }
 
-    method changes {r} {
-	set changes [lassign [grid changes $r] r]
-	set content [my update $changes]
-	append content [my stripjs $r]
-	return $content
-    }
-
     # process a browser event
     method event {r} {
 	# client event has been received
@@ -348,8 +341,15 @@ class create ::WubTkI {
 		    $('#ErrDiv').html('<p>Error: %E% </p>');
 		}]
 	    } finally {
-		append content [my changes $r]
-		append content $e
+		set changes [lassign [grid changes $r] r]
+		if {[dict exists $r -repaint]} {
+		    catch {dict unset -r -script}
+		    set r [Html postscript $r {window.location='.';}]
+		} else {
+		    set content [my update $changes]
+		    append content [my stripjs $r]
+		    append content $e
+		}
 	    }
 	} else {
 	    Debug.wubtk {not found [namespace current]::$widget}
