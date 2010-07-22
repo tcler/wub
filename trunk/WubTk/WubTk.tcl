@@ -336,6 +336,7 @@ class create ::WubTkI {
 	    try {
 		$widget [dict r.-op] [dict Q.val?]
 	    } on error {e eo} {
+		Debug.wubtk {event error on $widget: '$e' ($eo)}
 		set e "cmd: [string map [list \" \\\" ' \\'] $e]"
 		set e [string map [list %E% $e] {
 		    $('#ErrDiv').html('<p>Error: %E% </p>');
