@@ -343,6 +343,7 @@ class create ::WubTkI {
 	    } finally {
 		set changes [lassign [grid changes $r] r]
 		if {[dict exists $r -repaint]} {
+		    # a repaint has been triggered
 		    catch {dict unset -r -script}
 		    set r [Html postscript $r {window.location='.';}]
 		} else {
