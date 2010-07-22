@@ -877,18 +877,27 @@ namespace eval ::WubWidgets {
 	# traverse grid looking for changes.
 	method changes {r} {
 	    Debug.wubwidgets {[namespace tail [self]] changes}
+	    if {[dict exists $r -repaint]} {
+		return [list $r {}]
+	    }
 	    variable grid;variable oldgrid
+
+	    # look for modified grid entries, these will cause a repaint
 	    dict for {row rval} $grid {
 		dict for {col val} $rval {
 		    if {$val ne [dict oldgrid.$row.$col?]} {
 			# grid has changed ... force reload
 			Debug.wubwidgets {[namespace tail [self]] repainting}
-			catch {dict unset -r -script}
-			set r [Html postscript $r {window.location='.';}]
 			dict set r -repaint 1
 			return [list $r {}]	;# return the dict of changes by id
 		    }
 		}
+	    }
+	    if {[dict size [dict ni $oldgrid [dict keys $grid]]]} {
+		# a grid element has been deleted
+		catch {dict unset -r -script}
+		dict set r -repaint 1
+		return [list $r {}]	;# return the dict of changes by id
 	    }
 
 	    set changes {}
