@@ -454,7 +454,7 @@ oo::class create TupleStore {
 	
 	variable file
 	variable opts
-	variable db [tdbc::${tdbc}::connection create [info object namespace [self]]::db $file {*}$opts]
+	variable db [tdbc::${tdbc}::connection create [namespace current]::db $file {*}$opts]
 
 	if {![llength [db tables tuples]]} {
 	    # we don't have a stick table - make one
