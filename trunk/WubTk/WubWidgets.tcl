@@ -895,7 +895,6 @@ namespace eval ::WubWidgets {
 	    }
 	    if {[dict size [dict ni $oldgrid [dict keys $grid]]]} {
 		# a grid element has been deleted
-		catch {dict unset -r -script}
 		dict set r -repaint 1
 		return [list $r {}]	;# return the dict of changes by id
 	    }
