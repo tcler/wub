@@ -498,12 +498,7 @@ class create ::WubTkI {
 
 	# run user code - return result
 	variable cdict [dict get? $r -cookies]
-	try {
-	    interp eval $lambda	;# install the user code
-	} on error {e eo} {
-	    return [Http ServerError $r $e $eo]
-	}
-
+	interp eval $lambda	;# install the user code
 	set r [my render $r]
 	Debug.wubtk {COOKIES: $cdict}
 	dict set r -cookies $cdict	;# reflect cookies back to client
@@ -821,6 +816,7 @@ class create ::WubTk {
 
 	    # create the coroutine
 	    try {
+		set req $r
 		variable lambda
 		set o [::WubTkI create [namespace current]::Coros::O_$wubapp {*}$options]
 		set r [::Coroutine [namespace current]::Coros::$wubapp $o do $r $lambda]
@@ -829,10 +825,9 @@ class create ::WubTk {
 		Debug.wubtk {[info coroutine] error '$e' ($eo)}
 		catch {$o destroy}
 		catch {rename [namespace current]::Coros::$wubapp {}}
-		set r [Http ServerError $r $e $eo]
-	    } finally {
-		return $r
+		set r [Http ServerError $req $e $eo]
 	    }
+	    return $r
 	}
     }
 
