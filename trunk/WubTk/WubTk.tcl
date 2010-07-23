@@ -498,7 +498,12 @@ class create ::WubTkI {
 
 	# run user code - return result
 	variable cdict [dict get? $r -cookies]
-	interp eval $lambda	;# install the user code
+	try {
+	    interp eval $lambda	;# install the user code
+	} on error {e eo} {
+	    return [Http ServerError $r $e $eo]
+	}
+
 	set r [my render $r]
 	Debug.wubtk {COOKIES: $cdict}
 	dict set r -cookies $cdict	;# reflect cookies back to client
@@ -862,6 +867,7 @@ class create ::WubTk {
 	variable spinner_size 20
 	variable spinner_style "position: fixed; top:10px; left: 10px;"
 	variable {*}$args
+	set timeout 0
 
 	if {![info exists cookiepath] || $cookiepath eq ""} {
 	    variable cookiepath $mount
