@@ -199,7 +199,8 @@ class create ::WubTkI {
 	variable cookiepath;
 
 	set name [$caller widget]
-	foreach n {path domain port expires secure max-age} {
+	set opts {path domain port expires secure max-age}
+	foreach n $opts {
 	    set $n [$caller cget? -$n]
 	}
 
@@ -213,9 +214,16 @@ class create ::WubTkI {
 	    $caller configure -path $path
 	}
 
-	foreach n {name path domain} {
-	    lappend matcher $n [set $n]
+	set matcher {}
+	set rest {}
+	foreach n $opts {
+	    if {$n in {name path domain}} {
+		lappend matcher $n [set $n]
+	    } else {
+		lappend rest $n [set $n]
+	    }
 	}
+
 	switch -- $op {
 	    get {
 		return [dict get [Cookies fetch $cdict {*}$matcher] -value]
@@ -227,7 +235,11 @@ class create ::WubTkI {
 
 	    set {
 		set args [lassign $args value]
-		set cdict [Cookies modify $cdict -value $value {*}$args {*}$matcher]
+		set matches [Cookies match $cdict {*}$match]
+		if {![llength $matches]} {
+		    set cdict [Cookies add $cdict -value $value {*}$matcher {*}$rest]
+		}
+		set cdict [Cookies modify $cdict -value $value {*}$args {*}$matcher {*}$rest]
 	    }
 
 	    construct {
@@ -235,7 +247,9 @@ class create ::WubTkI {
 		if {[llength $matches] > 1} {
 		    error "Ambiguous cookie, matches '$matches'"
 		}
-		$caller configure {*}[Cookies fetch $cdict {*}$match]
+		if {[llength $matches]} {
+		    $caller configure {*}[Cookies fetch $cdict {*}$match]
+		}
 	    }
 	}
     }
@@ -589,7 +603,7 @@ class create ::WubTkI {
 	next? {*}$args		;# construct Form
 	variable toplevels {}	;# keep track of toplevels
 
-	Debug.wubtk {constructed WubTkI [self] $args}
+	Debug.wubtk {constructed WubTkI self-[self]  - ns-[namespace current] ($args)}
 
 	# create an interpreter within which to evaluate user code
 	# install its command within our namespace
@@ -609,16 +623,17 @@ class create ::WubTkI {
 	    }
 	    
 	    proc connection {args} {
-		after 0 [list [info coroutine] prod]
+		return [my {*}$args]
 	    }
+
 	    proc destroy {} {
 		namespace delete [namespace current]
 	    }
 	    proc update {args} {}
 	}
 
-	WubWidgets gridC create [namespace current]::grid connection [self]	;# per-coro grid instance
-	WubWidgets wmC create [namespace current]::wm connection [self]	;# per-coro wm instance
+	WubWidgets gridC create [namespace current]::grid	;# per-coro grid instance
+	WubWidgets wmC create [namespace current]::wm		;# per-coro wm instance
 
 	if {[info exists css]
 	    && $css ne ""
