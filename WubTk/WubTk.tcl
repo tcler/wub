@@ -498,7 +498,7 @@ class create ::WubTkI {
 
 	# run user code - return result
 	variable cdict [dict get? $r -cookies]
-	interp eval $lambda	;# install the user code
+	Interp eval $lambda	;# install the user code
 	set r [my render $r]
 	Debug.wubtk {COOKIES: $cdict}
 	dict set r -cookies $cdict	;# reflect cookies back to client
@@ -599,7 +599,7 @@ class create ::WubTkI {
     }
 
     destructor {
-	catch {interp destroy}
+	catch {Interp destroy}
     }
 
     method destroyme {args} {
@@ -619,10 +619,10 @@ class create ::WubTkI {
 
 	# create an interpreter within which to evaluate user code
 	# install its command within our namespace
-	set interp [::interp create {*}$interp -- [namespace current]::interp]
+	set interp [::interp create {*}$interp -- [namespace current]::Interp]
 
 	Debug.wubtk {[info coroutine] INTERP $interp}
-	interp eval [list set ::auto_path $::auto_path]
+	Interp eval [list set ::auto_path $::auto_path]
 
 	# create per-coro namespace commands
 	namespace eval [namespace current] {
@@ -660,21 +660,21 @@ class create ::WubTkI {
 	}
 
 	foreach n {grid wm connection destroy update exit} {
-	    interp alias $n [namespace current]::$n
+	    Interp alias $n [namespace current]::$n
 	}
-	interp alias rq [self] rq
+	Interp alias rq [self] rq
 
 	# install aliases for Tk Widgets
 	foreach n $::WubWidgets::tks {
 	    proc [namespace current]::$n {w args} [string map [list %N% $n %C% [self]] {
 		Debug.wubtk {SHIM: 'WubWidgets %N%C create [namespace current]::$w'}
-		set obj [WubWidgets %N%C create [namespace current]::$w -interp [list [namespace current]::interp eval] -connection %C% {*}$args]
-		interp alias [namespace tail $obj] $obj
-		#Debug.wubtk {aliases: [interp aliases]}
+		set obj [WubWidgets %N%C create [namespace current]::$w -interp [list [namespace current]::Interp eval] -connection %C% {*}$args]
+		Interp alias [namespace tail $obj] $obj
+		#Debug.wubtk {aliases: [Interp aliases]}
 		
 		return [namespace tail $obj]
 	    }]
-	    interp alias $n [namespace current]::$n
+	    Interp alias $n [namespace current]::$n
 	}
 
 	# construct an image command
@@ -682,12 +682,12 @@ class create ::WubTkI {
 	    Debug.wubtk {SHIM: 'WubWidgets image $args'}
 	    set obj [WubWidgets image {*}$args]
 	    Debug.wubtk {SHIMAGE: $obj}
-	    interp alias [namespace tail $obj] $obj
+	    Interp alias [namespace tail $obj] $obj
 	    return [namespace tail $obj]
 	}
 
-	interp alias image [namespace current]::image
-	interp eval {package provide Tk 8.6}
+	Interp alias image [namespace current]::image
+	Interp eval {package provide Tk 8.6}
 
 	oo::objdefine [self] forward site ::Site
     }
