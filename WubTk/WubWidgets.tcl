@@ -572,11 +572,11 @@ namespace eval ::WubWidgets {
 	    }
 	    next {*}[dict merge {} $args]
 
-	    my connection construct [self]
+	    my connection cookie construct [self]
 
-	    oo::objdefine [self] get my connection cookie get [self]
-	    oo::objdefine [self] clear my connection cookie clear [self]
-	    oo::objdefine [self] set my connection cookie set [self]
+	    oo::objdefine [self] forward get my connection cookie get [self]
+	    oo::objdefine [self] forward clear my connection cookie clear [self]
+	    oo::objdefine [self] forward set my connection cookie set [self]
 	}
     }
 
@@ -1468,7 +1468,7 @@ namespace eval ::WubWidgets {
     }
 
     # make shims for each kind of widget
-    variable tks {button label entry text checkbutton scale frame notebook accordion html toplevel upload}
+    variable tks {button label entry text checkbutton scale frame notebook accordion html toplevel upload cookie}
 
     namespace export -clear *
     namespace ensemble create -subcommands {}
