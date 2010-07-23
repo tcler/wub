@@ -822,6 +822,8 @@ class create ::WubTk {
 		trace add command [namespace current]::Coros::$wubapp delete [list $o destroyme]
 	    } on error {e eo} {
 		Debug.wubtk {[info coroutine] error '$e' ($eo)}
+		catch {$o destroy}
+		catch {rename [namespace current]::Coros::$wubapp {}}
 		set r [Http ServerError $r $e $eo]
 	    } finally {
 		return $r
