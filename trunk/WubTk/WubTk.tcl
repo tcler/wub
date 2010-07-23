@@ -196,15 +196,21 @@ class create ::WubTkI {
     # support the cookie widget
     method cookie {op caller args} {
 	variable cdict	;# current request's cookies
-	variable cookiepath;
+	if {[llength $args]%2} {
+	    set args [lassign $args value]
+	}
 
 	set name [$caller widget]
 	set opts {path domain port expires secure max-age}
 	foreach n $opts {
-	    set $n [$caller cget? -$n]
+	    set val [$caller cget? -$n] 
+	    if {$val ne ""} {
+		set $n $val
+	    }
 	}
 
-	if {[info exists path] eq ""} {
+	variable cookiepath;
+	if {[info exists path]} {
 	    if {[string first $cookiepath $path] != 0} {
 		set path "$cookiepath/$path"
 		$caller configure -path $path
@@ -217,6 +223,7 @@ class create ::WubTkI {
 	set matcher {}
 	set rest {}
 	foreach n [list name {*}$opts] {
+	    if {![info exists $n]} continue
 	    if {$n in {name path domain}} {
 		lappend matcher -$n [set $n]
 	    } else {
@@ -236,7 +243,6 @@ class create ::WubTkI {
 	    }
 
 	    set {
-		set args [lassign $args value]
 		set matches [Cookies match $cdict {*}$matcher]
 		if {![llength $matches]} {
 		    set cdict [Cookies add $cdict -value $value {*}$matcher {*}$rest]
@@ -486,17 +492,19 @@ class create ::WubTkI {
     }
 
     method do {req lambda} {
-	variable r $req
-	variable cdict [dict get? $r -cookies]
-
 	Debug.wubtk {[info coroutine] PROCESS in namespace:[namespace current]}
 
+	variable r $req	;# keep our current request around
+
 	# run user code - return result
+	variable cdict [dict get? $r -cookies]
 	interp eval $lambda	;# install the user code
 	set r [my render $r]
+	Debug.wubtk {COOKIES: $cdict}
+	dict set r -cookies $cdict	;# reflect cookies back to client
 	
 	# initial client direct request
-	variable exit
+	variable exit 0
 	while {!$exit} {
 	    lassign [::yieldm $r] what r
 	    Debug.wubtk {[info coroutine] processing '$what'}
