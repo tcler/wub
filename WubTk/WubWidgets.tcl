@@ -1176,7 +1176,7 @@ namespace eval ::WubWidgets {
 	    if {$css ne ""} {
 		set content [<style> $css]
 	    } else {
-		set content [uplevel 1 [list wm css .]]
+		set content [<style> [uplevel 1 [list wm css .]]]
 	    }
 
 	    set style [my cget? stylesheet]
