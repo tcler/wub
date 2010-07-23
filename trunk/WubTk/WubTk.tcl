@@ -780,7 +780,7 @@ class create ::WubTk {
 
 	    # collect options to pass to coro
 	    set options {}
-	    foreach v {timeout icons theme spinner_style spinner_size css stylesheet} {
+	    foreach v {timeout icons theme spinner_style spinner_size css stylesheet cookiepath} {
 		variable $v
 		if {[info exists $v]} {
 		    lappend options $v [set $v]
@@ -833,6 +833,10 @@ class create ::WubTk {
 	variable spinner_size 20
 	variable spinner_style "position: fixed; top:10px; left: 10px;"
 	variable {*}$args
+
+	if {![info exists cookiepath] || $cookiepath eq ""} {
+	    variable cookiepath $mount
+	}
 
 	if {[info exists file]} {
 	    append lambda [fileutil::cat -- $file]
