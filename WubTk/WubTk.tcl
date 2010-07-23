@@ -165,11 +165,79 @@ class create ::WubTkI {
 	return $r
     }
 
-    destructor {
-	catch {interp destroy}
+    method redirect {args} {
+	variable redirect
+	if {[llength $args]} {
+	    set redirect $args
+	} else {
+	    return $redirect
+	}
     }
-    method destroyme {args} {
-	[self] destroy
+
+    method do_redir {r {js 0}} {
+	variable redirect
+	set redir $redirect
+	if {![llength $redir]} {
+	    return $r
+	}
+	set redirect ""	;# forget redirection request now
+
+	# we've been asked to redirect ... so do it
+	if {$js} {
+	    set redir [Url redir $r {*}$redir]
+	    Debug.wubtk {do_redir javascript: $redir}
+	    return [Http Ok $r "window.location='$redir';" application/javascript]
+	} else {
+	    Debug.wubtk {do_redir HTTP: $redirect}
+	    return [Http Redirect $r $redirect]
+	}
+    }
+
+    # support the cookie widget
+    method cookie {op caller args} {
+	variable cdict	;# current request's cookies
+	variable cookiepath;
+
+	set name [$caller widget]
+	foreach n {path domain port expires secure max-age} {
+	    set $n [$caller cget? -$n]
+	}
+
+	if {[info exists path] eq ""} {
+	    if {[string first $cookiepath $path] != 0} {
+		set path "$cookiepath/$path"
+		$caller configure -path $path
+	    }
+	} else {
+	    set path $cookiepath
+	    $caller configure -path $path
+	}
+
+	foreach n {name path domain} {
+	    lappend matcher $n [set $n]
+	}
+	switch -- $op {
+	    get {
+		return [dict get [Cookies fetch $cdict {*}$matcher] -value]
+	    }
+
+	    clear {
+		set cdict [Cookies clear $cdict {*}$matcher]
+	    }
+
+	    set {
+		set args [lassign $args value]
+		set cdict [Cookies modify $cdict -value $value {*}$args {*}$matcher]
+	    }
+
+	    construct {
+		set matches [Cookies match $cdict {*}$match]
+		if {[llength $matches] > 1} {
+		    error "Ambiguous cookie, matches '$matches'"
+		}
+		$caller configure {*}[Cookies fetch $cdict {*}$match]
+	    }
+	}
     }
 
     method tl {op widget args} {
@@ -198,34 +266,6 @@ class create ::WubTkI {
 	set r [jQ ready $r [my buttonJS]]
 	set r [jQ ready $r [my cbuttonJS]]
 	set r [jQ ready $r [my variableJS]]
-    }
-
-    method redirect {args} {
-	variable redirect
-	if {[llength $args]} {
-	    set redirect $args
-	} else {
-	    return $redirect
-	}
-    }
-
-    method do_redir {r {js 0}} {
-	variable redirect
-	set redir $redirect
-	if {![llength $redir]} {
-	    return $r
-	}
-	set redirect ""	;# forget redirection request now
-
-	# we've been asked to redirect ... so do it
-	if {$js} {
-	    set redir [Url redir $r {*}$redir]
-	    Debug.wubtk {do_redir javascript: $redir}
-	    return [Http Ok $r "window.location='$redir';" application/javascript]
-	} else {
-	    Debug.wubtk {do_redir HTTP: $redirect}
-	    return [Http Redirect $r $redirect]
-	}
     }
 
     method render {r} {
@@ -429,6 +469,8 @@ class create ::WubTkI {
 
     method do {req lambda} {
 	variable r $req
+	variable cdict [dict get? $r -cookies]
+
 	Debug.wubtk {[info coroutine] PROCESS in namespace:[namespace current]}
 
 	# run user code - return result
@@ -464,6 +506,8 @@ class create ::WubTkI {
 		}
 
 		client {
+		    set cdict [dict get? $r -cookies]
+
 		    # unpack query response
 		    Debug.wubtk {[info coroutine] Event: [dict r.-op?]}
 		    switch -glob -- [dict r.-op?] {
@@ -518,6 +562,7 @@ class create ::WubTkI {
 			    }
 			}
 		    }
+		    dict set r -cookies $cdict	;# reflect cookies back to client
 		}
 	    }
 	}
@@ -525,6 +570,14 @@ class create ::WubTkI {
 	# fallen out of loop - time to go
 	Debug.wubtk {[info coroutine] exiting}
 	return $r
+    }
+
+    destructor {
+	catch {interp destroy}
+    }
+
+    method destroyme {args} {
+	[self] destroy
     }
 
     superclass FormClass
