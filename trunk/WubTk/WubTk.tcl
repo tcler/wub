@@ -818,7 +818,7 @@ class create ::WubTk {
 	    try {
 		variable lambda
 		set o [::WubTkI create [namespace current]::Coros::O_$wubapp {*}$options]
-		set r [coroutine [namespace current]::Coros::$wubapp $o do $r $lambda]
+		set r [::Coroutine [namespace current]::Coros::$wubapp $o do $r $lambda]
 		trace add command [namespace current]::Coros::$wubapp delete [list $o destroyme]
 	    } on error {e eo} {
 		Debug.wubtk {[info coroutine] error '$e' ($eo)}
