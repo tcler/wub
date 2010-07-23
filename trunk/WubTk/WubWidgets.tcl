@@ -553,7 +553,9 @@ namespace eval ::WubWidgets {
 	}
     }
 
-    # cookie widget
+    # cookie widget - manipulate a cookie
+    # can set/get/clear cookie
+    # options -path -domain -expires, etc.
     oo::class create cookieC {
 	# render widget
 	method render {{id ""}} {
@@ -562,7 +564,16 @@ namespace eval ::WubWidgets {
 
 	superclass ::WubWidgets::widget
 	constructor {args} {
+	    if {[string match *.* [namespace tail [self]]]} {
+		error "cookie names must be plain identifiers"
+	    }
 	    next {*}[dict merge {} $args]
+
+	    {*}$connection construct [self]
+
+	    oo::objdefine [self] get {*}$connection cookie get [self]
+	    oo::objdefine [self] clear {*}$connection cookie clear [self]
+	    oo::objdefine [self] set {*}$connection cookie set [self]
 	}
     }
 
