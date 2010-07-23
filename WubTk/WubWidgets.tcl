@@ -240,8 +240,7 @@ namespace eval ::WubWidgets {
 	}
 
 	method js {r} {
-	    set js [my cget? -js]
-	    if {$js ne ""} {
+	    if {[set js [my cget? -js]] ne ""} {
 		set r [Html postscript $r $js]
 	    }
 	    return $r
@@ -554,6 +553,19 @@ namespace eval ::WubWidgets {
 	}
     }
 
+    # cookie widget
+    oo::class create cookieC {
+	# render widget
+	method render {{id ""}} {
+	    error "Can't render cookie widgets"
+	}
+
+	superclass ::WubWidgets::widget
+	constructor {args} {
+	    next {*}[dict merge {} $args]
+	}
+    }
+
     # widget template
     oo::class create junkC {
 	# render widget
@@ -768,10 +780,6 @@ namespace eval ::WubWidgets {
 		    return [$widget cget? %N%]
 		}
 	    }]
-	}
-
-	method site {args} {
-	    variable connection
 	}
 
 	constructor {args} {
