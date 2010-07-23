@@ -770,9 +770,16 @@ namespace eval ::WubWidgets {
 	    }]
 	}
 
+	method site {args} {
+	    variable connection
+	}
+
 	constructor {args} {
 	    variable title "WubTk"
 	    variable header ""
+	    variable {*}$args
+	    oo::objdefine [self] forward site {*}$connection site
+	    oo::objdefine [self] forward redirect {*}$connection redirect
 	}
     }
 
@@ -858,22 +865,6 @@ namespace eval ::WubWidgets {
 
     # grid store grid info in an x/y array gridLayout(column.row)
     oo::class create gridC {
-	method exiting? {} {
-	    variable exiting
-	    return [info exists exiting]
-	}
-	method redirect {} {
-	    variable exiting
-	    return $exiting
-	}
-	method exit {value} {
-	    if {[string is integer -strict $value]} {
-		variable exiting ""
-	    } else {
-		variable exiting $value
-	    }
-	}
-
 	# traverse grid looking for changes.
 	method changes {r} {
 	    Debug.wubwidgets {[namespace tail [self]] changes}
@@ -1172,6 +1163,7 @@ namespace eval ::WubWidgets {
 		dict lappend r -headers $header
 	    }
 
+	    # cascade in style
 	    set css [my cget? css]
 	    if {$css ne ""} {
 		set content [<style> $css]
@@ -1179,6 +1171,7 @@ namespace eval ::WubWidgets {
 		set content [<style> [uplevel 1 [list wm css .]]]
 	    }
 
+	    # cascade in stylesheet
 	    set style [my cget? stylesheet]
 	    if {$style ne ""} {
 		set r [Html postscript $r [<stylesheet> {*}$style]]
@@ -1212,10 +1205,8 @@ namespace eval ::WubWidgets {
 	destructor {
 	    # TODO destroy all child widgets
 
-	    variable tgrid
-	    catch {$tgrid destroy}
-	    variable connection
-	    $connection tl delete [self]
+	    variable tgrid; catch {$tgrid destroy}
+	    variable connection; catch {$connection tl delete [self]}
 	}
 
 	superclass ::WubWidgets::widget
