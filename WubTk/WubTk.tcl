@@ -829,6 +829,7 @@ class create ::WubTk {
 		catch {rename [namespace current]::Coros::$wubapp {}}
 		set r [Http ServerError $req $e $eo]
 	    }
+
 	    return $r
 	}
     }
