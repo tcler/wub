@@ -200,7 +200,41 @@ class create ::WubTkI {
 	set r [jQ ready $r [my variableJS]]
     }
 
+    method redirect {args} {
+	variable redirect
+	if {[llength $args]} {
+	    set redirect $args
+	} else {
+	    return $redirect
+	}
+    }
+
+    method do_redir {r {js 0}} {
+	variable redirect
+	set redir $redirect
+	if {![llength $redir]} {
+	    return $r
+	}
+	set redirect ""	;# forget redirection request now
+
+	# we've been asked to redirect ... so do it
+	if {$js} {
+	    set redir [Url redir $r {*}$redir]
+	    Debug.wubtk {do_redir javascript: $redir}
+	    return [Http Ok $r "window.location='$redir';" application/javascript]
+	} else {
+	    Debug.wubtk {do_redir HTTP: $redirect}
+	    return [Http Redirect $r $redirect]
+	}
+    }
+
     method render {r} {
+	variable redirect
+	if {[llength $redirect]} {
+	    # the widget command did a redirect
+	    return [my do_redir $r]
+	}
+
 	set r [my prep $r]
 	variable timeout
 
@@ -326,38 +360,6 @@ class create ::WubTkI {
 
     # process a browser event
     method event {r} {
-	# client event has been received
-	set Q [Query flatten [Query parse $r]]
-	set widget .[dict Q.id]
-
-	if {[llength [info commands [namespace current]::$widget]]} {
-	    Debug.wubtk {event $widget ($Q)}
-	    set e {$('#ErrDiv').html('');}
-	    try {
-		$widget [dict r.-op] [dict Q.val?]
-	    } on error {e eo} {
-		Debug.wubtk {event error on $widget: '$e' ($eo)}
-		set e "cmd: [string map [list \" \\\" ' \\'] $e]"
-		set e [string map [list %E% $e] {
-		    $('#ErrDiv').html('<p>Error: %E% </p>');
-		}]
-	    } finally {
-		set changes [lassign [grid changes $r] r]
-		if {[dict exists $r -repaint]} {
-		    # a repaint has been triggered
-		    catch {dict unset -r -script}
-		    set r [Html postscript $r {window.location='.';}]
-		} else {
-		    set content [my update $changes]
-		    append content [my stripjs $r]
-		    append content $e
-		}
-	    }
-	} else {
-	    Debug.wubtk {not found [namespace current]::$widget}
-	    set content "\$('#ErrDiv').html('Widget "$widget" not found');"
-	}
-
 	# clear out any old refresh - this response will satisfy it
 	if {[info exists _refresh]} {
 	    Debug.wubtk {satisfy old refresh}
@@ -368,7 +370,49 @@ class create ::WubTkI {
 	    grid prod 0	;# no registered interest
 	}
 	
-	return [Http Ok $r $content application/javascript]
+	# client event has been received
+	set Q [Query flatten [Query parse $r]]
+	set widget .[dict Q.id]
+
+	if {[llength [info commands [namespace current]::$widget]]} {
+	    Debug.wubtk {event $widget ($Q)}
+	    set e {$('#ErrDiv').html('');}
+	    try {
+		$widget [dict r.-op] [dict Q.val?]	;# run the widget op
+	    } on error {e eo} {
+		# widget op caused an error - report on it
+		Debug.wubtk {event error on $widget: '$e' ($eo)}
+		set e "cmd: [string map [list \" \\\" ' \\'] $e]"
+		set e [string map [list %E% $e] {
+		    $('#ErrDiv').html('<p>Error: %E% </p>');
+		}]
+	    } finally {
+		variable redirect
+		if {[llength $redirect]} {
+		    # the widget command did a redirect
+		    return [my do_redir $r 1]
+		} else {
+		    # reflect changes due to the widget command
+		    set changes [lassign [grid changes $r] r]
+		    if {[dict exists $r -repaint]} {
+			# a repaint has been triggered through grid operation
+			catch {dict unset -r -script}
+			return [Http Ok $r {window.location='.';} application/javascript]
+		    } else {
+			# normal result - flush changes to client
+			set content [my update $changes]
+			append content [my stripjs $r]
+			append content $e
+			return [Http Ok $r $content application/javascript]
+		    }
+		}
+	    }
+	} else {
+	    # widget doesn't exist - report that
+	    Debug.wubtk {not found [namespace current]::$widget}
+	    set content "\$('#ErrDiv').html('Widget "$widget" not found');"
+	    return [Http Ok $r $content application/javascript]
+	}
     }
 
     method do_image {r} {
@@ -392,9 +436,10 @@ class create ::WubTkI {
 	set r [my render $r]
 	
 	# initial client direct request
-	while {1} {
+	variable exit
+	while {!$exit} {
 	    lassign [::yieldm $r] what r
-	    Debug.wubtk {[info coroutine] processing}
+	    Debug.wubtk {[info coroutine] processing '$what'}
 	    switch -- $what {
 		prod {
 		    # our grid has prodded us - there are changes
@@ -437,9 +482,18 @@ class create ::WubTkI {
 
 			    if {[llength [info commands [namespace current]::$widget]]} {
 				Debug.wubtk {event $widget ($Q)}
-				$widget [dict r.-op] [dict Q.val?]
+				try {
+				    $widget [dict r.-op] [dict Q.val?]
+				} on error {e eo} {
+				} finally {
+				    set r [my render $r]
+				}
+			    } else {
+				# widget doesn't exist - report that
+				Debug.wubtk {not found [namespace current]::$widget}
+				set content "\$('#ErrDiv').html('Widget "$widget" not found');"
+				set r [Http Ok $r $content application/javascript]
 			    }
-			    set r [my render $r]
 			}
 
 			refresh {
@@ -448,28 +502,21 @@ class create ::WubTkI {
 			}
 
 			default {
+			    # nothing else to be done ... repaint display
 			    set widget [dict r.-widget]
 			    if {$widget eq ""} {
 				Debug.wubtk {render .}
 				set r [my render $r]
 			    } else {
-				Debug.wubtk {fetch and render $widget}
+				Debug.wubtk {fetch and render toplevel $widget}
 				try {
 				    set r [.$widget fetch $r]
 				} on error {e eo} {
 				    set r [Http ServerError $r $e $eo]
+				} finally {
 				}
 			    }
 			}
-		    }
-		    
-		    if {[grid exiting?]} {
-			# exit's been called by the app - arrange for redirect/exit
-			Debug.wubtk {exit redirect: [grid redirect]}
-			set redirect [grid redirect]
-			set redirect [Url redir $r $redirect]
-			Debug.wubtk {[info coroutine] redirecting to '$redirect'}
-			return [Http Ok $r "window.location='$redirect';" application/javascript]
 		    }
 		}
 	    }
@@ -477,12 +524,15 @@ class create ::WubTkI {
 
 	# fallen out of loop - time to go
 	Debug.wubtk {[info coroutine] exiting}
+	return $r
     }
 
     superclass FormClass
     constructor {args} {
 	variable interp {}
 	variable {*}$args
+	variable redirect ""	;# no redirection, initially
+	variable exit 0		;# do not exit, initially
 	next? {*}$args		;# construct Form
 	variable toplevels {}	;# keep track of toplevels
 
@@ -497,8 +547,13 @@ class create ::WubTkI {
 
 	# create per-coro namespace commands
 	namespace eval [namespace current] {
-	    WubWidgets gridC create grid	;# per-coro grid instance
-	    WubWidgets wmC create wm	;# per-coro wm instance
+	    proc exit {value} {
+		variable exit 1	;# flag the exit
+		Debug.wubtk {exit $value}
+		if {![string is integer -strict $value]} {
+		    my redirect {*}$value
+		}
+	    }
 	    
 	    proc connection {args} {
 		after 0 [list [info coroutine] prod]
@@ -507,11 +562,10 @@ class create ::WubTkI {
 		namespace delete [namespace current]
 	    }
 	    proc update {args} {}
-	    
-	    proc exit {args} {
-		grid exit {*}$args
-	    }
 	}
+
+	WubWidgets gridC create [namespace current]::grid connection [self]	;# per-coro grid instance
+	WubWidgets wmC create [namespace current]::wm connection [self]	;# per-coro wm instance
 
 	if {[info exists css]
 	    && $css ne ""
@@ -554,6 +608,8 @@ class create ::WubTkI {
 
 	interp alias image [namespace current]::image
 	interp eval {package provide Tk 8.6}
+
+	oo::objdefine [self] forward site ::Site
     }
 }
 
