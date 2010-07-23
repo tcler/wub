@@ -308,6 +308,9 @@ namespace eval ::WubWidgets {
 	}
 
 	constructor {args} {
+	    Debug.wubwidgets {Widget construction: self-[self] ns-[namespace current] path:([namespace path])}
+	    oo::objdefine [self] forward connection [namespace qualifiers [self]]::connection
+	    
 	    variable _refresh ""
 	    my configure {*}$args
 	    if {[my cexists text]} {
@@ -569,11 +572,11 @@ namespace eval ::WubWidgets {
 	    }
 	    next {*}[dict merge {} $args]
 
-	    {*}$connection construct [self]
+	    my connection construct [self]
 
-	    oo::objdefine [self] get {*}$connection cookie get [self]
-	    oo::objdefine [self] clear {*}$connection cookie clear [self]
-	    oo::objdefine [self] set {*}$connection cookie set [self]
+	    oo::objdefine [self] get my connection cookie get [self]
+	    oo::objdefine [self] clear my connection cookie clear [self]
+	    oo::objdefine [self] set my connection cookie set [self]
 	}
     }
 
@@ -797,8 +800,8 @@ namespace eval ::WubWidgets {
 	    variable title "WubTk"
 	    variable header ""
 	    variable {*}$args
-	    oo::objdefine [self] forward site {*}$connection site
-	    oo::objdefine [self] forward redirect {*}$connection redirect
+	    oo::objdefine [self] forward site my connection site
+	    oo::objdefine [self] forward redirect my connection redirect
 	}
     }
 
@@ -948,8 +951,7 @@ namespace eval ::WubWidgets {
 	    variable interest
 	    if {$prod eq ""} {
 		if {$interest} {
-		    variable connection
-		    $connection prod
+		    my connection prod
 		}
 	    } else {
 		set interest $prod
@@ -1168,8 +1170,7 @@ namespace eval ::WubWidgets {
 	method fetch {r} {
 	    variable tgrid
 	    Debug.wubwidgets {[namespace tail [self]] toplevel render gridded by $tgrid}
-	    variable connection
-	    set r [$connection prep $r]
+	    set r [my connection prep $r]
 
 	    set title [my cget? -title]
 	    if {$title eq ""} {
@@ -1225,7 +1226,7 @@ namespace eval ::WubWidgets {
 	    # TODO destroy all child widgets
 
 	    variable tgrid; catch {$tgrid destroy}
-	    variable connection; catch {$connection tl delete [self]}
+	    catch {my connection tl delete [self]}
 	}
 
 	superclass ::WubWidgets::widget
@@ -1235,8 +1236,8 @@ namespace eval ::WubWidgets {
 	    # create a grid for this toplevel
 	    set name [self]..grid
 	    variable tgrid [WubWidgets gridC create $name name .[my widget]]
-	    Debug.wubwidgets {created Toplevel [self] gridded by $tgrid - alerting '$connection'}
-	    [my cget connection] tl add [self] $args
+	    Debug.wubwidgets {created Toplevel [self] gridded by $tgrid - alerting}
+	    my connection tl add [self] $args
 	}
     }
 
@@ -1245,8 +1246,7 @@ namespace eval ::WubWidgets {
 	# render widget
 	method render {{id ""}} {
 	    set id [my id $id]
-	    variable connection
-	    set content [$connection layout form_$id enctype multipart/form-data class upload_form [subst {
+	    set content [my connection layout form_$id enctype multipart/form-data class upload_form [subst {
 		file $id upload
 
 		submit send_$id Upload
