@@ -427,9 +427,6 @@ namespace eval ::WubWidgets {
 		set result [<label> [my cget label]]
 	    }
 
-	    set var [my cget -variable]
-	    variable interp
-	    set val [my iget $var]
 	    append result [<div> id $id class slider style [my style] {}]
 
 	    return $result
@@ -440,6 +437,9 @@ namespace eval ::WubWidgets {
 	    foreach {n v} [list orientation '[my cget orient]' min [my cget from] max [my cget to]] {
 		lappend args $n $v
 	    }
+	    set var [my cget -variable]
+	    lappend args value [my iget $var]
+
 	    lappend args change [string map [list %ID% [my widget]] {
 		function (event, ui) {
 		    $("#Spinner_").show();
