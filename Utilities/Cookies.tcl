@@ -343,7 +343,8 @@ namespace eval ::Cookies {
 		Debug.cookies {format4server $name is synthetic}
 		continue
 	    }
-	    if {[dict exists $cdict -secure] && !$secure} {
+	    set csec [dict get? $cdict -secure]
+	    if {$csec ne "" && $csec && !$secure} {
 		Debug.cookies {format4server cookie $name is secure}
 		continue	;# secure cookies shouldn't be sent over insecure connection
 
