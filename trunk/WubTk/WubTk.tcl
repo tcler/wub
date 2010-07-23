@@ -506,7 +506,7 @@ class create ::WubTkI {
 	# initial client direct request
 	variable exit 0
 	while {!$exit} {
-	    lassign [::yieldm $r] what r
+	    lassign [::yieldm [Http NoCache $r]] what r
 	    Debug.wubtk {[info coroutine] processing '$what'}
 	    switch -- $what {
 		prod {
