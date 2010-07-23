@@ -216,13 +216,15 @@ class create ::WubTkI {
 
 	set matcher {}
 	set rest {}
-	foreach n $opts {
+	foreach n [list name {*}$opts] {
 	    if {$n in {name path domain}} {
-		lappend matcher $n [set $n]
+		lappend matcher -$n [set $n]
 	    } else {
-		lappend rest $n [set $n]
+		lappend rest -$n [set $n]
 	    }
 	}
+
+	Debug.wubtk {cookie $op matcher:$matcher rest:$rest for $caller}
 
 	switch -- $op {
 	    get {
@@ -235,7 +237,7 @@ class create ::WubTkI {
 
 	    set {
 		set args [lassign $args value]
-		set matches [Cookies match $cdict {*}$match]
+		set matches [Cookies match $cdict {*}$matcher]
 		if {![llength $matches]} {
 		    set cdict [Cookies add $cdict -value $value {*}$matcher {*}$rest]
 		}
@@ -243,12 +245,14 @@ class create ::WubTkI {
 	    }
 
 	    construct {
-		set matches [Cookies match $cdict {*}$match]
+		set matches [Cookies match $cdict {*}$matcher]
 		if {[llength $matches] > 1} {
 		    error "Ambiguous cookie, matches '$matches'"
+		} else {
+		    Debug.wubtk {new cookie $matcher}
 		}
 		if {[llength $matches]} {
-		    $caller configure {*}[Cookies fetch $cdict {*}$match]
+		    $caller configure {*}[Cookies fetch $cdict {*}$matcher]
 		}
 	    }
 	}
