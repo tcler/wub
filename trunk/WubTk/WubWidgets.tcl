@@ -800,6 +800,7 @@ namespace eval ::WubWidgets {
 	    variable title "WubTk"
 	    variable header ""
 	    variable {*}$args
+	    oo::objdefine [self] forward connection [namespace qualifiers [self]]::connection
 	    oo::objdefine [self] forward site my connection site
 	    oo::objdefine [self] forward redirect my connection redirect
 	}
@@ -1094,6 +1095,7 @@ namespace eval ::WubWidgets {
 
 	    variable grid {}
 	    variable interest 0
+	    oo::objdefine [self] forward connection [namespace qualifiers [self]]::connection
 	}
     }
 
