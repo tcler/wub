@@ -861,7 +861,6 @@ class create ::WubTk {
     }
 
     constructor {args} {
-	variable {*}[Site var? WubTk]	;# allow .ini file to modify defaults
 	variable lambda ""
 	variable expires ""
 	variable stylesheet ""
@@ -873,6 +872,8 @@ class create ::WubTk {
 	variable fontsize 11
 	variable spinner_size 20
 	variable spinner_style "position: fixed; top:10px; left: 10px;"
+
+	variable {*}[Site var? WubTk]	;# allow .ini file to modify defaults
 	variable {*}$args
 	set timeout 0
 
