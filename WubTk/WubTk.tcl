@@ -861,7 +861,7 @@ class create ::WubTk {
 	variable expires ""
 	variable stylesheet ""
 	variable css {}
-	variable theme redmond
+	variable theme start
 	variable theme_switcher 0
 	variable timeout 0
 	variable icons /icons/
