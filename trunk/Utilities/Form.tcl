@@ -63,10 +63,31 @@ set ::API(Utilities/Form) {
 
 class create ::FormClass {
     # default - set attribute defaults for a given tag
-    method default {type args} {
+    method setdefaults {type args} {
 	variable Fdefaults
-	set d [dict Fdefaults.$type]
-	dict Fdefaults.$type [dict merge $d $args]
+	dict Fdefaults.$type [dict merge [dict Fdefaults.$type] $args]
+    }
+    method setdefault {type args} {
+	variable Fdefaults
+	dict set Fdefaults $type {*}$args
+    }
+
+    method defaults {type args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+
+	variable Fdefaults
+	Debug.form {defaults '$type' ($args) [dict Fdefaults.$type?]}
+	if {[dict exists $args class]} {
+	    # merge elements of class, not the whole class
+	    Debug.form {defaults '$type' class merge ([dict args.class]) ([dict Fdefaults.$type.class?])}
+	    dict args.class [list {*}[dict args.class] {*}[dict Fdefaults.$type.class?]]
+	}
+
+	set result [dict merge [dict Fdefaults.$type?] $args]
+	Debug.form {defaults '$type' -> $result}
+	return $result
     }
 
     method attr {T args} {
@@ -90,8 +111,7 @@ class create ::FormClass {
 
     method fieldsetS {name args} {
 	variable fieldsetA
-	variable Fdefaults
-	set config [dict merge [dict Fdefaults.fieldset] [lrange $args 0 end-1]]
+	set config [my defaults fieldset [lrange $args 0 end-1]]
 	if {![dict exists $config id]} {
 	    if {$name ne ""} {
 		dict config.id $name
@@ -102,16 +122,15 @@ class create ::FormClass {
 	}
 	set content "<[my attr fieldset [dict in $config $fieldsetA]]>\n"
 	if {[dict exists $config legend]} {
-	    append content [<legend> [dict config.legend]] \n
+	    append content [my <legend> [dict config.legend]] \n
 	}
 	return $content
     }
 
     method formS {name args} {
 	variable formA
-	variable Fdefaults
 	variable tabindex 0
-	set config [dict merge [dict Fdefaults.form] [lrange $args 0 end-1]]
+	set config [my defaults form [lrange $args 0 end-1]]
 	if {![dict exists $config id]} {
 	    if {$name ne ""} {
 		dict config.id $name
@@ -122,7 +141,7 @@ class create ::FormClass {
 	}
 	set content "<[my attr form [dict in $config $formA]]>\n"
 	if {[dict exists $config legend]} {
-	    append content [<legend> [dict config.legend]] \n
+	    append content [my <legend> [dict config.legend]] \n
 	}
 	return $content
     }
@@ -140,7 +159,6 @@ class create ::FormClass {
 	    method <%T%> {args} {
 		Debug.form {[self] defining %T%}
 		variable %T%A
-		variable Fdefaults
 
 		set body [lindex $args end]
 		set args [lrange $args 0 end-1]
@@ -151,18 +169,10 @@ class create ::FormClass {
 		    set args [lassign $args name]
 		}
 
-		set config [dict merge [dict Fdefaults.%T%?] $args]
+		set config [my defaults %T% $args]
 		%TI%
 
 		my metadata $name $config
-
-		variable tabular
-		set otab $tabular
-		if {[dict exists $config tabular] && [dict config.tabular]} {
-		    set tabular 1
-		} else {
-		    set tabular 0
-		}
 
 		# ensure an id
 		if {![dict exists $config id]} {
@@ -185,19 +195,13 @@ class create ::FormClass {
 
 		set content ""
 		if {[dict exists $config legend]} {
-		    append content [<legend> [dict config.legend]] \n
+		    append content [my <legend> [dict config.legend]] \n
 		}
-		if {$tabular} {
-		    set body [<tr> [string map {\n </tr>\n<tr>} $body]]
-		    append content \n [<table> $body] \n
-		} else {
-		    append content $body
-		    set vertical [dict config.vertical?]
-		    if {$vertical ne "" && $vertical} {
-			set content [string map {\n <br>\n} $content]
-		    }
+		append content $body
+		set vertical [dict config.vertical?]
+		if {$vertical ne "" && $vertical} {
+		    set content [string map {\n <br>\n} $content]
 		}
-		set tabular $otab	;# restore old tabular value
 
 		return "<[my attr %T% [dict in $config $%T%A]]>$content</%T%>"
 	    }
@@ -229,8 +233,7 @@ class create ::FormClass {
 	eval [string map [list %T% $type] {
 	    method <%T%> {args} {
 		variable %T%A
-		variable Fdefaults
-		set config [dict merge [dict Fdefaults.%T%?] [lrange $args 0 end-1]]
+		set config [my defaults %T% [lrange $args 0 end-1]]
 		return "<[my attr %T% [dict in $config $%T%A]]>[uplevel 1 [list subst [lindex $args end]]]</%T%>"
 	    }
 	}]
@@ -238,11 +241,10 @@ class create ::FormClass {
 
     method <select> {name args} {
 	variable selectA
-	variable Fdefaults
 
 	set content [lindex $args end]
 	set args [lrange $args 0 end-1]
-	set config [dict merge [dict Fdefaults.select?] $args [list name $name]]
+	set config [my defaults select {*}$args name $name]
 
 	if {![dict exists $config id]} {
 	    dict config.id $name
@@ -266,14 +268,8 @@ class create ::FormClass {
 	}
 
 	set label [dict config.label?]
-	variable tabular
-	if {$tabular} {
-	    if {$label eq ""} {
-		set label $name
-	    }
-	    return "[<td> class label [<label> for $id $label]] [<td> class field $result]"
-	} elseif {$label ne ""} {
-	    return "[<label> for $id $label] $result"
+	if {$label ne ""} {
+	    return "[my <label> for $id $label] $result"
 	} elseif {[dict exists $config legend]} {
 	    set legend [dict config.legend]
 
@@ -286,8 +282,8 @@ class create ::FormClass {
 		}
 	    }
 
-	    return [<fieldset> "" {*}[dict sattr.fieldset] {*}$title {
-		[<legend> {*}[dict sattr.legend] $legend]
+	    return [my <fieldset> "" {*}[dict sattr.fieldset] {*}$title {
+		[my <legend> {*}[dict sattr.legend] $legend]
 		$result
 	    }]
 	} else {
@@ -299,11 +295,10 @@ class create ::FormClass {
 	eval [string map [list %T% $type] {
 	    method <%T%> {args} {
 		variable %T%A
-		variable Fdefaults
 
 		set content [lindex $args end]
 		set args [lrange $args 0 end-1]
-		set config [dict merge [dict Fdefaults.%T%?] $args]
+		set config [my defaults %T% $args]
 		if {$content eq ""} {
 		    set content [dict config.value]
 		} else {
@@ -323,14 +318,13 @@ class create ::FormClass {
 
     method <textarea> {name args} {
 	variable textareaA
-	variable Fdefaults
 	if {[llength $args] % 2} {
 	    set content [lindex $args end]
 	    set args [lrange $args 0 end-1]
 	} else {
 	    set content ""
 	}
-	set config [dict merge [dict Fdefaults.textarea?] $args [list name $name]]
+	set config [my defaults textarea {*}$args name $name]
 
 	if {![dict exists $config tabindex]} {
 	    variable tabindex
@@ -364,14 +358,8 @@ class create ::FormClass {
 	set result "<[my attr textarea [dict in $config $textareaA]]>$content</textarea>"
 
 	set label [dict config.label?]
-	variable tabular
-	if {$tabular} {
-	    if {$label eq ""} {
-		set label $name
-	    }
-	    return "[<td> class label [<label> for $id $label]] [<td> class field $result]"
-	} elseif {$label ne ""} {
-	    return "[<label> for $id $label] $result"
+	if {$label ne ""} {
+	    return "[my <label> for $id $label] $result"
 	} elseif {[dict exists $config legend]} {
 	    set legend [dict config.legend]
 
@@ -384,8 +372,8 @@ class create ::FormClass {
 		}
 	    }
 
-	    return [<fieldset> "" {*}[dict sattr.fieldset] {*}$title {
-		[<legend> {*}[dict sattr.legend] $legend]
+	    return [my <fieldset> "" {*}[dict sattr.fieldset] {*}$title {
+		[my <legend> {*}[dict sattr.legend] $legend]
 		$result
 	    }]
 	} else {
@@ -397,14 +385,13 @@ class create ::FormClass {
     foreach type {reset submit} {
 	eval [string map [list %T% $type] {
 	    method <%T%> {name args} {
-		variable Fdefaults
 		if {[llength $args] % 2} {
 		    set content [lindex $args end]
 		    set args [lrange $args 0 end-1]
 		} else {
 		    set content ""
 		}
-		set config [dict merge [dict Fdefaults.%T%?] [list alt %T%] $args [list name $name type %T%]]
+		set config [my defaults %T% alt %T% {*}$args name $name type %T%]
 		
 		if {![dict exists $config tabindex]} {
 		    variable tabindex
@@ -423,7 +410,7 @@ class create ::FormClass {
 
 		my metadata $name $config	;# remember config for field
 		variable imageA
-		return [<button> $name {*}$config $content]
+		return [my <button> $name {*}$config $content]
 	    }
 	}]
     }
@@ -435,8 +422,7 @@ class create ::FormClass {
 	} else {
 	    set content ""
 	}
-	variable Fdefaults
-	set config [dict merge [dict Fdefaults.button?] $args [list name $name]]
+	set config [my defaults button {*}$args name $name]
 
 	if {![dict exists $config tabindex]} {
 	    variable tabindex
@@ -465,8 +451,7 @@ class create ::FormClass {
 		}
 		
 		variable %A%A
-		variable Fdefaults
-		set config [dict merge [dict Fdefaults.%T%?] $args [list name $name type %T% %F% [armour [uplevel 1 [list subst $value]]]]]
+		set config [my defaults %T% {*}$args name $name type %T% %F% [armour [uplevel 1 [list subst $value]]]]
 		
 		if {![dict exists $config tabindex]} {
 		    variable tabindex
@@ -491,16 +476,10 @@ class create ::FormClass {
 		set result "<[my attr input [dict in $config $%A%A]]>"
 
 		set label [dict config.label?]
-		variable tabular
-		if {$tabular} {
-		    if {$label eq ""} {
-			set label $name
-		    }
-		    return "[<td> class label [<label> for $id $label]] [<td> class field $result]"
-		} elseif {$label ne ""} {
-		    set result "[<label> for $id $label] $result"
+		if {$label ne ""} {
+		    set result "[my <label> for $id $label] $result"
 		} elseif {[set legend [dict config.legend?]] ne ""} {
-		    set result "[<span> {*}[dict sattr.legend] $legend] $result"
+		    set result "[my <span> {*}[dict sattr.legend] $legend] $result"
 		}
 
 		Debug.form {[self] emit %T%: $result}
@@ -532,14 +511,13 @@ class create ::FormClass {
     foreach type {radio check} sub {"" box} {
 	eval [string map [list %T% $type %S% $sub] {
 	    method <%T%set> {name args} {
-		variable Fdefaults
-		set rsconfig [dict merge [dict Fdefaults.%T%?] [lrange $args 0 end-1] [list name $name type %T%]]
+		set rsconfig [my defaults %T% {*}[lrange $args 0 end-1] name $name type %T%]
 		set boxes [lindex $args end]
 		set result {}
 		
 		set accum ""
 		foreach {content value} $boxes {
-		    set config [dict merge [dict Fdefaults.%T%%S%?] $rsconfig]
+		    set config [my defaults %T%%S% {*}$rsconfig]
 		    if {[string match +* $content]} {
 			dict config.checked 1
 			set content [string trim $content +]
@@ -572,8 +550,8 @@ class create ::FormClass {
 			}
 		    }
 
-		    return [<fieldset> "" {*}[dict sattr.fieldset] {
-			[<legend> {*}[dict sattr.legend] $legend]
+		    return [my <fieldset> "" {*}[dict sattr.fieldset] {
+			[my <legend> {*}[dict sattr.legend] $legend]
 			[join $result $joiner]
 		    }]
 		} else {
@@ -591,8 +569,7 @@ class create ::FormClass {
 		    set content ""
 		}
 		variable boxA
-		variable Fdefaults
-		set config [dict merge $args [list name $name type %T%] [dict Fdefaults.%T%?]]
+		set config [my defaults %T% {*}$args name $name type %T%]
 
 		set content [uplevel 1 [list subst $content]]
 		if {![dict exists $config label] && $content ne ""} {
@@ -617,9 +594,9 @@ class create ::FormClass {
 
 		if {[set label [dict config.label?]] ne ""} {
 		    if {[dict exists $config title]} {
-			return "[<label> for $id title [dict config.title] $label] $result"
+			return "[my <label> for $id title [dict config.title] $label] $result"
 		    } else {
-			return "[<label> for $id $label] $result"
+			return "[my <label> for $id $label] $result"
 		    }
 		} else {
 		    return $result
@@ -793,10 +770,82 @@ class create ::FormClass {
 	return [uplevel 1 [list [self] <form> {*}$result]]
     }
 
+    # return a HTML singleton tag
+    foreach tag {img br hr} {
+	method <$tag> {args} [string map [list %T $tag] {
+	    if {$::Html::XHTML} {
+		set suff /
+	    } else {
+		set suff ""
+	    }
+	    return "<[Html::attr %T {*}$args]${suff}>"
+	}]
+    }
+
+    # gather options from args
+    method attrs {tag args} {
+	if {[llength $args]==1} {
+	    set args [lindex $args 0]
+	}
+
+	set opts {}
+	foreach {n v} $args {
+	    set n [string trim $n]
+	    set v [armour [string trim $v]]
+	    if {$n eq "class"} {
+		# aggregate class args
+		foreach c [split $v] {
+		    if {$c ne {}} {
+			dict lappend opts class $c
+		    }
+		}
+	    } else {
+		dict set opts $n $v
+	    }
+	}
+	set opts [my defaults @T $opts]	;# apply form defaults
+
+	set attrs $tag
+	foreach {n v} $opts {
+	    if {$n in {checked disabled selected noshade}} {
+		if {$v} {
+		    lappend attrs $n	;# flagg attribute
+		}
+	    } elseif {![info exists seen($n)]} {
+		lappend attrs "$n='$v'"
+	    }
+	}
+
+	return [join $attrs]
+    }
+
+    method unknown {cmd args} {
+	if {![string match <*> $cmd]} {
+	    error "Unknown method '$cmd' in [self] of class [info object class [self]]"
+	}
+
+	# we have a <tag>
+	set tag [string trim $cmd "<>"]
+	Debug.form {[self] creating tag $cmd}
+	oo::objdefine [self] method <$tag> {args} [string map [list %T% $tag] {
+	    Debug.form {[self] form tag @T ($args)}
+	    if {[llength $args]%2} {
+		set content [lindex $args end]
+		set args [lrange $args 0 end-1]
+	    } else {
+		set content ""
+	    }
+	    
+	    return "<[my attrs %T% $args]>$content</%T%>"
+	}]
+
+	return [uplevel 1 [list $cmd {*}$args]]
+    }
+
     constructor {args} {
 	variable Fdefaults [dict create {*}{
 	    textarea {compact 0}
-	    form {method post tabular 0}
+	    form {method post}
 	    fieldset {vertical 0}
 	    submit {alt Submit}
 	    reset {alt Reset}
@@ -804,7 +853,6 @@ class create ::FormClass {
 	}]
 	variable metadata {}	;# remember field configs
 	variable tabindex 0	;# taborder for fields
-	variable tabular 0	;# tabular form elements
 	variable uniqID 0	;# unique ID for fields
 	variable scripting 1	;# permit scripting options
 
@@ -864,6 +912,7 @@ class create ::FormClass {
 	    lappend tags [string trim $m <>] {}
 	}
     }
+
     set meth {}
     foreach m [info class methods FormClass -all -private] {
 	if {![string match <* $m]} continue
@@ -909,7 +958,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 		[<option> value moop1 label moop1 value 1 "Petit"]
 		[<option> label moop2 value moop2 value 2 "Massive"]
 	    }]
-	    [<fieldset> personal tabular 1 legend "Personal Information" {
+	    [<fieldset> personal legend "Personal Information" {
 		[<text> fullname label "full name" title "Full name to be used in email."] [<text> phone label phone title "Phone number for official contact"]
 	    }]
 	    [<p> "When you create the account instructions will be emailed to you.  Make sure your email address is correct."]
