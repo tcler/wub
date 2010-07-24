@@ -301,11 +301,16 @@ namespace eval ::WubWidgets {
 		text-align justify
 		vertical-align valign
 		border borderwidth
+		width wwidth
 	    } {
 		variable $tk
 		if {[info exists $tk] && [set $tk] ne ""} {
-		    foreach n $css {
-			lappend result "$n: [set $tk]"
+		    if {$tk eq "background"} {
+			lappend result "background: none [set $tk] !important"
+		    } else {
+			foreach n $css {
+			    lappend result "$n: [set $tk]"
+			}
 		    }
 		}
 	    }
@@ -1029,7 +1034,13 @@ namespace eval ::WubWidgets {
 	    variable oldgrid $grid	;# record the old grid
 	    set content [my connection <tbody> [join $rows \n]]
 
-	    set content [my connection <table> class grid $content]
+	    variable width
+	    if {[info exists width]} {
+		set w [list style "width: $width"]
+	    } else {
+		set w {}
+	    }
+	    set content [my connection <table> class grid {*}$w $content]
 	    Debug.wubwidgets {Grid '[namespace tail [self]]' rendered ($content)}
 	    return $content
 	}
@@ -1169,11 +1180,21 @@ namespace eval ::WubWidgets {
 
 	superclass ::WubWidgets::widget
 	constructor {args} {
-	    next {*}[dict merge {} $args]
+	    set args [dict merge {} $args] 
+	    if {[dict exists $args -width]} {
+		variable width [dict get $args -width]
+		dict unset args -width
+	    }
+	    next {*}$args
 
 	    # create a grid for this frame
 	    set name [self]..grid
-	    variable fgrid [WubWidgets gridC create $name name .[my widget]]
+	    if {[dict exists $args -width]} {
+		set w [list style "width:$width"]
+	    } else {
+		set w {}
+	    }
+	    variable fgrid [WubWidgets gridC create $name {*}$w name .[my widget]]
 	    Debug.wubwidgets {created Frame [self] gridded by $fgrid}
 	}
     }
@@ -1313,7 +1334,7 @@ namespace eval ::WubWidgets {
 	    set content [my connection <ul> [join $li \n]]
 	    append content [join $body \n]
 	    
-	    return [my connection <div> id $id class notebook $content]
+	    return [my connection <div> id $id class notebook style [my style] $content]
 	}
 
 	method changed? {} {return 1}
@@ -1417,7 +1438,7 @@ namespace eval ::WubWidgets {
 	    }
 	    set content [join $body \n]
 	    
-	    return [my connection <div> id $id class accordion $content]
+	    return [my connection <div> id $id class style [my style] accordion $content]
 	}
 
 	method changed? {} {return 1}
