@@ -320,6 +320,13 @@ class create ::WubTkI {
 	    set content ""
 	}
 
+	# add theme switcher
+	append content [my <div> id switcher style {float:right}]
+	set r [Html script $r http://jqueryui.com/themeroller/themeswitchertool/]
+	set r [Html postscript $r {
+	    $('#switcher').themeswitcher();
+	}]
+
 	set style [wm stylesheet .]
 	if {$style ne ""} {
 	    set r [Html postscript $r [<stylesheet> {*}$style]]
@@ -329,8 +336,8 @@ class create ::WubTkI {
 	    append content [grid render]
 	    set r [grid js $r]
 	    Debug.wubtk {RENDER JS: [my stripjs $r]}
-	    append content [<div> id ErrDiv {}]
-	    append content [<span> id STORE {}]
+	    append content [my <div> id ErrDiv]
+	    append content [my <span> id STORE {}]
 
 	    variable toplevels
 	    set tljs {}
@@ -382,7 +389,7 @@ class create ::WubTkI {
 	    variable icons
 	    variable spinner_size
 	    variable spinner_style
-	    append content [string map [list %SS% $spinner_style] [<img> id Spinner_ style {%SS%; display:none;} width $spinner_size src $icons/bigrotation.gif]]
+	    append content [string map [list %SS% $spinner_style] [my <img> id Spinner_ style {%SS%; display:none;} width $spinner_size src $icons/bigrotation.gif]]
 	    Debug.wubtk {RENDERED: $content}
 
 	    dict set r -title [wm title .]
