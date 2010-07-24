@@ -101,7 +101,7 @@ namespace eval ::jQ {
 	}
 
 	variable mount
-	return [Html script $r [file join $mount scripts $script] {*}$args]
+	return [Html script $r [join [list $mount scripts $script] /] {*}$args]
     }
 
     # generate a DOM ready function
@@ -163,7 +163,7 @@ namespace eval ::jQ {
 	    }
 
 	    # record requirement for script
-	    set r [Html script $r [file join $mount scripts $script]]
+	    set r [Html script $r [join [list $mount scripts $script] /]]
 	}
 	Debug.jq {SCRIPT: [dict get $r -script]}
 	return $r
@@ -180,7 +180,7 @@ namespace eval ::jQ {
 
     proc style {r style args} {
 	variable mount
-	return [Html style $r [file join $mount css $style] $args]
+	return [Html style $r [join [list $mount css $style] /] $args]
     }
 
     variable defaults {
@@ -433,7 +433,7 @@ namespace eval ::jQ {
 
 	variable mount
 	if {![dict exists $args elementsPath]} {
-	    dict set args elementsPath '[file join $mount elements]/'
+	    dict set args elementsPath '[join [list $mount elements] /]/'
 	}
 	dict set args containment 'document'
 
