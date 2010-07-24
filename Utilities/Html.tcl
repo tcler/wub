@@ -182,6 +182,10 @@ namespace eval ::Html {
 	}
 
 	# handle per-tag defaults
+	set defs [Html default $T]
+	if {[dict exists $args class]} {
+	    dict args.class [list {*}[dict args.class] {*}[dict defs.class?]]
+	}
 	set args [list {*}[Html default $T] {*}$args]
 
 	set result ""
@@ -217,6 +221,7 @@ namespace eval ::Html {
 	script {type text/javascript}
 	style {type text/css}
     }
+
     proc default {tag args} {
 	variable default
 	if {[dict exists $default $tag]} {
