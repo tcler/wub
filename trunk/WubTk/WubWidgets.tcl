@@ -1029,7 +1029,7 @@ namespace eval ::WubWidgets {
 	    variable oldgrid $grid	;# record the old grid
 	    set content [my connection <tbody> [join $rows \n]]
 
-	    set content [my connection <table> style {width:80%} $content]
+	    set content [my connection <table> class grid $content]
 	    Debug.wubwidgets {Grid '[namespace tail [self]]' rendered ($content)}
 	    return $content
 	}
