@@ -307,6 +307,7 @@ namespace eval ::WubWidgets {
 		if {[info exists $tk] && [set $tk] ne ""} {
 		    if {$tk eq "background"} {
 			lappend result "background: none [set $tk] !important"
+			lappend result "border: none !important"
 		    } else {
 			foreach n $css {
 			    lappend result "$n: [set $tk]"
