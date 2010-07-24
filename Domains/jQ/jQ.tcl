@@ -175,6 +175,8 @@ namespace eval ::jQ {
 	    return [Html style $r [join [list $mount themes $theme jquery.ui.all.css] /]]
 	} elseif {[file exists [file join $root themes $theme ui.all.css]]} {
 	    return [Html style $r [join [list $mount themes $theme ui.all.css] /]]
+	} else {
+	    return $r
 	}
     }
 
