@@ -171,7 +171,7 @@ namespace eval ::jQ {
 
     proc theme {r theme} {
 	variable mount; variable root
-	if {[file exists [file join $root $theme jquery.ui.all.css]]} {
+	if {[file exists [file join $root themes $theme jquery.ui.all.css]]} {
 	    return [Html style $r [join [list $mount themes $theme jquery.ui.all.css] /]]
 	} elseif {[file exists [file join $root themes $theme ui.all.css]]} {
 	    return [Html style $r [join [list $mount themes $theme ui.all.css] /]]
