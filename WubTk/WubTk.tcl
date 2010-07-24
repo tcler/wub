@@ -615,6 +615,16 @@ class create ::WubTkI {
 	next? {*}$args		;# construct Form
 	variable toplevels {}	;# keep track of toplevels
 
+	# set Form defaults
+	foreach w {text password file textarea} {
+	    my setdefault $w class {ui-state-default ui-corner-all}
+	}
+	my setdefault button class {ui-button ui-widget ui-state-default ui-corner-all}
+	my setdefault fieldset class {ui-widget ui-corner-all}
+	my setdefault table class ui-widget
+	my setdefault tbody class ui-widget
+	my setdefault legend class {ui-widget-header ui-corner-all}
+	my setdefault label class {ui-widget-header ui-corner-all}
 	Debug.wubtk {constructed WubTkI self-[self]  - ns-[namespace current] ($args)}
 
 	# create an interpreter within which to evaluate user code
@@ -839,29 +849,13 @@ class create ::WubTk {
 	variable lambda ""
 	variable expires ""
 	variable css {
-	    .slider { margin: 10px; }
-	    fieldset {
-		-moz-border-radius: 7px;
-		-webkit-border-radius: 7px;
-	    }
-	    textarea {
-		-moz-border-radius: 7px;
-		-webkit-border-radius: 7px;
-	    }
-	    button {
-		-moz-border-radius: 7px;
-		-webkit-border-radius: 7px;
-	    }
-	    input {
-		-moz-border-radius: 7px;
-		-webkit-border-radius: 7px;
-	    }
+	    .ui-widget{font-size:11px !important;} 
 	}
 
 	variable stylesheet ""
 	variable timeout 0
 	variable icons /icons/
-	variable theme dark
+	variable theme redmond
 	variable spinner_size 20
 	variable spinner_style "position: fixed; top:10px; left: 10px;"
 	variable {*}$args
@@ -884,6 +878,5 @@ class create ::WubTk {
 	namespace eval [namespace current]::Coros {}
 
 	next? {*}$args
-
     }
 }
