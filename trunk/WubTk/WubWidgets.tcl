@@ -37,7 +37,12 @@ namespace eval ::WubWidgets {
 
 	method iget {n} {
 	    variable interp
-	    set result [{*}$interp [list set $n]]
+	    try { 
+		set result [{*}$interp [list set $n]]
+	    } on error {e eo} {
+		set result ""
+	    }
+
 	    Debug.wubwinterp {iget '$n' -> '$result'}
 	    return $result
 	}
@@ -159,6 +164,7 @@ namespace eval ::WubWidgets {
 	    if {$image ne ""} {
 		set image [uplevel 2 [list $image render]]
 	    }
+
 	    switch -- [my cget? compound] {
 		left {
 		    return $image$text
@@ -168,10 +174,10 @@ namespace eval ::WubWidgets {
 		}
 		center -
 		top {
-		    return "$image[<br>]$text"
+		    return "$image[my connection <br>]$text"
 		}
 		bottom {
-		    return "$text[<br>]$image"
+		    return "$text[my connection <br>]$image"
 		}
 		none -
 		default {
@@ -289,12 +295,12 @@ namespace eval ::WubWidgets {
 	# style - construct an HTML style form
 	method style {} {
 	    set result {}
-	    foreach {css tk} {background-color background
+	    foreach {css tk} {
+		background-color background
 		color foreground
 		text-align justify
 		vertical-align valign
 		border borderwidth
-		radius {moz-border-radius webkit-border-radius}
 	    } {
 		variable $tk
 		if {[info exists $tk] && [set $tk] ne ""} {
@@ -303,6 +309,7 @@ namespace eval ::WubWidgets {
 		    }
 		}
 	    }
+
 	    # todo - padding
 	    return [join $result ";"]
 	}
@@ -341,7 +348,9 @@ namespace eval ::WubWidgets {
 
 	    my reset
 	    set text [tclarmour [armour [my cget -text]]]
-	    return [<button> [my widget] id $id {*}$class style [my style] [my compound $text]]
+	    return [my connection <button> [my widget] id $id {*}$class style [my style] [my compound $text]]
+	    
+	    #<button class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" role="button" aria-disabled="false"><span class="ui-button-text">A button element</span></button>
 	}
 
 	superclass ::WubWidgets::widget
@@ -378,7 +387,7 @@ namespace eval ::WubWidgets {
 
 	    Debug.wubwidgets {[self] checkbox render: checked:$checked}
 	    my reset
-	    return [<checkbox> [my widget] id $id class cbutton style [my style] checked $checked [my compound $label]]
+	    return [my connection <checkbox> [my widget] id $id class cbutton style [my style] checked $checked [my compound $label]]
 	}
 
 	superclass ::WubWidgets::widget
@@ -406,7 +415,7 @@ namespace eval ::WubWidgets {
 
 	    my reset
 	    set text [tclarmour [armour $val]]
-	    return [<div> id $id style [my style] [my compound $text]]
+	    return [my connection <div> id $id style [my style] [my compound $text]]
 	}
 	
 	superclass ::WubWidgets::widget
@@ -424,10 +433,10 @@ namespace eval ::WubWidgets {
 	    set result ""
 
 	    if {[my cget label] ne ""} {
-		set result [<label> [my cget label]]
+		set result [my connection <label> [my cget label]]
 	    }
 
-	    append result [<div> id $id class slider style [my style] {}]
+	    append result [my connection <div> id $id class slider style [my style] {}]
 
 	    return $result
 	}
@@ -508,7 +517,7 @@ namespace eval ::WubWidgets {
 		}
 	    }
 
-	    return [$cmd [my widget] id $id class variable {*}$disabled style [my style] size [my cget -width] [tclarmour [armour $val]]]
+	    return [my connection $cmd [my widget] id $id class variable {*}$disabled style [my style] size [my cget -width] [tclarmour [armour $val]]]
 	}
 
 	method js {r} {
@@ -743,7 +752,7 @@ namespace eval ::WubWidgets {
 	    }
 	    
 	    my reset
-	    return [<textarea> [my widget] id $id {*}$class {*}$disabled style [my style] rows [my cget -height] cols [my cget -width] [tclarmour [armour $val]]]
+	    return [my connection <textarea> [my widget] id $id {*}$class {*}$disabled style [my style] rows [my cget -height] cols [my cget -width] [tclarmour [armour $val]]]
 	}
 	
 	superclass ::WubWidgets::widget
@@ -829,13 +838,18 @@ namespace eval ::WubWidgets {
 	}
 
 	method render {{junk ""}} {
-	    return [<img> {*}[my style] src [my widget]]
+	    set url [my cget? url]
+	    if {$url eq ""} {
+		set url [my widget]
+	    }
+	    return [my connection <img> {*}[my style] src $url]
 	}
 	
 	superclass ::WubWidgets::widget
 	constructor {args} {
 	    next {*}[dict merge [list id [my widget]] $args]
 
+	    # TODO - add a -url option to deliver content
 	    set fmt [my cget? -format]
 	    switch -glob -nocase -- $fmt {
 		gif* {
@@ -860,7 +874,7 @@ namespace eval ::WubWidgets {
 		}
 	    } elseif {[my cexists -file]} {
 		set fmt [Mime MimeOf [file extension [my cget -file]] $fmt]
-	    } else {
+	    } elseif {![my cexists url]} {
 		error "Must specify either -data or -file"
 	    }
 
@@ -890,11 +904,12 @@ namespace eval ::WubWidgets {
     oo::class create gridC {
 	# traverse grid looking for changes.
 	method changes {r} {
-	    Debug.wubwidgets {[namespace tail [self]] changes}
 	    if {[dict exists $r -repaint]} {
+		Debug.wubwidgets {Grid '[namespace tail [self]]' repainting}
 		return [list $r {}]
 	    }
 	    variable grid;variable oldgrid
+	    Debug.wubwidgets {Grid '[namespace tail [self]]' changes}
 
 	    # look for modified grid entries, these will cause a repaint
 	    dict for {row rval} $grid {
@@ -918,24 +933,25 @@ namespace eval ::WubWidgets {
 		dict for {col val} $rval {
 		    dict with val {
 			if {[uplevel 1 [list $widget changed?]]} {
-			    Debug.wubwidgets {changed ($row,$col) ($val)}
 			    set type [uplevel 1 [list $widget type]]
-			    Debug.wubwidgets {[namespace tail [self]] of '$type' changes to '$widget' at ($row,$col) ($val)}
 			    switch -- $type {
 				accordion -
 				notebook -
 				frame {
 				    set changed [lassign [uplevel 1 [list $widget changes $r]] r]
 				    if {[dict exists $r -repaint]} {
-					Debug.wubwidgets {[namespace tail [self]] repainting}
+					Debug.wubwidgets {Grid '[namespace tail [self]]' repainting because of changes in $type '$widget'}
 					return [list $r {}]	;# repaint
+				    } else {
+					Debug.wubwidgets {Grid '[namespace tail [self]]' changes to [string totitle $type] '$widget' at ($row,$col) ($val) -> ($changed)}
 				    }
 				}
 				default {
 				    set changed [list [uplevel 1 [list $widget id]] [uplevel 1 [list $widget render]] [uplevel 1 [list $widget type]]]
+				    Debug.wubwidgets {Grid '[namespace tail [self]]' changes to [string totitle $type] '$widget' at ($row,$col) ($val) -> ($changed)}
 				}
 			    }
-			    Debug.wubwidgets {[namespace tail [self]] $widget changed: '$changed'}
+
 			    lappend changes {*}$changed
 
 			    set r [uplevel 1 [list $widget js $r]]
@@ -961,13 +977,13 @@ namespace eval ::WubWidgets {
 
 	method id {row col} {
 	    variable name
-	    return [join [list grid {*}[string trim $name .] $row $col] _]
+	    return [join [list grid {*}[string map {. _} $name] $row $col] _]
 	}
 
 	method render {} {
 	    variable name
 	    variable maxrows; variable maxcols; variable grid
-	    Debug.wubwidgets {'[namespace tail [self]]' GRID render rows:$maxrows cols:$maxcols ($grid)}
+	    Debug.wubwidgets {Grid '[namespace tail [self]]' render rows:$maxrows cols:$maxcols ($grid)}
 	    set rows {}
 	    set interaction {};
 	    for {set row 0} {$row < $maxrows} {incr row} {
@@ -978,7 +994,7 @@ namespace eval ::WubWidgets {
 			set el [dict get $grid $row $col]
 			dict with el {
 			    set id [my id $row $col]
-			    Debug.wubwidgets {'[namespace tail [self]]' render $widget ($id)}
+			    Debug.wubwidgets {Grid '[namespace tail [self]]' render $widget ($id)}
 			    uplevel 1 [list $widget gridder [self]]	;# record grid
 			    set rendered [uplevel 1 [list $widget render $id]]
 
@@ -995,24 +1011,26 @@ namespace eval ::WubWidgets {
 			    } else {
 				set rowspan {}
 			    }
-			    lappend cols [<td> colspan $columnspan {*}$rowspan $rendered]
+			    lappend cols [my connection <td> colspan $columnspan {*}$rowspan $rendered]
 			}
 			incr col $columnspan
 		    } else {
 			if {[info exists wid] && ![info exists rspan($wid,$row.$col)]} {
-			    lappend cols [<td> "&nbsp;"]
+			    lappend cols [my connection <td> "&nbsp;"]
 			}
 			incr col $columnspan
 		    }
 		}
 
 		# now we have a complete row - accumulate it
-		lappend rows [<tr> align center valign middle [join $cols \n]]
+		lappend rows [my connection <tr> align center valign middle [join $cols \n]]
 	    }
 
 	    variable oldgrid $grid	;# record the old grid
-	    set content [<table> [join $rows \n]]
-	    Debug.wubwidgets {'[namespace tail [self]]' RENDERED ($content)}
+	    set content [my connection <tbody> [join $rows \n]]
+
+	    set content [my connection <table> style {width:80%} $content]
+	    Debug.wubwidgets {Grid '[namespace tail [self]]' rendered ($content)}
 	    return $content
 	}
 
@@ -1110,20 +1128,20 @@ namespace eval ::WubWidgets {
 	# render widget
 	method render {{id ""}} {
 	    variable fgrid
-	    Debug.wubwidgets {[namespace tail [self]] render gridded by $fgrid}
+	    Debug.wubwidgets {Frame [namespace tail [self]] render gridded by $fgrid}
 
 	    if {[my cexists -div]} {
 		set id [my id $id]
 		append content \n [uplevel 1 [list $fgrid render]]
-		return [<div> id $id $content]
+		return [my connection <div> id $id $content]
 	    } else {
 		set label [my cget? -text]
 		if {$label ne ""} {
-		    set content [<legend> $label]
+		    set content [my connection <legend> $label]
 		}
 		variable fgrid
 		append content \n [uplevel 1 [list $fgrid render]]
-		return [<fieldset> [my widget] -raw 1 $content]
+		return [my connection <fieldset> [my widget] -raw 1 $content]
 	    }
 	}
 
@@ -1131,9 +1149,9 @@ namespace eval ::WubWidgets {
 
 	method changes {r} {
 	    variable fgrid
-	    Debug.wubwidgets {[namespace tail [self]] sub-grid changes}
+	    Debug.wubwidgets {Frame '[namespace tail [self]]' sub-grid changes}
 	    set changes [lassign [uplevel 1 [list $fgrid changes $r]] r]
-	    Debug.wubwidgets {[namespace tail [self]] sub-grid changed: ($changes)}
+	    Debug.wubwidgets {Frame '[namespace tail [self]]' sub-grid changed: ($changes)}
 	    return [list $r {*}$changes]
 	}
 
@@ -1213,9 +1231,9 @@ namespace eval ::WubWidgets {
 
 	method changes {r} {
 	    variable tgrid
-	    Debug.wubwidgets {[namespace tail [self]] sub-grid changes}
+	    Debug.wubwidgets {Toplevel '[namespace tail [self]]' sub-grid changes}
 	    set changes [lassign [uplevel 1 [list $tgrid changes $r]] r]
-	    Debug.wubwidgets {[namespace tail [self]] sub-grid changed: ($changes)}
+	    Debug.wubwidgets {Toplevel '[namespace tail [self]]' sub-grid changed: ($changes)}
 	    return [list $r {*}$changes]
 	}
 
@@ -1289,13 +1307,13 @@ namespace eval ::WubWidgets {
 		set tid ${id}_$cnt
 		lappend body [uplevel 1 [list $tab render $tid]]
 		set cnf [uplevel 1 [list $tab configure]]
-		lappend li [<li> [<a> href "#$tid" [dict cnf.text]]]
+		lappend li [my connection <li> [my connection <a> href "#$tid" [dict cnf.text]]]
 		incr cnt
 	    }
-	    set content [<ul> [join $li \n]]
+	    set content [my connection <ul> [join $li \n]]
 	    append content [join $body \n]
 	    
-	    return [<div> id $id class notebook $content]
+	    return [my connection <div> id $id class notebook $content]
 	}
 
 	method changed? {} {return 1}
@@ -1304,7 +1322,8 @@ namespace eval ::WubWidgets {
 	    variable tabs
 	    set changes {}
 	    foreach tab $tabs {
-		lassign [uplevel 1 [list $tab changes $r]] r changed
+		set changed [lassign [uplevel 1 [list $tab changes $r]] r]
+		Debug.wubwidgets {Notebook '[namespace tail [self]]' tab [string totitle [uplevel 1 [list $tab type]]] '$tab' changes: ($changed)}
 		lappend changes {*}$changed
 	    }
 	    return [list $r {*}$changes]
@@ -1392,13 +1411,13 @@ namespace eval ::WubWidgets {
 	    foreach pane $panes {
 		set tid ${id}_$cnt
 		set cnf [uplevel 1 [list $pane configure]]
-		lappend body [<h3> [<a> href # [dict cnf.text]]]
+		lappend body [my connection <h3> [my connection <a> href # [dict cnf.text]]]
 		lappend body [uplevel 1 [list $pane render $tid]]
 		incr cnt
 	    }
 	    set content [join $body \n]
 	    
-	    return [<div> id $id class accordion $content]
+	    return [my connection <div> id $id class accordion $content]
 	}
 
 	method changed? {} {return 1}
@@ -1407,7 +1426,7 @@ namespace eval ::WubWidgets {
 	    variable panes
 	    set changes {}
 	    foreach pane $panes {
-		lassign [uplevel 1 [list $pane changes $r]] r changed
+		set changed [lassign [uplevel 1 [list $pane changes $r]] r]
 		lappend changes {*}$changed
 	    }
 	    return [list $r {*}$changes]

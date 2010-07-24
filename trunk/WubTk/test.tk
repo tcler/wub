@@ -1,6 +1,7 @@
 # Steve Redler's WubTk demo
 
 package require Tk
+[cookie A] set bob
 
 proc buttonA args {
     set bText [.b cget -text]
@@ -63,6 +64,7 @@ entry .d -textvariable joe -width 10 -type date
 label .e -text "Text:" -justify right
 
 button .f -text Logout -command "exit http://www.google.com"
+button .redir -text Redirect -command "wm redirect http://www.google.com" -grid {1 2}
 
 text .g -background lightyellow 
 .g insert end "steve1234567890\ncolin1234567890\nsonia1234567890\nsybil1234567890"
@@ -169,7 +171,14 @@ label .tl.l1 -textvariable tl1 -text [incr tl1] -grid {0 0}
 button .tl.b1 -text "Test Change" -command {after 10000 {global tl1; incr tl1}} -grid {0 1}
 
 proc gotfile {args} {
-    puts stderr "GOT A FILE"
+    if {0} {
+	set filedata [dict get [rq] -entity] 
+	puts stderr $filedata
+	.g delete 1.0 end
+	.g insert end $filedata
+    }
+    .g delete 1.0 end
+    .g insert end "GOT FILE"
 }
 
-upload .f1 -title "Upload a file" -command gotfile -grid {13 0}
+upload .f1 -title "Upload a file" -command gotfile -grid {1 0}
