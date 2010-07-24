@@ -313,19 +313,23 @@ class create ::WubTkI {
 	variable theme
 	set r [jQ theme $r $theme]
 
+	variable fontsize
+	set content [<style> "\{.ui-widget\{font-size:${fontsize}px !important;\}\}"]
+
 	set css [wm css .]
 	if {$css ne ""} {
-	    set content [<style> $css]
-	} else {
-	    set content ""
+	    append content [<style> $css]
 	}
 
-	# add theme switcher
-	append content [my <div> id switcher style {float:right}]
-	set r [Html script $r http://jqueryui.com/themeroller/themeswitchertool/]
-	set r [Html postscript $r {
-	    $('#switcher').themeswitcher();
-	}]
+	variable theme_switcher
+	if {$theme_switcher} {
+	    # add theme switcher
+	    append content [my <div> id switcher style {float:right}]
+	    set r [Html script $r http://jqueryui.com/themeroller/themeswitchertool/]
+	    set r [Html postscript $r {
+		$('#switcher').themeswitcher();
+	    }]
+	}
 
 	set style [wm stylesheet .]
 	if {$style ne ""} {
@@ -824,7 +828,7 @@ class create ::WubTk {
 
 	    # collect options to pass to coro
 	    set options {}
-	    foreach v {timeout icons theme spinner_style spinner_size css stylesheet cookiepath} {
+	    foreach v {timeout icons theme spinner_style spinner_size css stylesheet cookiepath theme_switcher fontsize} {
 		variable $v
 		if {[info exists $v]} {
 		    lappend options $v [set $v]
@@ -855,14 +859,13 @@ class create ::WubTk {
 	variable {*}[Site var? WubTk]	;# allow .ini file to modify defaults
 	variable lambda ""
 	variable expires ""
-	variable css {
-	    .ui-widget{font-size:11px !important;} 
-	}
-
 	variable stylesheet ""
+	variable css {}
+	variable theme redmond
+	variable theme_switcher 0
 	variable timeout 0
 	variable icons /icons/
-	variable theme redmond
+	variable fontsize 11
 	variable spinner_size 20
 	variable spinner_style "position: fixed; top:10px; left: 10px;"
 	variable {*}$args
