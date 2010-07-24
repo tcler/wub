@@ -78,7 +78,7 @@ set ::API(Domains/JQ) {
 }
 
 namespace eval ::jQ {
-    variable root [file dirname [info script]]
+    variable root [file dirname [file normalize [info script]]]
     variable mount /jquery/
     variable expires "next week"
     variable google 0
@@ -170,8 +170,12 @@ namespace eval ::jQ {
     }
 
     proc theme {r theme} {
-	variable mount
-	return [Html style $r [file join $mount themes $theme ui.all.css]]
+	variable mount; variable root
+	if {[file exists [file join $root $theme jquery.ui.all.css]]} {
+	    return [Html style $r [file join $mount themes $theme jquery.ui.all.css]]
+	} elseif {[file exists [file join $root themes $theme ui.all.css]]} {
+	    return [Html style $r [file join $mount themes $theme ui.all.css]]
+	}
     }
 
     proc style {r style args} {
