@@ -301,13 +301,17 @@ namespace eval ::WubWidgets {
 		text-align justify
 		vertical-align valign
 		border borderwidth
+		border-color bordercolor
 		width wwidth
 	    } {
 		variable $tk
 		if {[info exists $tk] && [set $tk] ne ""} {
 		    if {$tk eq "background"} {
 			lappend result "background: none [set $tk] !important"
-			lappend result "border: none !important"
+			#lappend result "border: none !important"
+			if {![info exists bordercolor]} {
+			    lappend result "border-color: [set $tk]"
+			}
 		    } else {
 			foreach n $css {
 			    lappend result "$n: [set $tk]"
