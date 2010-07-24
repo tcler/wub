@@ -311,7 +311,9 @@ class create ::WubTkI {
 
 	# add some CSS
 	variable theme
-	set r [jQ theme $r $theme]
+	if {$theme ne ""} {
+	    set r [jQ theme $r $theme]
+	}
 
 	variable fontsize
 	set content [<style> "\{.ui-widget\{font-size:${fontsize}px !important;\}\}"]
@@ -624,19 +626,22 @@ class create ::WubTkI {
 	variable redirect ""	;# no redirection, initially
 	variable exit 0		;# do not exit, initially
 	next? {*}$args		;# construct Form
+	Debug.wubtk {constructed WubTkI self-[self]  - ns-[namespace current] ($args)}
+
 	variable toplevels {}	;# keep track of toplevels
 
-	# set Form defaults
-	foreach w {text password file textarea} {
-	    my setdefault $w class {ui-state-default ui-corner-all}
+	if {$theme ne ""} {
+	    # set Form defaults
+	    foreach w {text password file textarea} {
+		my setdefault $w class {ui-state-default ui-corner-all}
+	    }
+	    my setdefault button class {ui-button ui-widget ui-state-default ui-corner-all}
+	    my setdefault fieldset class {ui-widget ui-corner-all}
+	    my setdefault table class ui-widget
+	    my setdefault tbody class ui-widget
+	    my setdefault legend class {ui-widget-header ui-corner-all}
+	    my setdefault label class {ui-widget-header ui-corner-all}
 	}
-	my setdefault button class {ui-button ui-widget ui-state-default ui-corner-all}
-	my setdefault fieldset class {ui-widget ui-corner-all}
-	my setdefault table class ui-widget
-	my setdefault tbody class ui-widget
-	my setdefault legend class {ui-widget-header ui-corner-all}
-	my setdefault label class {ui-widget-header ui-corner-all}
-	Debug.wubtk {constructed WubTkI self-[self]  - ns-[namespace current] ($args)}
 
 	# create an interpreter within which to evaluate user code
 	# install its command within our namespace
