@@ -311,26 +311,24 @@ class create ::WubTkI {
 
 	# add some CSS
 	variable theme
+	variable theme_switcher
 	if {$theme ne ""} {
 	    set r [jQ theme $r $theme]
-	}
-
-	variable fontsize
-	set content [<style> "\{.ui-widget\{font-size:${fontsize}px !important;\}\}"]
-
-	set css [wm css .]
-	if {$css ne ""} {
-	    append content [<style> $css]
-	}
-
-	variable theme_switcher
-	if {$theme_switcher} {
+	} elseif {$theme_switcher} {
 	    # add theme switcher
 	    append content [my <div> id switcher style {float:right}]
 	    set r [Html script $r http://jqueryui.com/themeroller/themeswitchertool/]
 	    set r [Html postscript $r {
 		$('#switcher').themeswitcher();
 	    }]
+	}
+
+	variable fontsize
+	set content [<style> ".ui-widget \{font-size:${fontsize}px !important;\}"]
+
+	set css [wm css .]
+	if {$css ne ""} {
+	    append content [<style> $css]
 	}
 
 	set style [wm stylesheet .]
