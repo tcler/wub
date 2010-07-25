@@ -41,7 +41,7 @@ set ::WubTk_dir [file normalize [file dirname [info script]]]
 class create ::WubTkI {
     method buttonJS {{what .button}} {
 	return [string map [list %B% [jQ S $what]] {
-	    $('%B%').button();​
+	    $('%B%').button();
 	    $('%B%').click(function () { 
 		//alert($(this).attr("name")+" button pressed");
 		$("#Spinner_").show();
