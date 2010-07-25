@@ -79,13 +79,16 @@ class create ::FormClass {
 
 	variable Fdefaults
 	Debug.form {defaults '$type' ($args) [dict Fdefaults.$type?]}
-	if {[dict exists $args class]} {
-	    # merge elements of class, not the whole class
-	    Debug.form {defaults '$type' class merge ([dict args.class]) ([dict Fdefaults.$type.class?])}
-	    dict args.class [list {*}[dict args.class] {*}[dict Fdefaults.$type.class?]]
+	set class {}
+	foreach {n v} $args {
+	    if {$n eq "class"} {
+		# merge elements of class, not the whole class
+		Debug.form {defaults '$type' class merge ($v) ([dict Fdefaults.$type.class?])}
+		lappend class {*}[split $v]
+	    }
 	}
 
-	set result [dict merge [dict Fdefaults.$type?] $args]
+	set result [dict merge [dict Fdefaults.$type?] $args [list class $class]]
 	Debug.form {defaults '$type' -> $result}
 	return $result
     }
@@ -116,7 +119,6 @@ class create ::FormClass {
 		dict set opts $n [armour [string trim $v]]
 	    }
 	}
-	set opts [my defaults $tag $opts]	;# apply form defaults
 
 	set attrs $tag
 	foreach {n v} $opts {
