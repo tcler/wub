@@ -190,7 +190,7 @@ class create ::WubTkI {
 	    return [Http Ok $r "window.location='$redir';" application/javascript]
 	} else {
 	    Debug.wubtk {do_redir HTTP: $redirect}
-	    return [Http Redirect $r $redirect]
+	    return [Http Redirect $r {*}$redirect]
 	}
     }
 
