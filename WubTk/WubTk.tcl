@@ -291,7 +291,7 @@ class create ::WubTkI {
 	set r [jQ ready $r [my buttonJS]]
 	set r [jQ ready $r [my cbuttonJS]]
 	set r [jQ ready $r [my variableJS]]
-	set r [Html postscript $r "\$('.ubutton').button();"
+	set r [Html postscript $r "\$('.ubutton').button();"]
     }
 
     method render {r} {
