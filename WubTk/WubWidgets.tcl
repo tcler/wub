@@ -321,7 +321,17 @@ namespace eval ::WubWidgets {
 	    }
 
 	    # todo - padding
-	    return [join $result ";"]
+
+	    if {[llength $result]} {
+		set result [list style [join $result ";"]]
+	    }
+
+	    variable class
+	    if {[info exists class]} {
+		lappend result class $class
+	    }
+
+	    return $result
 	}
 
 	constructor {args} {
@@ -358,7 +368,7 @@ namespace eval ::WubWidgets {
 
 	    my reset
 	    set text [tclarmour [armour [my cget -text]]]
-	    return [my connection <button> [my widget] id $id {*}$class style [my style] [my compound $text]]
+	    return [my connection <button> [my widget] id $id {*}$class {*}[my style] [my compound $text]]
 	    
 	    #<button class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" role="button" aria-disabled="false"><span class="ui-button-text">A button element</span></button>
 	}
@@ -397,7 +407,7 @@ namespace eval ::WubWidgets {
 
 	    Debug.wubwidgets {[self] checkbox render: checked:$checked}
 	    my reset
-	    return [my connection <checkbox> [my widget] id $id class cbutton style [my style] checked $checked [my compound $label]]
+	    return [my connection <checkbox> [my widget] id $id class cbutton {*}[my style] checked $checked [my compound $label]]
 	}
 
 	superclass ::WubWidgets::widget
@@ -425,7 +435,7 @@ namespace eval ::WubWidgets {
 
 	    my reset
 	    set text [tclarmour [armour $val]]
-	    return [my connection <div> id $id style [my style] [my compound $text]]
+	    return [my connection <div> id $id {*}[my style] [my compound $text]]
 	}
 	
 	superclass ::WubWidgets::widget
@@ -446,7 +456,7 @@ namespace eval ::WubWidgets {
 		set result [my connection <label> [my cget label]]
 	    }
 
-	    append result [my connection <div> id $id class slider style [my style] {}]
+	    append result [my connection <div> id $id class slider {*}[my style] {}]
 
 	    return $result
 	}
@@ -527,7 +537,7 @@ namespace eval ::WubWidgets {
 		}
 	    }
 
-	    return [my connection $cmd [my widget] id $id class variable {*}$disabled style [my style] size [my cget -width] [tclarmour [armour $val]]]
+	    return [my connection $cmd [my widget] id $id class variable {*}$disabled {*}[my style] size [my cget -width] [tclarmour [armour $val]]]
 	}
 
 	method js {r} {
@@ -762,7 +772,7 @@ namespace eval ::WubWidgets {
 	    }
 	    
 	    my reset
-	    return [my connection <textarea> [my widget] id $id {*}$class {*}$disabled style [my style] rows [my cget -height] cols [my cget -width] [tclarmour [armour $val]]]
+	    return [my connection <textarea> [my widget] id $id {*}$class {*}$disabled {*}[my style] rows [my cget -height] cols [my cget -width] [tclarmour [armour $val]]]
 	}
 	
 	superclass ::WubWidgets::widget
@@ -1339,7 +1349,7 @@ namespace eval ::WubWidgets {
 	    set content [my connection <ul> [join $li \n]]
 	    append content [join $body \n]
 	    
-	    return [my connection <div> id $id class notebook style [my style] $content]
+	    return [my connection <div> id $id class notebook {*}[my style] $content]
 	}
 
 	method changed? {} {return 1}
@@ -1443,7 +1453,7 @@ namespace eval ::WubWidgets {
 	    }
 	    set content [join $body \n]
 	    
-	    return [my connection <div> id $id class style [my style] accordion $content]
+	    return [my connection <div> id $id class accordion {*}[my style] $content]
 	}
 
 	method changed? {} {return 1}
