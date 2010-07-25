@@ -83,12 +83,17 @@ class create ::FormClass {
 	foreach {n v} $args {
 	    if {$n eq "class"} {
 		# merge elements of class, not the whole class
-		Debug.form {defaults '$type' class merge ($v) ([dict Fdefaults.$type.class?])}
+		Debug.form {defaults '$type' class merge ($v) ()}
 		lappend class {*}[split $v]
 	    }
 	}
-
-	set result [dict merge [dict Fdefaults.$type?] $args [list class $class]]
+	set class [list {*}$class {*}[dict Fdefaults.$type.class?]]
+	if {[llength $class]} {
+	    set class [list class $class]
+	} else {
+	    set class {}
+	}
+	set result [dict merge [dict Fdefaults.$type?] $args $class]
 	Debug.form {defaults '$type' -> $result}
 	return $result
     }
