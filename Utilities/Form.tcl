@@ -90,23 +90,46 @@ class create ::FormClass {
 	return $result
     }
 
-    method attr {T args} {
-	Debug.form {attr: $T ($args)}
-	if {[llength $args] == 1} {
+    # gather options from args
+    method attr {tag args} {
+	if {[llength $args]==1} {
 	    set args [lindex $args 0]
 	}
-	set result $T
+	Debug.form {attr: $T ($args)}
+
+	set opts {}
 	foreach {n v} $args {
+	    set n [string trim $n]
 	    if {[string match -* $n]} continue
 	    if {$n in {checked disabled selected}} {
 		if {$v} {
 		    lappend result $n
 		}
+	    } elseif {$n eq "class"} {
+		# aggregate class args
+		foreach c [split [string trim $v]] {
+		    if {$c ne {}} {
+			dict lappend opts class $c
+		    }
+		}
 	    } else {
-		lappend result "[string trim $n]='[armour [string trim $v]]'"
+		dict set opts $n [armour [string trim $v]]
 	    }
 	}
-	return [join $result]
+	set opts [my defaults $tag $opts]	;# apply form defaults
+
+	set attrs $tag
+	foreach {n v} $opts {
+	    if {$n in {checked disabled selected noshade}} {
+		if {$v} {
+		    lappend attrs $n	;# flagg attribute
+		}
+	    } elseif {![info exists seen($n)]} {
+		lappend attrs "$n='$v'"
+	    }
+	}
+
+	return [join $attrs]
     }
 
     method fieldsetS {name args} {
@@ -770,6 +793,10 @@ class create ::FormClass {
 	return [uplevel 1 [list [self] <form> {*}$result]]
     }
 
+    method <keygen> {name args} {
+	return "<[my attr keygen name $name {*}$args]>"
+    }
+
     # return a HTML singleton tag
     foreach tag {img br hr} {
 	method <$tag> {args} [string map [list %T $tag] {
@@ -780,43 +807,6 @@ class create ::FormClass {
 	    }
 	    return "<[Html::attr %T {*}$args]${suff}>"
 	}]
-    }
-
-    # gather options from args
-    method attrs {tag args} {
-	if {[llength $args]==1} {
-	    set args [lindex $args 0]
-	}
-
-	set opts {}
-	foreach {n v} $args {
-	    set n [string trim $n]
-	    set v [armour [string trim $v]]
-	    if {$n eq "class"} {
-		# aggregate class args
-		foreach c [split $v] {
-		    if {$c ne {}} {
-			dict lappend opts class $c
-		    }
-		}
-	    } else {
-		dict set opts $n $v
-	    }
-	}
-	set opts [my defaults @T $opts]	;# apply form defaults
-
-	set attrs $tag
-	foreach {n v} $opts {
-	    if {$n in {checked disabled selected noshade}} {
-		if {$v} {
-		    lappend attrs $n	;# flagg attribute
-		}
-	    } elseif {![info exists seen($n)]} {
-		lappend attrs "$n='$v'"
-	    }
-	}
-
-	return [join $attrs]
     }
 
     method unknown {cmd args} {
@@ -836,7 +826,7 @@ class create ::FormClass {
 		set content ""
 	    }
 	    
-	    return "<[my attrs %T% $args]>$content</%T%>"
+	    return "<[my attr %T% $args]>$content</%T%>"
 	}]
 
 	return [uplevel 1 [list $cmd {*}$args]]
@@ -905,7 +895,7 @@ class create ::FormClass {
 	variable optgroupA [subst {disabled label $allA}]
 	variable optionA [subst {selected disabled label value $allA}]
 	variable legendA [subst {$allA}]
-
+	variable keygenA [subst {$fieldA name challenge keytype keyparams type}]
 	variable tags {}
 	foreach m [info class methods FormClass -all] {
 	    if {![string match <* $m]} continue
