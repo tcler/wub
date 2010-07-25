@@ -1305,7 +1305,7 @@ namespace eval ::WubWidgets {
 	    set content [my connection layout form_$id enctype multipart/form-data class upload_form [subst {
 		file $id upload
 
-		submit send_$id Upload
+		submit send_$id id $id class button Upload
 		hidden id [my widget]
 		hidden _op_ upload
 	    }]]
