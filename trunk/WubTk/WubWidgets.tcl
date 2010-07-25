@@ -1297,7 +1297,7 @@ namespace eval ::WubWidgets {
 	}
     }
 
-    # upload template
+    # upload widget
     oo::class create uploadC {
 	# render widget
 	method render {{id ""}} {
@@ -1305,12 +1305,22 @@ namespace eval ::WubWidgets {
 	    set content [my connection layout form_$id enctype multipart/form-data class upload_form [subst {
 		file $id upload
 
-		submit send_$id id $id class button Upload
+		submit send_$id id $id class ubutton Upload
 		hidden id [my widget]
 		hidden _op_ upload
 	    }]]
 	    return $content
 	}
+
+	method js {r} {
+	    if {[set js [my cget? -js]] ne ""} {
+		set r [Html postscript $r $js]
+	    }
+	    set r [Html postscript $r "\$('#$id').button();"]
+
+	    return $r
+	}
+
 	method changed? {args} {return 0}
 	method upload {args} {
 	    return [my command {*}$args]
