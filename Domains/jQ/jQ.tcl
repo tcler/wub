@@ -803,6 +803,50 @@ namespace eval ::jQ {
 	}]
     }
 
+    proc pnotify {r} {
+	return [weave $r {
+	    jquery.js jquery.ui.js jquery.pnotify.js
+	} css jquery.pnotify.css]
+    }
+
+    proc popup {args} {
+	# title: false, The notice's title.
+	# text: false, The notice's text.
+	# addclass: "", Additional classes to be added to the notice. (For custom styling.)
+	# nonblock: false, Create a non-blocking notice. It lets the user click elements underneath it.
+	# nonblock_opacity: .2, The opacity of the notice (if it's non-blocking) when the mouse is over it.
+	# history: true, Display a pull down menu to redisplay previous notices, and place the notice in the history.
+	# width: "300px", Width of the notice.
+	# min_height: "16px", Minimum height of the notice. It will expand to fit content.
+	# type: "notice", Type of the notice. "notice" or "error".
+	# notice_icon: "ui-icon ui-icon-info", The icon class to use if type is notice.
+	# error_icon: "ui-icon ui-icon-alert", The icon class to use if type is error.
+	# animation: "fade", The animation to use when displaying and hiding the notice. "none", "show", "fade", and "slide" are built in to jQuery. Others require jQuery UI. Use an object with effect_in and effect_out to use different effects.
+	# animate_speed: "slow", Speed at which the notice animates in and out. "slow", "def" or "normal", "fast" or number of milliseconds.
+	# opacity: 1, Opacity of the notice.
+	# shadow: false, Display a drop shadow.
+	# closer: true, Provide a button for the user to manually close the notice.
+	# hide: true, After a delay, remove the notice.
+	# delay: 8000, Delay in milliseconds before the notice is removed.
+	# mouse_reset: true, Reset the hide timer if the mouse moves over the notice.
+	# remove: true, Remove the notice's elements from the DOM after it is removed.
+	# insert_brs: true, Change new lines to br tags.
+	# stack: {"dir1": "down", "dir2": "left", "push": "bottom"}, The stack on which the notices will be placed. Also controls the direction the notices stack.
+
+	if {[llength $args]%2} {
+	    set text [lindex $args end]
+	    set args [lrange $args 0 end-1]
+	    dict set args text $text
+	}
+
+	set opts {}
+	dict for {n v} $args {
+	    dict set opts pnotify_$n '$v'
+	}
+
+	return "\$.pnotify([jQ opts pnotify $opts]);"
+    }
+
     # http://tympanus.net/codrops/2009/10/30/jstickynote-a-jquery-plugin-for-creating-sticky-notes/
     # http://www.jquery-sticky-notes.com/
     proc stickynote {r selector args} {
