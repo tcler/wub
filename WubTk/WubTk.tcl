@@ -513,7 +513,7 @@ class create ::WubTkI {
 	    Debug.wubtk {event $widget ($Q)}
 	    set e {$('#ErrDiv').html('');}
 	    try {
-		$widget [dict r.-op] [dict Q.val?] {*}[dict Q.widget]	;# run the widget op
+		$widget [dict r.-op] [dict Q.val?] {*}[dict Q.widget?]	;# run the widget op
 	    } on error {e eo} {
 		# widget op caused an error - report on it
 		Debug.wubtk {event error on $widget: '$e' ($eo)}
