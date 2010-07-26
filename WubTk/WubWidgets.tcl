@@ -1233,7 +1233,7 @@ namespace eval ::WubWidgets {
 	    if {[my cexists -div]} {
 		set id [my id $id]
 		append content \n [uplevel 1 [list $fgrid render]]
-		return [my connection <div> id $id $content]
+		return [my connection <div> id $id class frame $content]
 	    } else {
 		set label [my cget? -text]
 		if {$label ne ""} {
@@ -1241,7 +1241,7 @@ namespace eval ::WubWidgets {
 		}
 		variable fgrid
 		append content \n [uplevel 1 [list $fgrid render]]
-		return [my connection <fieldset> [my widget] -raw 1 $content]
+		return [my connection <fieldset> [my widget] class frame -raw 1 $content]
 	    }
 	}
 
