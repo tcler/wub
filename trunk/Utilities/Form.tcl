@@ -109,11 +109,7 @@ class create ::FormClass {
 	foreach {n v} $args {
 	    set n [string trim $n]
 	    if {[string match -* $n]} continue
-	    if {$n in {checked disabled selected}} {
-		if {$v} {
-		    lappend result $n
-		}
-	    } elseif {$n eq "class"} {
+	    if {$n eq "class"} {
 		# aggregate class args
 		foreach c [split [string trim $v]] {
 		    if {$c ne {}} {
@@ -480,7 +476,6 @@ class create ::FormClass {
 		    set value ""
 		}
 		
-		variable %A%A
 		set config [my defaults %T% {*}$args name $name type %T% %F% [armour [uplevel 1 [list subst $value]]]]
 		
 		if {![dict exists $config tabindex]} {
@@ -503,6 +498,7 @@ class create ::FormClass {
 		}
 
 		my metadata $name $config	;# remember config for field
+		variable %A%A
 		set result "<[my attr input [dict in $config $%A%A]]>"
 
 		set label [dict config.label?]
