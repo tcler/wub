@@ -1316,7 +1316,7 @@ namespace eval ::WubWidgets {
 	    if {[set js [my cget? -js]] ne ""} {
 		set r [Html postscript $r $js]
 	    }
-	    set r [Html postscript $r "\$('#$id').button();"]
+	    set r [Html postscript $r "\$('#[my id]').button();"]
 
 	    return $r
 	}
