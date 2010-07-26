@@ -143,6 +143,7 @@ oo::class create Config {
 	variable raw; 
 	if {![dict exists $raw {*}[lrange $args 0 end-1]]} {
 	    dict set raw {*}$args
+	    Debug.config {assign? $args -> [dict get $raw {*}[lrange $args 0 end-1]]}
 	}
 	variable clean 0	
     }
@@ -156,6 +157,7 @@ oo::class create Config {
     # substitute section-relative names into value scripts
     method VarSub {script} {
 	set NS [namespace current]
+	Debug.config {VarSubbing: '$script'}
 
 	# perform variable rewrite
 	set body [parsetcl simple_parse_script $script]
@@ -166,11 +168,11 @@ oo::class create Config {
 		set s "${NS}::_C::$s"
 		lset body {*}$index 3 2 $s
 	    }
-	    Debug.config {Var: $s}
+	    Debug.config {Varsub: $s}
 	}
 	set subbed [parsetcl unparse $body]
 	set subbed [join [lrange [split $subbed \n] 1 end-1] \n]	;# why is this necessary?
-	Debug.config {VarSub: '$script' -> '$subbed'}
+	Debug.config {VarSubbed: '$script' -> '$subbed'}
 	return $subbed
     }
 
@@ -178,9 +180,10 @@ oo::class create Config {
     method eval_section {section} {
 	variable raw
 	set ss {}
+	Debug.config {evaling section '$section'}
 	dict for {n v} [dict get $raw $section] {
 	    set sv [my VarSub $v]
-	    Debug.config {eval_section '$section': $n $v ($sv)}
+	    Debug.config {eval section '$section': $n $v ($sv)}
 	    namespace eval _C::$section "variable $n $sv"
 	}
     }
@@ -209,9 +212,16 @@ oo::class create Config {
     # section - get evaluated section
     method section {section} {
 	my eval	;# evaluate any changes in raw
+	Debug.config {getting section '$section'}
 	set result {}
 	foreach var [info vars _C::${section}::*] {
-	    dict set result [namespace tail $var] [set $var]
+	    try {
+		set val [set $var]
+		dict set result [namespace tail $var] $val
+		Debug.config "got '$section.[namespace tail $var]' <- '$val'"
+	    } on error {e eo} {
+		Debug.error "Config [self]: can't read '[namespace tail $var]' while evaluating section '$section'"
+	    }
 	}
 	return $result
     }
