@@ -87,12 +87,14 @@ class create ::FormClass {
 		lappend class {*}[split $v]
 	    }
 	}
+
 	set class [list {*}$class {*}[dict Fdefaults.$type.class?]]
 	if {[llength $class]} {
 	    set class [list class $class]
 	} else {
 	    set class {}
 	}
+
 	set result [dict merge [dict Fdefaults.$type?] $args $class]
 	Debug.form {defaults '$type' -> $result}
 	return $result
@@ -146,7 +148,7 @@ class create ::FormClass {
 		dict config.id F[incr uniqID]
 	    }
 	}
-	set content "<[my attr fieldset [dict in $config $fieldsetA]]>\n"
+	set content "<[my attr fieldset {*}[dict in $config $fieldsetA] {*}[dict filter $config key data-*]]>\n"
 	if {[dict exists $config legend]} {
 	    append content [my <legend> [dict config.legend]] \n
 	}
@@ -165,7 +167,7 @@ class create ::FormClass {
 		dict config.id F[incr uniqID]
 	    }
 	}
-	set content "<[my attr form [dict in $config $formA]]>\n"
+	set content "<[my attr form {*}[dict in $config $formA] {*}[dict filter $config key data-*]]>\n"
 	if {[dict exists $config legend]} {
 	    append content [my <legend> [dict config.legend]] \n
 	}
@@ -229,7 +231,7 @@ class create ::FormClass {
 		    set content [string map {\n <br>\n} $content]
 		}
 
-		return "<[my attr %T% [dict in $config $%T%A]]>$content</%T%>"
+		return "<[my attr %T% {*}[dict in $config $%T%A] {*}[dict filter $config key data-*]]>$content</%T%>"
 	    }
 	}]
     }
@@ -260,7 +262,7 @@ class create ::FormClass {
 	    method <%T%> {args} {
 		variable %T%A
 		set config [my defaults %T% [lrange $args 0 end-1]]
-		return "<[my attr %T% [dict in $config $%T%A]]>[uplevel 1 [list subst [lindex $args end]]]</%T%>"
+		return "<[my attr %T% {*}[dict in $config $%T%A] {*}[dict filter $config key data-*]]>[uplevel 1 [list subst [lindex $args end]]]</%T%>"
 	    }
 	}]
     }
@@ -285,7 +287,7 @@ class create ::FormClass {
 	set content [uplevel 1 [list subst $content]]
 
 	my metadata $name $config	;# remember config for field
-	set result "<[my attr select [dict in $config $selectA]]>$content</select>"
+	set result "<[my attr select {*}[dict in $config $selectA] {*}[dict filter $config key data-*]]>$content</select>"
 
 	if {[dict exists $config title]} {
 	    set title [list title [dict config.title]]
@@ -337,7 +339,7 @@ class create ::FormClass {
 		    }
 		}
 
-		return "<[my attr %T% [dict in $config $%T%A]]>$content</%T%>"
+		return "<[my attr %T% {*}[dict in $config $%T%A] {*}[dict filter $config key data-*]]>$content</%T%>"
 	    }
 	}]
     }
@@ -381,7 +383,7 @@ class create ::FormClass {
 	}
 
 	my metadata $name $config	;# remember config for field
-	set result "<[my attr textarea [dict in $config $textareaA]]>$content</textarea>"
+	set result "<[my attr textarea {*}[dict in $config $textareaA] {*}[dict filter $config key data-*]]>$content</textarea>"
 
 	set label [dict config.label?]
 	if {$label ne ""} {
@@ -457,7 +459,7 @@ class create ::FormClass {
 
 	my metadata $name $config	;# remember config for field
 	variable buttonA
-	return "<[my attr button [dict in $config $buttonA]]>$content</button>"
+	return "<[my attr button {*}[dict in $config $buttonA] {*}[dict filter $config key data-*]]>$content</button>"
     }
     
     foreach {itype attrs field} {
@@ -499,7 +501,7 @@ class create ::FormClass {
 
 		my metadata $name $config	;# remember config for field
 		variable %A%A
-		set result "<[my attr input [dict in $config $%A%A]]>"
+		set result "<[my attr input {*}[dict in $config $%A%A] {*}[dict filter $config key data-*]]>"
 
 		set label [dict config.label?]
 		if {$label ne ""} {
@@ -594,7 +596,6 @@ class create ::FormClass {
 		} else {
 		    set content ""
 		}
-		variable boxA
 		set config [my defaults %T% {*}$args name $name type %T%]
 
 		set content [uplevel 1 [list subst $content]]
@@ -616,7 +617,8 @@ class create ::FormClass {
 		my metadata $name $config	;# remember config for field
 
 		set id [dict config.id]
-		set result "<[my attr input [dict in $config $boxA]]>$content"
+		variable boxA
+		set result "<[my attr input {*}[dict in $config $boxA] {*}[dict filter $config key data-*]]>$content"
 
 		if {[set label [dict config.label?]] ne ""} {
 		    if {[dict exists $config title]} {
