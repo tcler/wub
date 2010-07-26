@@ -37,9 +37,8 @@ proc buttonH {sobj dobj} {
 
 proc showCode {} {
     .nb.tab1.g delete 1.0 end
-    global lambda
     set a 0
-    .nb.tab1.g insert end $lambda
+    .nb.tab1.g insert end [wm script]
     .nb.tab1.i configure -text "Cut n paste the above code into wish to compare!" -foreground orange -background black
 }
 
@@ -70,10 +69,10 @@ proc tkd {} {
     # make a notebook
     notebook .nb -grid {0 0}
 	
-    frame .nb.tab1 -text Widgets
+    frame .nb.tab1 -text Widgets -width 80%
     .nb add .nb.tab1
 
-    button .nb.tab1.a -text "Press Me" -command buttonA -grid {0 0}
+    button .nb.tab1.a -text "Press Me" -class moop -command buttonA -grid {0 0}
     button .nb.tab1.b -text "Don't Press Me" -command buttonA -grid {0 1}
     button .nb.tab1.f -text Google -command {wm redirect http://www.google.com} -grid {0 2}
     
@@ -102,7 +101,7 @@ proc tkd {} {
     set rdbt 0
     set scl 0
     
-    frame .nb.tab2 -text Images
+    frame .nb.tab2 -text Images -width 80%
     .nb add .nb.tab2
 	
     image create photo .nb.tab2.image -url /icons/chart_accept.gif -grid {0 0}
@@ -113,7 +112,7 @@ proc tkd {} {
     image create photo .nb.tab2.frame.image3 -url /icons/application_edit.gif
     button .nb.tab2.frame.button -image .nb.tab2.frame.image3 -command buttonC -text "Push" -justify center -compound top -grid {0 0}
 
-    frame .nb.tab3 -text Advanced
+    frame .nb.tab3 -text Advanced -width 80%
     .nb add .nb.tab3
 
     frame .nb.tab3.frame -text "Date Entry" -grid {0 0}
