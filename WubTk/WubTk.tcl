@@ -249,10 +249,16 @@ class create ::WubTkI {
 	set r [jQ scripts $r jquery.form.js jquery.metadata.js]
 	set r [jQ tabs $r .notebook]
 	set r [jQ accordion $r .accordion]
+	set r [jQ pnotify $r]
 
 	# define some useful functions
 	set r [Html postscript $r {
 	    $.metadata.setType("html5");	// use HTML5 metadata
+
+	    function ereport (status, error) {
+		$.pnotify({pnotify_title: "Ajax "+status, pnotify_type: 'error', pnotify_text: error.description});
+	    }
+
 	    function buttonJS () { 
 		//alert($(this).attr("name")+" button pressed");
 		$("#Spinner_").show();
@@ -267,7 +273,7 @@ class create ::WubTkI {
 			//alert("button: "+data);
 		    },
 		    error: function (xhr, status, error) {
-			alert("ajax fail:"+status);
+			ereport(status, error);
 		    }
 		});
 	    }
@@ -291,10 +297,11 @@ class create ::WubTkI {
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
 			$("#Spinner_").hide();
+			//$.pnotify({pnotify_title: "RadioButton", pnotify_text: data})
 			//alert("rbutton: "+data);
 		    },
 		    error: function (xhr, status, error) {
-			alert("ajax fail:"+status);
+			ereport(status, error);
 		    }
 		});
 	    }
@@ -319,7 +326,7 @@ class create ::WubTkI {
 			//alert("cbutton: "+data);
 		    },
 		    error: function (xhr, status, error) {
-			alert("ajax fail:"+status);
+			ereport(status, error);
 		    }
 		});
 	    }
@@ -338,7 +345,7 @@ class create ::WubTkI {
 			$("#Spinner_").hide();
 		    },
 		    error: function (xhr, status, error) {
-			alert("ajax fail:"+status);
+			ereport(status, error);
 		    }
 		});
 	    }
@@ -399,7 +406,6 @@ class create ::WubTkI {
 	    append content [grid render]
 	    set r [grid js $r]
 	    Debug.wubtk {RENDER JS: [my stripjs $r]}
-	    append content [my <div> id ErrDiv]
 	    append content [my <span> id STORE {}]
 
 	    variable toplevels
@@ -511,16 +517,13 @@ class create ::WubTkI {
 
 	if {[llength [info commands [namespace current]::$widget]]} {
 	    Debug.wubtk {event $widget ($Q)}
-	    set e {$('#ErrDiv').html('');}
+	    set content "<!-- changes due to event '$widget [dict r.-op] [string range [dict Q.val?] 0 10]...' -->\n"
 	    try {
 		$widget [dict r.-op] [dict Q.val?] {*}[dict Q.widget?]	;# run the widget op
 	    } on error {e eo} {
 		# widget op caused an error - report on it
 		Debug.wubtk {event error on $widget: '$e' ($eo)}
-		set e "cmd: [string map [list \" \\\" ' \\'] $e]"
-		set e [string map [list %E% $e] {
-		    $('#ErrDiv').html('<p>Error: %E% </p>');
-		}]
+		append content [jQ popup type error title "Script Error" [armour $e]]
 	    } finally {
 		variable redirect
 		if {[llength $redirect]} {
@@ -537,17 +540,15 @@ class create ::WubTkI {
 		}
 
 		# normal result - flush changes caused by event processing
-		set content "<!-- changes due to event '$widget [dict r.-op] [string range [dict Q.val?] 0 10]...' -->"
 		append content \n [my update $changes]
 		append content \n [my stripjs $r]
-		append content \n $e
 
 		tailcall Http Ok $r $content application/javascript
 	    }
 	} else {
 	    # widget doesn't exist - report that
 	    Debug.wubtk {not found [namespace current]::$widget}
-	    set content "\$('#ErrDiv').html('Widget "$widget" not found');"
+	    set content [jQ popup type error "Widget '$widget' not found"]
 	    return [Http Ok $r $content application/javascript]
 	}
     }
@@ -636,7 +637,7 @@ class create ::WubTkI {
 			    } else {
 				# widget doesn't exist - report that
 				Debug.wubtk {not found [namespace current]::$widget}
-				set content "\$('#ErrDiv').html('Widget "$widget" not found');"
+				set content [jQ popup type error "Widget '$widget' not found"]
 				set r [Http Ok $r $content application/javascript]
 			    }
 			}
@@ -721,8 +722,8 @@ class create ::WubTkI {
 	    my setdefault table class ui-widget
 	    #my setdefault table style {width:80%} 
 	    my setdefault tbody class ui-widget
-	    my setdefault legend class {ui-widget-header ui-corner-all}
-	    my setdefault label class {ui-widget-header ui-corner-all}
+	    my setdefault legend class {legend ui-widget-header ui-corner-all}
+	    my setdefault label class {label ui-widget-header ui-corner-all}
 	}
 
 	# create an interpreter within which to evaluate user code
