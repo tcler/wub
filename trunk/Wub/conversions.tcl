@@ -11,6 +11,7 @@ package provide conversions 1.0
 namespace eval ::conversions {
     # HTML DOCTYPE header
     variable htmlhead {<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">}
+    set htmlhead {<!DOCTYPE HTML>}
 
     # convert an HTML fragment to HTML
     proc .x-text/html-fragment.text/html {rsp} {
