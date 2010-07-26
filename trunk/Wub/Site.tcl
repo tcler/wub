@@ -382,6 +382,7 @@ namespace eval ::Site {
     proc section {sect} {
 	set section [config get $sect]
 	if {[dict exists $section domain] || [dict exists $section handler]} {
+	    # Domain Nub declaration
 	    if {![dict exists $section url]} {
 		error "nub '$sect' declared in .config must have a url value"
 	    }
@@ -411,16 +412,20 @@ namespace eval ::Site {
 	    foreach {n v} $section {
 		lappend a $n $v
 	    }
+
 	    if {[dict exists $a -threaded]} {
+		# this is a threaded domain
 		set targs [dict get $a -threaded]
 		dict unset a -threaded
 		Debug.nubsite {Nub domain $url [list Threaded ::Domains::$sect] {*}$targs $domain $a}
 		Nub domain $url [list Threaded ::Domains::$sect] {*}$targs $domain {*}$a
 	    } else {
+		# this is a non-threaded domain
 		Debug.nubsite {Nub domain $url [list $domain ::Domains::$sect] $a}
 		Nub domain $url [list $domain ::Domains::$sect] {*}$a
 	    }
 	} elseif {[dict exists $section block]} {
+	    # Block Nub section
 	    dict with section {
 		Debug.nubsite {Nub block $block}
 		Nub block $block
@@ -428,6 +433,7 @@ namespace eval ::Site {
 	} elseif {![dict exists $section url]} {
 	    error "nub '$sect' declared in .config must have a url value"
 	} elseif {[dict exists $section code]} {
+	    # Code Nub section
 	    dict with section {
 		if {![info exists mime]} {
 		    set mime x-text/html-fragment
@@ -438,6 +444,7 @@ namespace eval ::Site {
 		Nub code $url $code $mime
 	    }
 	} elseif {[dict exists $section literal]} {
+	    # Literal Nub section
 	    dict with section {
 		if {![info exists mime]} {
 		    set mime x-text/html-fragment
@@ -448,16 +455,19 @@ namespace eval ::Site {
 		Nub literal $url $literal $mime
 	    }
 	} elseif {[dict exists $section redirect]} {
+	    # Redirect Nub section
 	    dict with section {
 		Debug.nubsite {Nub redirect $url $redirect}
 		Nub redirect $url $redirect
 	    }
 	} elseif {[dict exists $section rewrite]} {
+	    # Rewrite Nub section
 	    dict with section {
 		Debug.nubsite {Nub rewrite [lindex $url 0] $rewrite}
 		Nub rewrite [lindex $url 0] $rewrite
 	    }
 	} elseif {[dict exists $section auth]} {
+	    # Auth Nub section
 	    dict with section {
 		Debug.nubsite {Nub auth [lindex $url 0] $auth}
 		Nub auth [lindex $url 0] $auth
