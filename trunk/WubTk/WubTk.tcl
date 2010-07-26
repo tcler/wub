@@ -3,22 +3,26 @@
 # Inspired by Roy Keene's http://www.rkeene.org/projects/tkweb/
 
 # TODO:
-#* comet - ajax push - for mods to local vars ... push them to client DONE?
-#* fix Site so it grabs WubTk
+#* comet - ajax push - for mods to local vars ... push them to client BUGGY
+#* fix Site so it grabs WubTk DONE?
 #* rename to Toplevel?
 #* [exit] to redirect DONE
-#* [toplevel] to create a new window/tab - the old Tk hangs around
-#* frame -> fieldset
-#* ensure text is working
+#* [toplevel] to create a new window/tab - the old Tk hangs around DONE
+#* frame -> fieldset DONE
+#* ensure text is working DONE
 #* enable/push wm title changes
 #* what to do about event [update] stuff? - currently stubbed
 #* spinning wheel on updates DONE
-#* menus
+#* frames, labelframes DONE
+#* add -grid {r c rs cs} option to widgets, to take over the [grid configure .w] function DONE
+#* add [Widget relative] method to give name-within-grid DONE
+#* move all widget commands into an interp DONE
+#* some sort of combo box
+#* select list box
+#* radiobutton
+#* spin selector
 #* comboboxes, spinboxes
-#* frames, labelframes
-#* add -grid {r c rs cs} option to widgets, to take over the [grid configure .w] function
-#* add [Widget relative] method to give name-within-grid
-#* move all widget commands into an interp
+#* menus
 
 package require Debug
 Debug define wubtk 10
@@ -40,20 +44,26 @@ set ::WubTk_dir [file normalize [file dirname [info script]]]
 
 class create ::WubTkI {
     method buttonJS {{what .button}} {
-	return [string map [list %B% [jQ S $what]] {
+	return [string map [list %B% $what] {
 	    $('%B%').button();
 	    $('%B%').click(buttonJS);
 	}]
     }
 
     method cbuttonJS {{what .cbutton}} {
-	return [string map [list %B% [jQ S $what]] {
+	return [string map [list %B% $what] {
 	    $('%B%').change(cbuttonJS);
 	}]
     }
 
+    method rbuttonJS {{what .rbutton}} {
+	return [string map [list %B% $what] {
+	    $('%B%').click(rbuttonJS);
+	}]
+    }
+
     method variableJS {{what .variable}} {
-	return [string map [list %B% [jQ S $what]] {
+	return [string map [list %B% $what] {
 	    $('%B%').change(variableJS);
 	}]
     }
@@ -62,11 +72,13 @@ class create ::WubTkI {
 	Debug.wubtk {[self] UPDATE ($changes)}
 
 	set result ""
-	foreach {id html type} $changes {
+	foreach {widget id html type} $changes {
 	    Debug.wubtk {[namespace tail [self]] changed id: $id type: $type}
 	    dict lappend classified $type $id
 	    set html [string map {\n \\n} $html]
 	    set jid #$id
+
+	    append result "<!-- update widget:$widget id:$id type:$type -->" \n
 	    append result [string map [list %ID% $jid %H% $html] {
 		$('%ID%').replaceWith("%H%");
 	    }]
@@ -78,6 +90,9 @@ class create ::WubTkI {
 		}
 		checkbutton {
 		    append result [my cbuttonJS $jid]
+		}
+		radiobutton {
+		    append result [my rbuttonJS $jid]
 		}
 		entry -
 		text {
@@ -96,8 +111,8 @@ class create ::WubTkI {
 	set content {}
 	dict for {n v} [dict get? $r -script] {
 	    if {[string match !* $n]} {
-		#Debug.wubtk {stripjs: $n}
-		set v [join [lrange [split $v \n] 1 end-1] \n]
+		Debug.wubtk {stripjs: $n ($v)}
+		set v [join [lrange [split [string trim $v] \n] 1 end-2] \n]
 		lappend content $v
 	    }
 	}
@@ -231,12 +246,13 @@ class create ::WubTkI {
     method prep {r} {
 	# re-render whole page
 	set r [jQ jquery $r]
-	set r [jQ scripts $r jquery.form.js]
+	set r [jQ scripts $r jquery.form.js jquery.metadata.js]
 	set r [jQ tabs $r .notebook]
 	set r [jQ accordion $r .accordion]
 
 	# define some useful functions
 	set r [Html postscript $r {
+	    $.metadata.setType("html5");	// use HTML5 metadata
 	    function buttonJS () { 
 		//alert($(this).attr("name")+" button pressed");
 		$("#Spinner_").show();
@@ -249,6 +265,33 @@ class create ::WubTkI {
 		    success: function (data, textStatus, XMLHttpRequest) {
 			$("#Spinner_").hide();
 			//alert("button: "+data);
+		    },
+		    error: function (xhr, status, error) {
+			alert("ajax fail:"+status);
+		    }
+		});
+	    }
+
+	    function rbuttonJS () { 
+		$("#Spinner_").show();
+
+		var name = $(this).attr("name");
+		var val = $(this).val();
+		$.metadata.setType("html5");
+		var widget = $(this).metadata().widget;
+		var data = {id: name, val: val, widget: widget, _op_: "rbutton"};
+
+		//alert(name+" rbutton value "+ val+ " widget:"+widget);
+
+		$.ajax({
+		    context: this,
+		    type: "GET",
+		    url: ".",
+		    data: data,
+		    dataType: "script",
+		    success: function (data, textStatus, XMLHttpRequest) {
+			$("#Spinner_").hide();
+			//alert("rbutton: "+data);
 		    },
 		    error: function (xhr, status, error) {
 			alert("ajax fail:"+status);
@@ -304,6 +347,7 @@ class create ::WubTkI {
 	# send js to track widget state
 	set r [jQ ready $r [my buttonJS]]
 	set r [jQ ready $r [my cbuttonJS]]
+	set r [jQ ready $r [my rbuttonJS]]
 	set r [jQ ready $r [my variableJS]]
 	set r [Html postscript $r "\$('.ubutton').button();"]
     }
@@ -443,6 +487,7 @@ class create ::WubTkI {
 	    grid prod 1	;# register interest
 	} else {
 	    grid prod 0	;# no registered interest
+	    append update \n "<!-- do_refresh -->" \n
 	    set r [Http Ok $r $update application/javascript]
 	}
 	return $r
@@ -468,7 +513,7 @@ class create ::WubTkI {
 	    Debug.wubtk {event $widget ($Q)}
 	    set e {$('#ErrDiv').html('');}
 	    try {
-		$widget [dict r.-op] [dict Q.val?]	;# run the widget op
+		$widget [dict r.-op] [dict Q.val?] {*}[dict Q.widget]	;# run the widget op
 	    } on error {e eo} {
 		# widget op caused an error - report on it
 		Debug.wubtk {event error on $widget: '$e' ($eo)}
@@ -480,22 +525,24 @@ class create ::WubTkI {
 		variable redirect
 		if {[llength $redirect]} {
 		    # the widget command did a redirect
-		    return [my do_redir $r 1]
-		} else {
-		    # reflect changes due to the widget command
-		    set changes [lassign [grid changes $r] r]
-		    if {[dict exists $r -repaint]} {
-			# a repaint has been triggered through grid operation
-			catch {dict unset -r -script}
-			return [Http Ok $r {window.location='.';} application/javascript]
-		    } else {
-			# normal result - flush changes to client
-			set content [my update $changes]
-			append content [my stripjs $r]
-			append content $e
-			return [Http Ok $r $content application/javascript]
-		    }
+		    tailcall my do_redir $r 1
 		}
+
+		# reflect changes due to the widget command
+		set changes [lassign [grid changes $r] r]
+		if {[dict exists $r -repaint]} {
+		    # a repaint has been triggered through grid operation
+		    catch {dict unset -r -script}
+		    tailcall Http Ok $r {window.location='.';} application/javascript
+		}
+
+		# normal result - flush changes caused by event processing
+		set content "<!-- changes due to event '$widget [dict r.-op] [string range [dict Q.val?] 0 10]...' -->"
+		append content \n [my update $changes]
+		append content \n [my stripjs $r]
+		append content \n $e
+
+		tailcall Http Ok $r $content application/javascript
 	    }
 	} else {
 	    # widget doesn't exist - report that
@@ -567,6 +614,7 @@ class create ::WubTkI {
 			command -
 			cbutton -
 			slider -
+			rbutton -
 			var {
 			    # process browser event
 			    set r [my event $r]
@@ -625,11 +673,29 @@ class create ::WubTkI {
 	return $r
     }
 
+    # maintain a table of unique pseudo-widgets for variables
+    # used to give radiobuttons a single name
+    method rbvar {var} {
+	variable rbvars
+	if {[dict exists $rbvars $var]} {
+	    return [dict rbvars.$var]
+	} else {
+	    variable rbcnt
+	    set rb [WubWidgets rbC create [namespace current]::.rb[incr rbcnt] variable $var -interp [list [namespace current]::Interp eval]]
+	    dict rbvars.$var $rb
+	    return $rb
+	}
+    }
+
     destructor {
 	catch {Interp destroy}
     }
 
     method destroyme {args} {
+	variable rbvars
+	dict for {n v} $rbvars {
+	    catch {$v destroy}
+	}
 	[self] destroy
     }
 
@@ -643,6 +709,7 @@ class create ::WubTkI {
 	Debug.wubtk {constructed WubTkI self-[self]  - ns-[namespace current] ($args)}
 
 	variable toplevels {}	;# keep track of toplevels
+	variable rbvars {}	;# keep track of radiobutton vars
 
 	if {$theme ne ""} {
 	    # set Form defaults

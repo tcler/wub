@@ -85,16 +85,24 @@ proc tkd {} {
 
     button .nb.tab1.h -text "Clear" -command {.nb.tab1.g delete 1.0 end; .nb.tab1.i configure -text ""} -grid {4 0}
     button .nb.tab1.j -text "Show Code" -command "showCode" -grid {4 2}
-    checkbutton .nb.tab1.k -text "check me out" -variable ckbt -grid {5 0}
-    entry .nb.tab1.o -textvariable ckbt -width 4 -justify right -grid {5 1}
-    set k ""
-    set rb ""
 
     button .nb.tab1.m -text Read -command readckrd -grid {5 2}
     scale .nb.tab1.p -text "slide me" -variable scl -from 0 -to 100 -grid {6 0 1 2}
     entry .nb.tab1.q -textvariable scl -width 4 -justify right -grid {6 2}
-    frame .nb.tab1.uframe -text "Upload File Test" -grid {7 0 1 3} -radius 7px
+    
+    frame .nb.tab1.cframe -text "Checkbutton" -grid {6 0 1 3}
+    checkbutton .nb.tab1.cframe.k -text "check me out" -variable ckbt -grid {0 0}
+    entry .nb.tab1.cframe.o -textvariable ckbt -width 4 -justify right -grid {0 1}
+    set k ""
+    set rb ""
+
+    frame .nb.tab1.uframe -text "Upload File" -grid {7 0 1 3}
     upload .nb.tab1.uframe.f1 -title "Upload a file" -command getupload -grid {0 0}
+
+    frame .nb.tab1.rframe -text "Radiobutton" -grid {8 0 1 3}
+    radiobutton .nb.tab1.rframe.r1 -value apple -variable fruit -text "Apple" -grid {0 0}
+    radiobutton .nb.tab1.rframe.r2 -value banana -variable fruit -text "Banana" -grid {1 0}
+    radiobutton .nb.tab1.rframe.r3 -value cherry -variable fruit -text "Cherry" -grid {2 0}
 
     set joe bob
     set ckbt 0
