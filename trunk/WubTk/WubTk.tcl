@@ -67,7 +67,7 @@ class create ::WubTkI {
 	    dict lappend classified $type $id
 	    set html [string map {\n \\n} $html]
 	    set jid #$id
-	    append result [string map [list %ID% [jQ S $jid] %H% $html] {
+	    append result [string map [list %ID% $jid %H% $html] {
 		$('%ID%').replaceWith("%H%");
 	    }]
 
@@ -107,6 +107,11 @@ class create ::WubTkI {
     method rq {} {
 	variable r
 	return $r
+    }
+
+    method script {} {
+	variable script
+	return $script
     }
 
     method redirect {args} {
@@ -516,6 +521,7 @@ class create ::WubTkI {
 	Debug.wubtk {[info coroutine] PROCESS in namespace:[namespace current]}
 
 	variable r $req	;# keep our current request around
+	variable script $lambda
 
 	# run user code - return result
 	variable cdict [dict get? $r -cookies]
