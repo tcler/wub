@@ -488,6 +488,7 @@ namespace eval ::WubWidgets {
 		    });
 		}
 	    }]
+
 	    return [jQ slider $r #[my id] {*}$args]
 	}
 
@@ -823,6 +824,10 @@ namespace eval ::WubWidgets {
 		    return [$widget cget? %N%]
 		}
 	    }]
+	}
+
+	method script {args} {
+	    return [my connection script]
 	}
 
 	constructor {args} {
