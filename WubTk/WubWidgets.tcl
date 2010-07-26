@@ -76,7 +76,6 @@ namespace eval ::WubWidgets {
 	method copytextvar {varname op value} {
 	    variable textvariable
 	    variable text
-	    variable interp
 	    set text [my iget $textvariable]
 	    Debug.wubwinterp {[namespace tail [self]] copytextvar text <- '$text' from '$textvariable'}
 	    variable change
@@ -246,7 +245,9 @@ namespace eval ::WubWidgets {
 	}
 
 	method js {r} {
+	    #Debug.wubwidgets {[namespace tail [self]] js requested by [info level -1]}
 	    if {[set js [my cget? -js]] ne ""} {
+		set js "<!-- widget js -->\n$js"
 		set r [Html postscript $r $js]
 	    }
 	    return $r
@@ -256,7 +257,7 @@ namespace eval ::WubWidgets {
 	    set cmd [my cget? command]
 	    if {$cmd ne ""} {
 		set cmd [string map [list %W .[my widget]] $cmd]
-		Debug.wubwidgets {[self] calling command ($cmd)}
+		Debug.wubwidgets {[namespace tail [self]] calling command ($cmd)}
 		variable interp
 		{*}$interp $cmd
 	    }
@@ -282,7 +283,6 @@ namespace eval ::WubWidgets {
 
 	method cbutton {value} {
 	    variable variable
-	    variable interp
 	    Debug.wubwidgets {[self] cbutton: setting '$variable' to '$value'}
 	    if {$value} {
 		my iset $variable 1
@@ -290,6 +290,15 @@ namespace eval ::WubWidgets {
 		my iset $variable 0
 	    }
 	    my command
+	}
+
+	method rbutton {value {widget ""}} {
+	    variable variable
+	    Debug.wubwidgets {[self] rbutton: setting '$variable' to '$value' from widget '$widget'}
+	    my iset $variable $value
+	    if {$widget ne ""} {
+		uplevel 1 [list .$widget command]
+	    }
 	}
 
 	# style - construct an HTML style form
@@ -329,6 +338,11 @@ namespace eval ::WubWidgets {
 	    variable class
 	    if {[info exists class]} {
 		lappend result class $class
+	    }
+
+	    variable state
+	    if {[info exists state] && $state ne "normal"} {
+		lappend result disabled 1
 	    }
 
 	    return $result
@@ -420,6 +434,62 @@ namespace eval ::WubWidgets {
 	    set var [my cget variable]
 	    Debug.wubwidgets {checkbutton construction: setting $var} 
 	    my iset $var 0
+	}
+    }
+
+    oo::class create rbC {
+	method render {{id ""}} {
+	    error "Can't render an rbC"
+	}
+	method changed? {} {return 0}
+	
+	superclass ::WubWidgets::widget
+ 	constructor {args} {
+	    next {*}$args	;# set up traces etc
+	}
+    }
+
+    oo::class create radiobuttonC {
+	method render {{id ""}} {
+	    set id [my id $id]
+
+	    if {[my cexists textvariable]} {
+		set label [my iget [my cget textvariable]]
+	    } else {
+		set label [my cget text]
+	    }
+	    
+	    Debug.wubwidgets {radiobutton render: getting '[my cget variable]' == [my iget [my cget variable]]}
+	    set checked 0
+	    set var [my cget variable]
+	    if {[my iexists $var]} {
+		set val [my iget $var]
+		if {$val eq [my cget value]} {
+		    set checked 1
+		}
+	    }
+
+	    Debug.wubwidgets {[self] radiobox render: checked:$checked}
+	    my reset
+
+	    set result [my connection <radio> [[my connection rbvar $var] widget] id $id class rbutton {*}[my style] checked $checked value [my cget value] data-widget '[my widget]' [my compound $label]]
+	    Debug.wubwidgets {RADIO html: $result}
+	    return $result
+	}
+	
+	superclass ::WubWidgets::widget
+ 	constructor {args} {
+	    next {*}[dict merge [list -variable [my widget]] {
+		text ""
+		justify left
+	    } $args]
+
+	    # construct a grid var to give us a name
+	    set var [my cget variable]
+	    my connection rbvar $var	;# construct a pseudo-widget to handle all rbs
+
+	    Debug.wubwidgets {radiobutton construction: setting $var} 
+	    my iset $var [my cget value]
 	}
     }
 
@@ -519,18 +589,14 @@ namespace eval ::WubWidgets {
 		set val ""
 	    }
 
-	    set disabled ""
-	    if {[my cget -state] ne "normal"} {
-		set disabled {disabled 1}
-	    }
-
 	    my reset
-	    set cmd <text>
+
+	    set tag <text>
 	    set extra {}
 	    if {[my cexists type]} {
 		switch -- [my cget type] {
 		    password {
-			set cmd <password>
+			set tag <password>
 		    }
 		    date -
 		    default {
@@ -538,7 +604,7 @@ namespace eval ::WubWidgets {
 		}
 	    }
 
-	    return [my connection $cmd [my widget] id $id class variable {*}$disabled {*}[my style] size [my cget -width] [tclarmour [armour $val]]]
+	    return [my connection $tag [my widget] id $id class variable {*}[my style] size [my cget -width] [tclarmour [armour $val]]]
 	}
 
 	method js {r} {
@@ -757,7 +823,6 @@ namespace eval ::WubWidgets {
 
 	method render {{id ""}} {
 	    set id [my id $id]
-	    set state [my cget -state]
 	    
 	    if {[my cexists textvariable]} {
 		set var [my cget -textvariable]
@@ -767,13 +832,8 @@ namespace eval ::WubWidgets {
 	    }
 	    set class {class variable}
 	    
-	    set disabled ""
-	    if {[my cget -state] ne "normal"} {
-		set disabled {disabled 1}
-	    }
-	    
 	    my reset
-	    return [my connection <textarea> [my widget] id $id {*}$class {*}$disabled {*}[my style] rows [my cget -height] cols [my cget -width] [tclarmour [armour $val]]]
+	    return [my connection <textarea> [my widget] id $id {*}$class {*}[my style] rows [my cget -height] cols [my cget -width] [tclarmour [armour $val]]]
 	}
 	
 	superclass ::WubWidgets::widget
@@ -930,9 +990,11 @@ namespace eval ::WubWidgets {
 	# traverse grid looking for changes.
 	method changes {r} {
 	    if {[dict exists $r -repaint]} {
+		# repaint short-circuits change search
 		Debug.wubwidgets {Grid '[namespace tail [self]]' repainting}
 		return [list $r {}]
 	    }
+
 	    variable grid;variable oldgrid
 	    Debug.wubwidgets {Grid '[namespace tail [self]]' changes}
 
@@ -947,6 +1009,7 @@ namespace eval ::WubWidgets {
 		    }
 		}
 	    }
+
 	    if {[dict size [dict ni $oldgrid [dict keys $grid]]]} {
 		# a grid element has been deleted
 		dict set r -repaint 1
@@ -957,36 +1020,42 @@ namespace eval ::WubWidgets {
 	    dict for {row rval} $grid {
 		dict for {col val} $rval {
 		    dict with val {
-			if {[uplevel 1 [list $widget changed?]]} {
-			    set type [uplevel 1 [list $widget type]]
-			    switch -- $type {
-				accordion -
-				notebook -
-				frame {
-				    set changed [lassign [uplevel 1 [list $widget changes $r]] r]
-				    if {[dict exists $r -repaint]} {
-					Debug.wubwidgets {Grid '[namespace tail [self]]' repainting because of changes in $type '$widget'}
-					return [list $r {}]	;# repaint
-				    } else {
-					Debug.wubwidgets {Grid '[namespace tail [self]]' changes to [string totitle $type] '$widget' at ($row,$col) ($val) -> ($changed)}
-				    }
-				}
-				default {
-				    set changed [list [uplevel 1 [list $widget id]] [uplevel 1 [list $widget render]] [uplevel 1 [list $widget type]]]
+			set type [uplevel 1 [list $widget type]]
+			set changed {}
+			switch -- $type {
+			    accordion -
+			    notebook -
+			    frame {
+				# propagate change request to geometry managing widgets
+				set changed [lassign [uplevel 1 [list $widget changes $r]] r]
+				if {[dict exists $r -repaint]} {
+				    Debug.wubwidgets {Grid '[namespace tail [self]]' repainting because of changes in $type '$widget'}
+				    return [list $r {}]	;# repaint
+				} else {
 				    Debug.wubwidgets {Grid '[namespace tail [self]]' changes to [string totitle $type] '$widget' at ($row,$col) ($val) -> ($changed)}
 				}
 			    }
 
-			    lappend changes {*}$changed
-
-			    set r [uplevel 1 [list $widget js $r]]
+			    default {
+				if {[uplevel 1 [list $widget changed?]]} {
+				    Debug.wubwidgets {changes: $widget reports it's changed}
+				    
+				    set changed [list $widget [uplevel 1 [list $widget id]] [uplevel 1 [list $widget render]] [uplevel 1 [list $widget type]]]
+				    Debug.wubwidgets {Grid '[namespace tail [self]]' changes to [string totitle $type] '$widget' at ($row,$col) ($val) -> ($changed)}
+				}
+			    }
 			}
+
+			lappend changes {*}$changed
+			set r [uplevel 1 [list $widget js $r]]
 		    }
 		}
 	    }
 
 	    return [list $r {*}$changes]	;# return the dict of changes by id
 	}
+
+	method changed? {} {return 1}
 
 	# something has changed us
 	method prod {{prod ""}} {
@@ -1139,11 +1208,11 @@ namespace eval ::WubWidgets {
 	    variable maxcols 0
 	    variable maxrows 0
 	    variable name ""
-
 	    variable {*}$args
 
 	    variable grid {}
 	    variable interest 0
+
 	    oo::objdefine [self] forward connection [namespace qualifiers [self]]::connection
 	}
     }
@@ -1540,7 +1609,7 @@ namespace eval ::WubWidgets {
     }
 
     # make shims for each kind of widget
-    variable tks {button label entry text checkbutton scale frame notebook accordion html toplevel upload cookie}
+    variable tks {button label entry text checkbutton scale frame notebook accordion html toplevel upload cookie radiobutton}
 
     namespace export -clear *
     namespace ensemble create -subcommands {}
