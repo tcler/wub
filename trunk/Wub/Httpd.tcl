@@ -2175,6 +2175,7 @@ namespace eval Httpd {
 
     # connect - process a connection request
     proc Connect {sock ipaddr rport args} {
+	variable server_id
 	Debug.httpd {Connect $sock $ipaddr $rport $args}
 	if {[catch {
 	    set s [Socket new chan $sock -file sock.dump -capture 0]
@@ -2184,7 +2185,6 @@ namespace eval Httpd {
 	    Debug.error {connection error from $ipaddr:$rport - $ns ($eo)}
 
 	    variable exhaustion
-	    variable server_id
 	    set msg [dict get? [Http Unavailable {} "$ns ($eo)" $exhaustion] -content]
 
 	    puts $sock "HTTP/1.1 503 Exhaustion\r"
