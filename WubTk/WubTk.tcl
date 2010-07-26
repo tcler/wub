@@ -42,76 +42,19 @@ class create ::WubTkI {
     method buttonJS {{what .button}} {
 	return [string map [list %B% [jQ S $what]] {
 	    $('%B%').button();
-	    $('%B%').click(function () { 
-		//alert($(this).attr("name")+" button pressed");
-		$("#Spinner_").show();
-		$.ajax({
-		    context: this,
-		    type: "GET",
-		    url: ".",
-		    data: {id: $(this).attr("name"), _op_: "command"},
-		    dataType: "script",
-		    success: function (data, textStatus, XMLHttpRequest) {
-			$("#Spinner_").hide();
-			//alert("button: "+data);
-		    },
-		    error: function (xhr, status, error) {
-			alert("ajax fail:"+status);
-		    }
-		});
-	    });
+	    $('%B%').click(buttonJS);
 	}]
     }
 
     method cbuttonJS {{what .cbutton}} {
 	return [string map [list %B% [jQ S $what]] {
-	    $('%B%').change(function () { 
-		//alert($(this).attr("name")+" cbutton pressed");
-		$("#Spinner_").show();
-		var data = {id: $(this).attr("name"), val: 0, _op_: "cbutton"};
-		var val = this.value;
-		if($(this).is(":checked")) {
-		    data['val'] = val;
-		}
-
-		$.ajax({
-		    context: this,
-		    type: "GET",
-		    url: ".",
-		    data: data,
-		    dataType: "script",
-		    success: function (data, textStatus, XMLHttpRequest) {
-			$("#Spinner_").hide();
-			//alert("cbutton: "+data);
-		    },
-		    error: function (xhr, status, error) {
-			alert("ajax fail:"+status);
-		    }
-		});
-	    });
+	    $('%B%').change(cbuttonJS);
 	}]
     }
 
     method variableJS {{what .variable}} {
 	return [string map [list %B% [jQ S $what]] {
-	    $('%B%').change(function () {
-		//alert($(this).attr("name")+" changed: " + $(this).val());
-		$("#Spinner_").show();
-		$.ajax({
-		    context: this,
-		    type: "GET",
-		    url: ".",
-		    data: {id: $(this).attr("name"), val: $(this).val(), _op_: "var"},
-		    dataType: "script",
-		    success: function (data, textStatus, XMLHttpRequest) {
-			//alert("variable: "+data);
-			$("#Spinner_").hide();
-		    },
-		    error: function (xhr, status, error) {
-			alert("ajax fail:"+status);
-		    }
-		});
-	    });
+	    $('%B%').change(variableJS);
 	}]
     }
 
@@ -286,6 +229,72 @@ class create ::WubTkI {
 	set r [jQ scripts $r jquery.form.js]
 	set r [jQ tabs $r .notebook]
 	set r [jQ accordion $r .accordion]
+
+	# define some useful functions
+	set r [Html postscript $r {
+	    function buttonJS () { 
+		//alert($(this).attr("name")+" button pressed");
+		$("#Spinner_").show();
+		$.ajax({
+		    context: this,
+		    type: "GET",
+		    url: ".",
+		    data: {id: $(this).attr("name"), _op_: "command"},
+		    dataType: "script",
+		    success: function (data, textStatus, XMLHttpRequest) {
+			$("#Spinner_").hide();
+			//alert("button: "+data);
+		    },
+		    error: function (xhr, status, error) {
+			alert("ajax fail:"+status);
+		    }
+		});
+	    }
+
+	    function cbuttonJS () { 
+		//alert($(this).attr("name")+" cbutton pressed");
+		$("#Spinner_").show();
+		var data = {id: $(this).attr("name"), val: 0, _op_: "cbutton"};
+		var val = this.value;
+		if($(this).is(":checked")) {
+		    data['val'] = val;
+		}
+
+		$.ajax({
+		    context: this,
+		    type: "GET",
+		    url: ".",
+		    data: data,
+		    dataType: "script",
+		    success: function (data, textStatus, XMLHttpRequest) {
+			$("#Spinner_").hide();
+			//alert("cbutton: "+data);
+		    },
+		    error: function (xhr, status, error) {
+			alert("ajax fail:"+status);
+		    }
+		});
+	    }
+
+	    function variableJS () {
+		//alert($(this).attr("name")+" changed: " + $(this).val());
+		$("#Spinner_").show();
+		$.ajax({
+		    context: this,
+		    type: "GET",
+		    url: ".",
+		    data: {id: $(this).attr("name"), val: $(this).val(), _op_: "var"},
+		    dataType: "script",
+		    success: function (data, textStatus, XMLHttpRequest) {
+			//alert("variable: "+data);
+			$("#Spinner_").hide();
+		    },
+		    error: function (xhr, status, error) {
+			alert("ajax fail:"+status);
+		    }
+		});
+	    }
+	}]
 
 	# send js to track widget state
 	set r [jQ ready $r [my buttonJS]]
