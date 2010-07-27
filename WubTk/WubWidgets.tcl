@@ -558,8 +558,10 @@ namespace eval ::WubWidgets {
 		    });
 		}
 	    }]
+	    set r [jQ slider $r #[my id] {*}$args]
 
-	    return [jQ slider $r #[my id] {*}$args]
+	    set r [next $r]	;# include widget -js
+	    return $r
 	}
 
 	superclass ::WubWidgets::widget
@@ -618,7 +620,8 @@ namespace eval ::WubWidgets {
 		    Debug.wubwidgets {entry js: [dict get? $r -script]}
 		}
 	    }
-	    return [next? $r]
+	    set r [next $r]	;# include widget -js
+	    return $r
 	}
 
 	superclass ::WubWidgets::widget
@@ -684,6 +687,7 @@ namespace eval ::WubWidgets {
 
 	# optional - add per-widget js
 	method js {r} {
+	    set r [next $r]	;# include widget -js
 	    return $r
 	}
 
@@ -1257,7 +1261,9 @@ namespace eval ::WubWidgets {
 
 	method js {r} {
 	    variable fgrid
-	    return [uplevel 1 [list $fgrid js $r]]
+	    set r [uplevel 1 [list $fgrid js $r]]
+	    set r [next $r]	;# include widget -js
+	    return $r
 	}
 
 	destructor {
@@ -1349,7 +1355,9 @@ namespace eval ::WubWidgets {
 
 	method js {r} {
 	    variable tgrid
-	    return [uplevel 1 [list $tgrid js $r]]
+	    set r [uplevel 1 [list $tgrid js $r]]
+	    set r [next $r]	;# include widget -js
+	    return $r
 	}
 
 	destructor {
@@ -1391,7 +1399,7 @@ namespace eval ::WubWidgets {
 		set r [Html postscript $r $js]
 	    }
 	    set r [Html postscript $r "\$('#[my id]').button();"]
-
+	    set r [next $r]	;# include widget -js
 	    return $r
 	}
 
@@ -1471,12 +1479,12 @@ namespace eval ::WubWidgets {
 		}
 	    }
 
-	    if {$set} {
-		return $r
-	    } else {
+	    if {!$set} {
 		incr set
-		return [jQ tabs $r "#[my id]"]
+		set r [jQ tabs $r "#[my id]"]
+		set r [next $r]	;# include widget -js
 	    }
+	    return $r
 	}
 
 	method add {w args} {
@@ -1562,12 +1570,12 @@ namespace eval ::WubWidgets {
 	    }
 
 	    variable set
-	    if {$set} {
-		return $r
-	    } else {
+	    if {!$set} {
 		incr set
-		return [jQ accordion $r #[my id]]
+		set r [jQ accordion $r #[my id]]
+		set r [next $r]	;# include widget -js
 	    }
+	    return $r
 	}
 
 	method add {args} {
