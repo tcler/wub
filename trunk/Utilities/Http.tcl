@@ -823,7 +823,7 @@ namespace eval ::Http {
 	set result [dict merge $result [dict in $rsp $rq_headers]]
 
 	variable notmod_headers
-	set result [dict merge $result [dict in $notmod_headers]]
+	set result [dict merge $result [dict in $rsp $notmod_headers]]
 
 	# tell the other end that this isn't the last word.
 	if {0 && ![dict exists $result expires]
@@ -1064,7 +1064,7 @@ namespace eval ::Http {
     # find etag in if-range field
     proc if-range {req etag} {
 	if {![dict exists $req if-range]} {
-	    return 0
+	    return 1
 	}
 	set etag \"[string trim $etag \"]\"
 	set im [split [dict get $req if-range] ","]
