@@ -391,7 +391,8 @@ namespace eval Httpd {
 
     # format4send - format up a reply for sending.
     proc format4send {reply args} {
-	Debug.httpd {format4send $args}
+	Debug.httpd {format4send $args ([dict merge $reply {content <ELIDED>}])}
+
 	set file ""
 	set sock [dict get $reply -sock]
 	set cache [expr {[dict get? $args -cache] eq "1"}]
@@ -458,10 +459,11 @@ namespace eval Httpd {
 			set cache 0	;# can't cache no content
 		    }
 
-		    if {!$empty && $code == 200} {
+		    if {!$empty && [string match 2* $code] && $code ne 204} {
 			# handle range for 200
 			set ranges [dict get? $reply range]
 			if {$ranges ne ""} {
+			    Debug.httpd {ranges: $ranges}
 			    set ranges [lindex [lassign [split $ranges =] unit] 0]
 			    set ranges [split $ranges ,]
 			    set ranges [lindex $ranges 0]	;# only handle one range
