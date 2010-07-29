@@ -13,9 +13,9 @@ Step 1:  Download the code (which you've probably done already)
 Step 2: Change into the Wub directory:
      cd wub/Wub/
 
-Step 3: configure the site.config (optional, the defaults are sensible)
+Step 3: configure the site.config
      cp example.config site.config
-     # edit to your taste
+     # edit to your taste, or just leave it as is
 
 Step 4: Run the demo application:
 
