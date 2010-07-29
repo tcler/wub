@@ -224,6 +224,8 @@ namespace eval ::WubWidgets {
 	    Debug.wubwidgets {configured: $vars}
 	    if {[info exists grid]} {
 		# the widget needs to be gridded
+		set rs 1; set cs 1
+		Debug.wubwidgets {config gridding: '$grid'}
 		lassign $grid r c rs cs
 		set ga {}
 		foreach {v1 v2} {r row c column rs rowspan cs columnspan} {
@@ -1264,7 +1266,7 @@ namespace eval ::WubWidgets {
 	}
 
 	constructor {args} {
-	    Debug.wubwidgets {GRID [self] constructed}
+	    Debug.wubwidgets {[self] GRID constructed ($args)}
 	    variable maxcols 0
 	    variable maxrows 0
 	    variable name ""
@@ -1334,17 +1336,16 @@ namespace eval ::WubWidgets {
 	    set args [dict merge {} $args] 
 	    if {[dict exists $args -width]} {
 		variable width [dict get $args -width]
+		set w [list width $width]
 		dict unset args -width
+	    } else {
+		set w {}
 	    }
 	    next {*}$args
 
 	    # create a grid for this frame
 	    set name [self]..grid
-	    if {[dict exists $args -width]} {
-		set w [list style "width:$width"]
-	    } else {
-		set w {}
-	    }
+
 	    variable fgrid [WubWidgets gridC create $name {*}$w name .[my widget]]
 	    Debug.wubwidgets {created Frame [self] gridded by $fgrid}
 	}
