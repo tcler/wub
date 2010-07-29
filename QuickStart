@@ -23,6 +23,4 @@ Step 4: Run the demo application:
 
 Step 5: For later
 
-     customise the nubs: look in wub/Domains/nubs/ create a nub file to suit.
-     quick and dirty: local.tcl in Application directory is always sourced before startup.
-
+     customise the site.config
