@@ -62,7 +62,6 @@ proc getupload {} {
     .nb.tab1.g insert end [lindex $X 1]
 }
 
-
 proc tkd {} {
     global joe bob ckbt rdbt scl
 
@@ -87,19 +86,21 @@ proc tkd {} {
     button .nb.tab1.j -text "Show Code" -command "showCode" -grid {4 2}
 
     button .nb.tab1.m -text Read -command readckrd -grid {5 2}
-    scale .nb.tab1.p -text "slide me" -variable scl -from 0 -to 100 -grid {6 0 1 2}
-    entry .nb.tab1.q -textvariable scl -width 4 -justify right -grid {6 2}
+
+    frame .nb.tab1.sframe -text "Scale" -grid {6 0 1 3} -width 100%
+    entry .nb.tab1.sframe.q -textvariable scl -width 4 -justify left -grid {0 0}
+    scale .nb.tab1.sframe.p -text "slide me" -variable scl -from 0 -to 100 -grid {0 1}
     
-    frame .nb.tab1.cframe -text "Checkbutton" -grid {6 0 1 3}
+    frame .nb.tab1.cframe -text "Checkbutton" -grid {7 0 1 3}
     checkbutton .nb.tab1.cframe.k -text "check me out" -variable ckbt -grid {0 0}
     entry .nb.tab1.cframe.o -textvariable ckbt -width 4 -justify right -grid {0 1}
     set k ""
     set rb ""
 
-    frame .nb.tab1.uframe -text "Upload File" -grid {7 0 1 3}
+    frame .nb.tab1.uframe -text "Upload File" -grid {8 0 1 3}
     upload .nb.tab1.uframe.f1 -title "Upload a file" -command getupload -grid {0 0}
 
-    frame .nb.tab1.rframe -text "Radiobutton" -grid {8 0 1 3}
+    frame .nb.tab1.rframe -text "Radiobutton" -grid {9 0 1 3}
     radiobutton .nb.tab1.rframe.r1 -value apple -variable fruit -text "Apple" -grid {0 0}
     radiobutton .nb.tab1.rframe.r2 -value banana -variable fruit -text "Banana" -grid {1 0}
     radiobutton .nb.tab1.rframe.r3 -value cherry -variable fruit -text "Cherry" -grid {2 0}
