@@ -658,7 +658,14 @@ namespace eval ::Site {
 	::variable docroot
 
 	#### start Listeners
-	Listener new {*}[config section Listener] -httpd ::Httpd
+	set lconf [config section Listener]
+	if {[dict get? $lconf -myaddr] eq ""} {
+	    Listener new {*}[config section Listener] -httpd ::Httpd
+	} else {
+	    foreach p [dict get? $lconf -myaddr] {
+		Listener new {*}[config section Listener] -myaddr $p -httpd ::Httpd
+	    }
+	}
 
 	#### start HTTPS Listener
 	if {[config exists Https -port]
@@ -765,7 +772,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     set auto_path [list [pwd] {*}$auto_path]
 
     # Initialize Site
-    Site init home [file normalize [file dirname [info script]]] ini site.ini debug 10
+    Site init home [file normalize [file dirname [info script]]] config site.config debug 10
 
     # Start Site Server(s)
     Site start 
