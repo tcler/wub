@@ -38,7 +38,7 @@ case "$1" in
   start)
 	echo -n "Starting $DESC with $STARTER: "
 	if [ $STARTER = "daemon" ]; then
-	    /usr/bin/daemon --name=wub --chdir=$HOME --dbglog=$LOGDIR/wub.daemon --user=www-data.www-data --umask=005 --respawn --inherit --core --verbose=1 --debug=1 --errlog=$LOGDIR/wub.err --output=$LOGDIR/wub.out --command="$TCLSH $DAEMON $DAEMON_OPTS"
+	    /usr/bin/daemon --name=$SERVICE --chdir=$HOME --dbglog=$LOGDIR/wub.daemon --user=www-data.www-data --umask=005 --respawn --inherit --core --verbose=1 --debug=1 --errlog=$LOGDIR/wub.err --output=$LOGDIR/wub.out --command="$TCLSH $DAEMON $DAEMON_OPTS"
 	else
 	    start-stop-daemon --start --quiet --background \
 		--chuid www-data:www-data \
@@ -51,7 +51,7 @@ case "$1" in
   stop)
 	echo -n "Stopping $DESC: "
 	if [ $STARTER = "daemon" ]; then
-	    /usr/bin/daemon --user www-data.www-data --name=wub --stop
+	    /usr/bin/daemon --user www-data.www-data --name=$SERVICE --stop
 	else
 	    start-stop-daemon --stop --quiet --pidfile /var/run/$NAME.pid \
 		--exec $TCLSH
@@ -67,7 +67,7 @@ case "$1" in
 	#
 	echo -n "Restarting $DESC: "
 	if [ $STARTER = "daemon" ]; then
-	    /usr/bin/daemon --user www-data.www-data --name=wub --restart
+	    /usr/bin/daemon --user www-data.www-data --name=$SERVICE --restart
 	else
 	    start-stop-daemon --stop --quiet --pidfile \
 		/var/run/$NAME.pid --exec $DAEMON
