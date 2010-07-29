@@ -13,6 +13,7 @@ STARTER="daemon"
 HOME=/var/www/wub/Wub/
 LOGS=/var/log/wub/
 
+# load defaults by service
 SERVICE=`sed -e 's/-.*$//' <<EOF
 $0
 EOF`
