@@ -621,10 +621,11 @@ class create ::FormClass {
 		set result "<[my attr input {*}[dict in $config $boxA] {*}[dict filter $config key data-*]]>$content"
 
 		if {[set label [dict config.label?]] ne ""} {
+		    set lconfig [my defaults label]
 		    if {[dict exists $config title]} {
-			return "[my <label> for $id title [dict config.title] $label] $result"
+			return "[my <label> for $id title [dict config.title] {*}$lconfig $label] $result"
 		    } else {
-			return "[my <label> for $id $label] $result"
+			return "[my <label> for $id {*}$lconfig $label] $result"
 		    }
 		} else {
 		    return $result
@@ -830,8 +831,7 @@ class create ::FormClass {
 	    } else {
 		set content ""
 	    }
-	    
-	    return "<[my attr %T% $args]>$content</%T%>"
+	    return "<[my attr %T% [my defaults %T% {*}$args]]>$content</%T%>"
 	}]
 
 	return [uplevel 1 [list $cmd {*}$args]]
