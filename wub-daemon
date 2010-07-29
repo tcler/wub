@@ -12,9 +12,19 @@ TCLSH=/usr/bin/tclsh
 STARTER="daemon"
 HOME=/var/www/wub/Wub/
 LOGS=/var/log/wub/
-# Include tclhttpd defaults if available
-if [ -f /etc/default/wub ] ; then
-	. /etc/default/wub
+
+SERVICE=`sed -e 's/-.*$//' <<EOF
+$0
+EOF`
+echo $fred
+
+if [ $SERVICE = ""]; then
+    SERVICE="wub";
+fi
+
+# Include named defaults if available
+if [ -f /etc/default/$SERVICE ] ; then
+	. /etc/default/$SERVICE
 fi
 
 if [ $HOME = ""]; then
