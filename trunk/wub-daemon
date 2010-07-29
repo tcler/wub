@@ -17,7 +17,6 @@ LOGS=/var/log/wub/
 SERVICE=`sed -e 's/-.*$//' <<EOF
 $0
 EOF`
-echo $fred
 
 if [ $SERVICE = ""]; then
     SERVICE="wub";
