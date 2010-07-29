@@ -17,7 +17,7 @@ USER=www-data
 NAME=`sed -e 's/-.*$//' <<EOF
 $0
 EOF`
-
+NAME=`basename $NAME`
 if [ $NAME = ""]; then
     NAME="wub";
 fi
