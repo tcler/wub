@@ -52,7 +52,7 @@ class create ::WubTkI {
 
     method cbuttonJS {{what .cbutton}} {
 	return [string map [list %B% $what] {
-	    $('%B%').change(cbuttonJS);
+	    $('%B% > :checkbox').change(cbuttonJS);
 	}]
     }
 
@@ -403,7 +403,8 @@ class create ::WubTkI {
 	}
 
 	try {
-	    append content [grid render]
+	    #append content [grid render]
+	    append content \n [<form> form_ onsubmit "return false;" [grid render]]
 	    set r [grid js $r]
 	    Debug.wubtk {RENDER JS: [my stripjs $r]}
 	    append content [my <span> id STORE {}]
@@ -778,9 +779,6 @@ class create ::WubTkI {
 	    proc [namespace current]::$n {w args} [string map [list %N% $n %C% [self]] {
 		Debug.wubtk {SHIM: 'WubWidgets %N%C create [namespace current]::$w'}
 		set obj [WubWidgets %N%C create [namespace current]::$w -interp [list [namespace current]::Interp eval] -connection %C% {*}$args]
-		Interp alias [namespace tail $obj] $obj
-		#Debug.wubtk {aliases: [Interp aliases]}
-		
 		return [namespace tail $obj]
 	    }]
 	    Interp alias $n [namespace current]::$n
@@ -789,10 +787,14 @@ class create ::WubTkI {
 	# construct an image command
 	proc image {args} {
 	    Debug.wubtk {SHIM: 'WubWidgets image $args'}
-	    set obj [WubWidgets image {*}$args]
-	    Debug.wubtk {SHIMAGE: $obj}
-	    Interp alias [namespace tail $obj] $obj
-	    return [namespace tail $obj]
+	    set args [lassign $args cmd]
+	    if {$cmd eq "create"} {
+		set obj [WubWidgets image create {*}$args -interp [list [namespace current]::Interp eval]]
+		Debug.wubtk {SHIMAGE: $obj}
+		return [namespace tail $obj]
+	    } else {
+		return [WubWidgets image $cmd {*}$args]
+	    }
 	}
 
 	Interp alias image [namespace current]::image
