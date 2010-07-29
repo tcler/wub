@@ -4,7 +4,7 @@
 #
 set -x
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-DAEMON=/var/www/wub/Wub/Application.tcl
+DAEMON=/var/www/wub/Wub/Site.tcl
 DAEMON_OPTS=""
 NAME=wub
 DESC="Wub Web Server"
