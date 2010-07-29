@@ -4,7 +4,7 @@
 #
 set -x
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-DAEMON=/var/www/wub/Wub/Site.tcl
+DAEMON=/usr/lib/Wub/Wub/Site.tcl
 DAEMON_OPTS=""
 DESC="Wub Web Server"
 TCLSH=/usr/bin/tclsh
@@ -23,7 +23,7 @@ if [ $NAME = ""]; then
 fi
 
 # Include named defaults if available
-if [ -f /etc/default/$NAME ] ; then
+if [ -f "/etc/default/$NAME" ] ; then
 	. /etc/default/$NAME
 fi
 
