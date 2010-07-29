@@ -52,7 +52,36 @@ namespace eval ::WubWidgets {
 	}
 	method itrace {what args} {
 	    variable interp
-	    {*}$interp [list trace add variable $what write $args]
+	    variable trace
+	    if {[llength $args]} {
+		dict set trace $what $args
+		{*}$interp [list trace add variable $what write $args]
+	    } elseif {[dict exists trace $what]} {
+		{*}$interp [list trace remove variable $what write [dict get $trace $what]]
+		dict unset trace $what
+	    }
+	}
+
+	method reset {{to 0}} {
+	    variable change $to
+	}
+
+	method changed? {} {
+	    variable change
+	    return $change
+	}
+
+	method change {{to ""}} {
+	    variable change
+	    if {$to eq ""} {
+		incr change
+		variable _grid
+		if {$_grid ne ""} {
+		    $_grid prod
+		}
+	    } else {
+		set change $to
+	    }
 	}
 
 	# variable tracking
@@ -64,22 +93,28 @@ namespace eval ::WubWidgets {
 	# copy from text to textvariable
 	method copytext {varname op .} {
 	    variable textvariable
-	    set value [my iget $varname]
-	    my iset $textvariable $value
-	    Debug.wubwinterp {[namespace tail [self]] copytext $textvariable <- '$value'}
+	    variable igtext
+	    if {$igtext} return
+	    set igtext 1
+	    my iset $textvariable [set value [my iget $varname]]
+	    set igtext 0
 
-	    variable change
-	    incr change 
+	    Debug.wubwinterp {[namespace tail [self]] copytext $textvariable <- '$value'}
+	    my change
 	}
 
 	# copy from textvariable to text
 	method copytextvar {varname op value} {
 	    variable textvariable
-	    variable text
-	    set text [my iget $textvariable]
+	    variable igtext
+	    if {$igtext} return
+	    set igtext 1
+	    variable text [my iget $textvariable]
+	    set igtext 0
+
 	    Debug.wubwinterp {[namespace tail [self]] copytextvar text <- '$text' from '$textvariable'}
-	    variable change
-	    incr change 
+
+	    my change
 	}
 
 	# configure - set variables to their values
@@ -97,27 +132,93 @@ namespace eval ::WubWidgets {
 	    }
 
 	    Debug.wubwidgets {[info coroutine] configure [self] ($args)}
-	    variable change
 	    variable _grid ""
+
+	    # install varable values
+	    set tvchange 0
 	    set vars {}
 	    dict for {n v} $args {
 		set n [string trim $n -]
-		incr change	;# remember if we've changed anything
+		my change
 
-		variable $n $v
-		dict set vars $n $v
-
-		# some things create external dependencies ... variable,command, etc
-		switch -glob -- $n {
+		variable $n
+		switch -- $n {
 		    textvariable {
-			# should create variable if necessary
-			# set write trace on variable, to record change.
+			variable text	;# ensure there's a text variable
+			if {[info exists textvariable]} {
+			    # have to remove old traces
+			    set otv [set $n]
+			    # remove old traces
+			    my itrace $otv {}
+			    trace remove variable text write [list [self] copytext]
+			}
+
+			if {$v ne ""} {
+			    set textvariable $v
+			    dict set vars textvariable $v
+			    set tvchange 1
+			} else {
+			    unset textvariable
+			}
 		    }
+
 		    text {
+			# we have to record this, to allow textvar to settle
+			set newtext $v
+			dict set vars text $v
 		    }
+
+		    variable {
+			if {[info exists variable]} {
+			    # remove old traces
+			    set otv [set $n]
+			    my itrace $otv {}
+			}
+
+			# add new trace
+			my itrace $v .[my widget] changevar
+
+			set variable $v
+			dict set vars variable $v
+		    }
+
 		    default {
+			set $n $v
+			dict set vars $n $v
 		    }
 		}
+	    }
+
+	    # cleanup text and textvariable
+	    if {[info exists newtext]} {
+		Debug.wubwidgets {new -text value '$newtext'}
+		set text $newtext
+
+		variable textvariable
+		if {[info exists textvariable]} {
+		    # in case - set the textvar to text's value
+		    Debug.wubwidgets {tracking -text changes with '$textvariable'}
+		    my iset $textvariable $text
+		}
+	    }
+
+	    # re-establish textvariable trace
+	    if {$tvchange} {
+		Debug.wubwidgets {tracking '$textvariable' changes to -text}
+		# copy changes from -text to textvariable
+		variable text
+		trace add variable text write [list [self] copytext]
+
+		if {![my iexists $textvariable]} {
+		    if {[info exists text]} {
+			my iset $textvariable $text
+		    } else {
+			my iset $textvariable $text
+		    }
+		}
+
+		# copy changes from textvariable to text
+		my itrace $textvariable .[my widget] copytextvar
 	    }
 
 	    Debug.wubwidgets {configured: $vars}
@@ -132,20 +233,6 @@ namespace eval ::WubWidgets {
 		}
 		Debug.wubwidgets {option -grid: 'grid configure .[my widget] $ga'}
 		uplevel 3 [list grid configure .[my widget] {*}$ga]
-	    }
-
-	    if {[info exists textvariable]
-		&& $textvariable ne ""
-	    } {
-		if {![my iexists $textvariable]} {
-		    variable text
-		    if {![info exists text]} {
-			set text ""
-		    }
-		    Debug.wubwidgets {[info coroutine] setting -textvariable $textvariable to '$text'}
-		    my iset $textvariable $text
-		}
-		my itrace $textvariable .[my widget] changevar
 	    }
 	}
 
@@ -195,29 +282,6 @@ namespace eval ::WubWidgets {
 	}
 	method gridder {grid} {
 	    variable _grid $grid
-	}
-
-	method change {{to ""}} {
-	    variable change
-	    if {$to eq ""} {
-		incr change
-		variable _grid
-		if {$_grid ne ""} {
-		    $_grid prod
-		}
-	    } else {
-		set change $to
-	    }
-	}
-
-	method reset {} {
-	    variable change
-	    set change 0
-	}
-
-	method changed? {} {
-	    variable change
-	    return $change
 	}
 
 	# record widget id
@@ -351,21 +415,15 @@ namespace eval ::WubWidgets {
 	constructor {args} {
 	    Debug.wubwidgets {Widget construction: self-[self] ns-[namespace current] path:([namespace path])}
 	    oo::objdefine [self] forward connection [namespace qualifiers [self]]::connection
-	    
+	    variable igtext 0
+
+	    # ensure -interp is set, install alias
+	    variable interp [dict get $args -interp]
+	    [lindex $interp 0] alias [namespace tail [self]] [self]
+	    dict unset args -inerp
+
 	    variable _refresh ""
 	    my configure {*}$args
-	    if {[my cexists text]} {
-		variable text
-		if {![my cexists textvariable]} {
-		    trace add variable text write [list [self] changevar]
-		} else {
-		    variable textvariable
-		    my itrace $textvariable .[my widget] copytext
-		}
-	    } elseif {[my cexists textvariable]} {
-		variable textvariable
-		my itrace $textvariable .[my widget] copytextvar
-	    }
 	}
     }
 
@@ -421,7 +479,9 @@ namespace eval ::WubWidgets {
 
 	    Debug.wubwidgets {[self] checkbox render: checked:$checked}
 	    my reset
-	    return [my connection <checkbox> [my widget] id $id class cbutton {*}[my style] checked $checked [my compound $label]]
+	    #return [my connection <checkbox> [my widget] id $id class cbutton {*}[my style] checked $checked [my compound $label]]
+	    set button [my connection <checkbox> [my widget] id ${id}_button {*}[my style] checked $checked [my compound $label]]
+	    return [my connection <span> id $id class cbutton $button]
 	}
 
 	superclass ::WubWidgets::widget
@@ -460,6 +520,7 @@ namespace eval ::WubWidgets {
 	    }
 	    
 	    Debug.wubwidgets {radiobutton render: getting '[my cget variable]' == [my iget [my cget variable]]}
+
 	    set checked 0
 	    set var [my cget variable]
 	    if {[my iexists $var]} {
@@ -505,7 +566,7 @@ namespace eval ::WubWidgets {
 
 	    my reset
 	    set text [tclarmour [armour $val]]
-	    return [my connection <div> id $id {*}[my style] [my compound $text]]
+	    return [my connection <span> id $id {*}[my style] [my compound $text]]
 	}
 	
 	superclass ::WubWidgets::widget
@@ -572,11 +633,6 @@ namespace eval ::WubWidgets {
 		-from 0 -to 100 -tickinterval 0
 		-orient horizontal
 	    } $args]
-	    set variable [my cget variable]
-	    if {![my iexists $variable]} {
-		my iset $variable [my cget from]
-	    }
-	    my itrace $variable .[my widget] changevar
 	}
     }
     
@@ -967,7 +1023,7 @@ namespace eval ::WubWidgets {
 		error "Must specify either -data or -file"
 	    }
 
-	    next -format $fmt
+	    my configure -format $fmt
 	}
     }
 
@@ -1339,7 +1395,7 @@ namespace eval ::WubWidgets {
 	    }
 
 	    variable tgrid
-	    append content \n [uplevel 1 [list $tgrid render]]
+	    append content \n [<form> form_[string map {. _} [my widget]] onsubmit "return false;" [uplevel 1 [list $tgrid render]]]
 	    return [Http Ok $r $content x-text/html-fragment]
 	}
 
@@ -1517,7 +1573,7 @@ namespace eval ::WubWidgets {
 
 	superclass ::WubWidgets::widget
 	constructor {args} {
-	    next {*}[dict merge {} $args]
+	    next {*}$args
 	    variable tabs {}
 	    variable set 0
 	}
