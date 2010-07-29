@@ -23,7 +23,7 @@ package require Html
 package require Url
 package require Http
 
-package provide Httpd 4.0
+package provide Httpd 5.0
 
 set API(Server/Httpd) {
     {
@@ -438,6 +438,7 @@ namespace eval Httpd {
 
 			#Debug.httpdlow {pre-CE content length [string length [dict get $reply -content]]}
 			# also gzip content so cache can store that.
+			# this is happening too soon ... what if there's a range?
 			lassign [CE $reply {*}$args] reply content
 			set file ""	;# this is not a file
 
