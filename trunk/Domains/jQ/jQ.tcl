@@ -932,6 +932,12 @@ namespace eval ::jQ {
 	}]
     }
 
+    proc websocket {r var url args} {
+	return [weave $r {
+	    jquery.js jquery.websockets.js
+	} "var $var = \$.websocket('$url', [opts websocket {*}$args]);"]
+    }
+
     proc do {r} {
 	fs do $r
     }
