@@ -246,9 +246,10 @@ namespace eval ::jQ {
 	}
     }
 
-    proc opts {type args} {
-	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
+    proc opts {args} {
+	set type ""
+	if {[llength $args]%2} {
+	    set args [lassign $args type]
 	}
 
 	set opts {}
