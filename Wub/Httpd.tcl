@@ -17,6 +17,7 @@ Debug define slow 10
 
 package require Listener
 package require Chan
+package require WebSockets
 
 package require Query
 package require Html
@@ -1352,6 +1353,7 @@ namespace eval Httpd {
 		set rsp [Http ServerError $r $rsp $eo]
 	    }
 	}
+
 	if {!$done} {
 	    watchdog
 	    logtransition POSTPROCESS
@@ -1692,9 +1694,9 @@ namespace eval Httpd {
 
 	    # rfc2616 14.10:
 	    # A system receiving an HTTP/1.0 (or lower-version) message that
-	    # includes a Connection header MUST, for each connection-token in this
-	    # field, remove and ignore any header field(s) from the message with
-	    # the same name as the connection-token.
+	    # includes a Connection header MUST, for each connection-token
+	    # in this field, remove and ignore any header field(s) from the
+	    # message with the same name as the connection-token.
 	    if {[dict get $r -version] < 1.1 && [dict exists $r connection]} {
 		foreach token [split [dict get $r connection] ","] {
 		    catch {dict unset r [string trim $token]}
@@ -1742,11 +1744,19 @@ namespace eval Httpd {
 		dict unset r $x
 	    }
 
-	    # process the request
+	    ##### PROCESS ENTITY
+
+	    # process the request - remember it as unsatisfied
 	    dict set unsatisfied [dict get $r -transaction] {}
 	    logtransition PROCESS
 
-	    dict set r -send [info coroutine]	;# remember the coroutine
+	    dict set r -send [info coroutine]	;# remember its coroutine
+
+	    if {[string tolower [dict r.connection]] eq "upgrade"} {
+		# initiate WebSockets connection
+		unreadable	;# turn off read processing
+		tailcall [WebSockets create] handshake $r
+	    }
 
 	    # rfc2616 4.3
 	    # The presence of a message-body in a request is signaled by the
