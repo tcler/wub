@@ -933,10 +933,56 @@ namespace eval ::jQ {
 	}]
     }
 
+    if {0} {
+	proc websocket {r var url args} {
+	    if {[llength $args]%2} {
+		set script [lindex $args end]
+		set args [lrange $args 0 end-1]
+	    } else {
+		set script ""
+	    }
+	    return [weave $r {
+		jquery.js jquery.websockets.js
+	    } "var $var = \$.websocket('$url', [opts websocket {*}$args]);\n$script;"]
+	}
+    }
+
     proc websocket {r var url args} {
-	return [weave $r {
-	    jquery.js jquery.websockets.js
-	} "var $var = \$.websocket('$url', [opts websocket {*}$args]);"]
+	if {[llength $args]%2} {
+	    set script [lindex $args end]
+	    set args [lrange $args 0 end-1]
+	} else {
+	    set script ""
+	}
+
+	if {[dict exists $args events]} {
+	    set onmessage "ws.onmessage = function (e) \{[dict get $args events];\}"
+	} else {
+	    set onmessage ""
+	}
+
+	if {[dict exists $args open]} {
+	    set onopen "ws.onopen = function() \{alert('open'); [dict get $args open];$onmessage; $script;\}"
+	} else {
+	    set onopen "ws.onopen = function() \{alert('open'); $onmessage; $script;\}"
+	}
+
+	if {[dict exists $args close]} {
+	    set onclose "ws.onclose = function() \{[dict get $args close];\}"
+	} else {
+	    set onclose ""
+	}
+
+	return [weave $r {jquery.js} "
+	    if ('WebSocket' in window) {
+		var ws = new WebSocket('$url');
+		$onopen;
+		$onclose;
+		$onmessage;
+	    } else {
+		alert ('browser does not support WebSocket');
+	    }
+	"]
     }
 
     proc do {r} {
