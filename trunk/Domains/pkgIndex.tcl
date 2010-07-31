@@ -48,3 +48,5 @@ package ifneeded HtmTable 1.0 [list source [file join $dir Introspect HtmTable.t
 package ifneeded Indent 1.0 [list source [file join $dir Introspect Indent.tcl]]
 
 package ifneeded Scgi 1.0 [list source [file join $dir Scgi Scgi.tcl]]
+
+package ifneeded WebSocket 1.0 [list source [file join $dir WebSocket WebSocket.tcl]]
