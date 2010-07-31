@@ -1179,7 +1179,9 @@ namespace eval ::WubWidgets {
 		}
 
 		# now we have a complete row - accumulate it
-		lappend rows [my connection <tr> align center valign middle [join $cols \n]]
+		# align and valign not allowed here
+		#lappend rows [my connection <tr> align center valign middle [join $cols \n]]
+		lappend rows [my connection <tr> [join $cols \n]]
 	    }
 
 	    variable oldgrid $grid	;# record the old grid
@@ -1441,10 +1443,9 @@ namespace eval ::WubWidgets {
 	# render widget
 	method render {{id ""}} {
 	    set id [my id $id]
-	    set content [my connection layout form_$id enctype multipart/form-data class upload_form [subst {
-		file $id upload
-
-		submit send_$id id $id class ubutton Upload
+	    set content [my connection layout form_$id action . enctype multipart/form-data class upload_form [subst {
+		file file_$id id file_$id upload
+		submit submit_$id id submit_$id class ubutton Upload
 		hidden id [my widget]
 		hidden _op_ upload
 	    }]]
@@ -1452,9 +1453,6 @@ namespace eval ::WubWidgets {
 	}
 
 	method js {r} {
-	    if {[set js [my cget? -js]] ne ""} {
-		set r [Html postscript $r $js]
-	    }
 	    set r [Html postscript $r "\$('#[my id]').button();"]
 	    set r [next $r]	;# include widget -js
 	    return $r
