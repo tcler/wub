@@ -575,7 +575,7 @@ namespace eval ::Site {
 	}
 
 	#### Load Cache Module - server caching
-	if {[config exists cache]
+	if {[config exists Cache]
 	    && [config get Cache load]
 	} {
 	    #### in-RAM Cache
