@@ -403,8 +403,8 @@ class create ::WubTkI {
 	}
 
 	try {
-	    #append content [grid render]
-	    append content \n [<form> form_ onsubmit "return false;" [grid render]]
+	    append content [grid render]
+	    #append content \n [<form> form_ enctype multipart/form-data [grid render]]
 	    set r [grid js $r]
 	    Debug.wubtk {RENDER JS: [my stripjs $r]}
 	    append content [my <span> id STORE {}]
