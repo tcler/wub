@@ -90,7 +90,7 @@ class create ::Listener {
 	    }
 	}
 	Debug.listener {TLS status local: [::tls::status -local $sock] remote: [::tls::status $sock]}
-
+	dict set opts -client_certificate [::tls::status $sock] -server_certificate [::tls::status -local $sock]
 	if {[catch {
 	    # select an Http object to handle incoming
 	    {*}[dict get $opts -httpd] Connect $sock $ipaddr $rport {*}$opts
