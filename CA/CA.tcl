@@ -540,16 +540,18 @@ oo::class create CA {
     method spkac_process {r cr args} {
 	# create the SPKAC file
 	set fd [file tempfile tmpfn]
-	dict with args {
-	    puts $fd "SPKAC=[string map {\n ""} $cr]"
-	    puts $fd "CN=$CN"
-	    puts $fd "emailAddress=$EMAIL"
-	    puts $fd "organizationName=$O"
-	    puts $fd "OU=$OU"
-	    puts $fd "0.OU=client certificate"
-	    puts $fd "localityName=$L"
-	    puts $fd "stateOrProvinceName=$ST"
-	    puts $fd "countryName=$C"
+	puts $fd "SPKAC=[string map {\n ""} $cr]"
+	foreach {v n} {CN CN
+	    emailAddress EMAIL
+	    organizationName O
+	    OU OU
+	    localityName L
+	    stateOrProvinceName ST
+	    countryName C
+	} {
+	    if {[dict args.$n?] ne ""} {
+		puts $fd "$v=[dict args.$n]"
+	    }
 	}
 	close $fd
 
