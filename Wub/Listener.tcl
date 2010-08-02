@@ -18,6 +18,7 @@ package require Chan
 package require WubUtils
 package require Debug
 Debug define listener 10
+Debug define tls 10
 package provide Listener 2.0
 
 set ::API(Server/Listener) {
@@ -80,7 +81,7 @@ class create ::Listener {
 	    variable defaults
 	    if {[catch {
 		chan configure $sock -blocking 1 -translation {binary binary}
-		tls::import $sock -server 1 {*}[dict in $opts [dict keys $defaults]] -command [list [self] progress] -password [list [self] password]
+		tls::import $sock -server 1 {*}[dict in [dict opts.-tls] [dict keys $defaults]] -command [list [self] progress] -password [list [self] password]
 		tls::handshake $sock
 	    } e eo]} {
 		Debug.error {Error accepting HTTPS connection: '$e'}
@@ -88,6 +89,7 @@ class create ::Listener {
 		return
 	    }
 	}
+	Debug.listener {TLS status local: [::tls::status -local $sock] remote: [::tls::status $sock]}
 
 	if {[catch {
 	    # select an Http object to handle incoming
@@ -97,8 +99,24 @@ class create ::Listener {
 	}
     }
 
-    method progress {args} {
-	puts stderr "TLS: $args"
+    method progress {op sock args} {
+	switch -- $op {
+	    error {
+		Debug.error {error on $sock: '$args'}
+		#catch {close $sock}
+	    }
+	    verify {
+		set args [lassign $args depth cert status error]
+		Debug.tls {verify ($depth) on $sock: $status '$error' cert:($cert)}
+	    }
+	    info {
+		lassign $args major minor msg
+		Debug.tls {info on $sock: $major/$minor '$msg'}
+	    }
+	    default {
+		Debug.tls {$op $sock $args}
+	    }
+	}
 	return 1
     }
 
@@ -122,16 +140,48 @@ class create ::Listener {
 	    variable defaults {
 		-certfile server-public.pem
 		-keyfile server-private.pem
+		-cadir .
+		-cafile ca.pem
 		-ssl2 0
 		-ssl3 1
 		-tls1 1
 		-require 0
-		-request 0
+		-request 1
 	    }
-	    set args [dict merge $defaults $args]
+	    dict unset args -tls
+	    dict for {n v} $defaults {
+		if {[dict exists $args $n]} {
+		    dict args.-tls.$n [dict args.$n]
+		    dict unset args $n
+		} else {
+		    dict args.-tls.$n $v
+		}
+	    }
+
+	    set ca [dict args.-ca?]
+	    if {$ca ne ""} {
+		dict args.-tls.-ca $ca
+		dict unset args -ca
+
+		# we're operating a CA - get the keys from there
+		if {![string match ::* $ca]} {
+		    set ca ::Domains::$ca	;# make it relative to Domains
+		}
+
+		Debug.listener {server key and cert supplied by '$ca' domain}
+		dict args.-tls.-certfile [{*}$ca servercert [dict args.-host]]
+		dict args.-tls.-cafile [{*}$ca cacert]
+		dict args.-tls.-keyfile [{*}$ca serverkey [dict args.-host]]
+	    } else {
+		Debug.listener {no CA domain specified $ca}
+	    }
+	    Debug.listener {TLS args: [dict args.-tls]}
 	}
 
 	set cmd [list socket -server [list [self] accept $args]]
+
+	# specifying -myaddr makes the Listener listen
+	# on only the specified interface
 	if {[dict exists $args -myaddr] &&
 	    [dict get $args -myaddr] != 0
 	} {
