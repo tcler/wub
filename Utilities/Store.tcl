@@ -116,7 +116,8 @@ oo::class create Store {
 	foreach n [dict keys $args] {
 	    lappend sel $n=:$n
 	}
-	return [my stmt "SELECT * FROM $table WHERE [join $sel { AND }];" {*}$args]
+	set sel [join $sel " AND "]
+	return [my stmt "SELECT * FROM $table WHERE $sel;" {*}$args]
     }
 
     # delete matching tuples
