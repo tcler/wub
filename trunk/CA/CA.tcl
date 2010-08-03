@@ -673,9 +673,9 @@ oo::class create CA {
 	    "CA Certificate" cacert "Use this to fetch our CA Certificate"
 	    "Generate Certificate" keygen "Use this to generate your own Certificate"
 	    "Display Certificates" certificate "Display some of our Certificates"
-	    "Download Certificates" certificate "Download your Certificates"
+	    "Download Certificates" certificate "Download your Certificates (TODO)"
 	} {
-	    lappend result [<li> "[<a> href $url/ $name] - $descr"]
+	    lappend result [<li> [<span> "[<a> href $url/ $name] - $descr"]]
 	}
 	return [Http Ok $r [<ul> [join $result]] x-text/html-fragment]
     }
