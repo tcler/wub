@@ -23,11 +23,11 @@ oo::class create Store {
 	if {[dict exists $stmts $stmt]} {
 	    set s [dict get $stmts $stmt]
 	} else {
-	    set s [db prepare $stmt]
+	    set s [my db prepare $stmt]
 	    dict set stmts $stmt $s
 	}
 
-	Debug.store {stmt '$stmt'}
+	Debug.store {stmt '$stmt' over ($args)}
 	set result [$s allrows -as dicts $args]
 	Debug.store {stmt result: '$stmt' -> ($result)}
 	return $result
@@ -45,7 +45,7 @@ oo::class create Store {
 	if {[dict exists $stmts $stmt]} {
 	    set s [dict get $stmts $stmt]
 	} else {
-	    set s [db prepare $stmt]
+	    set s [my db prepare $stmt]
 	    dict set stmts $stmt $s
 	}
 
@@ -77,8 +77,8 @@ oo::class create Store {
 	return [my stmt "UPDATE $table SET [join $updates ,] WHERE id=:id" {*}$args]
     }
 
-    # insert a tuple, return its id
-    method insert {args} {
+    # append a tuple, return its id
+    method append {args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
@@ -96,7 +96,7 @@ oo::class create Store {
 	    }
 	}
 
-	return [my stmt "INSERT INTO $table ([join [dict keys $args] ,]) VALUES ([join $vs,])" $args]
+	return [my stmt "INSERT INTO $table ([join [dict keys $args] ,]) VALUES ([join $vs ,])" $args]
     }
 
     # matching tuples
@@ -110,11 +110,23 @@ oo::class create Store {
 	    variable primary; set table $primary
 	}
 
+	Debug.store {match in '$table' $args}
+
 	set sel {}
 	foreach n [dict keys $args] {
 	    lappend sel $n=:$n
 	}
-	return [my stmt "SELECT * FROM $table WHERE ([join $sel ,])" $args]
+	return [my stmt "SELECT * FROM $table WHERE ([join $sel ,])" {*}$args]
+    }
+
+    # return only one tuple by field match
+    method fetch {args} {
+	Debug.store {fetch $args}
+	set result [my match {*}$args]
+	if {[llength $result] > 1} {
+	    error "one $name '$value' returned [llength $result] results: ($result)"
+	}
+	return [lindex $result 0]
     }
 
     # return tuples by a single field match
@@ -122,19 +134,63 @@ oo::class create Store {
 	if {$table eq ""} {
 	    variable primary; set table $primary
 	}
+	Debug.store {by name:$name value:$value table:$table}
 	return [my stmt "SELECT * FROM $table WHERE ($name=:value)" value $value]
     }
 
-    # return only one tuple by a single field match
-    method oneby {name value {table ""}} {
-	if {$table eq ""} {
+    method get {index args} {
+	lassign [split $index .] table id
+	if {$id eq ""} {
+	    set id $table
 	    variable primary; set table $primary
 	}
-	set result [my by $table $name $value]
-	if {[llength $result] > 1} {
-	    error "one $name '$value' returned [llength $result] results: ($result)"
+	Debug.store {get id:$id from table:$table}
+	set result [lindex [my stmt "SELECT * FROM $table WHERE (id=:id)" id $id] 0]
+	Debug.store {get id:$id from table:$table -> ($result) after $args}
+	return [dict get $result {*}$args]
+    }
+
+    method set {id args} {
+	lassign [split $index .] table id
+	if {$id eq ""} {
+	    set id $table
+	    variable primary; set table $primary
 	}
-	return [lindex $result 0]
+	Debug.store {set id:$id from table:$table to ($args)}
+	set result [lindex [my stmt "SELECT * FROM $table WHERE (id=:id)" id $id] 0]
+	return [dict get $result {*}$args]
+    }
+
+    # set a row's values
+    method set {index args} {
+	lassign [split $index .] table id
+	if {$id eq ""} {
+	    set id $table
+	    variable primary; set table $primary
+	}
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+
+	Debug.store {[self] set $index keys: '[dict keys $args]'}
+	if {[dict size $args]} {
+	    set updates {}
+	    foreach n [dict keys $args] {
+		if {$n ni {id}} {
+		    lappend updates "$n=:$n"
+		}
+	    }
+	    return [my stmt "UPDATE $table SET [join $updates ,] WHERE id=:id" id $id {*}$args]
+	}
+    }
+
+    # incr a field as an integer
+    method incr {index field {qty 1}} {
+	Debug.store {incr $index $field $qty}
+	set val [expr {[my get $index $field] + $qty}]
+	my set $index $field $val
+	Debug.store {incr $index $field $qty -> $val}
+	return $val
     }
 
     # maxid of given table/primary
@@ -148,6 +204,19 @@ oo::class create Store {
 	} else {
 	    return $result
 	}
+    }
+
+    # associate [self] with the lifetime of a given object
+    method as {tracer} {
+	upvar 1 $tracer tracevar
+	set tracevar [self]
+	trace add variable tracevar unset [list [self] destroy]
+	return [self]
+    }
+
+    destructor {
+	catch {my db close}
+	catch {my db destroy}
     }
 
     constructor {args} {
@@ -169,19 +238,23 @@ oo::class create Store {
 	    if {$file eq ""} {
 		error "Must provide a db file"
 	    } else {
-		set db [tdbc::${tdbc}::connection create db $file {*}$opts]
+		Debug.store {creating db: tdbc::${tdbc}::connection create [namespace current]::dbI $file $opts}
+		tdbc::${tdbc}::connection create [namespace current]::dbI $file {*}$opts
+		oo::objdefine [self] forward db [namespace current]::dbI
 	    }
+	} else {
+	    Debug.store {provided db: '$db'}
+	    oo::objdefine [self] forward db {*}$db
 	}
-	oo::objdefine [self] forward db $db
 
 	if {$primary ne ""
-	    && $primary ni [db tables]
+	    && $primary ni [my db tables]
 	} {
 	    # we don't have any tables - apply schema
 	    if {$schema eq ""} {
 		error "Must provide a schema or an initialized db"
 	    } else {
-		db allrows $schema
+		my db allrows $schema
 	    }
 	}
     }
