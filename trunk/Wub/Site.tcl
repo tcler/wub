@@ -251,7 +251,7 @@ namespace eval ::Site {
 	}
 
 	Human {
-	    load 1		;# want human by default
+	    load 0		;# want human by default
 	}
 
 	Ua {
@@ -527,13 +527,13 @@ namespace eval ::Site {
 	    #### initialize Human
 	    package require Human
 	    Debug.site {Module Human: YES}
-	    Human new logdir $docroot {*}[config section Human]
+	    ::HumanC create ::Human {*}[config section Human]
 	} else {
 	    # NULL Human
 	    Debug.site {Module Human: NO}
 	    namespace eval ::Human {
 		proc track {r args} {return $r}
-		namespace export -clear *nub/nubs/
+		namespace export -clear *
 		namespace ensemble create -subcommands {}
 	    }
 	}
@@ -641,7 +641,7 @@ namespace eval ::Site {
 	    }
 	}
 
-	# apply all collected Nubs
+	# apply all collected Nubs - this doesn't instantiate them
 	Nub apply
 
 	#### start Httpd protocol
