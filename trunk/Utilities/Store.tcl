@@ -74,7 +74,7 @@ oo::class create Store {
 		lappend updates "$n=:$n"
 	    }
 	}
-	return [my stmt "UPDATE $table SET [join $updates ,] WHERE id=:id" {*}$args]
+	return [my stmt "UPDATE $table SET [join $updates ,] WHERE id=:id;" {*}$args]
     }
 
     # append a tuple, return its id
@@ -96,7 +96,7 @@ oo::class create Store {
 	    }
 	}
 
-	return [my stmt "INSERT INTO $table ([join [dict keys $args] ,]) VALUES ([join $vs ,])" $args]
+	return [my stmt "INSERT INTO $table ([join [dict keys $args] ,]) VALUES ([join $vs ,]);" $args]
     }
 
     # matching tuples
@@ -116,7 +116,27 @@ oo::class create Store {
 	foreach n [dict keys $args] {
 	    lappend sel $n=:$n
 	}
-	return [my stmt "SELECT * FROM $table WHERE ([join $sel ,])" {*}$args]
+	return [my stmt "SELECT * FROM $table WHERE [join $sel AND];" {*}$args]
+    }
+
+    # delete matching tuples
+    method delete {args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	if {[llength $args]%2} {
+	    set args [lassign $args table]
+	} else {
+	    variable primary; set table $primary
+	}
+
+	Debug.store {delete from '$table' $args}
+
+	set sel {}
+	foreach n [dict keys $args] {
+	    lappend sel $n=:$n
+	}
+	return [my stmt "DELETE FROM $table WHERE ([join $sel ,]);" {*}$args]
     }
 
     # return only one tuple by field match
@@ -135,7 +155,7 @@ oo::class create Store {
 	    variable primary; set table $primary
 	}
 	Debug.store {by name:$name value:$value table:$table}
-	return [my stmt "SELECT * FROM $table WHERE ($name=:value)" value $value]
+	return [my stmt "SELECT * FROM $table WHERE $name=:value;" value $value]
     }
 
     method get {index args} {
@@ -145,19 +165,8 @@ oo::class create Store {
 	    variable primary; set table $primary
 	}
 	Debug.store {get id:$id from table:$table}
-	set result [lindex [my stmt "SELECT * FROM $table WHERE (id=:id)" id $id] 0]
+	set result [lindex [my stmt "SELECT * FROM $table WHERE id=:id;" id $id] 0]
 	Debug.store {get id:$id from table:$table -> ($result) after $args}
-	return [dict get $result {*}$args]
-    }
-
-    method set {id args} {
-	lassign [split $index .] table id
-	if {$id eq ""} {
-	    set id $table
-	    variable primary; set table $primary
-	}
-	Debug.store {set id:$id from table:$table to ($args)}
-	set result [lindex [my stmt "SELECT * FROM $table WHERE (id=:id)" id $id] 0]
 	return [dict get $result {*}$args]
     }
 
@@ -180,7 +189,7 @@ oo::class create Store {
 		    lappend updates "$n=:$n"
 		}
 	    }
-	    return [my stmt "UPDATE $table SET [join $updates ,] WHERE id=:id" id $id {*}$args]
+	    return [my stmt "UPDATE $table SET [join $updates ,] WHERE id=:id;" id $id {*}$args]
 	}
     }
 
@@ -198,7 +207,7 @@ oo::class create Store {
 	if {$table eq ""} {
 	    variable primary; set table $primary
 	}
-	set result [my stmtL "SELECT MAX(id) FROM $table"]
+	set result [my stmtL "SELECT MAX(id) FROM $table;"]
 	if {$result eq "{{}}"} {
 	    return 0
 	} else {
@@ -239,6 +248,7 @@ oo::class create Store {
 		error "Must provide a db file"
 	    } else {
 		Debug.store {creating db: tdbc::${tdbc}::connection create [namespace current]::dbI $file $opts}
+		file mkdir [file dirname $file]
 		tdbc::${tdbc}::connection create [namespace current]::dbI $file {*}$opts
 		oo::objdefine [self] forward db [namespace current]::dbI
 	    }
@@ -247,8 +257,8 @@ oo::class create Store {
 	    oo::objdefine [self] forward db {*}$db
 	}
 
-	if {$primary ne ""
-	    && $primary ni [my db tables]
+	if {[my db tables] eq ""
+	    || ($primary ne "" && $primary ni [my db tables])
 	} {
 	    # we don't have any tables - apply schema
 	    if {$schema eq ""} {
