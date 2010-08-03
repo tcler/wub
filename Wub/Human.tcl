@@ -225,7 +225,7 @@ oo::class create ::HumanC {
 	variable expires "next year"	;# how long to leave the cookie in.
 	variable logdir [file join [Site var? Wub topdir] data]
 	variable secure 0
-	variable debug 1
+	variable debug 0
 	variable {*}$args
 	if {$debug} {
 	    Debug on human
