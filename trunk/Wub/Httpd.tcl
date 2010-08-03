@@ -1720,8 +1720,8 @@ namespace eval Httpd {
 		dict set r if-modified-since [lindex [split [dict get $r if-modified-since] {;}] 0]
 	    }
 
-	    # trust x-forwarded-for if we get a forwarded request from a local ip
-	    # (presumably local ip forwarders are trustworthy)
+	    # trust x-forwarded-for if we get a forwarded request from
+	    # a local ip (presumably local ip forwarders are trustworthy)
 	    set forwards {}
 	    if {[dict exists $r x-forwarded-for]} {
 		foreach xff [split [dict get? $r x-forwarded-for] ,] {
@@ -1752,7 +1752,7 @@ namespace eval Httpd {
 
 	    dict set r -send [info coroutine]	;# remember its coroutine
 
-	    if {[string tolower [dict r.connection]] eq "upgrade"} {
+	    if {[string tolower [dict r.connection?]] eq "upgrade"} {
 		# initiate WebSockets connection
 		unreadable	;# turn off read processing
 		tailcall [WebSockets create] handshake $r
