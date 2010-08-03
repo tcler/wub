@@ -244,6 +244,7 @@ oo::class create ::HumanC {
 	     );
 	    CREATE TABLE ips
 	    (
+	     id INTEGER PRIMARY KEY AUTOINCREMENT,
 	     ip INTEGER,
 	     count INTEGER,
 	     last INTEGER,
