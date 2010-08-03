@@ -191,9 +191,9 @@ oo::class create ::HumanC {
 		set iprecord [my fetch ips human $human ip $ipaddr]
 		if {[dict size $iprecord]} {
 		    # record human as connecting from this ip
-		    set id iprecord.id
-		    my incr iprecord.$id count
-		    my set iprecord.$id last [clock milliseconds]
+		    set id [dict iprecord.id]
+		    my incr ips.$id count
+		    my set ips.$id last [clock milliseconds]
 		} else {
 		    # We have seen this human before,
 		    # just not from this ip before
