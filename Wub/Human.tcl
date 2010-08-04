@@ -142,7 +142,7 @@ oo::class create ::HumanC {
 		    lappend bytime $when $h	;# all visits by time
 
 		    # record most recent connections by human
-		    if {[dict exists recent $h]} {
+		    if {[dict exists $recent $h]} {
 			if {[dict recent.$h] < [dict visit.last]} {
 			    dict recent.$h [dict visit.last]
 			}
