@@ -343,8 +343,10 @@ namespace eval ::WubWidgets {
 	method getvalue {} {
 	    if {[my cexists textvariable]} {
 		set val [my iget [my cget -textvariable]]
+		return $val
 	    } else {
-		set val [my get]
+		variable text
+		return $text
 	    }
 	}
 
