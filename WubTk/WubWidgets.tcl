@@ -340,6 +340,14 @@ namespace eval ::WubWidgets {
 	    }
 	}
 
+	method getvalue {} {
+	    if {[my cexists textvariable]} {
+		set val [my iget [my cget -textvariable]]
+	    } else {
+		set val [my get]
+	    }
+	}
+
 	method slider {value} {
 	    set var [my cget variable]
 	    Debug.wubwidgets {[self] scale $var <- '$value'}
@@ -464,12 +472,7 @@ namespace eval ::WubWidgets {
     oo::class create checkbuttonC {
 	method render {{id ""}} {
 	    set id [my id $id]
-
-	    if {[my cexists textvariable]} {
-		set label [my iget [my cget textvariable]]
-	    } else {
-		set label [my cget text]
-	    }
+	    set label [my getvalue]
 
 	    Debug.wubwidgets {checkbutton render: getting '[my cget variable]' == [my iget [my cget variable]]}
 	    set val [my iget [my cget variable]]
@@ -514,12 +517,7 @@ namespace eval ::WubWidgets {
     oo::class create radiobuttonC {
 	method render {{id ""}} {
 	    set id [my id $id]
-
-	    if {[my cexists textvariable]} {
-		set label [my iget [my cget textvariable]]
-	    } else {
-		set label [my cget text]
-	    }
+	    set label [my getvalue]
 	    
 	    Debug.wubwidgets {radiobutton render: getting '[my cget variable]' == [my iget [my cget variable]]}
 
@@ -559,12 +557,7 @@ namespace eval ::WubWidgets {
     oo::class create labelC {
 	method render {{id ""}} {
 	    set id [my id $id]
-	    if {[my cexists textvariable]} {
-		set var [my cget textvariable]
-		set val [my iget $var]
-	    } else {
-		set val [my cget text]
-	    }
+	    set val [my getvalue]
 
 	    my reset
 	    set text [tclarmour [armour $val]]
@@ -642,12 +635,7 @@ namespace eval ::WubWidgets {
 	method render {{id ""}} {
 	    Debug.wubwidgets {[info coroutine] rendering Entry [self]}
 	    set id [my id $id]
-
-	    if {[my cexists textvariable]} {
-		set val [my iget [my cget -textvariable]]
-	    } else {
-		set val [my cget text]
-	    }
+	    set val [my getvalue]
 
 	    my reset
 
@@ -699,13 +687,7 @@ namespace eval ::WubWidgets {
     oo::class create htmlC {
 	# render widget
 	method render {{id ""}} {
-	    if {[my cexists textvariable]} {
-		set var [my cget -textvariable]
-		set val [my iget $var]
-	    } else {
-		set val [my cget? -text]
-	    }
-	    return $val
+	    return [my getvalue]
 	}
 
 	superclass ::WubWidgets::widget
@@ -886,13 +868,7 @@ namespace eval ::WubWidgets {
 
 	method render {{id ""}} {
 	    set id [my id $id]
-	    
-	    if {[my cexists textvariable]} {
-		set var [my cget -textvariable]
-		set val [my iset $var]
-	    } else {
-		set val [my get]
-	    }
+	    set val [my getvalue]
 	    set class {class variable}
 	    
 	    my reset
