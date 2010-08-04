@@ -646,7 +646,7 @@ namespace eval ::WubWidgets {
 	    if {[my cexists textvariable]} {
 		set val [my iget [my cget -textvariable]]
 	    } else {
-		set val ""
+		set val [my cget text]
 	    }
 
 	    my reset
@@ -684,7 +684,8 @@ namespace eval ::WubWidgets {
 
 	superclass ::WubWidgets::widget
 	constructor {args} {
-	    next {*}[dict merge {text ""
+	    next {*}[dict merge {
+		text ""
 		justify left
 		state normal width 16
 	    } $args]
