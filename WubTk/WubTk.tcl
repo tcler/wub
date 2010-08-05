@@ -730,6 +730,12 @@ class create ::WubTkI {
 	# create an interpreter within which to evaluate user code
 	# install its command within our namespace
 	set interp [::interp create {*}$interp -- [namespace current]::Interp]
+	Interp eval {
+	    proc ::bgerror {args} {
+		puts stderr "BGERROR: $args"
+	    }
+	}
+	Interp bgerror bgerror
 
 	Debug.wubtk {[info coroutine] INTERP $interp}
 	Interp eval [list set ::auto_path $::auto_path]
