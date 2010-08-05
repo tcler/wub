@@ -760,7 +760,8 @@ class create ::WubTkI {
 	    proc update {args} {}
 	}
 
-	WubWidgets gridC create [namespace current]::grid	;# per-coro grid instance
+	# per-coro grid instance for toplevel .
+	WubWidgets gridC create [namespace current]::grid -interp [list [namespace current]::Interp eval]
 	WubWidgets wmC create [namespace current]::wm		;# per-coro wm instance
 
 	if {[info exists css]
