@@ -133,9 +133,6 @@ namespace eval ::WubWidgets {
 
 	# configure - set variables to their values
 	method configure {args} {
-	    return [uplevel 1 [list [self] wconfigure {*}$args]]
-	}
-	method wconfigure {args} {
 	    if {$args eq {}} {
 		Debug.wubwidgets {[info coroutine] fetching configuration [self]}
 		set result {}
@@ -422,7 +419,7 @@ namespace eval ::WubWidgets {
 		vertical-align valign
 		border borderwidth
 		border-color bordercolor
-		width wwidth
+		width width
 	    } {
 		variable $tk
 		if {[info exists $tk] && [set $tk] ne ""} {
@@ -492,7 +489,7 @@ namespace eval ::WubWidgets {
 	    # ensure -interp is set, install alias
 	    variable interp [dict get $args -interp]
 	    [lindex $interp 0] alias [namespace tail [self]] [self]
-	    dict unset args -inerp
+	    dict unset args -interp
 
 	    variable _refresh ""
 	    my configure {*}$args
@@ -1230,6 +1227,78 @@ namespace eval ::WubWidgets {
 	    return [join [list grid {*}[string map {. _} $name] $row $col] _]
 	}
 
+	# style - construct an HTML style form
+	method style {gridding} {
+	    set attrs {}
+	    foreach {css tk} {
+		background-color background
+		color foreground
+		text-align justify
+		vertical-align valign
+		border borderwidth
+		border-color bordercolor
+		width width
+	    } {
+		variable $tk
+		if {[info exists $tk] && [set $tk] ne ""} {
+		    if {$tk eq "background"} {
+			lappend attrs background "none [set $tk] !important"
+			if {![info exists bordercolor]} {
+			    dict set attrs border-color [set $tk]
+			}
+			# TODO: background images, URLs
+		    } else {
+			dict set attrs $css [set $tk]
+		    }
+		}
+	    }
+
+	    if {0} {
+		# process -sticky gridding
+		set sticky [dict gridding.sticky?]
+		if {$sticky ne ""} {
+		    # we have to use float and width CSS to emulate sticky
+		    set sticky [string trim [string tolower $sticky]]
+		    set sticky [string map {n "" s ""} $sticky];# forget NS
+		    if {[string first e $sticky] > -1} {
+			dict set attrs float "left"
+		    } elseif {[string first w $sticky] > -1} {
+			dict set attrs float "right"
+		    }
+		    
+		    if {$sticky in {"ew" "we"}} {
+			# this is the usual case 'stretch me'
+			dict set attrs width "100%"
+		    }
+		}
+	    }
+
+	    # todo - padding
+	    set result ""
+	    dict for {n v} $attrs {
+		append result "$n: $v;"
+	    }
+	    append result [dict gridding.style?]
+
+	    if {$result ne ""} {
+		set result [list style $result]
+	    }
+
+	    Debug.wubwidgets {style attrs:($attrs), style:($result)}
+
+	    variable class
+	    if {[info exists class]} {
+		lappend result class $class
+	    }
+
+	    variable state
+	    if {[info exists state] && $state ne "normal"} {
+		lappend result disabled 1
+	    }
+
+	    return $result
+	}
+
 	method render {args} {
 	    variable name
 	    variable maxrows; variable maxcols; variable grid
@@ -1274,14 +1343,20 @@ namespace eval ::WubWidgets {
 
 		# now we have a complete row - accumulate it
 		# align and valign not allowed here
-		#lappend rows [my connection <tr> align center valign middle [join $cols \n]]
-		lappend rows [my connection <tr> [join $cols \n]]
+		lappend rows [my connection <tr> style width:100% [join $cols \n]]
 	    }
 
 	    variable oldgrid $grid	;# record the old grid
 	    set content [my connection <tbody> [join $rows \n]]
+	    dict set args width 100%
+	    variable border
+	    if {$border} {
+		set b [list border 1px]
+	    } else {
+		set b {}
+	    }
 
-	    set content [my connection <table> class grid border 1px {*}[my style $args] $content]
+	    set content [my connection <table> class grid {*}$b {*}[my style $args] $content]
 	    Debug.wubwidgets {Grid '[namespace tail [self]]' rendered ($content)}
 	    return $content
 	}
@@ -1356,17 +1431,16 @@ namespace eval ::WubWidgets {
 	    return $widget
 	}
 
-	superclass ::WubWidgets::widget
 	constructor {args} {
 	    Debug.wubwidgets {[self] GRID constructed ($args)}
 	    variable maxcols 0
 	    variable maxrows 0
+	    variable border 0
 	    variable name ""
 	    variable {*}$args
 
 	    variable grid {}
 	    variable interest 0
-	    my wconfigure {*}$args
 
 	    oo::objdefine [self] forward connection [namespace qualifiers [self]]::connection
 	}
@@ -1431,7 +1505,7 @@ namespace eval ::WubWidgets {
 
 	superclass ::WubWidgets::widget
 	constructor {args} {
-	    set args [dict merge {width 100%} $args] 
+	    set args [dict merge {} $args] 
 	    if {[dict exists $args -width]} {
 		variable width [dict get $args -width]
 		set w [list width $width]
@@ -1444,7 +1518,7 @@ namespace eval ::WubWidgets {
 	    # create a grid for this frame
 	    set name [self]..grid
 
-	    variable fgrid [WubWidgets gridC create $name {*}$w name .[my widget]]
+	    variable fgrid [WubWidgets gridC create $name {*}$w name .[my widget] -interp [my cget interp]]
 	    Debug.wubwidgets {created Frame [self] gridded by $fgrid}
 	}
     }
@@ -1528,7 +1602,7 @@ namespace eval ::WubWidgets {
 
 	    # create a grid for this toplevel
 	    set name [self]..grid
-	    variable tgrid [WubWidgets gridC create $name name .[my widget]]
+	    variable tgrid [WubWidgets gridC create $name name .[my widget] -interp [my cget interp]]
 	    Debug.wubwidgets {created Toplevel [self] gridded by $tgrid - alerting}
 	    my connection tl add [self] $args
 	}
