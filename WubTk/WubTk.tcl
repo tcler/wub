@@ -724,7 +724,7 @@ class create ::WubTkI {
 	    #my setdefault table style {width:80%} 
 	    my setdefault tbody class ui-widget
 	    my setdefault legend class {legend ui-widget-header ui-corner-all}
-	    my setdefault label class {label ui-widget-header ui-corner-all}
+	    my setdefault label class {label ui-corner-all}
 	}
 
 	# create an interpreter within which to evaluate user code
