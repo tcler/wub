@@ -523,8 +523,9 @@ class create ::WubTkI {
 		$widget [dict r.-op] [dict Q.val?] {*}[dict Q.widget?]	;# run the widget op
 	    } on error {e eo} {
 		# widget op caused an error - report on it
+		set errpopup [jQ popup type error title "Script Error" [armour $e]]
 		Debug.wubtk {event error on $widget: '$e' ($eo)}
-		append content [jQ popup type error title "Script Error" [armour $e]]
+		append content $errpopup
 	    } finally {
 		variable redirect
 		if {[llength $redirect]} {
