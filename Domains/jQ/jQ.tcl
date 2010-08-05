@@ -845,7 +845,7 @@ namespace eval ::jQ {
 	    dict set opts pnotify_$n '$v'
 	}
 
-	return "\$.pnotify([jQ opts pnotify $opts]);"
+	return "\$.pnotify([jQ opts pnotify {*}$opts]);"
     }
 
     # http://tympanus.net/codrops/2009/10/30/jstickynote-a-jquery-plugin-for-creating-sticky-notes/
