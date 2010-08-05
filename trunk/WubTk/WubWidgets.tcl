@@ -46,17 +46,23 @@ namespace eval ::WubWidgets {
 	    Debug.wubwinterp {iget '$n' -> '$result'}
 	    return $result
 	}
+
 	method iexists {n} {
 	    variable interp
-	    return [{*}$interp [list info exists $n]]
+	    set result [{*}$interp [list info exists $n]]
+	    Debug.wubwinterp {iexists '$n' -> $result}
+	    return $result
 	}
+
 	method itrace {what args} {
 	    variable interp
 	    variable trace
 	    if {[llength $args]} {
 		dict set trace $what $args
+		Debug.wubwinterp {itrace add $what $args: (trace add variable $what write $args)}
 		{*}$interp [list trace add variable $what write $args]
 	    } elseif {[dict exists trace $what]} {
+		Debug.wubwinterp {itrace remove $what $args ([dict get $trace $what])}
 		{*}$interp [list trace remove variable $what write [dict get $trace $what]]
 		dict unset trace $what
 	    }
@@ -94,12 +100,16 @@ namespace eval ::WubWidgets {
 	method copytext {varname op .} {
 	    variable textvariable
 	    variable igtext
-	    if {$igtext} return
-	    set igtext 1
-	    my iset $textvariable [set value [my iget $varname]]
-	    set igtext 0
-
 	    Debug.wubwinterp {[namespace tail [self]] copytext $textvariable <- '$value'}
+	    if {$igtext} {
+		Debug.wubwinterp {[namespace tail [self]] IGNORE copytext $textvariable <- '$value'}
+		return
+	    }
+
+	    incr igtext
+	    my iset $textvariable [set value [my iget $varname]]
+	    incr igtext -1
+
 	    my change
 	}
 
@@ -107,12 +117,16 @@ namespace eval ::WubWidgets {
 	method copytextvar {varname op value} {
 	    variable textvariable
 	    variable igtext
-	    if {$igtext} return
-	    set igtext 1
-	    variable text [my iget $textvariable]
-	    set igtext 0
+	    Debug.wubwinterp {[namespace tail [self]] IGNORE copytextvar text <- '$text' from '$textvariable'}
 
-	    Debug.wubwinterp {[namespace tail [self]] copytextvar text <- '$text' from '$textvariable'}
+	    if {$igtext} {
+		Debug.wubwinterp {[namespace tail [self]] copytextvar text <- '$text' from '$textvariable'}
+		return
+	    }
+
+	    incr igtext
+	    variable text [my iget $textvariable]
+	    incr igtext -1
 
 	    my change
 	}
@@ -145,19 +159,19 @@ namespace eval ::WubWidgets {
 		switch -- $n {
 		    textvariable {
 			variable text	;# ensure there's a text variable
+			# remove any old traces
 			if {[info exists textvariable]} {
-			    # have to remove old traces
-			    set otv [set $n]
-			    # remove old traces
-			    my itrace $otv {}
+			    my itrace [set $n]
 			    trace remove variable text write [list [self] copytext]
 			}
 
 			if {$v ne ""} {
+			    # indicate new traces must be set
 			    set textvariable $v
 			    dict set vars textvariable $v
 			    set tvchange 1
 			} else {
+			    # we've deleted the textvariable
 			    unset textvariable
 			}
 		    }
@@ -171,12 +185,11 @@ namespace eval ::WubWidgets {
 		    variable {
 			if {[info exists variable]} {
 			    # remove old traces
-			    set otv [set $n]
-			    my itrace $otv {}
+			    my itrace [set $n]
 			}
 
 			# add new trace
-			my itrace $v .[my widget] changevar
+			my itrace $v ::.[my widget] changevar
 
 			set variable $v
 			dict set vars variable $v
@@ -189,14 +202,17 @@ namespace eval ::WubWidgets {
 		}
 	    }
 
-	    # cleanup text and textvariable
+	    # result: tvchange means new textvariable
+	    # newtext means new text value
+
 	    if {[info exists newtext]} {
+		# we have new text value
 		Debug.wubwidgets {new -text value '$newtext'}
 		set text $newtext
 
 		variable textvariable
 		if {[info exists textvariable]} {
-		    # in case - set the textvar to text's value
+		    # set the textvar to new text value
 		    Debug.wubwidgets {tracking -text changes with '$textvariable'}
 		    my iset $textvariable $text
 		}
@@ -204,21 +220,21 @@ namespace eval ::WubWidgets {
 
 	    # re-establish textvariable trace
 	    if {$tvchange} {
-		Debug.wubwidgets {tracking '$textvariable' changes to -text}
-		# copy changes from -text to textvariable
+		Debug.wubwidgets {tracking -textvariable '$textvariable' changes to -text}
+		# copy from -text to textvariable
 		variable text
 		trace add variable text write [list [self] copytext]
 
-		if {![my iexists $textvariable]} {
-		    if {[info exists text]} {
-			my iset $textvariable $text
-		    } else {
-			my iset $textvariable $text
-		    }
-		}
-
 		# copy changes from textvariable to text
-		my itrace $textvariable .[my widget] copytextvar
+		my itrace $textvariable ::.[my widget] copytextvar
+	    }
+
+	    # if we don't have a textvariable, and we don't have text
+	    # then set text
+	    variable text
+	    variable textvariable
+	    if {![info exists text] && ![info exists textvariable]} {
+		set text ""
 	    }
 
 	    Debug.wubwidgets {configured: $vars}
@@ -332,21 +348,29 @@ namespace eval ::WubWidgets {
 	method var {value} {
 	    if {[my cexists textvariable]} {
 		set var [my cget textvariable]
-		Debug.wubwidgets {[self] var $var <- '$value'}
+		Debug.wubwidgets {[self] var: textvariable $var <- '$value'}
 		my iset $var $value
-	    } elseif {[my cexists text]} {
+	    }
+	    if {[my cexists text]} {
 		variable text
+		Debug.wubwidgets {[self] var: text <- '$value'}
 		set text $value
 	    }
 	}
 
 	method getvalue {} {
-	    if {[my cexists textvariable]} {
+	    variable text
+	    variable textvariable
+	    if {[info exists textvariable]} {
+		Debug.wubwidgets {[self] getvalue from '[my cget -textvariable]'}
 		set val [my iget [my cget -textvariable]]
 		return $val
-	    } else {
-		variable text
+	    } elseif {[info exists text]} {
+		Debug.wubwidgets {[self] getvalue from text}
 		return $text
+	    } else {
+		Debug.wubwidgets {[self] getvalue default to ""}
+		return ""
 	    }
 	}
 
@@ -459,7 +483,7 @@ namespace eval ::WubWidgets {
 
 	superclass ::WubWidgets::widget
 	constructor {args} {
-	    next {*}[dict merge {text ""
+	    next {*}[dict merge {
 		justify left
 	    } $args]
 
@@ -494,7 +518,6 @@ namespace eval ::WubWidgets {
 	superclass ::WubWidgets::widget
 	constructor {args} {
 	    next {*}[dict merge [list -variable [my widget]] {
-		text ""
 		justify left
 	    } $args]
 
@@ -543,7 +566,6 @@ namespace eval ::WubWidgets {
 	superclass ::WubWidgets::widget
  	constructor {args} {
 	    next {*}[dict merge [list -variable [my widget]] {
-		text ""
 		justify left
 	    } $args]
 
@@ -568,7 +590,7 @@ namespace eval ::WubWidgets {
 	
 	superclass ::WubWidgets::widget
 	constructor {args} {
-	    next {*}[dict merge {text ""
+	    next {*}[dict merge {
 		justify "left"
 	    } $args]
 	}
@@ -675,7 +697,6 @@ namespace eval ::WubWidgets {
 	superclass ::WubWidgets::widget
 	constructor {args} {
 	    next {*}[dict merge {
-		text ""
 		justify left
 		state normal width 16
 	    } $args]
@@ -879,7 +900,7 @@ namespace eval ::WubWidgets {
 	
 	superclass ::WubWidgets::widget
 	constructor {args} {
-	    next {*}[dict merge {text ""
+	    next {*}[dict merge {
 		justify left
 		state normal height 10 width 40
 	    } $args]
