@@ -560,7 +560,7 @@ namespace eval ::WubWidgets {
 	    #return [my connection <checkbox> [my widget] id $id class cbutton {*}[my style] checked $checked [my compound $label]]
 	    set button [my connection <checkbox> [my widget] id ${id}_button {*}[my style $args] checked $checked [my compound $label]]
 	    # may have to filter stuff for [my style] here ... unsure
-	    return [my connection <span> id $id {*}[my style $args] class cbutton $button]
+	    return [my connection <div> id $id {*}[my style $args] class cbutton $button]
 	}
 
 	superclass ::WubWidgets::widget
