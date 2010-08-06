@@ -277,6 +277,7 @@ namespace eval ::WubWidgets {
 		set image [uplevel 2 [list $image render]]
 	    }
 
+	    set text [armour $text]
 	    switch -- [my cget? compound] {
 		left {
 		    return $image$text
@@ -726,7 +727,6 @@ namespace eval ::WubWidgets {
 		set id ""
 	    }
 	    set id [my id $id]
-	    set val [my getvalue]
 
 	    my reset
 
@@ -743,7 +743,7 @@ namespace eval ::WubWidgets {
 		}
 	    }
 
-	    return [my connection $tag [my widget] id $id class variable {*}[my style $args] size [my cget -width] $val]
+	    return [my connection $tag [my widget] id $id class variable {*}[my style $args] size [my cget -width] [armour [my getvalue]]]
 	}
 
 	method js {r} {
@@ -974,11 +974,10 @@ namespace eval ::WubWidgets {
 		set id ""
 	    }
 	    set id [my id $id]
-	    set val [my getvalue]
 	    set class {class variable}
 	    
 	    my reset
-	    return [my connection <textarea> [my widget] id $id {*}$class {*}[my style $args] rows [my cget -height] cols [my cget -width] $val]
+	    return [my connection <textarea> [my widget] id $id {*}$class {*}[my style $args] rows [my cget -height] cols [my cget -width] [armour [my getvalue]]]
 	}
 	
 	superclass ::WubWidgets::widget
