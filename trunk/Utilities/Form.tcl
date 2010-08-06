@@ -478,7 +478,7 @@ class create ::FormClass {
 		    set value ""
 		}
 		
-		set config [my defaults %T% {*}$args name $name type %T% %F% [armour [uplevel 1 [list subst $value]]]]
+		set config [my defaults %T% {*}$args name $name type %T% %F% [uplevel 1 [list subst $value]]]
 		
 		if {![dict exists $config tabindex]} {
 		    variable tabindex
