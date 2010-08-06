@@ -26,6 +26,7 @@
 
 package require Debug
 Debug define wubtk 10
+Debug on wubtkerr 10
 package require Http
 package require md5
 
@@ -524,7 +525,7 @@ class create ::WubTkI {
 	    } on error {e eo} {
 		# widget op caused an error - report on it
 		set errpopup [jQ popup type error title "Script Error" [armour $e]]
-		Debug.wubtk {event error on $widget: '$e' ($eo)}
+		Debug.wubtkerr {event error on $widget: '$e' ($eo)}
 		append content $errpopup
 	    } finally {
 		variable redirect
