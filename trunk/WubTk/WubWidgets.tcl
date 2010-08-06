@@ -43,7 +43,7 @@ namespace eval ::WubWidgets {
 		set result ""
 	    }
 
-	    Debug.wubwinterp {iget '$n' -> '$result'}
+	    Debug.wubwinterp {iget '$n' -> '$result' ([info level -1])}
 	    return $result
 	}
 
@@ -100,15 +100,16 @@ namespace eval ::WubWidgets {
 	method copytext {varname op .} {
 	    variable textvariable
 	    variable igtext
-	    Debug.wubwinterp {[namespace tail [self]] copytext $textvariable <- '$value'}
 	    if {$igtext} {
-		Debug.wubwinterp {[namespace tail [self]] IGNORE copytext $textvariable <- '$value'}
+		Debug.wubwinterp {[namespace tail [self]] IGNORE copytext $textvariable}
 		return
 	    }
 
+	    Debug.wubwinterp {[namespace tail [self]] copytexting $textvariable}
 	    incr igtext
 	    my iset $textvariable [set value [my iget $varname]]
 	    incr igtext -1
+	    Debug.wubwinterp {[namespace tail [self]] copytext $textvariable <- '$value'}
 
 	    my change
 	}
@@ -117,16 +118,16 @@ namespace eval ::WubWidgets {
 	method copytextvar {varname op value} {
 	    variable textvariable
 	    variable igtext
-	    Debug.wubwinterp {[namespace tail [self]] IGNORE copytextvar text <- '$text' from '$textvariable'}
-
 	    if {$igtext} {
-		Debug.wubwinterp {[namespace tail [self]] copytextvar text <- '$text' from '$textvariable'}
+	    Debug.wubwinterp {[namespace tail [self]] IGNORE copytextvar text from '$textvariable'}
 		return
 	    }
 
+	    Debug.wubwinterp {[namespace tail [self]] copytextvaring $textvariable}
 	    incr igtext
 	    variable text [my iget $textvariable]
 	    incr igtext -1
+	    Debug.wubwinterp {[namespace tail [self]] copytextvar text <- '$text' from '$textvariable'}
 
 	    my change
 	}
@@ -355,15 +356,20 @@ namespace eval ::WubWidgets {
 	}
 
 	method var {value} {
+	    variable igtext
 	    if {[my cexists textvariable]} {
 		set var [my cget textvariable]
 		Debug.wubwidgets {[self] var: textvariable $var <- '$value'}
+		incr igtext
 		my iset $var $value
+		incr igtext -1
 	    }
 	    if {[my cexists text]} {
 		variable text
 		Debug.wubwidgets {[self] var: text <- '$value'}
+		incr igtext
 		set text $value
+		incr igtext -1
 	    }
 	}
 
