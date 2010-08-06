@@ -63,9 +63,11 @@ class create ::IChan {
 	    # ![chan configure $chan -blocking] - optimization -> save the
 	    # -blocking information in a flag, as it passes through method
 	    # 'blocking'.
+	    set gone [catch {chan eof $socket} eof]
 	    if {![string length $result] &&
-		![chan configure $chan -blocking] &&
-		![chan eof $chan]} {
+		!$gone && !$eof &&
+		![chan configure $chan -blocking]
+	    } {
 		return -code error EAGAIN
 	    }
 	}
