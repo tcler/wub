@@ -555,7 +555,7 @@ namespace eval ::WubWidgets {
 	    Debug.wubwidgets {[self] checkbox render: checked:$checked}
 	    my reset
 	    #return [my connection <checkbox> [my widget] id $id class cbutton {*}[my style] checked $checked [my compound $label]]
-	    set button [my connection <checkbox> [my widget] id ${id}_button {*}[my style $args] checked $checked [my compound $label]]
+	    set button [my connection <checkbox> [my widget] id ${id}_button {*}[my style $args] checked $checked [tclarmour [my compound $label]]]
 	    # may have to filter stuff for [my style] here ... unsure
 	    return [my connection <div> id $id {*}[my style $args] class cbutton $button]
 	}
@@ -609,7 +609,7 @@ namespace eval ::WubWidgets {
 	    Debug.wubwidgets {[self] radiobox render: checked:$checked}
 	    my reset
 
-	    set result [my connection <radio> [[my connection rbvar $var] widget] id $id class rbutton {*}[my style $args] checked $checked value [my cget value] data-widget '[my widget]' [my compound $label]]
+	    set result [my connection <radio> [[my connection rbvar $var] widget] id $id class rbutton {*}[my style $args] checked $checked value [my cget value] data-widget '[my widget]' [tclarmour [my compound $label]]]
 	    Debug.wubwidgets {RADIO html: $result}
 	    return $result
 	}
@@ -743,7 +743,7 @@ namespace eval ::WubWidgets {
 		}
 	    }
 
-	    return [my connection $tag [my widget] id $id class variable {*}[my style $args] size [my cget -width] [armour [my getvalue]]]
+	    return [my connection $tag [my widget] id $id class variable {*}[my style $args] size [my cget -width] [tclarmour [my getvalue]]]
 	}
 
 	method js {r} {
@@ -1468,7 +1468,7 @@ namespace eval ::WubWidgets {
 	    } else {
 		set label [my cget? -text]
 		if {$label ne ""} {
-		    set content [my connection <legend> $label]
+		    set content [my connection <legend> [tclarmour $label]]
 		}
 		variable fgrid
 		append content \n [uplevel 1 [list $fgrid render]]
