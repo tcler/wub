@@ -513,8 +513,7 @@ namespace eval ::WubWidgets {
 	    }
 
 	    my reset
-	    set text [tclarmour [armour [my cget -text]]]
-	    return [my connection <button> [my widget] id $id {*}$class {*}[my style $args] [my compound $text]]
+	    return [my connection <button> [my widget] id $id {*}$class {*}[my style $args] [my compound [my cget -text]]]
 	    
 	    #<button class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" role="button" aria-disabled="false"><span class="ui-button-text">A button element</span></button>
 	}
@@ -640,8 +639,7 @@ namespace eval ::WubWidgets {
 	    set val [my getvalue]
 
 	    my reset
-	    set text [tclarmour [armour $val]]
-	    return [my connection <div> id $id {*}[my style $args] [my compound $text]]
+	    return [my connection <div> id $id {*}[my style $args] [my compound $val]]
 	}
 	
 	superclass ::WubWidgets::widget
@@ -745,7 +743,7 @@ namespace eval ::WubWidgets {
 		}
 	    }
 
-	    return [my connection $tag [my widget] id $id class variable {*}[my style $args] size [my cget -width] [tclarmour [armour $val]]]
+	    return [my connection $tag [my widget] id $id class variable {*}[my style $args] size [my cget -width] $val]
 	}
 
 	method js {r} {
@@ -980,7 +978,7 @@ namespace eval ::WubWidgets {
 	    set class {class variable}
 	    
 	    my reset
-	    return [my connection <textarea> [my widget] id $id {*}$class {*}[my style $args] rows [my cget -height] cols [my cget -width] [tclarmour [armour $val]]]
+	    return [my connection <textarea> [my widget] id $id {*}$class {*}[my style $args] rows [my cget -height] cols [my cget -width] $val]
 	}
 	
 	superclass ::WubWidgets::widget
