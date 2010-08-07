@@ -339,7 +339,9 @@ class create ::WubTkI {
 		    context: this,
 		    type: "GET",
 		    url: ".",
-		    data: {id: $(this).attr("name"), val: encodeURIComponent($(this).val()), _op_: "var"},
+		    data: {id: $(this).attr("name"),
+			val: encodeURIComponent($(this).val()),
+			_op_: "var"},
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
 			//alert("variable: "+data);
