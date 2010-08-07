@@ -168,6 +168,12 @@ namespace eval ::Html {
 	return $r
     }
 
+    # add style to the response
+    proc prestyle {r style} {
+	dict set r -style !$style $style
+	return $r
+    }
+
     # attr - Construct a properly formed attribute name/value string
     # for inclusion in an HTML element.
     proc attr {T args} {
