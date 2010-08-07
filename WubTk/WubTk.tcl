@@ -344,7 +344,7 @@ class create ::WubTkI {
 			_op_: "var"},
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
-			//alert("variable: "+data);
+			//alert("variable: "+data + encodeURIComponent($(this).val()));
 			$("#Spinner_").hide();
 		    },
 		    error: function (xhr, status, error) {
