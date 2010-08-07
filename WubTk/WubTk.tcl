@@ -391,7 +391,7 @@ class create ::WubTkI {
 	}
 
 	variable fontsize
-	#append content [<style> ".ui-widget \{font-size:${fontsize}px !important;\}"]
+	append content [<style> ".ui-widget \{font-size:${fontsize}px !important;\}"]
 	set r [Html prestyle $r [<style> "body \{font-size:${fontsize}px !important;\}"]]
 
 	set css [wm css .]
