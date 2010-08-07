@@ -972,6 +972,8 @@ class create ::WubTk {
 	variable {*}$args
 	set timeout 0
 
+	set fontsize [string trimright $fontsize "px"]
+
 	if {![info exists cookiepath] || $cookiepath eq ""} {
 	    variable cookiepath $mount
 	}
