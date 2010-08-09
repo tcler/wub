@@ -324,9 +324,17 @@ class create ::FormClass {
 	    method <%T%> {args} {
 		variable %T%A
 
-		set content [lindex $args end]
-		set args [lrange $args 0 end-1]
+		if {[llength $args]%2} {
+		    set content [lindex $args end]
+		    set args [lrange $args 0 end-1]
+		} else {
+		    set content ""
+		}
 		set config [my defaults %T% $args]
+
+		if {![dict exists $config value]} {
+		    dict set config value $content
+		}
 		if {$content eq ""} {
 		    set content [dict config.value]
 		} else {
