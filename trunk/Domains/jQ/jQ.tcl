@@ -933,6 +933,14 @@ namespace eval ::jQ {
 	}]
     }
 
+    proc combobox {r selector args} {
+	return [weave $r {
+	    jquery.js jquery.ui.js jquery.combobox.js
+	} %SEL [S $selector] %OPTS [opts combobox {*}$args] {
+	    $('%SEL').combobox(%OPTS);
+	}]
+    }
+
     if {0} {
 	proc websocket {r var url args} {
 	    if {[llength $args]%2} {
