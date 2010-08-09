@@ -345,8 +345,13 @@ namespace eval ::WubWidgets {
 	    return $r
 	}
 
+	# process the command associated with a browser click
 	method command {args} {
 	    set cmd [my cget? command]
+	    if {$cmd eq "" && [my cexists postcommand]} {
+		set cmd [my cget postcommand]
+	    }
+
 	    if {$cmd ne ""} {
 		set cmd [string map [list %W .[my widget]] $cmd]
 		Debug.wubwidgets {[namespace tail [self]] calling command ($cmd)}
@@ -355,6 +360,8 @@ namespace eval ::WubWidgets {
 	    }
 	}
 
+	# process the textvariable assignment associated with
+	# a browser widget state change
 	method var {value} {
 	    variable igtext
 	    if {[my cexists textvariable]} {
@@ -539,6 +546,43 @@ namespace eval ::WubWidgets {
 	}
     }
 
+    oo::class create comboboxC {
+	method render {args} {
+	    if {[llength $args]%2} {
+		set args [lassign $args id]
+	    } else {
+		set id ""
+	    }
+	    set id [my id $id]
+	 
+	    set var [my cget textvariable]
+	    if {[my iexists $var]} {
+		set val [my iget $var]
+	    }
+
+	    set values [my cget -values]
+	    Debug.wubwidgets {val=$val values=$values}
+	    foreach opt $values {
+		lappend opts [my connection <option> value [tclarmour $opt]]
+	    }
+	    set opts [join $opts \n]
+
+	    #set command [my cget command]
+	    my reset  
+	    set result [my connection <select> [my widget] id $id class "variable ui-widget ui-state-default ui-corner-all" {*}[my style $args] $opts]
+
+	    Debug.wubwidgets {combobox render: '$result'}
+	    return $result
+	}
+
+	superclass ::WubWidgets::widget
+	constructor {args} {
+	    next {*}[dict merge [list -textvariable [my widget]] {
+		justify left 
+	    } $args]
+	}
+    }
+
     oo::class create checkbuttonC {
 	method render {args} {
 	    if {[llength $args]%2} {
@@ -560,8 +604,8 @@ namespace eval ::WubWidgets {
 
 	    Debug.wubwidgets {[self] checkbox render: checked:$checked}
 	    my reset
-	    #return [my connection <checkbox> [my widget] id $id class cbutton {*}[my style] checked $checked [my compound $label]]
 	    set button [my connection <checkbox> [my widget] id ${id}_button {*}[my style $args] checked $checked [tclarmour [my compound $label]]]
+
 	    # may have to filter stuff for [my style] here ... unsure
 	    return [my connection <div> id $id {*}[my style $args] class cbutton $button]
 	}
@@ -573,8 +617,10 @@ namespace eval ::WubWidgets {
 	    } $args]
 
 	    set var [my cget variable]
-	    Debug.wubwidgets {checkbutton construction: setting $var} 
-	    my iset $var 0
+	    Debug.wubwidgets {checkbutton construction: setting $var}
+	    if {![my iexists $var]} {
+		my iset $var 0
+	    }
 	}
     }
 
@@ -821,27 +867,42 @@ namespace eval ::WubWidgets {
 	}
     }
 
-    # widget template
+    # widget template - this is here to be copy/pasted
+    # to make new widgets
     oo::class create junkC {
-	# render widget
+	# render widget - this is called to generate the HTML
+	# which represents a widget.
 	method render {args} {
+	    # this just determines the widget's HTML id attribute
 	    if {[llength $args]%2} {
 		set args [lassign $args id]
 	    } else {
 		set id ""
 	    }
-	    
+	    # you have access, here, to whatever widget options
+	    # which can be interpreted to generate
+	    # HTML to represent the widget, which must be returned
+	    return [<p> "This is a junk template"]
 	}
 
-	# optional - add per-widget js
+	# optional - this is called to generate any js
+	# which gives a widget special powers
+	# leaving this out will also work
 	method js {r} {
 	    set r [next $r]	;# include widget -js
-	    return $r
+	    # generate whatever js inclusions, using
+	    return $r	;# return the modified request
 	}
 
-	superclass ::WubWidgets::widget
+	# changed? tells the enclosing grid whether or not
+	# the HTML representation of the widget has changed.
+	# generally this should be left to fall through
+	# method changed? {} {return 0}
+
+	superclass ::WubWidgets::widget	;# you may override its methods
 	constructor {args} {
-	    next {*}[dict merge {default args} $args]
+	    set defaults {}	;# here you specify default options
+	    next {*}[dict merge $defaults $args]
 	}
     }
 
@@ -1860,7 +1921,7 @@ namespace eval ::WubWidgets {
     }
 
     # make shims for each kind of widget
-    variable tks {button label entry text checkbutton scale frame notebook accordion html toplevel upload cookie radiobutton}
+    variable tks {button label entry text checkbutton scale frame notebook accordion html toplevel upload cookie radiobutton combobox}
 
     namespace export -clear *
     namespace ensemble create -subcommands {}
