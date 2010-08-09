@@ -267,7 +267,10 @@ class create ::WubTkI {
 		    context: this,
 		    type: "GET",
 		    url: ".",
-		    data: {id: $(this).attr("name"), _op_: "command"},
+		    data: {
+			id: $(this).attr("name"),
+			_op_: "command"
+		    },
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
 			$("#Spinner_").hide();
@@ -286,15 +289,18 @@ class create ::WubTkI {
 		var val = $(this).val();
 		$.metadata.setType("html5");
 		var widget = $(this).metadata().widget;
-		var data = {id: name, val: val, widget: widget, _op_: "rbutton"};
-
 		//alert(name+" rbutton value "+ val+ " widget:"+widget);
 
 		$.ajax({
 		    context: this,
 		    type: "GET",
 		    url: ".",
-		    data: data,
+		    data: {
+			id: name,
+			val: val,
+			widget: widget,
+			_op_: "rbutton"
+		    },
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
 			$("#Spinner_").hide();
@@ -339,7 +345,8 @@ class create ::WubTkI {
 		    context: this,
 		    type: "GET",
 		    url: ".",
-		    data: {id: $(this).attr("name"),
+		    data: {
+			id: $(this).attr("name"),
 			val: encodeURIComponent($(this).val()),
 			_op_: "var"},
 		    dataType: "script",
@@ -408,7 +415,6 @@ class create ::WubTkI {
 
 	try {
 	    append content [grid render]
-	    #append content \n [<form> form_ enctype multipart/form-data [grid render]]
 	    set r [grid js $r]
 	    Debug.wubtk {RENDER JS: [my stripjs $r]}
 	    append content [my <span> id STORE {}]
