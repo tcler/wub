@@ -94,7 +94,7 @@ oo::class create ::HumanC {
 	dict set r -cookies $cdict
 
 	# add a human record
-	my append human $value created [clock milliseconds] ip [my ip $r]]
+	my append human $value created [clock milliseconds] ip [my ip $r]
 	return $r
     }
 
