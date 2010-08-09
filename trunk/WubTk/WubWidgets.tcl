@@ -546,7 +546,7 @@ namespace eval ::WubWidgets {
 	}
     }
 
-    oo::class create comboboxC {
+    oo::class create selectC {
 	method render {args} {
 	    if {[llength $args]%2} {
 		set args [lassign $args id]
@@ -571,7 +571,7 @@ namespace eval ::WubWidgets {
 	    my reset  
 	    set result [my connection <select> [my widget] id $id class "variable ui-widget ui-state-default ui-corner-all" {*}[my style $args] $opts]
 
-	    Debug.wubwidgets {combobox render: '$result'}
+	    Debug.wubwidgets {select render: '$result'}
 	    return $result
 	}
 
@@ -1921,7 +1921,7 @@ namespace eval ::WubWidgets {
     }
 
     # make shims for each kind of widget
-    variable tks {button label entry text checkbutton scale frame notebook accordion html toplevel upload cookie radiobutton combobox}
+    variable tks {button label entry text checkbutton scale frame notebook accordion html toplevel upload cookie radiobutton select}
 
     namespace export -clear *
     namespace ensemble create -subcommands {}
