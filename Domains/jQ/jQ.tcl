@@ -941,6 +941,14 @@ namespace eval ::jQ {
 	}]
     }
 
+    proc autocomplete {r selector args} {
+	return [weave $r {
+	    jquery.js jquery.ui.js
+	} %SEL [S $selector] %OPTS [opts autocomplete {*}$args] {
+	    $('%SEL').autocomplete(%OPTS);
+	}]
+    }
+
     if {0} {
 	proc websocket {r var url args} {
 	    if {[llength $args]%2} {
