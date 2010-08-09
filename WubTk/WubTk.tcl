@@ -453,8 +453,22 @@ class create ::WubTkI {
 	}
 
 	variable fontsize
-	append content [<style> ".ui-widget \{font-size:${fontsize}px !important;\}"]
-	set r [Html prestyle $r [<style> "body \{font-size:${fontsize}px !important;\}"]]
+	set dcss ".ui-widget \{font-size:${fontsize}px !important;\}"
+	append dcss {
+	    .ui-autocomplete {
+		max-height: 100px;
+		overflow-y: auto;
+	    }
+	    /* IE 6 doesn't support max-height
+	    * we use height instead, but this forces the menu to always be this tall
+	    */
+	    * html .ui-autocomplete {
+		height: 100px;
+	    }
+	}
+
+	append content [<style> $dcss]
+	set r [Html prestyle $r [<style> $dcss]]
 
 	set css [wm css .]
 	if {$css ne ""} {
