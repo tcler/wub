@@ -112,7 +112,7 @@ class create ::WubTkI {
 	set content {}
 	dict for {n v} [dict get? $r -script] {
 	    if {[string match !* $n]} {
-		Debug.wubtk {stripjs: $n ($v)}
+		#Debug.wubtk {stripjs: $n ($v)}
 		set v [join [lrange [split [string trim $v] \n] 1 end-2] \n]
 		lappend content $v
 	    }
@@ -332,6 +332,57 @@ class create ::WubTkI {
 		    success: function (data, textStatus, XMLHttpRequest) {
 			$("#Spinner_").hide();
 			//alert("cbutton: "+data);
+		    },
+		    error: function (xhr, status, error) {
+			ereport(status, error);
+		    }
+		});
+	    }
+
+	    function sliderJS (e, id, ui) {
+		if(e.originalEvent==undefined) {
+		    //
+		    // event was triggered programmatically
+		    //
+		    return
+		}
+
+		// event was triggered by user
+		$("#Spinner_").show();
+		$.ajax({
+		    type: "GET",
+		    url: ".",
+		    data: {id: id,
+			val: ui.value,
+			_op_: "slider"
+		    },
+		    dataType: "script",
+		    success: function (data, textStatus, XMLHttpRequest) {
+			$("#Spinner_").hide();
+			// alert("slider: "+data);
+		    },
+		    error: function (xhr, status, error) {
+			alert("ajax fail:"+status);
+		    }
+		});
+	    }
+
+	    function autocompleteJS (entry) {
+		//alert($(entry).attr("name")+" autocomplete: " + $(entry).val());
+		$("#Spinner_").show();
+		$.ajax({
+		    context: $(entry),
+		    type: "GET",
+		    url: ".",
+		    data: {
+			id: $(entry).attr("name"),
+			val: encodeURIComponent($(entry).val()),
+			_op_: "var"
+		    },
+		    dataType: "script",
+		    success: function (data, textStatus, XMLHttpRequest) {
+			$("#Spinner_").hide();
+			//alert("variable: "+data + encodeURIComponent($(entry).val()));
 		    },
 		    error: function (xhr, status, error) {
 			ereport(status, error);
