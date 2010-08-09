@@ -32,8 +32,7 @@ namespace eval ::WubWidgets {
 	# access interp variables
 	method iset {n v} {
 	    variable interp
-	    set tracei [{*}$interp [list trace info variable $n]]
-	    Debug.wubwinterp {iset '$n' <- '$v' traces:($tracei) ([lrange [info level -1] 0 1])}
+	    Debug.wubwinterp {iset '$n' <- '$v' traces:([{*}$interp [list trace info variable $n]]) ([lrange [info level -1] 0 1])}
 	    return [{*}$interp [list set $n $v]]
 	}
 
@@ -63,12 +62,10 @@ namespace eval ::WubWidgets {
 		# add a trace
 		dict set trace $what $args
 		{*}$interp [list trace add variable $what write $args]
-		set tracei [{*}$interp [list trace info variable $what]]
-		Debug.wubwinterp {itrace add $what $args: ($tracei)}
+		Debug.wubwinterp {itrace add $what $args: ([{*}$interp [list trace info variable $what]])}
 	    } elseif {[dict exists trace $what]} {
 		{*}$interp [list trace remove variable $what write [dict get $trace $what]]
-		set tracei [{*}$interp [list trace info variable $what]]
-		Debug.wubwinterp {itrace removed $what $args ([dict get $trace $what]) leaving ($tracei)}
+		Debug.wubwinterp {itrace removed $what $args ([dict get $trace $what]) leaving ([{*}$interp [list trace info variable $what]])}
 		dict unset trace $what
 	    }
 	}
