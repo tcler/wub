@@ -88,8 +88,8 @@ proc tkd {} {
     button .nb.tab1.m -text Read -command readckrd -grid {5 2}
 
     frame .nb.tab1.sframe -text "Scale" -grid {6 0 1 3}
-    entry .nb.tab1.sframe.q -textvariable scl -width 4 -justify left -grid {0 1}
-    scale .nb.tab1.sframe.p -text "slide me" -variable scl -from 0 -to 100 -grid {0 0 -sticky nsew} -width 20em
+    entry .nb.tab1.sframe.q -textvariable ::slideV -width 4 -justify left -grid {0 1}
+    scale .nb.tab1.sframe.p -text "slide me" -variable ::slideV -from 0 -to 100 -grid {0 0 -sticky nsew} -width 20em
     
     frame .nb.tab1.cframe -text "Checkbutton" -grid {7 0 1 3}
     checkbutton .nb.tab1.cframe.k -text "check me out" -variable ckbt -grid {0 0}
@@ -100,8 +100,13 @@ proc tkd {} {
     frame .nb.tab1.coframe -text "Select" -grid {8 0 1 3}
     global combo
     set combo "steve"
-    entry .nb.tab1.coframe.combov -textvariable combo -grid {0 2} 
     select .nb.tab1.coframe.combo -textvariable combo -values {apple orange peach pear cherry banana} -grid {0 0}
+    entry .nb.tab1.coframe.combov -textvariable combo -grid {0 1} 
+
+    frame .nb.tab1.acframe -text "AutoCompletion" -grid {9 0 1 3}
+    set complete {apple orange peach pear cherry banana}
+    entry .nb.tab1.acframe.text -textvariable ::autocom -width 20 -complete $complete -grid {0 0}
+    entry .nb.tab1.acframe.test -textvariable ::autocom -grid {0 1} 
 
     frame .nb.tab1.rframe -text "Radiobutton" -grid {10 0 1 3}
     radiobutton .nb.tab1.rframe.r1 -value apple -variable fruit -text "Apple" -grid {0 0}
@@ -130,7 +135,7 @@ proc tkd {} {
     frame .nb.tab3.frame -text "Date Entry" -grid {0 0}
     entry .nb.tab3.frame.d -textvariable date -width 20 -type date -grid {0 0}
 
-    button .nb.tab3.error -text "Error" -command {error "Told You So"} -grid {1 0}
+    button .nb.tab3.error -text "Error Popup" -command {error "Told You So"} -grid {1 0}
 
     frame .nb.tab3.uframe -text "Upload File" -grid {2 0}
     upload .nb.tab3.uframe.f1 -title "Upload a file" -command getupload -grid {0 0}
