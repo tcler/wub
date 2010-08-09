@@ -568,8 +568,15 @@ namespace eval ::WubWidgets {
 	    set opts [join $opts \n]
 
 	    #set command [my cget command]
-	    my reset  
-	    set result [my connection <select> [my widget] id $id class "variable ui-widget ui-state-default ui-corner-all" {*}[my style $args] $opts]
+	    my reset
+
+	    set class {variable ui-widget ui-state-default ui-corner-all}
+	    if {[my cexists combobox]
+		&& [my cget combobox]
+	    } {
+		lappend class combobox
+	    }
+	    set result [my connection <select> [my widget] id $id class [join $class] {*}[my style $args] $opts]
 
 	    Debug.wubwidgets {select render: '$result'}
 	    return $result
@@ -580,6 +587,19 @@ namespace eval ::WubWidgets {
 	    next {*}[dict merge [list -textvariable [my widget]] {
 		justify left 
 	    } $args]
+	}
+    }
+
+    oo::class create comboboxC {
+	method js {r} {
+	    Debug.wubwidgets {combobox js}
+	    set r [jQ combobox $r "#[my id]"]
+	    return $r
+	}
+	
+	superclass ::WubWidgets::selectC
+	constructor {args} {
+	    next {*}$args -combobox 1
 	}
     }
 
@@ -1921,7 +1941,7 @@ namespace eval ::WubWidgets {
     }
 
     # make shims for each kind of widget
-    variable tks {button label entry text checkbutton scale frame notebook accordion html toplevel upload cookie radiobutton select}
+    variable tks {button label entry text checkbutton scale frame notebook accordion html toplevel upload cookie radiobutton select combobox}
 
     namespace export -clear *
     namespace ensemble create -subcommands {}
