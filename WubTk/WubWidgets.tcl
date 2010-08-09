@@ -2,6 +2,7 @@ package require TclOO
 package require Debug
 Debug define wubwidgets 10
 Debug define wubwinterp 10
+Debug define wubwstyle 10
 
 package provide WubWidgets 1.0
 
@@ -31,7 +32,8 @@ namespace eval ::WubWidgets {
 	# access interp variables
 	method iset {n v} {
 	    variable interp
-	    Debug.wubwinterp {iset '$n' <- '$v' ([info level -1])}
+	    set tracei [{*}$interp [list trace info variable $n]]
+	    Debug.wubwinterp {iset '$n' <- '$v' traces:($tracei) ([lrange [info level -1] 0 1])}
 	    return [{*}$interp [list set $n $v]]
 	}
 
@@ -43,7 +45,7 @@ namespace eval ::WubWidgets {
 		set result ""
 	    }
 
-	    Debug.wubwinterp {iget '$n' -> '$result' ([info level -1])}
+	    Debug.wubwinterp {iget '$n' -> '$result' ([lrange [info level -1] 0 1])}
 	    return $result
 	}
 
@@ -58,12 +60,15 @@ namespace eval ::WubWidgets {
 	    variable interp
 	    variable trace
 	    if {[llength $args]} {
+		# add a trace
 		dict set trace $what $args
-		Debug.wubwinterp {itrace add $what $args: (trace add variable $what write $args)}
 		{*}$interp [list trace add variable $what write $args]
+		set tracei [{*}$interp [list trace info variable $what]]
+		Debug.wubwinterp {itrace add $what $args: ($tracei)}
 	    } elseif {[dict exists trace $what]} {
-		Debug.wubwinterp {itrace remove $what $args ([dict get $trace $what])}
 		{*}$interp [list trace remove variable $what write [dict get $trace $what]]
+		set tracei [{*}$interp [list trace info variable $what]]
+		Debug.wubwinterp {itrace removed $what $args ([dict get $trace $what]) leaving ($tracei)}
 		dict unset trace $what
 	    }
 	}
@@ -92,44 +97,66 @@ namespace eval ::WubWidgets {
 
 	# variable tracking
 	method changevar {args} {
-	    Debug.wubwinterp {[namespace tail [self]] changevar $args}
-	    my change	;# signal that a variable has changed value
+	    try {
+		Debug.wubwinterp {[namespace tail [self]] changevar $args}
+		my change	;# signal that a variable has changed value
+	    } on error {e eo} {
+		puts stderr "'$e' ($eo)"
+		Debug.wubtkerror {[self] changevar $args - '$e' ($eo)}
+	    }
 	}
 
 	# copy from text to textvariable
-	method copytext {varname op .} {
-	    variable textvariable
-	    variable igtext
-	    if {$igtext} {
-		Debug.wubwinterp {[namespace tail [self]] IGNORE copytext $textvariable}
-		return
+	method copytext {varname op args} {
+	    try {
+		variable textvariable
+		variable igtext
+		if {$igtext} {
+		    Debug.wubwinterp {[namespace tail [self]] IGNORE copytext $textvariable}
+		} else {
+		    Debug.wubwinterp {[namespace tail [self]] copytexting $textvariable}
+		    incr igtext
+		    set value [my iget $varname]
+		    set oldval [my iget $textvariable]
+		    if {$value ne $oldval} {
+			my iset $textvariable $value
+			my change
+		    }
+		    incr igtext -1
+		    Debug.wubwinterp {[namespace tail [self]] copytext $textvariable <- '$value'}
+		}
+	    } on error {e eo} {
+		puts stderr "'$e' ($eo)"
+		Debug.wubtkerror {[self] copytext $varname $op $args - '$e' ($eo)}
 	    }
-
-	    Debug.wubwinterp {[namespace tail [self]] copytexting $textvariable}
-	    incr igtext
-	    my iset $textvariable [set value [my iget $varname]]
-	    incr igtext -1
-	    Debug.wubwinterp {[namespace tail [self]] copytext $textvariable <- '$value'}
-
-	    my change
 	}
 
 	# copy from textvariable to text
-	method copytextvar {varname op value} {
-	    variable textvariable
-	    variable igtext
-	    if {$igtext} {
-	    Debug.wubwinterp {[namespace tail [self]] IGNORE copytextvar text from '$textvariable'}
-		return
+	method copytextvar {varname op args} {
+	    try {
+		variable textvariable
+		variable igtext
+		if {$igtext} {
+		    Debug.wubwinterp {[namespace tail [self]] IGNORE copytextvar text from '$textvariable'}
+		} else {
+		    Debug.wubwinterp {[namespace tail [self]] copytextvaring $textvariable}
+		    incr igtext
+		    variable text
+
+		    set newval [my iget $textvariable]
+		    if {![info exists text]
+			|| $text ne $newval
+		    } {
+			set text $newval
+			my change
+		    }
+		    incr igtext -1
+		    Debug.wubwinterp {[namespace tail [self]] copytextvar text <- '$text' from '$textvariable'}
+		}
+	    } on error {e eo} {
+		puts stderr "'$e' ($eo)"
+		Debug.wubtkerror {[self] copytextvar $varname $op $args - '$e' ($eo)}
 	    }
-
-	    Debug.wubwinterp {[namespace tail [self]] copytextvaring $textvariable}
-	    incr igtext
-	    variable text [my iget $textvariable]
-	    incr igtext -1
-	    Debug.wubwinterp {[namespace tail [self]] copytextvar text <- '$text' from '$textvariable'}
-
-	    my change
 	}
 
 	# configure - set variables to their values
@@ -384,23 +411,27 @@ namespace eval ::WubWidgets {
 	    variable text
 	    variable textvariable
 	    if {[info exists textvariable]} {
-		Debug.wubwidgets {[self] getvalue from '[my cget -textvariable]'}
+		Debug.wubwidgets {[self] getvalue from textvariable:'[my cget -textvariable]' value:'[my iget [my cget -textvariable]]'}
 		set val [my iget [my cget -textvariable]]
-		return $val
+		set result $val
 	    } elseif {[info exists text]} {
-		Debug.wubwidgets {[self] getvalue from text}
-		return $text
+		Debug.wubwidgets {[self] getvalue from text '$text'}
+		set result $text
 	    } else {
 		Debug.wubwidgets {[self] getvalue default to ""}
-		return ""
+		setresult ""
 	    }
+	    return $result
 	}
 
 	method slider {value} {
 	    set var [my cget variable]
 	    Debug.wubwidgets {[self] scale $var <- '$value'}
-	    my iset $var $value
-	    my command
+	    set oldv [my iget $var]
+	    if {$oldv ne $value} {
+		my iset $var $value
+		my command
+	    }
 	}
 
 	method cbutton {value} {
@@ -480,7 +511,7 @@ namespace eval ::WubWidgets {
 		set result [list style $result]
 	    }
 
-	    Debug.wubwidgets {style attrs:($attrs), style:($result)}
+	    Debug.wubwstyle {style attrs:($attrs), style:($result)}
 
 	    variable class
 	    if {[info exists class]} {
@@ -681,7 +712,7 @@ namespace eval ::WubWidgets {
 	    Debug.wubwidgets {[self] radiobox render: checked:$checked}
 	    my reset
 
-	    set result [my connection <radio> [[my connection rbvar $var] widget] id $id class rbutton {*}[my style $args] checked $checked value [my cget value] data-widget '[my widget]' [tclarmour [my compound $label]]]
+	    set result [my connection <radio> [[my connection rbvar $var] widget] id $id class rbutton {*}[my style $args] checked $checked value [my cget value] data-widget [my widget] [tclarmour [my compound $label]]]
 	    Debug.wubwidgets {RADIO html: $result}
 	    return $result
 	}
@@ -740,7 +771,7 @@ namespace eval ::WubWidgets {
 		set result [my connection <label> [my cget label]]
 	    }
 
-	    append result [my connection <div> id $id class slider {*}[my style $args] {}]
+	    append result [my connection <div> id $id data-widget \"[my widget]\" class slider {*}[my style $args] {}]
 	    Debug.wubwidgets {scale $id rendered '$result'}
 
 	    return $result
@@ -751,29 +782,12 @@ namespace eval ::WubWidgets {
 	    foreach {n v} [list orientation '[my cget orient]' min [my cget from] max [my cget to]] {
 		lappend args $n $v
 	    }
-	    set var [my cget -variable]
-	    lappend args value [my iget $var]
 
-	    lappend args change [string map [list %ID% [my widget]] {
-		function (event, ui) {
-		    $("#Spinner_").show();
-		    $.ajax({
-			context: this,
-			type: "GET",
-			url: ".",
-			data: {id: '%ID%', val: ui.value, _op_: "slider"},
-			dataType: "script",
-			success: function (data, textStatus, XMLHttpRequest) {
-			    $("#Spinner_").hide();
-			    //alert("slider: "+data);
-			},
-			error: function (xhr, status, error) {
-			    alert("ajax fail:"+status);
-			}
-		    });
+	    set r [jQ slider $r #[my id] {*}$args value [my iget [my cget -variable]] change {
+		function (event,ui) {
+		    sliderJS(event, $(this).metadata().widget, ui);
 		}
 	    }]
-	    set r [jQ slider $r #[my id] {*}$args]
 
 	    set r [next $r]	;# include widget -js
 	    return $r
@@ -815,22 +829,39 @@ namespace eval ::WubWidgets {
 		}
 	    }
 
-	    return [my connection $tag [my widget] id $id class variable {*}[my style $args] size [my cget -width] [tclarmour [my getvalue]]]
+	    if {[my cexists complete]} {
+		set class {}
+	    } else {
+		set class {class variable}
+	    }
+	    set result [my connection $tag [my widget] id $id {*}$class {*}[my style $args] size [my cget -width] [tclarmour [my getvalue]]]
+	    Debug.wubwidgets {Entry [my widget] - 'my connection $tag [my widget] id $id {*}$class {*}[my style $args] size [my cget -width] [tclarmour [my getvalue]]' -> '$result'}
+	    return $result
 	}
 
 	method js {r} {
-	    if {![my cexists type]} {
-		return $r
-	    }
-	    Debug.wubwidgets {entry js: [my cget type] - [my id]}
-	    switch -- [my cget type] {
-		date {
-		    set r [jQ datepicker $r #[my id]]
-		    Debug.wubwidgets {entry js: [dict get? $r -script]}
+	    if {[my cexists type]} {
+		#Debug.wubwidgets {entry js: [my cget type] - [my id]}
+		switch -- [my cget type] {
+		    date {
+			set r [jQ datepicker $r #[my id]]
+		    }
 		}
 	    }
-	    set r [next $r]	;# include widget -js
-	    return $r
+
+	    if {[my cexists complete]} {
+		#Debug.wubwidgets {entry complete js: [my cget complete] - [my id]}
+		package require huddle
+		set h [huddle list {*}[my cget complete]]
+		set h [huddle jsondump $h]
+		set r [jQ autocomplete $r #[my id] source $h change {
+		    function (event,ui) {
+			autocompleteJS($(this), ui.item);
+		    }
+		} delay 0]
+	    }
+
+	    return [next $r]	;# include widget -js
 	}
 
 	superclass ::WubWidgets::widget
@@ -1228,12 +1259,12 @@ namespace eval ::WubWidgets {
 	method changes {r} {
 	    if {[dict exists $r -repaint]} {
 		# repaint short-circuits change search
-		Debug.wubwidgets {Grid '[namespace tail [self]]' repainting}
+		#Debug.wubwidgets {Grid '[namespace tail [self]]' repainting}
 		return [list $r {}]
 	    }
 
 	    variable grid;variable oldgrid
-	    Debug.wubwidgets {Grid '[namespace tail [self]]' changes}
+	    #Debug.wubwidgets {Grid detecting changes: '[namespace tail [self]]'}
 
 	    # look for modified grid entries, these will cause a repaint
 	    dict for {row rval} $grid {
@@ -1249,6 +1280,7 @@ namespace eval ::WubWidgets {
 
 	    if {[dict size [dict ni $oldgrid [dict keys $grid]]]} {
 		# a grid element has been deleted
+		Debug.wubwidgets {Grid repainting: '[namespace tail [self]]'}
 		dict set r -repaint 1
 		return [list $r {}]	;# return the dict of changes by id
 	    }
@@ -1264,21 +1296,26 @@ namespace eval ::WubWidgets {
 			    notebook -
 			    frame {
 				# propagate change request to geometry managing widgets
+				#Debug.wubwidgets {Grid changing $type '$widget' at ($row,$col)}
 				set changed [lassign [uplevel 1 [list $widget changes $r]] r]
 				if {[dict exists $r -repaint]} {
-				    Debug.wubwidgets {Grid '[namespace tail [self]]' repainting because of changes in $type '$widget'}
+				    Debug.wubwidgets {Grid '[namespace tail [self]]' subgrid repaint $type '$widget'}
 				    return [list $r {}]	;# repaint
 				} else {
-				    Debug.wubwidgets {Grid '[namespace tail [self]]' changes to [string totitle $type] '$widget' at ($row,$col) ($val) -> ($changed)}
+				    #Debug.wubwidgets {Grid '[namespace tail [self]]' subgrid [string totitle $type] '$widget' at ($row,$col) ($val) -> ($changed)}
 				}
 			    }
 
 			    default {
 				if {[uplevel 1 [list $widget changed?]]} {
-				    Debug.wubwidgets {changes: $widget reports it's changed}
+				    Debug.wubwidgets {[namespace tail [self]] changing: ($row,$col) $widget [uplevel 1 [list $widget type]] reports it's changed}
 				    
-				    set changed [list $widget [uplevel 1 [list $widget id]] [uplevel 1 [list $widget render]] [uplevel 1 [list $widget type]]]
-				    Debug.wubwidgets {Grid '[namespace tail [self]]' changes to [string totitle $type] '$widget' at ($row,$col) ($val) -> ($changed)}
+				    set changed $widget
+				    lappend changed [uplevel 1 [list $widget id]]
+				    lappend changed [uplevel 1 [list $widget render]]
+				    lappend changed [uplevel 1 [list $widget type]]
+
+				    Debug.wubwidgets {Grid '[namespace tail [self]]' accumulate changes to [string totitle $type] '$widget' at ($row,$col) ($val) -> ($changed)}
 				}
 			    }
 			}
@@ -1567,9 +1604,9 @@ namespace eval ::WubWidgets {
 
 	method changes {r} {
 	    variable fgrid
-	    Debug.wubwidgets {Frame '[namespace tail [self]]' sub-grid changes}
+	    #Debug.wubwidgets {Frame sub-grid changes '[namespace tail [self]]'}
 	    set changes [lassign [uplevel 1 [list $fgrid changes $r]] r]
-	    Debug.wubwidgets {Frame '[namespace tail [self]]' sub-grid changed: ($changes)}
+	    #Debug.wubwidgets {Frame sub-grid changed: '[namespace tail [self]]' ($changes)}
 	    return [list $r {*}$changes]
 	}
 
@@ -1660,9 +1697,9 @@ namespace eval ::WubWidgets {
 
 	method changes {r} {
 	    variable tgrid
-	    Debug.wubwidgets {Toplevel '[namespace tail [self]]' sub-grid changes}
+	    #Debug.wubwidgets {Toplevel sub-grid changes: '[namespace tail [self]]'}
 	    set changes [lassign [uplevel 1 [list $tgrid changes $r]] r]
-	    Debug.wubwidgets {Toplevel '[namespace tail [self]]' sub-grid changed: ($changes)}
+	    #Debug.wubwidgets {Toplevel sub-grid changed: '[namespace tail [self]]' ($changes)}
 	    return [list $r {*}$changes]
 	}
 
@@ -1770,7 +1807,7 @@ namespace eval ::WubWidgets {
 	    set changes {}
 	    foreach tab $tabs {
 		set changed [lassign [uplevel 1 [list $tab changes $r]] r]
-		Debug.wubwidgets {Notebook '[namespace tail [self]]' tab [string totitle [uplevel 1 [list $tab type]]] '$tab' changes: ($changed)}
+		#Debug.wubwidgets {Notebook '[namespace tail [self]]' tab [string totitle [uplevel 1 [list $tab type]]] '$tab' changes: ($changed)}
 		lappend changes {*}$changed
 	    }
 	    return [list $r {*}$changes]
