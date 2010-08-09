@@ -101,7 +101,7 @@ proc tkd {} {
     global combo
     set combo "steve"
     entry .nb.tab1.coframe.combov -textvariable combo -grid {0 2} 
-    combobox .nb.tab1.coframe.combo -textvariable combo -values {apple orange peach pear cherry banana} -grid {0 0}
+    select .nb.tab1.coframe.combo -textvariable combo -values {apple orange peach pear cherry banana} -grid {0 0}
 
     frame .nb.tab1.rframe -text "Radiobutton" -grid {10 0 1 3}
     radiobutton .nb.tab1.rframe.r1 -value apple -variable fruit -text "Apple" -grid {0 0}
