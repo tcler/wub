@@ -709,7 +709,7 @@ namespace eval ::WubWidgets {
 	    Debug.wubwidgets {[self] radiobox render: checked:$checked}
 	    my reset
 
-	    set result [my connection <radio> [[my connection rbvar $var] widget] id $id class rbutton {*}[my style $args] checked $checked value [my cget value] data-widget [my widget] [tclarmour [my compound $label]]]
+	    set result [my connection <radio> [[my connection rbvar $var] widget] id $id class rbutton {*}[my style $args] checked $checked value [my cget value] data-widget \"[my widget]\" [tclarmour [my compound $label]]]
 	    Debug.wubwidgets {RADIO html: $result}
 	    return $result
 	}
