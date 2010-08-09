@@ -251,6 +251,7 @@ class create ::WubTkI {
 	set r [jQ tabs $r .notebook]
 	set r [jQ accordion $r .accordion]
 	set r [jQ pnotify $r]
+	set r [jQ combobox $r .combobox]
 
 	# define some useful functions
 	set r [Html postscript $r {
@@ -367,6 +368,7 @@ class create ::WubTkI {
 	set r [jQ ready $r [my rbuttonJS]]
 	set r [jQ ready $r [my variableJS]]
 	set r [Html postscript $r "\$('.ubutton').button();"]
+	return $r
     }
 
     method render {r} {
