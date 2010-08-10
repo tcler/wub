@@ -100,18 +100,18 @@ proc tkd {} {
     frame .nb.tab1.coframe -text "Select" -grid {8 0 1 3}
     global combo
     set combo "steve"
-    select .nb.tab1.coframe.combo -textvariable combo -values {apple orange peach pear cherry banana} -grid {0 0}
-    entry .nb.tab1.coframe.combov -textvariable combo -grid {0 1} 
+    select .nb.tab1.coframe.combo -textvariable ::combo -values {apple orange peach pear cherry banana} -grid {0 0}
+    entry .nb.tab1.coframe.combov -textvariable ::combo -grid {0 1} 
 
     frame .nb.tab1.acframe -text "AutoCompletion" -grid {9 0 1 3}
     set complete {apple orange peach pear cherry banana}
-    entry .nb.tab1.acframe.text -textvariable ::autocom -width 20 -complete $complete -grid {0 0}
-    entry .nb.tab1.acframe.test -textvariable ::autocom -grid {0 1} 
+    entry .nb.tab1.acframe.text -textvariable ::combo -width 20 -complete $complete -grid {0 0}
+    entry .nb.tab1.acframe.test -textvariable ::combo -grid {0 1} 
 
     frame .nb.tab1.rframe -text "Radiobutton" -grid {10 0 1 3}
-    radiobutton .nb.tab1.rframe.r1 -value apple -variable fruit -text "Apple" -grid {0 0}
-    radiobutton .nb.tab1.rframe.r2 -value banana -variable fruit -text "Banana" -grid {1 0}
-    radiobutton .nb.tab1.rframe.r3 -value cherry -variable fruit -text "Cherry" -grid {2 0}
+    radiobutton .nb.tab1.rframe.r1 -value apple -variable ::combo -text "Apple" -grid {0 0}
+    radiobutton .nb.tab1.rframe.r2 -value banana -variable ::combo -text "Banana" -grid {1 0}
+    radiobutton .nb.tab1.rframe.r3 -value cherry -variable ::combo -text "Cherry" -grid {2 0}
 
     set joe bob
     set ckbt 0
