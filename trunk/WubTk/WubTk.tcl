@@ -453,8 +453,8 @@ class create ::WubTkI {
 	}
 
 	variable fontsize
-	set dcss ".ui-widget \{font-size:${fontsize}px !important;\}"
-	append dcss {
+	set dcss [subst {
+	    .ui-widget {font-size:${fontsize}px !important;}
 	    .ui-autocomplete {
 		max-height: 100px;
 		overflow-y: auto;
@@ -465,7 +465,7 @@ class create ::WubTkI {
 	    * html .ui-autocomplete {
 		height: 100px;
 	    }
-	}
+	}]
 
 	append content [<style> $dcss]
 	set r [Html prestyle $r [<style> $dcss]]
