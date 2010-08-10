@@ -8,6 +8,11 @@ package provide WubWidgets 1.0
 
 namespace eval ::WubWidgets {
     oo::class create widget {
+	# tracker - return js to track state change
+	method tracker {} {
+	    return ""
+	}
+
 	# cget - get a variable's value
 	method cget {n} {
 	    set n [string trim $n -]
@@ -376,10 +381,11 @@ namespace eval ::WubWidgets {
 
 	    if {$cmd ne ""} {
 		set cmd [string map [list %W .[my widget]] $cmd]
-		Debug.wubwidgets {[namespace tail [self]] calling command ($cmd)}
+		Debug.wubwidgets {[namespace tail [self]] calling command ($cmd $args)}
 		variable interp
-		{*}$interp $cmd
+		return [{*}$interp $cmd {*}$args]
 	    }
+	    return ""
 	}
 
 	# process the textvariable assignment associated with
@@ -541,6 +547,10 @@ namespace eval ::WubWidgets {
     }
 
     oo::class create buttonC {
+	method tracker {} {
+	    return [my connection buttonJS #[my id]]
+	}
+
 	method render {args} {
 	    set id [my id]
 	    set command [my cget command]
@@ -624,6 +634,10 @@ namespace eval ::WubWidgets {
     }
 
     oo::class create checkbuttonC {
+	method tracker {} {
+	    return [my connection cbuttonJS #[my id]]
+	}
+
 	method render {args} {
 	    set id [my id]
 
@@ -672,6 +686,10 @@ namespace eval ::WubWidgets {
     }
 
     oo::class create radiobuttonC {
+	method tracker {} {
+	    return [my connection rbuttonJS #[my id]]
+	}
+
 	method update {args} {
 	    set id [my id]
 	    Debug.wubwidgets {radiobutton render: getting '[my cget variable]' == [my iget [my cget variable]]}
@@ -778,6 +796,9 @@ namespace eval ::WubWidgets {
     }
     
     oo::class create entryC {
+	method tracker {} {
+	    return [my connection variableJS #[my id]]
+	}
 	method render {args} {
 	    Debug.wubwidgets {[info coroutine] rendering Entry [self]}
 	    set id [my id]
@@ -797,11 +818,7 @@ namespace eval ::WubWidgets {
 		}
 	    }
 
-	    if {[my cexists complete]} {
-		set class {}
-	    } else {
-		set class {class variable}
-	    }
+	    set class {class variable}
 	    set result [my connection $tag [my widget] id $id {*}$class {*}[my style $args] size [my cget -width] [tclarmour [my getvalue]]]
 	    Debug.wubwidgets {Entry [my widget] - 'my connection $tag [my widget] id $id {*}$class {*}[my style $args] size [my cget -width] [tclarmour [my getvalue]]' -> '$result'}
 	    return $result
@@ -809,24 +826,29 @@ namespace eval ::WubWidgets {
 
 	method js {r} {
 	    if {[my cexists type]} {
-		#Debug.wubwidgets {entry js: [my cget type] - [my id]}
 		switch -- [my cget type] {
 		    date {
 			set r [jQ datepicker $r #[my id]]
 		    }
 		}
+	    } elseif {[my cexists complete]} {
+		set h {}
+		foreach el [my cget complete] {
+		    lappend h '[string map {' \'} $el]'
+		}
+		set h \[[join $h ,]\]
+		set delay 0
+	    } elseif {[my cexists command]} {
+		set h \"[my widget]\"
+		set delay 300
 	    }
 
-	    if {[my cexists complete]} {
-		#Debug.wubwidgets {entry complete js: [my cget complete] - [my id]}
-		package require huddle
-		set h [huddle list {*}[my cget complete]]
-		set h [huddle jsondump $h]
+	    if {[info exists h]} {
 		set r [jQ autocomplete $r #[my id] source $h change {
 		    function (event,ui) {
-			autocompleteJS($(this), ui.item);
+			autocompleteJS(event, $(this), ui.item);
 		    }
-		} delay 0]
+		} delay $delay]
 	    }
 
 	    return [next $r]	;# include widget -js
@@ -915,6 +937,9 @@ namespace eval ::WubWidgets {
     }
 
     oo::class create textC {
+	method tracker {} {
+	    return [my connection variableJS #[my id]]
+	}
 	method get {{start 1.0} {end end}} {
 	    set text [my cget text]
 
