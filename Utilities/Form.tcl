@@ -547,10 +547,10 @@ class create ::FormClass {
     foreach type {radio check} sub {"" box} {
 	eval [string map [list %T% $type %S% $sub] {
 	    method <%T%set> {name args} {
-		set rsconfig [my defaults %T% {*}[lrange $args 0 end-1] name $name type %T%]
-		set boxes [lindex $args end]
+		set args [lassign $args boxes]
+		set rsconfig [my defaults %T% {*}$args name $name type %T%]
 		set result {}
-		
+ 
 		set accum ""
 		foreach {content value} $boxes {
 		    set config [my defaults %T%%S% {*}$rsconfig]
@@ -601,23 +601,27 @@ class create ::FormClass {
 		if {[llength $args] % 2} {
 		    set content [lindex $args end]
 		    set args [lrange $args 0 end-1]
+		    set content [uplevel 1 [list subst $content]]
 		} else {
 		    set content ""
 		}
+
 		set config [my defaults %T% {*}$args name $name type %T%]
 
-		set content [uplevel 1 [list subst $content]]
 		if {![dict exists $config label] && $content ne ""} {
+		    # content is the default label
 		    dict config.label $content
 		    set content ""
 		}
 
 		if {![dict exists $config tabindex]} {
+		    # assign a tabindex
 		    variable tabindex
 		    dict config.tabindex [incr tabindex]
 		}
 
 		if {![dict exists $config id]} {
+		    # each element should have an id
 		    variable uniqID
 		    dict config.id F[incr uniqID]
 		}
@@ -629,6 +633,7 @@ class create ::FormClass {
 		set result "<[my attr input {*}[dict in $config $boxA] {*}[dict filter $config key data-*]]>$content"
 
 		if {[set label [dict config.label?]] ne ""} {
+		    # wrap element around with a label
 		    set lconfig [my defaults label]
 		    if {[dict exists $config title]} {
 			return "[my <label> for $id title [dict config.title] {*}$lconfig $label] $result"
