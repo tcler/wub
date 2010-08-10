@@ -523,6 +523,10 @@ namespace eval ::WubWidgets {
 	    return $result
 	}
 
+	method update {args} {
+	    return [my render {*}$args]
+	}
+
 	constructor {args} {
 	    Debug.wubwidgets {Widget construction: self-[self] ns-[namespace current] path:([namespace path])}
 	    oo::objdefine [self] forward connection [namespace qualifiers [self]]::connection
@@ -685,16 +689,8 @@ namespace eval ::WubWidgets {
     }
 
     oo::class create radiobuttonC {
-	method render {args} {
-	    if {[llength $args]%2} {
-		set args [lassign $args id]
-	    } else {
-		set id ""
-	    }
-	    set id [my id $id]
-
-	    set label [my getvalue]
-	    
+	method update {args} {
+	    set id [my id]
 	    Debug.wubwidgets {radiobutton render: getting '[my cget variable]' == [my iget [my cget variable]]}
 
 	    set checked 0
@@ -709,9 +705,21 @@ namespace eval ::WubWidgets {
 	    Debug.wubwidgets {[self] radiobox render: checked:$checked}
 	    my reset
 
-	    set result [my connection <radio> [[my connection rbvar $var] widget] id $id class rbutton {*}[my style $args] checked $checked value [my cget value] data-widget \"[my widget]\" [tclarmour [my compound $label]]]
+	    set result [my connection <radio> [[my connection rbvar $var] widget] id $id class rbutton {*}[my style $args] checked $checked value [my cget value] data-widget \"[my widget]\" [dict args.label?]]
 	    Debug.wubwidgets {RADIO html: $result}
 	    return $result
+	}
+
+	method render {args} {
+	    if {[llength $args]%2} {
+		set args [lassign $args id]
+	    } else {
+		set id ""
+	    }
+	    set id [my id $id]
+
+	    set label [tclarmour [my compound [my getvalue]]]
+	    return [my update {*}$args label $label]
 	}
 	
 	superclass ::WubWidgets::widget
@@ -1309,7 +1317,7 @@ namespace eval ::WubWidgets {
 				    
 				    set changed $widget
 				    lappend changed [uplevel 1 [list $widget id]]
-				    lappend changed [uplevel 1 [list $widget render]]
+				    lappend changed [uplevel 1 [list $widget update]]
 				    lappend changed [uplevel 1 [list $widget type]]
 
 				    Debug.wubwidgets {Grid '[namespace tail [self]]' accumulate changes to [string totitle $type] '$widget' at ($row,$col) ($val) -> ($changed)}
