@@ -341,10 +341,8 @@ namespace eval ::WubWidgets {
 	    variable id
 	    if {$_id eq ""} {
 		return $id
-	    } elseif {![info exists id]} {
-		set id $_id
 	    } else {
-		return $id
+		set id $_id
 	    }
 	}
 
@@ -544,12 +542,7 @@ namespace eval ::WubWidgets {
 
     oo::class create buttonC {
 	method render {args} {
-	    if {[llength $args]%2} {
-		set args [lassign $args id]
-	    } else {
-		set id ""
-	    }
-	    set id [my id $id]
+	    set id [my id]
 	    set command [my cget command]
 
 	    if {$command ne ""} {
@@ -580,12 +573,7 @@ namespace eval ::WubWidgets {
 
     oo::class create selectC {
 	method render {args} {
-	    if {[llength $args]%2} {
-		set args [lassign $args id]
-	    } else {
-		set id ""
-	    }
-	    set id [my id $id]
+	    set id [my id]
 	 
 	    set var [my cget textvariable]
 	    if {[my iexists $var]} {
@@ -637,12 +625,7 @@ namespace eval ::WubWidgets {
 
     oo::class create checkbuttonC {
 	method render {args} {
-	    if {[llength $args]%2} {
-		set args [lassign $args id]
-	    } else {
-		set id ""
-	    }
-	    set id [my id $id]
+	    set id [my id]
 
 	    set label [my getvalue]
 
@@ -711,12 +694,7 @@ namespace eval ::WubWidgets {
 	}
 
 	method render {args} {
-	    if {[llength $args]%2} {
-		set args [lassign $args id]
-	    } else {
-		set id ""
-	    }
-	    set id [my id $id]
+	    set id [my id]
 
 	    set label [tclarmour [my compound [my getvalue]]]
 	    return [my update {*}$args label $label]
@@ -739,12 +717,7 @@ namespace eval ::WubWidgets {
 
     oo::class create labelC {
 	method render {args} {
-	    if {[llength $args]%2} {
-		set args [lassign $args id]
-	    } else {
-		set id ""
-	    }
-	    set id [my id $id]
+	    set id [my id]
 	    set val [my getvalue]
 
 	    my reset
@@ -761,12 +734,7 @@ namespace eval ::WubWidgets {
     
     oo::class create scaleC {
 	method render {args} {
-	    if {[llength $args]%2} {
-		set args [lassign $args id]
-	    } else {
-		set id ""
-	    }
-	    set id [my id $id]
+	    set id [my id]
 	    Debug.wubwidgets {scale $id render $args}
 
 	    my reset
@@ -812,12 +780,7 @@ namespace eval ::WubWidgets {
     oo::class create entryC {
 	method render {args} {
 	    Debug.wubwidgets {[info coroutine] rendering Entry [self]}
-	    if {[llength $args]%2} {
-		set args [lassign $args id]
-	    } else {
-		set id ""
-	    }
-	    set id [my id $id]
+	    set id [my id]
 
 	    my reset
 
@@ -885,11 +848,6 @@ namespace eval ::WubWidgets {
     oo::class create htmlC {
 	# render widget
 	method render {args} {
-	    if {[llength $args]%2} {
-		set args [lassign $args id]
-	    } else {
-		set id ""
-	    }
 	    return [my getvalue]
 	}
 
@@ -929,12 +887,6 @@ namespace eval ::WubWidgets {
 	# render widget - this is called to generate the HTML
 	# which represents a widget.
 	method render {args} {
-	    # this just determines the widget's HTML id attribute
-	    if {[llength $args]%2} {
-		set args [lassign $args id]
-	    } else {
-		set id ""
-	    }
 	    # you have access, here, to whatever widget options
 	    # which can be interpreted to generate
 	    # HTML to represent the widget, which must be returned
@@ -1091,12 +1043,7 @@ namespace eval ::WubWidgets {
 	}
 
 	method render {args} {
-	    if {[llength $args]%2} {
-		set args [lassign $args id]
-	    } else {
-		set id ""
-	    }
-	    set id [my id $id]
+	    set id [my id]
 	    set class {class variable}
 	    
 	    my reset
@@ -1191,11 +1138,6 @@ namespace eval ::WubWidgets {
 	}
 
 	method render {args} {
-	    if {[llength $args]%2} {
-		set args [lassign $args id]
-	    } else {
-		set id ""
-	    }
 	    set url [my cget? url]
 	    if {$url eq ""} {
 		set url [my widget]
@@ -1440,8 +1382,9 @@ namespace eval ::WubWidgets {
 			dict with el {
 			    set id [my id $row $col]
 			    Debug.wubwidgets {'[namespace tail [self]]' grid rendering $widget/$id with ($el)}
+			    uplevel 1 [list $widget id $id]		;# set widget's id
 			    uplevel 1 [list $widget gridder [self]]	;# record grid
-			    set rendered [uplevel 1 [list $widget render $id style $style sticky $sticky]]
+			    set rendered [uplevel 1 [list $widget render style $style sticky $sticky]]
 
 			    set wid .[string map {" " .} [lrange [split $id _] 1 end-2]]
 			    for {set rt $row} {$rt < $rowspan} {incr rt} {
@@ -1584,12 +1527,7 @@ namespace eval ::WubWidgets {
 	method render {args} {
 	    variable fgrid
 	    Debug.wubwidgets {Frame [namespace tail [self]] render gridded by $fgrid}
-	    if {[llength $args]%2} {
-		set args [lassign $args id]
-	    } else {
-		set id ""
-	    }
-	    set id [my id $id]
+	    set id [my id]
 
 	    if {[my cexists -div]} {
 		append content \n [uplevel 1 [list $fgrid render]]
@@ -1738,12 +1676,7 @@ namespace eval ::WubWidgets {
     oo::class create uploadC {
 	# render widget
 	method render {args} {
-	    if {[llength $args]%2} {
-		set args [lassign $args id]
-	    } else {
-		set id ""
-	    }
-	    set id [my id $id]
+	    set id [my id]
 	    set content [my connection layout form_$id action . enctype multipart/form-data class upload_form {*}[my style $args] [subst {
 		file file_$id id file_$id upload
 		submit submit_$id id submit_$id class ubutton Upload
@@ -1783,18 +1716,14 @@ namespace eval ::WubWidgets {
 	
 	# render widget
 	method render {args} {
-	    if {[llength $args]%2} {
-		set args [lassign $args id]
-	    } else {
-		set id ""
-	    }
-	    set id [my id $id]
+	    set id [my id]
 	    variable tabs
 	    set body {}; set js {}; set cnt 0
 	    set li {}
 	    foreach tab $tabs {
 		set tid ${id}_$cnt
-		lappend body [uplevel 1 [list $tab render $tid]]
+		uplevel 1 [list $tab id $tid]
+		lappend body [uplevel 1 [list $tab render]]
 		set cnf [uplevel 1 [list $tab configure]]
 		lappend li [my connection <li> [my connection <a> href "#$tid" [dict cnf.text]]]
 		incr cnt
@@ -1894,19 +1823,15 @@ namespace eval ::WubWidgets {
 
 	# render widget
 	method render {args} {
-	    if {[llength $args]%2} {
-		set args [lassign $args id]
-	    } else {
-		set id ""
-	    }
-	    set id [my id $id]
+	    set id [my id]
 	    variable panes
 	    set body {}; set cnt 0
 	    foreach pane $panes {
 		set tid ${id}_$cnt
+		uplevel 1 [list $pane id $tid]
 		set cnf [uplevel 1 [list $pane configure]]
 		lappend body [my connection <h3> [my connection <a> href # [dict cnf.text]]]
-		lappend body [uplevel 1 [list $pane render $tid]]
+		lappend body [uplevel 1 [list $pane render]]
 		incr cnt
 	    }
 	    set content [join $body \n]
