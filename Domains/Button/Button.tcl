@@ -66,7 +66,7 @@ oo::class create Button {
 	if {[string is integer -strict $hue]
 	    || [string is xdigit -strict $hue]
 	} {
-	    if {[string length $hue] > 2} {
+	    if {[string length $hue] > 3} {
 		lassign [Color webToHsv $hue] hue
 	    }
 	} else {
