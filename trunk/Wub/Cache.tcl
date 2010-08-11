@@ -151,12 +151,18 @@ namespace eval Cache {
 	variable cache
 
 	dict set req -uri [Url uri $req]	;# regenerate the url, just in case
-	if {[exists? [dict get? $req etag]]} {
+	set et [string trim [dict get $req etag] \"]
+	set uri [dict get $req -uri]
+	if {[exists? [dict get? $req etag]]
+	    && [info exists keys($et)]
+	} {
 	    # key by request's etag
-	    set key $keys([string trim [dict get $req etag] \"])
-	} elseif {[exists? [dict get $req -uri]]} {
+	    set key $keys($et)
+	} elseif {[exists? $uri]
+		  && [info exists keys($uri)]
+	      } {
 	    # key by request's URL
-	    set key $keys([dict get $req -uri])
+	    set key $keys($uri)
 	} else {
 	    error "Cache Fetching '[dict get? $req etag]'/'[dict get? $req -uri]', no match."
 	}
