@@ -65,7 +65,7 @@ namespace eval ::Color {
 	variable colors
 	set x [string tolower $x]
 	if {[dict exists $colors $x]} {
-	    return [dict get $colors $x]
+	    return #[dict get $colors $x]
 	} else {
 	    return $x
 	}
@@ -256,6 +256,12 @@ namespace eval ::Color {
 	    }
 	}
 	return $close
+    }
+
+    proc rehueweb {c hue} {
+	lassign [Color webToHsv $c] h s v
+	set h [expr {($h + $hue)%360}]
+	return [Color hsvToWeb $h $s $v]
     }
 
     namespace export -clear *
