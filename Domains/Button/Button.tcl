@@ -46,6 +46,7 @@ oo::class create Button {
     }
 
     method / {r args} {
+	Debug.button {/ - $args}
 	set opts {}
 	foreach n {width height} {
 	    set v [dict args.$n?]
@@ -62,12 +63,13 @@ oo::class create Button {
 	}
 
 	set svn [my getFile $fn]
-	if {[string is integer -strict $hue]} {
-	    set svn [my rehue $svn #$hue]
-	} elseif {[string match #* $hue]} {
-	    lassign [Color webToHsv $hue] hue
-	    set svn [my rehue $svn $hue]
-	} elseif {$hue ne ""} {
+	if {[string is integer -strict $hue]
+	    || [string is xdigit -strict $hue]
+	} {
+	    if {[string length $hue] > 2} {
+		lassign [Color webToHsv $hue] hue
+	    }
+	} else {
 	    lassign [Color webToHsv [Color nameToWeb $hue]] hue
 	}
 	set svn [my rehue $svn $hue]
