@@ -949,6 +949,21 @@ namespace eval ::jQ {
 	}]
     }
 
+    # http://aext.net/2010/04/bubbleup-jquery-plugin/
+    proc bubbleup {r selector args} {
+	return [weave $r {
+	    jquery.js jquery.ui.js jquery.bubbleup.js
+	} %SEL [S $selector] %OPTS [opts bubbleup {*}$args] {
+	    $('%SEL').bubbleup(%OPTS);
+	}]
+    }
+
+    proc toolbar {r} {
+	set r [scripts $r jquery.js jquery.ui.js jquery.toolbar.js]	;# preload scripts first
+	set r [style $r jquery.toolbar.css]
+	return $r
+    }
+
     if {0} {
 	proc websocket {r var url args} {
 	    if {[llength $args]%2} {
