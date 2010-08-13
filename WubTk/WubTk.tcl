@@ -29,6 +29,7 @@ Debug define wubtk 10
 Debug on wubtkerr 10
 package require Http
 package require md5
+package require Image	;# force rasterization
 
 package require WubWidgets
 
@@ -85,21 +86,7 @@ class create ::WubTkI {
 	    }]
 
 	    # send js to track widget state
-	    switch -- $type {
-		button {
-		    append result [my buttonJS $jid]
-		}
-		checkbutton {
-		    append result [my cbuttonJS $jid]
-		}
-		radiobutton {
-		    append result [my rbuttonJS $jid]
-		}
-		entry -
-		text {
-		    append result [my variableJS $jid]
-		}
-	    }
+	    append result [$widget tracker]
 	}
 
 	Debug.wubtk {SCRIPT: ($result)}
@@ -252,6 +239,7 @@ class create ::WubTkI {
 	set r [jQ accordion $r .accordion]
 	set r [jQ pnotify $r]
 	set r [jQ combobox $r .combobox]
+	set r [jQ bubbleup $r "ul.bubbleup li img" tooltip true]
 
 	# define some useful functions
 	set r [Html postscript $r {
@@ -367,7 +355,14 @@ class create ::WubTkI {
 		});
 	    }
 
-	    function autocompleteJS (entry) {
+	    function autocompleteJS (event,entry) {
+		if(event.originalEvent==undefined) {
+		    //
+		    // event was triggered programmatically
+		    //
+		    return
+		}
+
 		//alert($(entry).attr("name")+" autocomplete: " + $(entry).val());
 		$("#Spinner_").show();
 		$.ajax({
@@ -464,6 +459,26 @@ class create ::WubTkI {
 	    */
 	    * html .ui-autocomplete {
 		height: 100px;
+	    }
+
+	    ul.bubbleup {
+		margin: 5px 0px;
+		list-style: none;
+		display: inline-block;
+	    }
+	    
+	    ul.bubbleup li {
+		padding: 0px;
+		float: left;
+		position: relative;
+		margin-left: 5px;
+		margin-right: 5px;
+		width: 48px;
+		height: 48px;
+	    }
+
+	    ul.bubbleup li a {
+		position: absolute;
 	    }
 	}]
 
@@ -698,6 +713,26 @@ class create ::WubTkI {
 			var {
 			    # process browser event
 			    set r [my event $r]
+			}
+
+			autocomplete {
+			    # this is autocomplete - we get to call the -command with
+			    # one argument passed in
+
+			    # client event has been received
+			    set Q [Query flatten [Query parse $r]]
+			    set widget .[dict r.-widget]
+			    set term [dict Q.term]
+			    set result [$widget command $term]
+
+			    # we should have a list in reply, convert it to JSON
+			    set json {}
+			    foreach v $result {
+				lappend json '[string map {' \'} $v]'
+			    }
+			    set json \[[join $json ,]\]
+			    Debug.wubtk {autocomplete: $result -> ($json)}
+			    set r [Http Ok [Http NoCache $r] $json application/json] 
 			}
 
 			upload {
@@ -975,6 +1010,13 @@ class create ::WubTk {
 	# get op from query
 	set Q [Query parse $r]; dict set r -Query $Q; set Q [Query flatten $Q]
 	dict set r -op [set op [dict Q._op_?]]
+	if {$op eq ""} {
+	    set op [dict Q.term?]
+	    if {$op ne ""} {
+		dict set r -op autocomplete
+		set op autocomplete
+	    }
+	}
 
 	set wubapp [my getcookie $r]	;# get the wubapp cookie
 	Debug.wubtk {process cookie: '$wubapp' widget:'$widget' op:'$op' extra:'$extra' suffix:'$suffix' over '$mount'}
