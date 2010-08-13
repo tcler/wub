@@ -647,6 +647,32 @@ class create ::FormClass {
 	}]
     }
 
+    # Toolbar from
+    # http://www.filamentgroup.com/lab/styling_buttons_and_toolbars_with_the_jquery_ui_css_framework/
+    method <icobutton> {icon url content {title ""}} {
+	if {$title ne ""} {
+	    set title [list title $title]
+	}
+	set content [uplevel 1 [list subst $content]]
+	return [<a> href $url class "fg-button ui-state-default fg-button-icon-solo ui-corner-all" {*}$title [<span> class "ui-icon ui-icon-$icon" {}]$content]
+    }
+    method <buttons> {args} {
+	set result [string trim [uplevel 1 [list subst [join $args]]] \n]
+	return [<div> class "fg-buttonset ui-helper-clearfix" $result]
+    }
+    method <multibuttons> {args} {
+	set result [string trim [uplevel 1 [list subst [join $args]]] \n]
+	return [<div> class "fg-buttonset fg-buttonset-multi" $result]
+    }
+    method <singlebuttons> {args} {
+	set result [string trim [uplevel 1 [list subst [join $args]]] \n]
+	return [<div> class "fg-buttonset fg-buttonset-single" $result]
+    }
+    method <toolbar> {id args} {
+	set result [string trim [uplevel 1 [list subst [join $args]]] \n]
+	return [<div> id $id class "fg-toolbar ui-widget-header ui-corner-all ui-helper-clearfix" $result]
+    }
+
     method layout_parser {fname args} {
 	upvar 1 lmetadata lmetadata
 	variable layoutcache
