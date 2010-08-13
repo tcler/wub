@@ -143,6 +143,7 @@ namespace eval ::Http {
 	expect from host if-match if-modified-since if-none-match if-range
 	if-unmodified-since max-forwards proxy-authorization referer te
 	user-agent keep-alive cookie via range
+	origin sec-websocket-key1 sec-websocket-key2
     }
     foreach n $rq_headers {
 	set headers($n) rq
@@ -280,6 +281,18 @@ namespace eval ::Http {
 	    return $r	;# no change
 	}
 	dict set r accept $mime	;# we coerce the acceptable types
+	return $r
+    }
+
+    proc Continue {r} {
+	dict set r -code 100
+	return $r
+    }
+
+    proc Switching {r content} {
+	dict set r -code 101
+	dict set r -content $content
+	dict set r content-length [string length $content]
 	return $r
     }
 
