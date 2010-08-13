@@ -12,7 +12,7 @@ STARTER="daemon"
 
 test -x $DAEMON || exit 0
 
-# Include tclhttpd defaults if available
+# Include Wub defaults if available
 if [ -f /etc/default/wub ] ; then
 	. /etc/default/wub
 fi
