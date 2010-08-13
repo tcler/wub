@@ -270,7 +270,7 @@ namespace eval ::WubWidgets {
 	    Debug.wubwidgets {configured: $vars}
 	    if {[info exists grid]} {
 		# the widget needs to be gridded
-		set rs 1; set cs 1
+		set rs 1; set cs 1; set r 0; set c 0
 		Debug.wubwidgets {config gridding: '$grid'}
 		set pargs [lsearch -glob $grid -*]
 		if {$pargs > -1} {
@@ -936,6 +936,30 @@ namespace eval ::WubWidgets {
 	}
     }
 
+    # toolbar widget
+    oo::class create toolbarC {
+	method render {args} {
+	    return [<toolbar> [my id] [my cget content]]
+	}
+
+	# optional - this is called to generate any js
+	# which gives a widget special powers
+	# leaving this out will also work
+	method js {r} {
+	    set r [next $r]	;# include widget -js
+	    set r [jQ toolbar $r]
+	    return $r	;# return the modified request
+	}
+
+	method changed? {} {return 0}
+
+	superclass ::WubWidgets::widget	;# you may override its methods
+	constructor {args} {
+	    set defaults {content ""}	;# here you specify default options
+	    next {*}[dict merge $defaults $args]
+	}
+    }
+
     oo::class create textC {
 	method tracker {} {
 	    return [my connection variableJS #[my id]]
@@ -1167,7 +1191,19 @@ namespace eval ::WubWidgets {
 	    if {$url eq ""} {
 		set url [my widget]
 	    }
-	    return [my connection <img> {*}[my style $args] src $url]
+	    set up [Url parse $url]
+	    if {0 && [string match *.svg [dict up.-path]]} {
+		set opts {width 32px height 32px}
+		if {[my cexists width]} {
+		    dict set opts width [my cget $width]
+		}
+		if {[my cexists height]} {
+		    dict set opts height [my cget $height]
+		}
+		return [my connection <object> {*}$opts data $url ""]
+	    } else {
+		return [my connection <img> {*}[my style $args] src $url]
+	    }
 	}
 	
 	superclass ::WubWidgets::widget
@@ -1539,6 +1575,55 @@ namespace eval ::WubWidgets {
 	    oo::objdefine [self] forward connection [namespace qualifiers [self]]::connection
 	}
     }
+
+    # bubbleup widget
+    oo::class create bubbleupC {
+	method grid {cmd widget args} {
+	    if {$cmd ne "configure"} return
+	    Debug.wubwidgets {Bubbleup [namespace tail [self]] gridding: $widget $args}
+	    variable subw
+	    dict set subw [dict get $args -row] $widget
+	}
+
+	# render widget
+	method render {args} {
+	    set id [my id]
+	    variable subw
+	    set li {}
+	    foreach n [lsort -integer [dict keys $subw]] {
+		set w .[my widget].[dict get $subw $n]
+		set sid ${id}_$n
+		uplevel 1 [list $w id $sid]
+		lappend li [my connection <li> [uplevel 1 [list $w render]]]
+	    }
+	    return [my connection <ul> id $id class bubbleup {*}[my style $args] [join $li \n]]
+	}
+
+	method changed? {} {return 1}
+	
+	method changes {r} {
+	    variable subw
+	    set changes {}
+	    dict for {n tab} $subw {
+		set changed [lassign [uplevel 1 [list $tab changes $r]] r]
+		lappend changes {*}$changed
+	    }
+	    return [list $r {*}$changes]
+	}
+
+	# optional - add per-widget js
+	method js {r} {
+	    set r [jQ bubbleup $r "ul.#[my id] li img" tooltip true]
+	    set r [next $r]	;# include widget -js
+	    return $r
+	}
+
+	superclass ::WubWidgets::widget
+	constructor {args} {
+	    next {*}$args
+	}
+    }
+
 
     # frame widget
     oo::class create frameC {
@@ -1933,7 +2018,7 @@ namespace eval ::WubWidgets {
     }
 
     # make shims for each kind of widget
-    variable tks {button label entry text checkbutton scale frame notebook accordion html toplevel upload cookie radiobutton select combobox}
+    variable tks {button label entry text checkbutton scale frame notebook accordion html toplevel upload cookie radiobutton select combobox toolbar bubbleup}
 
     namespace export -clear *
     namespace ensemble create -subcommands {}
