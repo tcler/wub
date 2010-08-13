@@ -20,8 +20,8 @@ oo::class create Button {
 	set hueof {}
 	foreach c $colors {
 	    set hsv [Color webToHsv $c]
-	    lassign $hsv hue
-	    if {$hue} {
+	    lassign $hsv hue saturation
+	    if {$saturation > 4} {
 		dict set hueof $c $hue
 		incr sum $hue
 		incr cnt
@@ -33,7 +33,7 @@ oo::class create Button {
 	foreach c [dict keys $hueof] {
 	    dict set map $c [Color rehueweb $c $newhue]
 	}
-
+	Debug.button {rehue: $newhue - hues: $map}
 	return [string map $map $svn]	;# substitute colours
     }
 
@@ -46,7 +46,7 @@ oo::class create Button {
     }
 
     method / {r args} {
-	Debug.button {/ - $args}
+	Debug.button {[dict get $r -extra] - $args}
 	set opts {}
 	foreach n {width height} {
 	    set v [dict args.$n?]
