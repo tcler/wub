@@ -407,6 +407,11 @@ namespace eval ::Site {
 		::source [file join $dir pkgIndex.tcl]
 		dict unset section -loaddir
 	    }
+	    if {[dict exists $section -loadfile]} {
+		set file [dict get $section -loadfile]
+		::source $file
+		dict unset section -loadfile
+	    }
 
 	    set a {}
 	    foreach {n v} $section {
