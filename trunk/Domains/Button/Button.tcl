@@ -19,6 +19,7 @@ oo::class create Button {
 	set cnt 0; set sum 0
 	set hueof {}
 	foreach c $colors {
+	    if {[string tolower $c] eq "#ffffff"} continue
 	    set hsv [Color webToHsv $c]
 	    lassign $hsv hue saturation
 	    if {$saturation > 4} {
