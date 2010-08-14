@@ -231,14 +231,27 @@ class create ::WubTkI {
 	}
     }
 
+    method addprep {sel args} {
+	variable prep
+	dict set prep $sel,$args [list $sel $args]
+    }
+
     method prep {r} {
 	# re-render whole page
 	set r [jQ jquery $r]
 	set r [jQ scripts $r jquery.form.js jquery.metadata.js]
-	set r [jQ tabs $r .notebook]
-	set r [jQ accordion $r .accordion]
+	#set r [jQ tabs $r .notebook]
+	#set r [jQ accordion $r .accordion]B
 	set r [jQ pnotify $r]
-	set r [jQ combobox $r .combobox]
+	#set r [jQ combobox $r .combobox]
+
+	# add in preparatory jQ as required by widgets
+	variable prep
+	foreach {n v} $prep {
+	    lassign $v n v
+	    Debug.wubtk {preparatory: jQ $n . $v}
+	    set r [jQ $n $r {*}$v]
+	}
 
 	# define some useful functions
 	set r [Html postscript $r {
@@ -707,6 +720,12 @@ class create ::WubTkI {
 			    set r [my event $r]
 			}
 
+			fetch {
+			    # client fetch has been received
+			    set widget .[dict r.-widget]
+			    set r [$widget fetch $r]
+			}
+
 			autocomplete {
 			    # this is autocomplete - we get to call the -command with
 			    # one argument passed in
@@ -724,7 +743,7 @@ class create ::WubTkI {
 			    }
 			    set json \[[join $json ,]\]
 			    Debug.wubtk {autocomplete: $result -> ($json)}
-			    set r [Http Ok [Http NoCache $r] $json application/json] 
+			    set r [Http Ok [Http NoCache $r] $json application/json]
 			}
 
 			upload {
@@ -812,6 +831,7 @@ class create ::WubTkI {
 	variable {*}$args
 	variable redirect ""	;# no redirection, initially
 	variable exit 0		;# do not exit, initially
+	variable prep {}
 	next? {*}$args		;# construct Form
 	Debug.wubtk {constructed WubTkI self-[self]  - ns-[namespace current] ($args)}
 
@@ -1066,6 +1086,7 @@ class create ::WubTk {
 
     constructor {args} {
 	variable lambda ""
+	variable prep {}
 	variable expires ""
 	variable stylesheet ""
 	variable css {}
