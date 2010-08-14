@@ -1599,7 +1599,7 @@ namespace eval ::WubWidgets {
 	    return [my connection <ul> id $id class bubbleup {*}[my style $args] [join $li \n]]
 	}
 
-	method changed? {} {return 1}
+	method changed? {} {return 0}
 	
 	method changes {r} {
 	    variable subw
