@@ -151,26 +151,28 @@ proc tkd {} {
     frame .nb.tab3.uframe -text "Upload File" -grid {2 0}
     upload .nb.tab3.uframe.f1 -title "Upload a file" -command getupload -grid {0 0}
 
-    frame .nb.tab3.tbframe -text "Toolbar" -grid {3 0}
-    toolbar .nb.tab3.tbframe.tb -grid {3 0} -content {
-	[<buttons> {
+    if {0} {
+	frame .nb.tab3.tbframe -text "Toolbar" -grid {3 0}
+	toolbar .nb.tab3.tbframe.tb -grid {3 0} -content {
+	    [<buttons> {
 	    [<icobutton> folder-open # Open Open]
 	    [<icobutton> disk # Save Save]
-	    [<icobutton> trash # Delete Delete]
-	}]
+		[<icobutton> trash # Delete Delete]
+	    }]
 	[<multibuttons> {
 	    [<button> bold class "fg-button ui-state-default ui-corner-left" [<b> B]]
 	    [<button> italic class "fg-button ui-state-default" [<i> I]]
 	    [<button> underscore class "fg-button ui-state-default ui-corner-right" [<u> U]]
 	}]
-	[<buttons> {
-	    [<icobutton> print # Print Print]
-	    [<icobutton> mail-closed # Email Email]
-	}]
-	[<buttons> {
-	    [<button> edit class "fg-button ui-state-default ui-state-active ui-priority-primary ui-corner-left" Edit]
-	    [<button> view class "fg-button ui-state-default ui-priority-primary ui-corner-right" View]
-	}]
+	    [<buttons> {
+		[<icobutton> print # Print Print]
+		[<icobutton> mail-closed # Email Email]
+	    }]
+	    [<buttons> {
+		[<button> edit class "fg-button ui-state-default ui-state-active ui-priority-primary ui-corner-left" Edit]
+		[<button> view class "fg-button ui-state-default ui-priority-primary ui-corner-right" View]
+	    }]
+	}
     }
 
     # make an accordion
@@ -188,12 +190,11 @@ proc tkd {} {
     .acc add .acc.a3
     label .acc.a3.txt -text "This is Accordion 2" -grid {0 0}
 
-    frame .bf -text "Bubbles" -grid 2
-    bubbleup .bf.bubble -grid 0
+    toolbar .toolbar -grid 2
     set icnt 0
     foreach n {up back next down} {
-	image create photo .bf.bubble.i$icnt -width 32 -url /icons/$n.gif
-	button .bf.bubble.b$icnt -image .bf.bubble.i$icnt -command buttonC -grid $icnt
+	image create photo .toolbar.i$icnt -width 24 -url /icons/$n.gif
+	button .toolbar.b$icnt -image .toolbar.i$icnt -command buttonC -grid $icnt
 	incr icnt
     }
 }
