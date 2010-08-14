@@ -410,7 +410,7 @@ namespace eval ::jQ {
     proc tablesorter {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.metadata.js jquery.tablesorter.js
-	}  %SEL [S $selector] %OPTS [opts tablesorter {*}$args] {
+	} css jquery.tablesorter.css %SEL [S $selector] %OPTS [opts tablesorter {*}$args] {
 	    $('%SEL').tablesorter(%OPTS);
 	}]
     }
@@ -860,8 +860,8 @@ namespace eval ::jQ {
 
     proc sheet {r selector args} {
 	return [weave $r {
-	    jquery.js jquery.clickmenu.js jquery.sheet.calc.js jquery.sheet.js
-	} css clickable.css %SEL [S $selector] %OPTS [opts sheet {*}$args] {
+	    jquery.js jquery.sheet.calc.js jquery.sheet.js
+	} css jquery.sheet.css %SEL [S $selector] %OPTS [opts sheet {*}$args] {
 	    $('%SEL').sheet(%OPTS);
 	}]
     }
