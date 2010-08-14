@@ -1993,6 +1993,11 @@ namespace eval ::WubWidgets {
     # make shims for each kind of widget
     variable tks {button label entry text checkbutton scale frame notebook accordion html toplevel upload cookie radiobutton select combobox toolbar}
 
+    proc add {args} {
+	variable tks
+	lappend tks {*}$args
+    }
+
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
