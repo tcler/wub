@@ -524,6 +524,11 @@ namespace eval ::WubWidgets {
 		lappend result disabled 1
 	    }
 
+	    variable title
+	    if {[info exists title] && $title ne ""} {
+		lappend result title $title
+	    }
+
 	    return $result
 	}
 
@@ -630,6 +635,7 @@ namespace eval ::WubWidgets {
 	superclass ::WubWidgets::selectC
 	constructor {args} {
 	    next {*}$args -combobox 1
+	    my connection addprep combobox .combobox
 	}
     }
 
@@ -1893,6 +1899,7 @@ namespace eval ::WubWidgets {
 	    next {*}$args
 	    variable tabs {}
 	    variable set 0
+	    my connection addprep tabs .notebook
 	}
     }
 
@@ -1987,6 +1994,7 @@ namespace eval ::WubWidgets {
 	    next {*}[dict merge {} $args]
 	    variable panes {}
 	    variable set 0
+	    my connection addprep accordion .accordion
 	}
     }
 
