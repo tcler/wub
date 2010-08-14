@@ -239,7 +239,6 @@ class create ::WubTkI {
 	set r [jQ accordion $r .accordion]
 	set r [jQ pnotify $r]
 	set r [jQ combobox $r .combobox]
-	set r [jQ bubbleup $r "ul.bubbleup li img" tooltip true]
 
 	# define some useful functions
 	set r [Html postscript $r {
@@ -461,24 +460,17 @@ class create ::WubTkI {
 		height: 100px;
 	    }
 
-	    ul.bubbleup {
-		margin: 5px 0px;
+	    ul.toolbar {
 		list-style: none;
 		display: inline-block;
+		border: 1px solid;
+		padding: 0px;
 	    }
 	    
-	    ul.bubbleup li {
+	    ul.toolbar li {
 		padding: 0px;
 		float: left;
-		position: relative;
-		margin-left: 5px;
-		margin-right: 5px;
-		width: 48px;
-		height: 48px;
-	    }
-
-	    ul.bubbleup li a {
-		position: absolute;
+		margin: 0px;
 	    }
 	}]
 
