@@ -846,6 +846,38 @@ namespace eval ::Nub {
 	}]
     }
 
+    proc code_trailing {processed} {
+	upvar 1 domains domains
+	set switch ""
+	foreach {u d} $processed {
+	    set url [join [lassign $u host] /]
+	    Debug.nub {code_trailing: $u ($d)}
+	    dict with d {
+		lappend switch "$host,$url*"
+	    }
+	}
+	set switch [join $switch " -\n"]
+	append switch { {
+	    Http Redir $r [dict get $r -path]/
+	}}
+	append switch {
+	    default {
+		NotFound $r
+	    }
+	}
+
+	# set up a selector to specify trailing/
+	set selector {"[dict get $r -host],[dict get $r -path]/"}
+	set body "Debug.nub {trailing: \[dict get \$r -host],\[dict get \$r -path]/}"
+	append body \n
+	append body "set result \[switch -glob -- $selector [list $switch]\]" \n
+	append body "Debug.nub {trailing: \[dict get? \$result -code] \[dict get? \$result location]}" \n
+	append body "return \$result"
+
+	Debug.nub {code_trailing: ($body)}
+	eval "::proc ::Httpd::trailing {r} [list $body]"
+    }
+
     # code processed domains into a big switch
     proc code_domains {processed} {
 	upvar 1 domains domains
@@ -1012,6 +1044,7 @@ namespace eval ::Nub {
 	set rewriting [gen_rewrites $rewrites]
 	set redirecting [gen_redirects $redirects]
 	set switch [code_domains $processed]
+	code_trailing $processed	;# handle trailing/ problem
 	set rw [code_rewrites $rewriting]
 	set au [code_auths $auths]
 
@@ -1063,12 +1096,16 @@ namespace eval ::Nub {
 		    %S
 		    default {
 			# this is the default behaviour
-			Http NotFound $r [<p> "page '[dict get $r -uri]' Not Found."]
+			trailing $r
 		    }
 		}
 		# nothing should be put here, as the above switch returns values
 	    }
 	}]
+
+	::proc ::Httpd::NotFound {r} {
+	    Http NotFound $r [<p> "page '[dict get $r -uri]' Not Found."]
+	}
 	Debug.nub {GEN: $p}
 	return $p
     }
