@@ -253,7 +253,9 @@ class create ::Direct {
 	dict set r -suffix [string trim $suffix /]
 
 	# TODO: armour commands
-	dict set r -content-type [dict get? $r content-type]
+	if {[dict exists $r content-type]} {
+	    dict set r -content-type [dict get $r content-type]
+	}
 	dict set r content-type $ctype
 	#dict set r cache-control no-cache	;# default - not cacheable
 	dict set r -dynamic 1
