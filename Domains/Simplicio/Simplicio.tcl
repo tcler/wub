@@ -118,7 +118,7 @@ namespace eval ::Simplicio {
 	set ext [dict get $r -extension]
 	set want [Mime MimeOf $ext]
 	dict set r accept $want
-	puts stderr "WANT: $want from $ext"
+	#puts stderr "WANT: $want from $ext"
 
 	# check existence of icon
 	variable icons
