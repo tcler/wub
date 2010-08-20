@@ -1064,9 +1064,10 @@ class create ::WubTk {
 		}
 	    }
 
-	    # create the coroutine
+	    # create the coroutine to service this WubTk session
 	    try {
 		set req $r
+		my reload
 		variable lambda
 		set o [::WubTkI create [namespace current]::Coros::O_$wubapp {*}$options]
 		set r [::Coroutine [namespace current]::Coros::$wubapp $o do $r $lambda]
@@ -1081,6 +1082,16 @@ class create ::WubTk {
 	    }
 
 	    return $r
+	}
+    }
+
+    method reload {} {
+	variable file; variable lambda
+	if {[info exists file]} {
+	    variable loadtime
+	    if {[file mtime $file] > $loadtime} {
+		set lambda [fileutil::cat -- $file]
+	    }
 	}
     }
 
@@ -1110,6 +1121,7 @@ class create ::WubTk {
 
 	if {[info exists file]} {
 	    append lambda [fileutil::cat -- $file]
+	    variable loadtime [file mtime $file]
 	} elseif {![info exists lambda] || $lambda eq ""} {
 	    variable lambda [fileutil::cat -- [file join $::WubTk_dir test.tcl]]
 	}
