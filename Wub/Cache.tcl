@@ -151,9 +151,10 @@ namespace eval Cache {
 	variable cache
 
 	dict set req -uri [Url uri $req]	;# regenerate the url, just in case
-	set et [string trim [dict get $req etag] \"]
+	set et [string trim [dict get? $req etag] \"]
 	set uri [dict get $req -uri]
-	if {[exists? [dict get? $req etag]]
+	if {$et ne ""
+	    && [exists? $et]
 	    && [info exists keys($et)]
 	} {
 	    # key by request's etag
@@ -478,6 +479,8 @@ namespace eval Cache {
 	    Debug.cache {url '$uri' not in cache}
 	    return {}	;# we don't have a copy matching -uri either
 	}
+
+	# we have an etag or a uri which exists in Cache
 
 	# old style no-cache request
 	variable obey_CC
