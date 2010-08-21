@@ -413,7 +413,7 @@ class create ::Login {
 	    set key [::md5::md5 -hex "[clock microseconds]$user$password"]
 	    if {![catch {my stmt {
 		INSERT OR ABORT INTO cookies (uid,cookie) VALUES (:uid,:key)
-	    } uid [dict get $record uid] key $key}
+	    } uid [dict get $record uid] key $key}]} break
 	    # it's got to be a unique key
 	}
 
