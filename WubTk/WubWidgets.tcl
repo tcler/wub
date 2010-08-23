@@ -1881,7 +1881,7 @@ namespace eval ::WubWidgets {
 	    if {$text eq ""} {
 		set text "Tab[llength $tabs]"
 	    }
-`	    uplevel 1 [list $w configure {*}[dict merge [list -state normal -text $text] $args {-div 1}]]
+	    uplevel 1 [list $w configure {*}[dict merge [list -state normal -text $text] $args {-div 1}]]
 	    lappend tabs $w
 	}
 
