@@ -629,6 +629,7 @@ namespace eval ::WubWidgets {
 	method js {r} {
 	    Debug.wubwidgets {combobox js}
 	    set r [jQ combobox $r "#[my id]"]
+	    set r [next js $r]
 	    return $r
 	}
 	
@@ -1487,6 +1488,7 @@ namespace eval ::WubWidgets {
 		    set r [uplevel 1 [list [dict get $col widget] js $r]]
 		}
 	    }
+	    set r [next js $r]
 	    return $r
 	}
 
