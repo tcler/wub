@@ -1492,7 +1492,6 @@ namespace eval ::WubWidgets {
 		    set r [uplevel 1 [list [dict get $col widget] js $r]]
 		}
 	    }
-	    set r [next js $r]
 	    return $r
 	}
 
