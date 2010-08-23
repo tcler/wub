@@ -481,6 +481,10 @@ namespace eval ::WubWidgets {
 		}
 	    }
 
+	    if {[my cexists -style]} {
+		set attrs [dict merge $attrs [my cget -style]]
+	    }
+
 	    if {0} {
 		# process -sticky gridding
 		set sticky [dict gridding.sticky?]
