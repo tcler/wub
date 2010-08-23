@@ -745,7 +745,7 @@ namespace eval ::WubWidgets {
 	    set val [my getvalue]
 
 	    my reset
-	    return [my connection <div> id $id {*}[my style $args] [my compound $val]]
+	    return [my connection <div> id $id class label {*}[my style $args] [my compound $val]]
 	}
 	
 	superclass ::WubWidgets::widget
