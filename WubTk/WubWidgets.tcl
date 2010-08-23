@@ -1618,7 +1618,7 @@ namespace eval ::WubWidgets {
 	    Debug.wubwidgets {Frame [namespace tail [self]] render gridded by $fgrid}
 	    set id [my id]
 
-	    if {[my cexists -div]} {
+	    if {[my cexists -div] || ![my cexists -text]} {
 		append content \n [uplevel 1 [list $fgrid render]]
 		return [my connection <div> id $id class frame {*}[my style $args] $content]
 	    } else {
@@ -1876,7 +1876,7 @@ namespace eval ::WubWidgets {
 	    if {$text eq ""} {
 		set text "Tab[llength $tabs]"
 	    }
-	    uplevel 1 [list $w configure {*}[dict merge [list -state normal -text $text] $args {-div 1}]]
+`	    uplevel 1 [list $w configure {*}[dict merge [list -state normal -text $text] $args {-div 1}]]
 	    lappend tabs $w
 	}
 
