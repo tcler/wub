@@ -197,7 +197,7 @@ class create ::Listener {
 	if {[catch $cmd listener eo]} {
 	    Debug.error {Listener Failed: '$cmd' $listener ($eo)}
 	} else {
-	    variable server [chan configure -sockname $listener]
+	    variable server [chan configure $listener -sockname]
 	}
 
 	Debug.log {Listener $listener on [fconfigure $listener]}
