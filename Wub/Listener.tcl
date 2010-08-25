@@ -94,7 +94,8 @@ class create ::Listener {
 
 	if {[catch {
 	    # select an Http object to handle incoming
-	    {*}[dict get $opts -httpd] Connect $sock $ipaddr $rport {*}$opts
+	    variable server
+	    {*}[dict get $opts -httpd] Connect $sock $ipaddr $rport {*}$opts -server $server
 	} result eo]} {
 	    Debug.error {accept: $eo}
 	}
@@ -195,6 +196,8 @@ class create ::Listener {
 	variable listener
 	if {[catch $cmd listener eo]} {
 	    Debug.error {Listener Failed: '$cmd' $listener ($eo)}
+	} else {
+	    variable server [chan configure -sockname $listener]
 	}
 
 	Debug.log {Listener $listener on [fconfigure $listener]}
