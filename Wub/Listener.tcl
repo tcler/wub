@@ -94,7 +94,7 @@ class create ::Listener {
 
 	if {[catch {
 	    # select an Http object to handle incoming
-	    server [chan configure $sock -sockname]
+	    set server [chan configure $sock -sockname]
 	    {*}[dict get $opts -httpd] Connect $sock $ipaddr $rport {*}$opts -server $server
 	} result eo]} {
 	    Debug.error {accept: $eo}
