@@ -275,6 +275,7 @@ namespace eval ::Site {
 	}
 
 	Nub {
+	    load 1
 	    nubs {}
 	    # nub.nub bogus.nub
 	}
@@ -647,7 +648,11 @@ namespace eval ::Site {
 	}
 
 	# apply all collected Nubs - this doesn't instantiate them
-	Nub apply
+	if {[config exists Nub]
+	    && [config get Nub load]
+	} {
+	    Nub apply
+	}
 
 	#### start Httpd protocol
 	::variable httpd
