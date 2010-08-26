@@ -1038,7 +1038,7 @@ class create View {
     # [$hash append ...]
 
     method hash {count} {
-	my mixin ViewReadOnly {*}[my mixin]	;# make this View R/O now
+	oo::objdefine [self] mixin ViewReadOnly {*}[info objects mixons [self]]	;# make this View R/O now
 
 	# create a temporary map
 	set mapname ramdb.imap[incr uniq]
