@@ -148,7 +148,7 @@ oo::class create ::HumanC {
 	    # they returned a cookie, we presume they're human
 	} else {
 	    # discover known robots fast
-	    set robot [my fetch robots ip $ipaddr]
+	    set robot [my fetch robots id $ipaddr]
 	    if {[dict size $robot]} {
 		Debug.human {$ipaddr is a known robot}
 		dict set r -ua_class robot
@@ -187,7 +187,7 @@ oo::class create ::HumanC {
 	append content [<p> "last: $last"]
 	append content [<p> "human: [dict rec.human]"]
 
-	set iprecord [my fetch robots ip $ipaddr]
+	set iprecord [my fetch robots id $ipaddr]
 	if {[dict size $iprecord]} {
 	    append content [<p> "Known Robot"]
 	} else {
