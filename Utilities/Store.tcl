@@ -89,11 +89,7 @@ oo::class create Store {
 	}
 	set vs {}
 	dict for {n v} $args {
-	    if {$n ne "id"} {
-		lappend vs :$n
-	    } else {
-		dict unset dict $n
-	    }
+	    lappend vs :$n
 	}
 
 	return [my stmt "INSERT INTO $table ([join [dict keys $args] ,]) VALUES ([join $vs ,]);" $args]
