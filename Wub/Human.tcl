@@ -20,9 +20,9 @@ set ::API(Server/Human) {
 }
 
 oo::class create ::HumanC {
-    method ip {r} {
+    method ipaddr {ipaddr} {
 	set ip 0
-	foreach octet [split [dict r.-ipaddr] .] {
+	foreach octet [split $ipaddr .] {
 	    set octet [string trimleft $octet 0]
 	    if {$octet eq ""} {
 		set octet 0
@@ -31,6 +31,10 @@ oo::class create ::HumanC {
 	}
 	Debug.human {ip: $ip}
 	return $ip
+    }
+
+    method ip {r} {
+	return [my ipaddr [dict r.-ipaddr]]
     }
 
     method getcookie {r} {
@@ -44,12 +48,14 @@ oo::class create ::HumanC {
 	}
     }
 
-    method newhuman {r {value ""}} {
-	if {$value eq ""} {
-	    # create a new cookie
-	    variable uniq; incr uniq
-	    set value [::md5::md5 -hex $uniq[clock microseconds]]
+    method newhuman {r} {
+	# add a human record
+	set value [clock microseconds]
+	while {[dict size [my fetch id $value]]} {
+	    set value [clock microseconds]	;# get unique human value
 	}
+	my append id $value ip [my ip $r]
+	my append ips ip $ipaddr last [clock milliseconds]	;# we've seen this IP
 
 	# add a cookie to reply
 	if {[dict exists $r -cookies]} {
@@ -93,79 +99,7 @@ oo::class create ::HumanC {
 	Debug.human {created human cookie '$cookie' in ($cdict)}
 	dict set r -cookies $cdict
 
-	# add a human record
-	my append human $value created [clock milliseconds] ip [my ip $r]
 	return $r
-    }
-
-    # robot - declare this ip to be a robot
-    method robot {r ipaddr} {
-	switch -- [dict get? $r -ua_class] {
-	    browser {
-		# known to be a browser
-	    }
-	    default {
-		# found to be a robot
-		my append robots ip $ipaddr
-		dict set r -ua_class robot
-	    }
-	}
-	return $r
-    }
-
-    # no cookie was returned
-    # - investigate further before possibly declaring IP robotic
-    method nocookie {r ipaddr} {
-	set iprecords [my match ips ip $ipaddr]
-	if {![llength $iprecords]} {
-	    # we have never seen this IP address before
-	    # - send it a cookie and see how it responds
-	    Debug.human {never seen $ipaddr before}
-	    append ips ip $ipaddr last [clock milliseconds]
-	    dict set r -ua_class robot
-	    return [my newhuman $r]
-	} else {
-	    # we have seen this IP address before
-	    # - time to make a judgement
-
-	    # calculate some stats on this IP
-	    set humans {}
-	    set recent {}
-	    set bytime {}
-	    set robotic {}
-	    set now [clock milliseconds]
-	    foreach visit $iprecords {
-		set when [expr {$now - [dict visit.last]}]
-		if {[dict exists $visit human]} {
-		    set h [dict visit.human]
-		    dict incr humans $h	;# how many times as human?
-		    lappend bytime $when $h	;# all visits by time
-
-		    # record most recent connections by human
-		    if {[dict exists $recent $h]} {
-			if {[dict recent.$h] < [dict visit.last]} {
-			    dict recent.$h [dict visit.last]
-			}
-		    } else {
-			dict latest.$h [dict visit.last]
-		    }
-		} else {
-		    # record robotic visits
-		    lappend robotic $when	;# robotic vists by time
-		    lappend bytime $when robotic
-		}
-	    }
-
-	    Debug.log {Human: seen $ipaddr [llength $iprecords] times as human: ($humans) most recently ($recent) - [llength $robotic] times as a robot most recently [lindex [lsort -integer $robotic] 0] (bytime: $bytime)}
-
-	    if {[llength $robotic] < 3} {
-		# give it 2 goes to identify itself
-		dict set r -ua_class browser	;# tentatively
-		return [my newhuman $r]
-	    }
-
-	    return [my robot $r $ipaddr]
-	}
     }
 
     method track {r} {
@@ -181,13 +115,18 @@ oo::class create ::HumanC {
 	set human [my getcookie $r]		;# get human cookie
 	set ipaddr [my ip $r]	;# and IP address
 
-	if {$human ne ""} {
-	    # we know they're human - they return cookies (?)
+	if {$human ne ""
+	    && [string is wideinteger -strict $human]
+	    && $human != 0
+	} {
+	    # we think they're human - they return cookies (?)
 	    my delete robots ip $ipaddr	;# a reprieve - they returned a cookie
 
 	    # record human's ip addresses and last connection time
-	    set record [my fetch human $human]
+	    set record [my fetch id $human]	;# unique record
+
 	    if {[dict size $record]} {
+		# we have seen them before
 		set iprecord [my fetch ips human $human ip $ipaddr]
 		if {[dict size $iprecord]} {
 		    # record human as connecting from this ip
@@ -206,19 +145,62 @@ oo::class create ::HumanC {
 		set r [my newhuman $r]
 	    }
 	    dict set r -ua_class browser	;# classify the agent
+	    # they returned a cookie, we presume they're human
 	} else {
 	    # discover known robots fast
-	    set iprecord [my fetch robots ip $ipaddr]
-	    if {[dict size $iprecord]} {
+	    set robot [my fetch robots ip $ipaddr]
+	    if {[dict size $robot]} {
 		Debug.human {$ipaddr is a known robot}
 		dict set r -ua_class robot
 		return $r
+		# they've not returned a cookie,
+		# they're already known to us as a robot
+	    } else {
+		# they're not a known robot
+		set iprecords [my match ips ip $ipaddr]
+		if {![llength $iprecords]} {
+		    Debug.human {never seen $ipaddr before}
+		    dict set r -ua_class browser	;# assume it's a human
+		    return [my newhuman $r]	;# create a record for it
+		    # we have never seen this IP address before
+		    # create a cookie for it, return that and
+		    # see how it responds
+		} else {
+		    my append robots id $ipaddr
+		    dict set r -ua_class robot
+		    return $r
+		    # we have seen this IP address before
+		    # it has not returned a cookie
+		    # it is a robot
+		}
 	    }
-	    return [my nocookie $r $ipaddr]
 	}
     }
 
-    superclass Store
+    method /ip {r ip} {
+	set ipaddr [my ipaddr $ip]
+	set rec [my fetch ips ip $ipaddr]
+	append content [<p> "ip: $ip"]
+	append content [<p> "id: [dict rec.id]"]
+	append content [<p> "count: [dict rec.count]"]
+	set last [clock scan [expr {[dict rec.last]/1000}]]
+	append content [<p> "last: $last"]
+	append content [<p> "human: [dict rec.human]"]
+
+	set iprecord [my fetch robots ip $ipaddr]
+	if {[dict size $iprecord]} {
+	    append content [<p> "Known Robot"]
+	} else {
+	    set record [my fetch human [dict rec.human]]
+	    
+	}
+    }
+
+    method / {r} {
+	return [my /ip $r [dict r.-ipaddr]]
+    }
+
+    superclass Store Direct
     constructor {args} {
 	variable path /	;# which url paths are to be detected/protected?
 	variable cookie human	;# name of the cookie to plant
@@ -237,22 +219,23 @@ oo::class create ::HumanC {
 	    PRAGMA foreign_keys = on;
 	    CREATE TABLE human
 	    (
-	     id INTEGER PRIMARY KEY AUTOINCREMENT,
-	     human TEXT,
-	     created INTEGER,
-	     ip TEXT
+	     id INTEGER PRIMARY KEY	/* associated cookie */
+	     ip INTEGER			/* where first seen */
 	     );
+
 	    CREATE TABLE ips
 	    (
 	     id INTEGER PRIMARY KEY AUTOINCREMENT,
-	     ip INTEGER,
-	     count INTEGER,
-	     last INTEGER,
-	     human TEXT
+	     ip INTEGER,		/* ip address */
+	     human INTEGER,		/* associated cookie */
+	     count INTEGER,		/* seen how many times? */
+	     last INTEGER		/* last seen (ms) */
 	     );
+	    CREATE INDEX ipid ON ips (ip,human);
+
 	    CREATE TABLE robots
 	    (
-	     ip INTEGER PRIMARY KEY
+	     id INTEGER PRIMARY KEY	/* deemed to be a bot IP */
 	     );
 	}
 	Debug.human {tables: [my db tables]}
