@@ -121,7 +121,7 @@ oo::class create ::HumanC {
 	    && $human != 0
 	} {
 	    # we think they're human - they return cookies (?)
-	    my delete robots ip $ipaddr	;# a reprieve - they returned a cookie
+	    my delete robots id $ipaddr	;# a reprieve - they returned a cookie
 
 	    # record human's ip addresses and last connection time
 	    set record [my fetch id $human]	;# unique record
