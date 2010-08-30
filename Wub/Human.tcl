@@ -219,7 +219,7 @@ oo::class create ::HumanC {
 	    PRAGMA foreign_keys = on;
 	    CREATE TABLE human
 	    (
-	     id INTEGER PRIMARY KEY	/* associated cookie */
+	     id INTEGER PRIMARY KEY,	/* associated cookie */
 	     ip INTEGER			/* where first seen */
 	     );
 
