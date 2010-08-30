@@ -15,13 +15,14 @@ namespace eval ::tcl::dict {
     proc witharray {dictVar arrayVar script} {
 	upvar 1 $dictVar dict $arrayVar array
 	array set array $dict
-	try { uplevel 1 $script
+	try {
+	    uplevel 1 $script
 	} on break    {}     { # Discard the result
 	} on continue result - on ok result {
-	    set dict [array get array] ;# commit changes
+	    ::set dict [array get array] ;# commit changes
 	    return $result
 	} on return   {result opts} {
-	    set dict [array get array] ;# commit changes
+	    ::set dict [array get array] ;# commit changes
 	    dict incr opts -level ;# remove this proc from level
 	    return -options $opts $result
 	}
@@ -61,18 +62,18 @@ namespace eval ::tcl::dict {
     #
     proc apply {dictVar lambdaExpr args} {
 	upvar 1 $dictVar dict
-	set env $dict ;# copy
+	::set env $dict ;# copy
 	lassign $lambdaExpr params body ns
-	if {$ns eq ""} { set ns "::" }
-	set body [format {
+	if {$ns eq ""} { ::set ns "::" }
+	::set body [format {
 	    upvar 1 env __env__
 	    dict with __env__ %s
-	} [list $body]]
-	set lambdaExpr [list $params $body $ns]
-	set rc [catch { ::apply $lambdaExpr {*}$args } ret opts]
+	} [::list $body]]
+	::set lambdaExpr [::list $params $body $ns]
+	::set rc [catch { ::apply $lambdaExpr {*}$args } ret opts]
 	if {$rc == 0} {
 	    # Copy back any updates
-	    set dict $env
+	    ::set dict $env
 	}
 	return -options $opts $ret
     }
@@ -95,9 +96,9 @@ namespace eval ::tcl::dict {
     #
     proc capture {{level 1} {exclude {}} {include {*}}} {
 	if {[string is integer $level]} { incr level }
-	set env [dict create]
+	::set env [dict create]
 	foreach pattern $include {
-	    foreach name [uplevel $level [list info vars $pattern]] {
+	    foreach name [uplevel $level [::list info vars $pattern]] {
 		if {[lsearch -exact -index 0 $exclude $name] >= 0} { continue }
 		upvar $level $name value
 		catch { dict set env $name $value } ;# no arrays
@@ -116,7 +117,7 @@ namespace eval ::tcl::dict {
     proc nlappend {dictvar keylist args} {
 	upvar 1 $dictvar dict
 	if {[info exists dict] && [dict exists $dict {*}$keylist]} {
-	    set list [dict get $dict {*}$keylist]
+	    ::set list [dict get $dict {*}$keylist]
 	}
 	lappend list {*}$args
 	dict set dict {*}$keylist $list
@@ -227,11 +228,11 @@ namespace eval ::tcl::dict {
     proc switch {d args} {
 	upvar 1 $d dict
 	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
+	    ::set args [lindex $args 0]
 	}
 	dict for {n v} $dict {
 	    if {[dict exists $args $n]} {
-		dict set dict $n [uplevel 1 [list ::apply [list $n [dict get $args $n]] $v]]
+		dict set dict $n [uplevel 1 [::list ::apply [::list $n [dict get $args $n]] $v]]
 	    }
 	}
 	return $dict
@@ -240,11 +241,11 @@ namespace eval ::tcl::dict {
     # side effect free variant of switch
     proc transmute {dict args} {
         if {[llength $args] == 1} {
-            set args [lindex $args 0]
+            ::set args [lindex $args 0]
         }
         dict for {n v} $dict {
             if {[dict exists $args $n]} {
-                dict set dict $n [uplevel 1 [list ::apply [list $n [dict get $args $n]] $v]]
+                dict set dict $n [uplevel 1 [::list ::apply [::list $n [dict get $args $n]] $v]]
             }
         }
         return $dict
@@ -255,7 +256,7 @@ namespace eval ::tcl::dict {
 	# [dict_project $keys $dict] extracts the specified keys in $args from the $dict
 	# and returns a plain old list-of-values.
 	proc project {dict args} {
-	    set result {}
+	    ::set result {}
 	    foreach k $args {
 		lappend result [dict get $dict $k]
 	    }
@@ -264,7 +265,7 @@ namespace eval ::tcl::dict {
 
 	# [dict_select $keys $dicts] does the same thing to a list-of-dicts, returning a list-of-lists.
 	proc select {keys args} {
-	    return [map [list dict project $keys] $args]
+	    return [map [::list dict project $keys] $args]
 	}
     }
 
@@ -309,17 +310,17 @@ namespace eval ::Dict {
     # modify a dict var with the args-dict given
     proc modify {var args} {
 	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
+	    ::set args [lindex $args 0]
 	}
 	upvar 1 $var dvar
-	set dvar [dict merge $dvar $args]
+	::set dvar [dict merge $dvar $args]
     }
 
     # fill a dict with default key/value pairs as defaults
     # if a key already exists, it is unperturbed.
     proc defaults {var args} {
 	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
+	    ::set args [lindex $args 0]
 	}
 	upvar 1 $var dvar
 	foreach {name val} $args {
@@ -330,7 +331,7 @@ namespace eval ::Dict {
     # trim the given chars from a dict's keyset
     proc trimkey {dict {trim -}} {
 	dict for {key val} $dict {
-	    set nk [string trim $key $trim]
+	    ::set nk [string trim $key $trim]
 	    if {$nk ne $key} {
 		dict set dict $nk $val
 		dict unset dict $key
@@ -342,16 +343,16 @@ namespace eval ::Dict {
     # return dict keys, sorted by some subkey value
     proc subkeyorder {dict subkey args} {
 	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
+	    ::set args [lindex $args 0]
 	}
 	# build a key/value list where value is extracted from subdict
-	set kl {}
+	::set kl {}
 	dict for {key val} $dict {
-	    lappend kl [list $key [dict get $val $subkey]]
+	    lappend kl [::list $key [dict get $val $subkey]]
 	}
 
 	# return keys in specified order
-	set keys {}
+	::set keys {}
 	foreach el [lsort -index 1 {*}$args $kl] {
 	    lappend keys [lindex $el 0]
 	}
@@ -361,7 +362,7 @@ namespace eval ::Dict {
 
     # return dict as list sorted by key
     proc keysorted {dict args} {
-	set result {}
+	::set result {}
 	foreach key [lsort {*}$args [dict keys $dict]] {
 	    lappend result $key [dict get $dict $key]
 	}
@@ -371,7 +372,7 @@ namespace eval ::Dict {
     # strip a set of keys from a dict
     proc strip {var args} {
 	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
+	    ::set args [lindex $args 0]
 	}
 	upvar 1 $var dvar
 	foreach key $args {
@@ -384,7 +385,7 @@ namespace eval ::Dict {
     # use a dict as a cache for the value of the $args-expression
     proc cache {dict name args} {
 	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
+	    ::set args [lindex $args 0]
 	}
 	upvar dict dict
 	if {[info exists $dict $name]} {
@@ -398,9 +399,9 @@ namespace eval ::Dict {
     # return the dict subset specified by args
     proc subset {dict args} {
 	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
+	    ::set args [lindex $args 0]
 	}
-	set result {}
+	::set result {}
 	dict for {k v} $dict {
 	    if {$k in $args} {
 		dict set result $k $v
@@ -416,7 +417,7 @@ namespace eval ::Dict {
     # return the values specified by args
     proc getall {dict args} {
 	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
+	    ::set args [lindex $args 0]
 	}
 	return [dict values [dict filter $dict script {k v} {
 	    expr {$k in $args}
@@ -425,18 +426,18 @@ namespace eval ::Dict {
 
     # convert directory to dict
     proc dir {dir {glob *}} {
-	set content {}
+	::set content {}
 	foreach file [glob -nocomplain -directory $dir $glob] {
 	    while {[file type $file] eq "link"} {
-		set file [file readlink $file]
+		::set file [file readlink $file]
 	    }
 
 	    ::switch -- [file type $file] {
 		directory {
-		    set extra "/"
+		    ::set extra "/"
 		}
 		file {
-		    set extra ""
+		    ::set extra ""
 		}
 		default {
 		    continue
@@ -445,7 +446,7 @@ namespace eval ::Dict {
 
 	    catch {unset attr}
 	    file stat $file attr
-	    set name [file tail $file]
+	    ::set name [file tail $file]
 	    dict set content $name [array get attr]
 	    foreach {x y} [file attributes $file] {
 		dict set content $name $x $y
@@ -466,7 +467,7 @@ namespace eval ::Dict {
     }
 
     proc vars {dvar args} {
-	set script [list dict with $dvar]
+	::set script [::list dict with $dvar]
 	foreach a $args {
 	    lappend script $a $a
 	}
