@@ -54,7 +54,8 @@ oo::class create ::HumanC {
 	while {[dict size [my fetch id $value]]} {
 	    set value [clock microseconds]	;# get unique human value
 	}
-	my append id $value ip [my ip $r]
+	set ipaddr [my ip $r]
+	my append id $value ip $ipaddr
 	my append ips ip $ipaddr last [clock milliseconds]	;# we've seen this IP
 
 	# add a cookie to reply
