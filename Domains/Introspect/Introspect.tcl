@@ -72,7 +72,7 @@ class create Introspect {
 	#
 	method /pkg {r args} {
 		# display stuff loaded using the 'load' command
-puts "##### [package names]"
+#puts "##### [package names]"
 		set content "<h3>These are items that were loaded using the 'load' command.</h3>"
 		set t [HtmTable new "border='1'"]
 		${t} headers {package version path}
