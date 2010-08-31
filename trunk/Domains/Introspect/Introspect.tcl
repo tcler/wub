@@ -72,14 +72,27 @@ class create Introspect {
 	#
 	method /pkg {r args} {
 		# display stuff loaded using the 'load' command
-		set content "<h3>These are items that were loaded using the 'load' command.<br>(listed in the order they were loaded)</h3>"
+puts "##### [package names]"
+		set content "<h3>These are items that were loaded using the 'load' command.</h3>"
 		set t [HtmTable new "border='1'"]
-		${t} headers {path name interp}
-		foreach e $::__load_log {
-			lassign ${e} p n i
-			${t} cell ${p} incr
+		${t} headers {package version path}
+		set alist {}
+		foreach a [info loaded] {
+			lassign ${a} p n
+			if { ${p} eq "" } {
+				set p "{built in}"
+			}
+			if { [catch {set v [package require ${n}]} v] } {
+				set v "?"
+			}
+			lappend alist [list ${n} ${v} ${p}]
+		}
+		set alist [lsort -dictionary ${alist}]
+		foreach a ${alist} {
+			lassign ${a} n v p
 			${t} cell ${n} incr
-			${t} cell ${i} incr
+			${t} cell ${v} incr
+			${t} cell ${p} incr
 			${t} row incr
 		}
 		append content [${t} render]
@@ -210,7 +223,6 @@ class create Introspect {
 	# This method displays the content of a namespace.
 	#
 	method /ns {r args} {
-
 		set ns [split [dict get ${r} -extra] /]
 		set content [my dump_ns ${r} ${ns}]
 		return [Http Ok $r ${content}]
@@ -231,7 +243,7 @@ class create Introspect {
 	method GetCommandType { cmd } {
 		set cmd [string trimleft ${cmd} :]
 		set x "{[regsub -all {::} ${cmd} "} {"]}"
-		set ns ::[lrange "{[regsub -all {::} ${cmd} "} {"]}" 0 end-1]
+		set ns [join ::[lrange ${x} 0 end-1] "::"]
 		set cmd ::${cmd}
 		set clist [lsort -dictionary [namespace children ${ns}]]
 		set plist [lsort -dictionary [info procs ${cmd}]]
@@ -260,6 +272,7 @@ class create Introspect {
 	}
 
 	method GetCommandLink { cmd {prefix ""} } {
+		variable built-in-commands
 		set ctype [my GetCommandType ${cmd}]
 		if { ${prefix} ne "" } {
 			set prefix "{${ctype}}"
@@ -285,7 +298,14 @@ class create Introspect {
 				return "<font color='tan'>${prefix}</font>&nbsp;<a href='alias?token=${href}'>[xmlarmour "${cmd}"]</a>"
 			}
 			default {
-				return "<a href='http://www.tcl.tk/man/tcl8.6/TclCmd/${href}.htm'>[xmlarmour "${cmd}"]</a>"
+				lassign [string map {"::" { }} ${href}] prefix name
+				if { ${prefix} eq "tcl" } {
+					return "<a href='http://www.tcl.tk/man/tcl8.6/TclCmd/${name}.htm'>[xmlarmour "${href}"]</a>"
+				} elseif { ${prefix} in ${built-in-commands} } {
+					return "<a href='http://www.tcl.tk/man/tcl8.6/TclCmd/${prefix}.htm'>[xmlarmour "${href}"]</a>"
+				}
+				# must be a package subcommand
+				return [xmlarmour "${href}"]
 		}}
 	}
 
@@ -297,7 +317,6 @@ class create Introspect {
 		if { [string equal -length 2 ${NS} "::"] == 0 } {
 			set ns "::${NS}"
 		}
-
 		set content ""
 		append content "<h2>INTROSPECTION FOR NAMESPACE (${ns})</h2>"
 
@@ -308,8 +327,10 @@ class create Introspect {
 		}
 
 		if { [string range ${ns} end-1 end] eq "::" } {
+
 			set pat ${ns}*
 		} else {
+
 			set pat ${ns}::*
 		}
 
@@ -318,6 +339,7 @@ class create Introspect {
 		set alist ""
 		set clist [lsort -dictionary [namespace children ${ns}]]
 		set numcols [my GetNumCols ${clist} 120]
+
 		foreach k ${clist} {
 			lappend alist "<a href='${k}'>[xmlarmour ${k}]</a>"
 		}
@@ -635,6 +657,7 @@ class create Introspect {
 	superclass Direct
 	constructor {args} {
 		variable home [file dirname [lindex [package ifneeded Introspect [package present Introspect] ] 1]]
+		variable built-in-commands [lsort -dictionary [namespace children ::tcl]]
 		next? {*}$args
 	}
 }
