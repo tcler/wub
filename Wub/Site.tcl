@@ -327,14 +327,6 @@ namespace eval ::Site {
 	::variable home	;# application's default home
 	config assign Wub home $home
 
-	# args to Site::init become initial variable values
-	foreach {n v} $args {
-	    if {[string match {[A-Z]*} $n]} {
-		config merge_section [string totitle $n] $v
-		dict unset args $n
-	    }
-	}
-
 	config merge_section Wub [list home $home {*}$args]
 
 	# read Wub.config configuration file
@@ -347,6 +339,14 @@ namespace eval ::Site {
 		user destroy
 	    } else {
 		Debug.site {Site ERROR: config file [dict get $C Wub config] does not exist.}
+	    }
+	}
+
+	# args to Site::init override initial variable values
+	foreach {n v} $args {
+	    if {[string match {[A-Z]*} $n]} {
+		config merge_section [string totitle $n] $v
+		dict unset args $n
 	    }
 	}
 
