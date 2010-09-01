@@ -206,11 +206,13 @@ oo::class create ::HumanC {
 	    CREATE TABLE human
 	    (
 	     id INTEGER PRIMARY KEY AUTOINCREMENT,
-	     human INTEGER PRIMARY KEY,	/* associated cookie */
+	     human INTEGER,	/* associated cookie */
 	     ip INTEGER			/* ip address */
 	     count INTEGER,		/* seen how many times? */
 	     last INTEGER		/* last seen (ms) */
 	     );
+	    CREATE INDEX h ON human (human);
+	    CREATE INDEX i ON human (ip);
 	    CREATE INDEX iphuman ON human (ip,human);
 	}
 	Debug.human {tables: [my db tables]}
