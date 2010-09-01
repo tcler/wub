@@ -207,9 +207,9 @@ oo::class create ::HumanC {
 	    (
 	     id INTEGER PRIMARY KEY AUTOINCREMENT,
 	     human INTEGER,	/* associated cookie */
-	     ip INTEGER			/* ip address */
-	     count INTEGER,		/* seen how many times? */
-	     last INTEGER		/* last seen (ms) */
+	     ip INTEGER,	/* ip address */
+	     count INTEGER,	/* seen how many times? */
+	     last INTEGER	/* last seen (ms) */
 	     );
 	    CREATE INDEX h ON human (human);
 	    CREATE INDEX i ON human (ip);
