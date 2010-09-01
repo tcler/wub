@@ -132,18 +132,22 @@ oo::class create ::HumanC {
 		set record [my fetch human $human ip $ipaddr]
 		if {[dict size $record]} {
 		    # record human as connecting from this ip
+		    Debug.human {known human, known IP $ipaddr}
 		    set id [dict record.id]
 		    my incr $id count
 		    my set $id last [clock milliseconds]
 		} else {
 		    # We have seen this human before,
 		    # just not from this ip
+		    Debug.human {known human, new IP $ipaddr}
 		    my append human $human ip $ipaddr count 1 last [clock milliseconds]
 		}
+		return $r
 	    } else {
 		# the returned cookie is unknown
 		# - we should send a new cookie, and wait
-		set r [my newhuman $r]
+		Debug.human {old human}
+		return [my newhuman $r]
 	    }
 	    # they returned a cookie, we presume they're human
 	} else {
@@ -158,6 +162,7 @@ oo::class create ::HumanC {
 		# create a cookie for it, return that and
 		# see how it responds
 	    } else {
+		Debug.human {non-human old IP $ipaddr}
 		return [my addcookie $r [dict rec.human]]
 		# we have seen this IP address before
 		# it has not yet returned a cookie
