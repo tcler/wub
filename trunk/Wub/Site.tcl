@@ -350,13 +350,6 @@ namespace eval ::Site {
 	    }
 	}
 
-	# define docroot
-	if {[dict get $C Wub globaldocroot]} {
-	    dict set config Wub docroot [file join [config get Wub topdir] docroot]
-	} else {
-	    dict set config Wub docroot [file join [config get Wub home] docroot]
-	}
-
 	# use Wub config to populate ::Site variables
 	dict for {n v} [dict get $C Wub] {
 	    variable $n $v
@@ -367,7 +360,7 @@ namespace eval ::Site {
 	set phase "Site init configuration"	;# move to site configuration phase
 
 	set phase "Site derived values"	;# phase to generate some derived values
-	dict set config Wub url "http://[dict get $C Wub host]:[dict get $C Listener -port]/"
+	#dict set config Wub url "http://[dict get $C Wub host]:[dict get $C Listener -port]/"
 
 	set phase "Site modules"	;# load site modules
 
