@@ -150,36 +150,45 @@ namespace eval Cache {
 	variable keys
 	variable cache
 
-	dict set req -uri [Url uri $req]	;# regenerate the url, just in case
+	set uri [Url uri $req]
+	dict set req -uri $uri	;# regenerate the url, just in case
+
 	set et [string trim [dict get? $req etag] \"]
-	set uri [dict get $req -uri]
 	if {$et ne ""
 	    && [exists? $et]
 	    && [info exists keys($et)]
 	} {
 	    # key by request's etag
 	    set key $keys($et)
+	    set found $et
+	    set by "etag '$et'"
 	} elseif {[exists? $uri]
 		  && [info exists keys($uri)]
 	      } {
 	    # key by request's URL
 	    set key $keys($uri)
+	    set found $uri
+	    set by "uri '$uri'"
 	} else {
-	    error "Cache Fetching '[dict get? $req etag]'/'[dict get? $req -uri]', no match."
+	    error "Cache Fetching '$et'/'$uri', no match."
 	}
 
 	# maintain some stats for cache management
 	variable hits; incr hits	;# count cache hit
-	set cached $cache($key)
+	if {![info exists cache($key)]} {
+	    invalidate $found	;# remove offending key
+	    error "Cache $key by $by does not exist."
+	}
 
-	# the cached is a -file type, and the underlying file is newer
-	# so we invalidate the cached form
+	set cached $cache($key)
 	if {[dict exists $cached -file]} {
+	    # the cached is a -file type, and the underlying file is newer
+	    # so we invalidate the cached form
 	    set when  [dict get $cached -modified]
 	    set mtime [file mtime [dict get $cached -file]]
 	    if {$when ne $mtime} {
 		if {[exists? [dict get? $cached etag]]} {
-		    invalidate [string trim [dict get $cached etag] \"]
+		    invalidate [dict get $cached etag]
 		}
 		if {[exists? [dict get $cached -uri]]} {
 		    invalidate [dict get $cached -uri]
