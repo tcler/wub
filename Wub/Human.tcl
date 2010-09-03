@@ -6,6 +6,7 @@ Debug define human 10
 package require Cookies
 package require fileutil
 package require Store	;# we use tdbc to store Human db
+package require Direct
 
 package provide Human 2.0
 
