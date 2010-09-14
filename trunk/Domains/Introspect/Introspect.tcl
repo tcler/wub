@@ -39,6 +39,18 @@ class create Introspect {
 	#
 	method /imglib {r size args} {
 		variable home
+		if { ${size} eq "" } {
+			set content "<h3>Select Image Library</h3>"
+			set t [HtmTable new "border='1'" -headers]
+			${t} headers {{image size}}
+			foreach s {16x16 24x24 48x48} {
+				${t} cell "<a href='/introspect/imglib?size=${s}'>${s}</a>" incr -no-armour
+				${t} row
+			}
+			append content [${t} render]
+			${t} destroy
+			return [Http Ok $r $content]
+		}
 		set path [file join $home images ${size}]
 		set content "<center><h2>${size} Images</h2></center><hr>"
 		set cwd [pwd]
@@ -59,7 +71,7 @@ class create Introspect {
 		cd ${cwd}
 		return [Http Ok [Http Cache $r] ${content}]
 	}
-	# -- /imglib
+	# -- /images
 	#
 	method /images {r} {
 		set extra [split [dict get ${r} -extra] /]
@@ -72,7 +84,6 @@ class create Introspect {
 	#
 	method /pkg {r args} {
 		# display stuff loaded using the 'load' command
-#puts "##### [package names]"
 		set content "<h3>These are items that were loaded using the 'load' command.</h3>"
 		set t [HtmTable new "border='1'"]
 		${t} headers {package version path}
@@ -98,8 +109,33 @@ class create Introspect {
 		append content [${t} render]
 		${t} destroy
 
+		# display packages
+		append content "<h3>This is a list of all the packages that have been loaded</h3>"
+		set t [HtmTable new "border='1'"]
+		${t} headers {package versions}
+		set alist {}
+		foreach p [package names] {
+			if { ![catch {package present ${p}} v] } {
+				lappend alist [list ${p} ${v}]
+			}
+		}
+		set alist [lsort -dictionary ${alist}]
+		foreach a ${alist} {
+			lassign ${a} p v
+			${t} cell ${p} incr
+			${t} cell ${v} incr
+			${t} row incr
+		}
+		append content [${t} render]
+		${t} destroy
+		return [Http Ok $r ${content}]
+	}
+
+	# -- /sourced
+	#
+	method /sourced {r args} {
 		# display stuff loaded using the 'source' command
-		append content "<h3>These are items that were sourced using the 'source' command.<br>(listed in the order they were sourced)</h3>"
+		append content "<h3>The following files were sourced in the order shown.<br>(Note: Some files are sourced more than once.)</h3>"
 		set t [HtmTable new "border='1'"]
 		${t} headers {path}
 		foreach p $::__source_log {
@@ -108,7 +144,6 @@ class create Introspect {
 		}
 		append content [${t} render]
 		${t} destroy
-
 		return [Http Ok $r ${content}]
 	}
 
