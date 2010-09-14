@@ -61,8 +61,11 @@ if {[catch {set response [::sticky loader $response hotzone #sticky event click]
       
       <p class='list1'><a href='/introspect/'>Introspection</a></p>
       <p class='list2'><a href='/introspect/pkg'>Packages</a></p>
-      <p class='list2'><a href='/introspect/api'>Url Handlers</a></p>
-      <p class='list2'><a href='/introspect/ns'>Namespaces</a></p>
+      <p class='list2'><a href='/introspect/api'>Files</a></p>
+      <p class='list2'><a href='/introspect/map'>Url Handlers</a></p>
+      <p class='list2'><a href='/introspect/ns/::'>Namespaces</a></p>
+      <p class='list2'><a href='/introspect/req'>Request Dict</a></p>
+      <p class='list2'><a href='/introspect/imglib'>Image Lib</a></p>
       <p class='listend'></p>
       
       <!-- <h2>Server stats:</h2>
@@ -88,7 +91,7 @@ if {[catch {set response [::sticky loader $response hotzone #sticky event click]
   </div>
   <hr>
   <address><a href='mailto:colin@chinix.com'>Colin McCormack</a></address>
-  <!-- Created: Thu Jan  5 13:00:57 EST 2006 -->
-  <!-- hhmts start -->
-  Last modified: Mon Apr 13 19:19:33 EST 2009
-  <!-- hhmts end -->
+<!-- Created: Thu Jan  5 13:00:57 EST 2006 -->
+<!-- hhmts start -->
+Last modified: Tue Sep 14 10:19 AEST 2010
+<!-- hhmts end -->
