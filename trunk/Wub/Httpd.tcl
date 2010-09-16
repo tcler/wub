@@ -1341,6 +1341,10 @@ namespace eval Httpd {
 		    # the output is handled elsewhere (as for WOOF.)
 		    # so we don't need to do anything more.
 		    incr done
+		} elseif {![dict exists $rsp -content]
+			  && ![dict exists $rsp -file]
+		      } {
+		    Debug.error {Contentless Response to: ($r)}
 		}
 		
 		# ok - return
@@ -1358,7 +1362,7 @@ namespace eval Httpd {
 	    watchdog
 	    logtransition POSTPROCESS
 	    if {[catch {
-		post $rsp
+		post $rsp	;# postprocess the response
 	    } rspp eo]} {
 		# post-processing error - report it
 		Debug.error {[info coroutine] postprocess error: $rspp ($eo)} 1
