@@ -452,7 +452,7 @@ namespace eval Httpd {
 			dict set reply content-length [file size $file]
 			set content ""
 		    } else {
-			Debug.httpdlow {format4send: response empty - no content in reply}
+			Debug.error {format4send: response empty - no content in reply ($reply)}
 			set content ""	;# there is no content
 			set file ""	;# this is not a file
 			set empty 1	;# it's empty
@@ -1341,12 +1341,8 @@ namespace eval Httpd {
 		    # the output is handled elsewhere (as for WOOF.)
 		    # so we don't need to do anything more.
 		    incr done
-		} elseif {![dict exists $rsp -content]
-			  && ![dict exists $rsp -file]
-		      } {
-		    Debug.error {Contentless Response to: ($r)}
 		}
-		
+
 		# ok - return
 		if {![dict exists $rsp -code]} {
 		    set rsp [Http Ok $rsp]	;# default to OK
