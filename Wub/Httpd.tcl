@@ -1012,14 +1012,14 @@ namespace eval Httpd {
 	} result eo]} {
 	    Debug.error {FAILED write $result ($eo) IP [dict get $r -ipaddr] ([dict get? $r user-agent]) wanted [dict get $r -uri]}
 
-	    terminate closed
+	    terminate "closed on error $result"
 	}
 
 	lassign $result close cache
 
 	# deal with socket closure
 	if {$close} {
-	    terminate closed
+	    terminate "closed by request"
 	}
     }
 
@@ -1129,12 +1129,12 @@ namespace eval Httpd {
 		    corovars satisfied ipaddr closing headering
 		    Debug.watchdog {[info coroutine] Reaped - satisfied:($satisfied) unsatisfied:($unsatisfied) ipaddr:$ipaddr closing:$closing headering:$headering}
 
-		    terminate {*}$args
+		    terminate "REAPED $args"
 		}
 
 		TERMINATE {
 		    # we've been informed that the socket closed
-		    terminate {*}$args
+		    terminate "TERMINATED $args"
 		}
 
 		TIMEOUT {
@@ -1214,7 +1214,7 @@ namespace eval Httpd {
 	set gone [catch {chan eof $socket} eof]
 	if {$gone || $eof} {
 	    Debug.httpdlow {[info coroutine] eof in get}
-	    terminate $reason	;# check the socket for closure
+	    terminate "Socket gone while $reason"	;# check the socket for closure
 	}
 
 	# return the line
@@ -1302,7 +1302,7 @@ namespace eval Httpd {
 
 	    if {$fail} {
 		Debug.error {FAILED write $result ($eo) IP [dict get $r -ipaddr] ([dict get? $r user-agent]) wanted [dict get $r -uri]}
-		terminate closed
+		terminate "closed while processing request $result"
 	    }
 	    return	;# we've sent the cached copy, we're done
 	}
