@@ -908,16 +908,22 @@ class create ::WubTkI {
 	namespace eval [namespace current] {
 	    proc exit {value} {
 		variable exit 1	;# flag the exit
+		variable coro
 		Debug.wubtk {exit $value}
-		if {[catch {info coroutine}]} {
+		set C [info coroutine]
+		if {$C eq ""} {
 		    # we're not running in the coro, perhaps an [after]
 		    # or [fileevent] has triggered this call.
 		    # we need to tell the coro to die
-		    variable coro
+		    Debug.wubtk {exit from outside coro $coro}
 		    $coro terminate
-		} elseif {![string is integer -strict $value]} {
-		    my redirect {*}$value
+		} else {
+		    Debug.wubtk {exit from coro $C ($coro)}
+		    if {![string is integer -strict $value]} {
+			my redirect {*}$value
+		    }
 		}
+		Debug.wubtk {exit complete}
 	    }
 	    
 	    proc connection {args} {
