@@ -107,16 +107,38 @@ class create ::WubTkI {
 	return [join $content \n]
     }
 
-    method rq {} {
-	variable r
-	return $r
+    # record change indication from widgets
+    method prod {what} {
+	variable changes
+	dict set changes $what 1	;# record changed widgets
+
+	variable lastupdate; variable maxlag
+	set now [clock milliseconds]
+	if {$now - $lastupdate > $maxlag} {
+	    after 0 [list [info coroutine] prod]	;# we've waited long enough prod now
+	} else {
+	    variable updater
+	    catch {after cancel $updater}
+	    variable frequency
+	    set updater [after $frequency [list [info coroutine] prod]]
+	}
     }
 
+    # reset change indication from widgets
+    method reset {what} {
+	variable changes
+	if {[dict exists $changes $what]} {
+	    dict unset changes $what
+	}
+    }
+
+    # return script to widget
     method script {} {
 	variable script
 	return $script
     }
 
+    # set redirect for widget
     method redirect {args} {
 	variable redirect
 	if {[llength $args]} {
@@ -126,6 +148,7 @@ class create ::WubTkI {
 	}
     }
 
+    # do_redir - perform redirection if requested
     method do_redir {r {js 0}} {
 	variable redirect
 	set redir $redirect
@@ -570,7 +593,7 @@ class create ::WubTkI {
 	return $r
     }
 
-    method do_refresh {r} {
+    method do_comet {r} {
 	# client has asked us to push changes
 	Debug.wubtk {[self] client has asked us to push changes}
 	set changes [lassign [grid changes $r] r]
@@ -579,19 +602,19 @@ class create ::WubTkI {
 
 	if {$update eq ""} {
 	    # no updates to send
-	    if {[info exists _refresh]} {
-		# we already have a pending _refresh
-		# likely the connection has timed out
+	    if {[info exists _comet]} {
+		# we already have a pending _comet
+		# just send out something to satisfy it
 		Debug.wubtk {WubTk [info coroutine] - double refresh}
-		set _refresh [Http Ok $_refresh {} application/javascript]
-		Httpd Resume $_refresh
+		set _comet [Http Ok $_comet {} application/javascript]
+		Httpd Resume $_comet
 	    }
-	    set _refresh $r	;# remember request
+	    set _comet $r	;# remember request
 	    set r [Httpd Suspend $r]	;# suspend until changes
 	    grid prod 1	;# register interest
 	} else {
-	    grid prod 0	;# no registered interest
-	    append update \n "<!-- do_refresh -->" \n
+	    # send out what updates we have
+	    append update \n "<!-- do_comet -->" \n
 	    set r [Http Ok $r $update application/javascript]
 	}
 	return $r
@@ -600,13 +623,12 @@ class create ::WubTkI {
     # process a browser event
     method event {r} {
 	# clear out any old refresh - this response will satisfy it
-	if {[info exists _refresh]} {
+	if {[info exists _comet]} {
 	    Debug.wubtk {satisfy old refresh}
-	    set re [Http Ok $_refresh {} application/javascript]
-	    unset _refresh
+	    set re [Http Ok $_comet {} application/javascript]
+	    unset _comet
 	    Httpd Resume $re
 	} else {
-	    grid prod 0	;# no registered interest
 	}
 	
 	# client event has been received
@@ -669,6 +691,7 @@ class create ::WubTkI {
 
 	variable r $req	;# keep our current request around
 	variable script $lambda
+	variable coro [info coroutine]	;# remember the coro for [after] code
 
 	# run user code - return result
 	variable cdict [dict get? $r -cookies]
@@ -685,18 +708,18 @@ class create ::WubTkI {
 	    switch -- $what {
 		prod {
 		    # our grid has prodded us - there are changes
-		    if {[info exists _refresh]} {
+		    # to be pushed to the client
+		    if {[info exists _comet]} {
 			Debug.wubtk {prodded with suspended refresh}
 			# we've been prodded by grid with a pending refresh
-			set changes [lassign [grid changes $_refresh] _refresh]
+			set changes [lassign [grid changes $_comet] _comet]
 			set content [my update $changes]
-			append content [my stripjs $_refresh]
-			set re [Http Ok $_refresh $content application/javascript]
-			unset _refresh
+			append content [my stripjs $_comet]
+			set re [Http Ok $_comet $content application/javascript]
+			unset _comet
 			Httpd Resume $re
 		    } else {
 			Debug.wubtk {prodded without suspended refresh}
-			grid prod 0	;# no registered interest
 		    }
 		}
 
@@ -747,7 +770,7 @@ class create ::WubTkI {
 			}
 
 			upload {
-			    # client event has been received
+			    # client event has been received for upload file
 			    set Q [Query flatten [Query parse $r]]
 			    set widget .[dict Q.id]
 
@@ -767,9 +790,9 @@ class create ::WubTkI {
 			    }
 			}
 
-			refresh {
+			comet {
 			    # process refresh event
-			    set r [my do_refresh $r]
+			    set r [my do_comet $r]
 			}
 
 			default {
@@ -791,6 +814,16 @@ class create ::WubTkI {
 		    }
 		    dict set r -cookies $cdict	;# reflect cookies back to client
 		}
+	    }
+
+	    # each time through this loop we have interacted with the client
+	    variable changes
+	    if {[dict size $changes]} {
+		variable lastupdate [clock milliseconds]
+		variable updater
+		catch {after cancel $updater}
+		variable frequency
+		set updater [after $frequency [list [info coroutine] prod]]
 	    }
 	}
 
@@ -832,11 +865,17 @@ class create ::WubTkI {
 	variable redirect ""	;# no redirection, initially
 	variable exit 0		;# do not exit, initially
 	variable prep {}
+	variable frequency 300	;# ms between push update
+	variable maxlag 600	;# how many ms between updates
+
 	next? {*}$args		;# construct Form
 	Debug.wubtk {constructed WubTkI self-[self]  - ns-[namespace current] ($args)}
 
-	variable toplevels {}	;# keep track of toplevels
-	variable rbvars {}	;# keep track of radiobutton vars
+	variable toplevels {}	;# track toplevels
+	variable rbvars {}	;# track radiobutton vars
+	variable changes {}	;# track changes per widget
+
+	variable lastupdate 0	;# track time of last update
 
 	if {$theme ne ""} {
 	    # set Form defaults
@@ -870,7 +909,13 @@ class create ::WubTkI {
 	    proc exit {value} {
 		variable exit 1	;# flag the exit
 		Debug.wubtk {exit $value}
-		if {![string is integer -strict $value]} {
+		if {[catch {info coroutine}]} {
+		    # we're not running in the coro, perhaps an [after]
+		    # or [fileevent] has triggered this call.
+		    # we need to tell the coro to die
+		    variable coro
+		    $coro terminate
+		} elseif {![string is integer -strict $value]} {
 		    my redirect {*}$value
 		}
 	    }
@@ -916,7 +961,7 @@ class create ::WubTkI {
 	    Interp alias $n [namespace current]::$n
 	}
 
-	# construct an image command
+	# construct an image command for the interp
 	proc image {args} {
 	    Debug.wubtk {SHIM: 'WubWidgets image $args'}
 	    set args [lassign $args cmd]
