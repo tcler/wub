@@ -107,6 +107,11 @@ class create ::WubTkI {
 	return [join $content \n]
     }
 
+    method rq {} {
+	variable r
+	return $r
+    }
+
     # record change indication from widgets
     method prod {what} {
 	variable changes
