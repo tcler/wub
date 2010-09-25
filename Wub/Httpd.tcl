@@ -452,7 +452,7 @@ namespace eval Httpd {
 			dict set reply content-length [file size $file]
 			set content ""
 		    } else {
-			Debug.error {format4send: response empty - no content in reply ($reply)}
+			Debug.error {format4send: contentless - response empty - no content in reply ($reply)}
 			set content ""	;# there is no content
 			set file ""	;# this is not a file
 			set empty 1	;# it's empty
