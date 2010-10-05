@@ -194,7 +194,7 @@ namespace eval ::Site {
     }
 
     variable wubdir [file normalize [file join [file dirname [info script]] ..]] ;# where's wub
-
+    variable docroot $wubdir
     ::variable configuration {
 	Wub {
 	    home [file normalize [file dirname [info script]]] ;# home of application script
@@ -306,22 +306,17 @@ namespace eval ::Site {
 	::variable configuration
 	#Debug on config
 	Config create config $configuration
+	namespace export -clear *
+	namespace ensemble create -subcommands {}
 	unset configuration	;# done with configuration var
 
-	# set some derived values
-	if {[info exists ::starkit::topdir]} {
-	    # starkit startup
-	    config assign Wub topdir $::starkit::topdir
-	    config assign Wub docroot [file join $::starkit::topdir docroot]
-	} else {
-	    # unpacked startup
-	    ::variable home
-	    lappend ::auto_path $home	;# add the app's home dir to auto_path
+	# unpacked startup
+	::variable home
+	lappend ::auto_path $home	;# add the app's home dir to auto_path
 
-	    # find Wub stuff
-	    ::variable wubdir; ::variable topdir
-	    config assign Wub topdir [file normalize $wubdir]
-	}
+	# find Wub stuff
+	::variable wubdir; ::variable topdir
+	config assign Wub topdir [file normalize $wubdir]
 
 	# evaluate Wub section + $args
 	::variable home	;# application's default home
