@@ -105,7 +105,7 @@ class create ::FormClass {
 	if {[llength $args]==1} {
 	    set args [lindex $args 0]
 	}
-	Debug.form {attr: $T ($args)}
+	Debug.form {attr: $tag ($args)}
 
 	set opts {}
 	foreach {n v} $args {
@@ -183,13 +183,15 @@ class create ::FormClass {
 	} else {
 	    set ti ""
 	}
+
 	eval [string map [list %TI% $ti %T% $type] {
 	    method <%T%> {args} {
-		Debug.form {[self] defining %T%}
 		variable %T%A
 
 		set body [lindex $args end]
 		set args [lrange $args 0 end-1]
+
+		Debug.form {[self] defining %T% over ($body) with ($args)}
 
 		# get form name from args, if present
 		set name ""
@@ -674,6 +676,7 @@ class create ::FormClass {
     }
 
     method layout_parser {fname args} {
+	Debug.form {layout_parser: '$fname' ($args)}
 	upvar 1 lmetadata lmetadata
 	variable layoutcache
 	if {[info exists layoutcache($fname-$args)]} {
@@ -730,7 +733,7 @@ class create ::FormClass {
 			    set content [lindex $content 2]
 			    set fs [lindex [uplevel 1 [list [self] layout_parser $name {*}$control \n$content\n]] 1]
 			    set fs "\[[self] <fieldset> $name $fsargs [list \n$fs\n]\]"
-			    Debug.form {fieldset: $name: '$content' -> ($fs)}
+			    Debug.form {fieldset: name:'$name' content:'$content' -> ($fs)}
 			    dict known.$name \n$fs
 			}
 			
