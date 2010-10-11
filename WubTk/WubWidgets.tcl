@@ -75,8 +75,9 @@ namespace eval ::WubWidgets {
 	    }
 	}
 
-	method reset {{to 0}} {
-	    variable change $to
+	method reset {} {
+	    variable change 0
+	    my connection reset [self]
 	}
 
 	method changed? {} {
@@ -84,14 +85,24 @@ namespace eval ::WubWidgets {
 	    return $change
 	}
 
+	method setparent {parent} {
+	    variable _parent $parent
+	    oo::objdefine [self] forward parent $parent
+ 	}
+
+	method prod {what} {
+	    variable _parent
+	    if {$_parent ne ""} {
+		Debug.wubwidgets {prod '$_parent' with $what}
+		my parent prod [self] ;# prod connection to push out changes
+	    }
+	}
+
 	method change {{to ""}} {
 	    variable change
 	    if {$to eq ""} {
 		incr change
-		variable _grid
-		if {$_grid ne ""} {
-		    $_grid prod
-		}
+		my prod [self]
 	    } else {
 		set change $to
 	    }
@@ -176,7 +187,7 @@ namespace eval ::WubWidgets {
 	    }
 
 	    Debug.wubwidgets {[info coroutine] configure [self] ($args)}
-	    variable _grid ""
+	    variable _parent ""
 
 	    # install varable values
 	    set tvchange 0
@@ -337,9 +348,6 @@ namespace eval ::WubWidgets {
 	method type {} {
 	    set class [string range [namespace tail [info object class [self]]] 0 end-1]
 	}
-	method gridder {grid} {
-	    variable _grid $grid
-	}
 
 	# record widget id
 	method id {{_id ""}} {
@@ -355,7 +363,7 @@ namespace eval ::WubWidgets {
 	    return [string trim [namespace tail [self]] .]
 	}
 
-	# calculate name relative to widget's gridder
+	# calculate name relative to widget's parent
 	method relative {} {
 	    return [lindex [split [namespace tail [self]] .] end]
 	}
@@ -545,7 +553,7 @@ namespace eval ::WubWidgets {
 	    oo::objdefine [self] forward connection [namespace qualifiers [self]]::connection
 	    variable igtext 0
 
-	    # ensure -interp is set, install alias
+	    # ensure -interp is set, install alias for this object
 	    variable interp [dict get $args -interp]
 	    [lindex $interp 0] alias [namespace tail [self]] [self]
 	    dict unset args -interp
@@ -1236,6 +1244,7 @@ namespace eval ::WubWidgets {
     proc image {op args} {
 	switch -- $op {
 	    create {
+		# create an image widget
 		set ns [uplevel 1 {namespace current}]
 		Debug.wubwidgets {image creation: $args ns: $ns}
 		set args [lassign $args type]
@@ -1329,18 +1338,6 @@ namespace eval ::WubWidgets {
 
 	method changed? {} {return 1}
 
-	# something has changed us
-	method prod {{prod ""}} {
-	    variable interest
-	    if {$prod eq ""} {
-		if {$interest} {
-		    my connection prod
-		}
-	    } else {
-		set interest $prod
-	    }
-	}
-
 	method id {row col} {
 	    variable name
 	    return [join [list grid {*}[string map {. _} $name] $row $col] _]
@@ -1420,6 +1417,7 @@ namespace eval ::WubWidgets {
 
 	method render {args} {
 	    variable name
+	    variable parent	;# grid's parent is its frame or toplevel widget
 	    variable maxrows; variable maxcols; variable grid
 	    Debug.wubwidgets {'[namespace tail [self]]' whole grid render rows:$maxrows cols:$maxcols ($grid)}
 	    set rows {}
@@ -1434,7 +1432,7 @@ namespace eval ::WubWidgets {
 			    set id [my id $row $col]
 			    Debug.wubwidgets {'[namespace tail [self]]' grid rendering $widget/$id with ($el)}
 			    uplevel 1 [list $widget id $id]		;# set widget's id
-			    uplevel 1 [list $widget gridder [self]]	;# record grid
+			    uplevel 1 [list $widget setparent $parent] ;# record widget parent
 			    set rendered [uplevel 1 [list $widget render style $style sticky $sticky]]
 
 			    set wid .[string map {" " .} [lrange [split $id _] 1 end-2]]
@@ -1542,8 +1540,9 @@ namespace eval ::WubWidgets {
 	    dict set grid $row $column [list widget $widget columnspan $columnspan rowspan $rowspan sticky $sticky in $in style $style]
 
 	    variable name
+	    variable parent
 	    Debug.wubwidgets {[namespace tail [self]] configure gridding $widget in [uplevel 1 {namespace current}]}
-	    uplevel 1 [list $widget gridder [self]]	;# record grid
+	    uplevel 1 [list $widget setparent $parent]	;# record widget's parent
 
 	    set id [my id $row $column]
 	    uplevel 1 [list $widget id $id]	;# inform widget of its id
@@ -1557,6 +1556,7 @@ namespace eval ::WubWidgets {
 	    variable maxrows 0
 	    variable border 0
 	    variable name ""
+	    variable parent [namespace qualifiers [self]]::connection	;# the . parent
 	    variable {*}$args
 
 	    variable grid {}
@@ -1676,7 +1676,7 @@ namespace eval ::WubWidgets {
 	    # create a grid for this frame
 	    set name [self]..grid
 
-	    variable fgrid [WubWidgets gridC create $name {*}$w name .[my widget] -interp [my cget interp]]
+	    variable fgrid [WubWidgets gridC create $name {*}$w name .[my widget] -interp [my cget interp]] parent [self]
 	    Debug.wubwidgets {created Frame [self] gridded by $fgrid}
 	}
     }
@@ -1687,6 +1687,10 @@ namespace eval ::WubWidgets {
 	    variable tgrid
 	    Debug.wubwidgets {Toplevel [namespace tail [self]] gridding: $tgrid $args}
 	    uplevel 1 [list $tgrid {*}$args]
+	}
+
+	method prod {what} {
+	    my connection prod [self]	;# toplevels pass prod to connection
 	}
 
 	# render widget
@@ -1760,7 +1764,7 @@ namespace eval ::WubWidgets {
 
 	    # create a grid for this toplevel
 	    set name [self]..grid
-	    variable tgrid [WubWidgets gridC create $name name .[my widget] -interp [my cget interp]]
+	    variable tgrid [WubWidgets gridC create $name name .[my widget] -interp [my cget interp]] parent [self]
 	    Debug.wubwidgets {created Toplevel [self] gridded by $tgrid - alerting}
 	    my connection tl add [self] $args
 	}
