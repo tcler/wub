@@ -45,6 +45,7 @@ set ::API(Domains/WubTk) {
 set ::WubTk_dir [file normalize [file dirname [info script]]]
 
 class create ::WubTkI {
+    # code to activate button JS for given objects
     method buttonJS {{what .button}} {
 	return [string map [list %B% $what] {
 	    $('%B%').button();
@@ -52,24 +53,28 @@ class create ::WubTkI {
 	}]
     }
 
+    # code to activate cbutton JS for given objects
     method cbuttonJS {{what .cbutton}} {
 	return [string map [list %B% $what] {
 	    $('%B% > :checkbox').change(cbuttonJS);
 	}]
     }
 
+    # code to activate rbutton JS for given objects
     method rbuttonJS {{what .rbutton}} {
 	return [string map [list %B% $what] {
 	    $('%B%').click(rbuttonJS);
 	}]
     }
 
+    # code to activate variable JS for given objects
     method variableJS {{what .variable}} {
 	return [string map [list %B% $what] {
 	    $('%B%').change(variableJS);
 	}]
     }
 
+    # update - accumulate HTML and JS to reflect changes to given set of widgets
     method update {changes} {
 	Debug.wubtk {[self] UPDATE ($changes)}
 
@@ -80,12 +85,13 @@ class create ::WubTkI {
 	    set html [string map {\n \\n} $html]
 	    set jid #$id
 
+	    # generate replacement HTML for changed widget
 	    append result "<!-- update widget:$widget id:$id type:$type -->" \n
 	    append result [string map [list %ID% $jid %H% $html] {
 		$('%ID%').replaceWith("%H%");
 	    }]
 
-	    # send js to track widget state
+	    # generate js to track widget state
 	    append result [$widget tracker]
 	}
 
@@ -641,31 +647,36 @@ class create ::WubTkI {
 	set widget .[dict Q.id]
 
 	if {[llength [info commands [namespace current]::$widget]]} {
+	    # the widget addressed exists - process the requested operation
 	    Debug.wubtk {event $widget ($Q)}
 	    set content "<!-- changes due to event '$widget [dict r.-op] [string range [dict Q.val?] 0 10]...' -->\n"
 	    try {
-		$widget [dict r.-op] [dict Q.val?] {*}[dict Q.widget?]	;# run the widget op
+		# run the $widget operation specified by $op
+		$widget [dict r.-op] [dict Q.val?] {*}[dict Q.widget?]
 	    } on error {e eo} {
-		# widget op caused an error - report on it
+		# widget operation caused an error - report on it
 		set errpopup [jQ popup type error title "Script Error" [armour $e]]
 		Debug.wubtkerr {event error on $widget: '$e' ($eo)}
 		append content $errpopup
 	    } finally {
+		# widget operation completed, or error noted
 		variable redirect
 		if {[llength $redirect]} {
 		    # the widget command did a redirect
 		    tailcall my do_redir $r 1
 		}
 
-		# reflect changes due to the widget command
-		set changes [lassign [grid changes $r] r]
+		# reflect changes consequent to the widget operation
+		# a sufficiently comprehensive change will trigger a -repaint
+		set changes [lassign [grid changes $r] r] ;# calculate changeset
 		if {[dict exists $r -repaint]} {
 		    # a repaint has been triggered through grid operation
-		    catch {dict unset -r -script}
+		    # this response causes a reload of the entire page
+		    catch {dict unset -r -script}	;# discard accumulated js
 		    tailcall Http Ok $r {window.location='.';} application/javascript
 		}
 
-		# normal result - flush changes caused by event processing
+		# normal result - respond with changes caused by event processing
 		append content \n [my update $changes]
 		append content \n [my stripjs $r]
 
@@ -674,7 +685,7 @@ class create ::WubTkI {
 	} else {
 	    # widget doesn't exist - report that
 	    Debug.wubtk {not found [namespace current]::$widget}
-	    set content [jQ popup type error "Widget '$widget' not found"]
+	    set content [jQ popup type error "Widget '$widget' does not exist."]
 	    return [Http Ok $r $content application/javascript]
 	}
     }
@@ -691,20 +702,24 @@ class create ::WubTkI {
 	return $r
     }
 
+    # do - main entry point for per-user coro
+    # at this point we're running a read-eval-print loop in that coro
+    # this code yields at appropriate points with HTTP response dicts filled with
+    # responses to (usually) client events (usually per-widget)
     method do {req lambda} {
 	Debug.wubtk {[info coroutine] PROCESS in namespace:[namespace current]}
 
 	variable r $req	;# keep our current request around
-	variable script $lambda
-	variable coro [info coroutine]	;# remember the coro for [after] code
+	variable script $lambda	;# record original script for app to fetch if it wants it
+	variable coro [info coroutine]	;# remember this coro for [after] code
 
 	# run user code - return result
 	variable cdict [dict get? $r -cookies]
 	Interp eval $lambda	;# install the user code
-	set r [my render $r]
+	set r [my render $r]	;# traverse widget tree to HTML/JS
 	Debug.wubtk {COOKIES: $cdict}
 	dict set r -cookies $cdict	;# reflect cookies back to client
-	
+
 	# initial client direct request
 	variable exit 0
 	while {!$exit} {
@@ -729,22 +744,25 @@ class create ::WubTkI {
 		}
 
 		terminate {
+		    # process a terminate request
 		    Debug.wubtk {requested termination}
 		    break	;# we've been asked to terminate
 		}
 
 		client {
+		    # process a client request
 		    set cdict [dict get? $r -cookies]
 
 		    # unpack query response
-		    Debug.wubtk {[info coroutine] Event: [dict r.-op?]}
-		    switch -glob -- [dict r.-op?] {
+		    Debug.wubtk {[info coroutine] Event: [dict r.-op?] / [Interp eval info cmdcount]}
+		    my limit	;# enforce the command limit on our Interp
+		    switch -- [dict r.-op?] {
 			command -
 			cbutton -
 			slider -
 			rbutton -
 			var {
-			    # process browser event
+			    # process browser event as a widget operation
 			    set r [my event $r]
 			}
 
@@ -784,6 +802,7 @@ class create ::WubTkI {
 				try {
 				    $widget [dict r.-op] [dict Q.val?]
 				} on error {e eo} {
+				    # what to do on an upload error?
 				} finally {
 				    set r [my render $r]
 				}
@@ -801,7 +820,7 @@ class create ::WubTkI {
 			}
 
 			default {
-			    # nothing else to be done ... repaint display
+			    # nothing else to be done ... repaint display by default
 			    set widget [dict r.-widget]
 			    if {$widget eq ""} {
 				Debug.wubtk {render .}
@@ -818,10 +837,14 @@ class create ::WubTkI {
 			}
 		    }
 		    dict set r -cookies $cdict	;# reflect cookies back to client
+		    Debug.wubtk {[info coroutine] Event Complete: [dict r.-op?] / [Interp eval info cmdcount]}
 		}
 	    }
 
+	    Debug.wubtk {[info coroutine] processed '$what'}
+
 	    # each time through this loop we have interacted with the client
+	    # record the time of last interaction for comet.
 	    variable changes
 	    if {[dict size $changes]} {
 		variable lastupdate [clock milliseconds]
@@ -872,6 +895,7 @@ class create ::WubTkI {
 	variable prep {}
 	variable frequency 300	;# ms between push update
 	variable maxlag 600	;# how many ms between updates
+	variable limit ""	;# interpreter command limit (default none)
 
 	next? {*}$args		;# construct Form
 	Debug.wubtk {constructed WubTkI self-[self]  - ns-[namespace current] ($args)}
@@ -930,7 +954,7 @@ class create ::WubTkI {
 		}
 		Debug.wubtk {exit complete}
 	    }
-	    
+
 	    proc connection {args} {
 		return [my {*}$args]
 	    }
@@ -969,7 +993,7 @@ class create ::WubTkI {
 		set obj [WubWidgets %N%C create [namespace current]::$w -interp [list [namespace current]::Interp eval] -connection %C% {*}$args]
 		return [namespace tail $obj]
 	    }]
-	    Interp alias $n [namespace current]::$n
+	    Interp alias $n [namespace current]::$n	;# reflect widget command to interp
 	}
 
 	# construct an image command for the interp
@@ -988,7 +1012,28 @@ class create ::WubTkI {
 	Interp alias image [namespace current]::image
 	Interp eval {package provide Tk 8.6}
 
+	if {$limit ne ""} {
+	    #Interp limit command -command [list [self] limiter] -value [expr {[Interp eval info cmdcount] + $limit}]
+	}
+
 	oo::objdefine [self] forward site ::Site
+    }
+
+    # limit - Interp's hit its limit
+    method limiter {} {
+	Debug.wubtk {limiter - interpreter limit exceeded}
+	error "WubTk Interpreter limit exceeded."
+    }
+
+    method limit {} {
+	variable limit
+	if {$limit ne ""} {
+	    set cmds [expr {[Interp eval info cmdcount] + $limit}]
+	    Debug.wubtk {limit - $cmds}
+	    Interp limit command -value $cmds
+	} else {
+	    Debug.wubtk {unlimited}
+	}
     }
 }
 
@@ -1113,7 +1158,7 @@ class create ::WubTk {
 
 	    # collect options to pass to coro
 	    set options {}
-	    foreach v {timeout icons theme spinner_style spinner_size css stylesheet cookiepath theme_switcher fontsize} {
+	    foreach v {timeout icons theme spinner_style spinner_size css stylesheet cookiepath theme_switcher fontsize limit} {
 		variable $v
 		if {[info exists $v]} {
 		    lappend options $v [set $v]
@@ -1128,6 +1173,7 @@ class create ::WubTk {
 		set o [::WubTkI create [namespace current]::Coros::O_$wubapp {*}$options]
 		set r [::Coroutine [namespace current]::Coros::$wubapp $o do $r $lambda]
 		if {[llength [info command [namespace current]::Coros::$wubapp]]} {
+		    # when the coro dies, clean up the related object too
 		    trace add command [namespace current]::Coros::$wubapp delete [list $o destroyme]
 		}
 	    } on error {e eo} {
