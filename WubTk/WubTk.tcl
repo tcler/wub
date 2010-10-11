@@ -1028,9 +1028,11 @@ class create ::WubTkI {
     method limit {} {
 	variable limit
 	if {$limit ne ""} {
-	    set cmds [expr {[Interp eval info cmdcount] + $limit}]
-	    Debug.wubtk {limit - $cmds}
-	    Interp limit command -value $cmds
+	    set time [expr {[clock seconds] + $limit}]
+	    Interp limit time -seconds $time
+	    #set cmds [expr {[Interp eval info cmdcount] + $limit}]
+	    #Debug.wubtk {limit - $cmds}
+	    #Interp limit command -value $cmds
 	} else {
 	    Debug.wubtk {unlimited}
 	}
