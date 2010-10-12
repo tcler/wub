@@ -715,6 +715,7 @@ class create ::WubTkI {
 
 	# run user code - return result
 	variable cdict [dict get? $r -cookies]
+	my limit	;# enforce the command limit on our Interp
 	Interp eval $lambda	;# install the user code
 	set r [my render $r]	;# traverse widget tree to HTML/JS
 	Debug.wubtk {COOKIES: $cdict}
@@ -1011,10 +1012,6 @@ class create ::WubTkI {
 
 	Interp alias image [namespace current]::image
 	Interp eval {package provide Tk 8.6}
-
-	if {$limit ne ""} {
-	    #Interp limit command -command [list [self] limiter] -value [expr {[Interp eval info cmdcount] + $limit}]
-	}
 
 	oo::objdefine [self] forward site ::Site
     }
