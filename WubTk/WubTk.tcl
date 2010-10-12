@@ -715,7 +715,7 @@ class create ::WubTkI {
 
 	# run user code - return result
 	variable cdict [dict get? $r -cookies]
-	my limit	;# enforce the command limit on our Interp
+	my limit 10	;# enforce the command limit on our Interp
 	Interp eval $lambda	;# install the user code
 	set r [my render $r]	;# traverse widget tree to HTML/JS
 	Debug.wubtk {COOKIES: $cdict}
@@ -897,6 +897,7 @@ class create ::WubTkI {
 	variable frequency 300	;# ms between push update
 	variable maxlag 600	;# how many ms between updates
 	variable limit ""	;# interpreter command limit (default none)
+	variable safe 0		;# is this to be a safe interp
 
 	next? {*}$args		;# construct Form
 	Debug.wubtk {constructed WubTkI self-[self]  - ns-[namespace current] ($args)}
@@ -923,7 +924,7 @@ class create ::WubTkI {
 
 	# create an interpreter within which to evaluate user code
 	# install its command within our namespace
-	set interp [::interp create {*}$interp -- [namespace current]::Interp]
+	set interp [::interp create {*}[expr {$safe?"-safe":""}] {*}$interp -- [namespace current]::Interp]
 	Interp eval {
 	    proc ::bgerror {args} {
 		puts stderr "BGERROR: $args"
@@ -1022,10 +1023,10 @@ class create ::WubTkI {
 	error "WubTk Interpreter limit exceeded."
     }
 
-    method limit {} {
+    method limit {{mult 1}} {
 	variable limit
 	if {$limit ne ""} {
-	    set time [expr {[clock seconds] + $limit}]
+	    set time [expr {[clock seconds] + ($limit*$mult)}]
 	    Interp limit time -seconds $time
 	    #set cmds [expr {[Interp eval info cmdcount] + $limit}]
 	    #Debug.wubtk {limit - $cmds}
