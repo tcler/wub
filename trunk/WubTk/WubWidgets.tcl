@@ -1159,7 +1159,7 @@ namespace eval ::WubWidgets {
     }
 
     oo::class create imageC {
-	method changed? {} {return 0}
+	#method changed? {} {return 0}
 
 	# record widget id
 	method style {gridding} {
@@ -1200,10 +1200,10 @@ namespace eval ::WubWidgets {
 		}
 		return [my connection <object> {*}$opts data $url ""]
 	    } else {
-		return [my connection <img> {*}[my style $args] src $url]
+		return [my connection <img> id [my cget id] {*}[my style $args] src $url]
 	    }
 	}
-	
+
 	superclass ::WubWidgets::widget
 	constructor {args} {
 	    next {*}[dict merge [list id [my widget]] $args]
