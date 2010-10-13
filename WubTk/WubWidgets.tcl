@@ -889,7 +889,12 @@ namespace eval ::WubWidgets {
     oo::class create htmlC {
 	# render widget
 	method render {args} {
-	    return [my getvalue]
+	    set style [my cget style]
+	    if {$style ne ""} {
+		set content [<style> $style]\n
+	    }
+	    append content [my getvalue]
+	    return $content
 	}
 
 	superclass ::WubWidgets::widget
