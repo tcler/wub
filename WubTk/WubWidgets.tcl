@@ -1200,7 +1200,7 @@ namespace eval ::WubWidgets {
 		}
 		return [my connection <object> {*}$opts data $url ""]
 	    } else {
-		return [my connection <img> id [my cget id] {*}[my style $args] src $url]
+		return [my connection <img> id [my widget] {*}[my style $args] src $url]
 	    }
 	}
 
