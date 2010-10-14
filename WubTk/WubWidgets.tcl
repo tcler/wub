@@ -579,7 +579,7 @@ namespace eval ::WubWidgets {
 
 	method render {args} {
 	    set id [my id]
-	    set command [my cget command]
+	    set command [my cget? command]
 
 	    if {$command ne ""} {
 		set class {class button}
