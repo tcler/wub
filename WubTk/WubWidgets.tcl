@@ -295,6 +295,9 @@ namespace eval ::WubWidgets {
 		set ga {}
 		foreach {v1 v2} {r row c column rs rowspan cs columnspan} {
 		    if {[info exists $v1] && [set $v1] ne ""} {
+			if {$v1 in {rs cs} && [set $v1] eq 0} {
+			    set $v1 0
+			}
 			lappend ga -$v2 [set $v1]
 		    }
 		}
@@ -1206,6 +1209,7 @@ namespace eval ::WubWidgets {
 		return [my connection <object> {*}$opts data $url ""]
 	    } else {
 		return [my connection <img> id [my widget] {*}[my style $args] src $url]
+		#return [my connection <img> id [my cget id] {*}[my style $args] src $url]
 	    }
 	}
 
