@@ -1200,7 +1200,7 @@ namespace eval ::WubWidgets {
 	method render {args} {
 	    set url [my cget? url]
 	    if {$url eq ""} {
-		set url [my wid]
+		set url [my widget]
 	    }
 	    set up [Url parse $url]
 	    if {0 && [string match *.svg [dict up.-path]]} {
