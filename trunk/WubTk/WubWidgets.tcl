@@ -1201,6 +1201,12 @@ namespace eval ::WubWidgets {
 	    set url [my cget? url]
 	    if {$url eq ""} {
 		set url [my widget]
+		set file [my cget? file]
+		if {[my cexists -data]} {
+		    append url ?md5=[::md5::md5 [my cget -data]]
+		} elseif {$file ne ""} {
+		    append url ?mtime=[file mtime $file]
+		}
 	    }
 	    set up [Url parse $url]
 	    if {0 && [string match *.svg [dict up.-path]]} {
@@ -1216,7 +1222,7 @@ namespace eval ::WubWidgets {
 		}
 		return [my connection <object> {*}$opts data $url ""]
 	    } else {
-		return [my connection <img> id [my wid] {*}[my style $args] src $url]
+		return [my connection <img> id [my wid] {*}[my style $args] src $url?fred=[clock seconds]]
 	    }
 	}
 
