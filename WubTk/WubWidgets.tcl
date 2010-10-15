@@ -359,15 +359,17 @@ namespace eval ::WubWidgets {
 	}
 
 	# record widget id
-	method id {{_id ""}} {
-	    variable id
-	    if {$_id eq ""} {
-		return $id
-	    } else {
-		set id $_id
+	method rc {args} {
+	    variable row; variable col
+	    if {[llength $args]} {
+		lassign $args row col
 	    }
+	    return [list $row $col]
 	}
 
+	method wid {} {
+	    return [string map {. _} [string trim [namespace tail [self]] .]]
+	}
 	method widget {} {
 	    return [string trim [namespace tail [self]] .]
 	}
@@ -574,11 +576,11 @@ namespace eval ::WubWidgets {
 
     oo::class create buttonC {
 	method tracker {} {
-	    return [my connection buttonJS #[my id]]
+	    return [my connection buttonJS #[my wid]]
 	}
 
 	method render {args} {
-	    set id [my id]
+	    set id [my wid]
 	    set command [my cget? command]
 
 	    if {$command ne ""} {
@@ -609,7 +611,7 @@ namespace eval ::WubWidgets {
 
     oo::class create selectC {
 	method render {args} {
-	    set id [my id]
+	    set id [my wid]
 	 
 	    set var [my cget textvariable]
 	    if {[my iexists $var]} {
@@ -649,7 +651,7 @@ namespace eval ::WubWidgets {
     oo::class create comboboxC {
 	method js {r} {
 	    Debug.wubwidgets {combobox js}
-	    set r [jQ combobox $r "#[my id]"]
+	    set r [jQ combobox $r "#[my wid]"]
 	    set r [next js $r]
 	    return $r
 	}
@@ -663,11 +665,11 @@ namespace eval ::WubWidgets {
 
     oo::class create checkbuttonC {
 	method tracker {} {
-	    return [my connection cbuttonJS #[my id]]
+	    return [my connection cbuttonJS #[my wid]]
 	}
 
 	method render {args} {
-	    set id [my id]
+	    set id [my wid]
 
 	    set label [my getvalue]
 
@@ -715,11 +717,11 @@ namespace eval ::WubWidgets {
 
     oo::class create radiobuttonC {
 	method tracker {} {
-	    return [my connection rbuttonJS #[my id]]
+	    return [my connection rbuttonJS #[my wid]]
 	}
 
 	method update {args} {
-	    set id [my id]
+	    set id [my wid]
 	    Debug.wubwidgets {radiobutton render: getting '[my cget variable]' == [my iget [my cget variable]]}
 
 	    set checked 0
@@ -740,7 +742,7 @@ namespace eval ::WubWidgets {
 	}
 
 	method render {args} {
-	    set id [my id]
+	    set id [my wid]
 
 	    set label [tclarmour [my compound [my getvalue]]]
 	    return [my update {*}$args label $label]
@@ -763,7 +765,7 @@ namespace eval ::WubWidgets {
 
     oo::class create labelC {
 	method render {args} {
-	    set id [my id]
+	    set id [my wid]
 	    set val [my getvalue]
 
 	    my reset
@@ -780,7 +782,7 @@ namespace eval ::WubWidgets {
     
     oo::class create scaleC {
 	method render {args} {
-	    set id [my id]
+	    set id [my wid]
 	    Debug.wubwidgets {scale $id render $args}
 
 	    my reset
@@ -802,7 +804,7 @@ namespace eval ::WubWidgets {
 		lappend args $n $v
 	    }
 
-	    set r [jQ slider $r #[my id] {*}$args value [my iget [my cget -variable]] change {
+	    set r [jQ slider $r #[my wid] {*}$args value [my iget [my cget -variable]] change {
 		function (event,ui) {
 		    sliderJS(event, $(this).metadata().widget, ui);
 		}
@@ -825,11 +827,11 @@ namespace eval ::WubWidgets {
     
     oo::class create entryC {
 	method tracker {} {
-	    return [my connection variableJS #[my id]]
+	    return [my connection variableJS #[my wid]]
 	}
 	method render {args} {
 	    Debug.wubwidgets {[info coroutine] rendering Entry [self]}
-	    set id [my id]
+	    set id [my wid]
 
 	    my reset
 
@@ -856,7 +858,7 @@ namespace eval ::WubWidgets {
 	    if {[my cexists type]} {
 		switch -- [my cget type] {
 		    date {
-			set r [jQ datepicker $r #[my id]]
+			set r [jQ datepicker $r #[my wid]]
 		    }
 		}
 	    } elseif {[my cexists complete]} {
@@ -872,7 +874,7 @@ namespace eval ::WubWidgets {
 	    }
 
 	    if {[info exists h]} {
-		set r [jQ autocomplete $r #[my id] source $h change {
+		set r [jQ autocomplete $r #[my wid] source $h change {
 		    function (event,ui) {
 			autocompleteJS(event, $(this), ui.item);
 		    }
@@ -971,7 +973,7 @@ namespace eval ::WubWidgets {
 
     oo::class create textC {
 	method tracker {} {
-	    return [my connection variableJS #[my id]]
+	    return [my connection variableJS #[my wid]]
 	}
 	method get {{start 1.0} {end end}} {
 	    set text [my cget text]
@@ -1101,7 +1103,7 @@ namespace eval ::WubWidgets {
 	}
 
 	method render {args} {
-	    set id [my id]
+	    set id [my wid]
 	    set class {class variable}
 	    
 	    my reset
@@ -1198,7 +1200,7 @@ namespace eval ::WubWidgets {
 	method render {args} {
 	    set url [my cget? url]
 	    if {$url eq ""} {
-		set url [my widget]
+		set url [my wid]
 	    }
 	    set up [Url parse $url]
 	    if {0 && [string match *.svg [dict up.-path]]} {
@@ -1214,14 +1216,13 @@ namespace eval ::WubWidgets {
 		}
 		return [my connection <object> {*}$opts data $url ""]
 	    } else {
-		return [my connection <img> id [my widget] {*}[my style $args] src $url]
-		#return [my connection <img> id [my cget id] {*}[my style $args] src $url]
+		return [my connection <img> id [my wid] {*}[my style $args] src $url]
 	    }
 	}
 
 	superclass ::WubWidgets::widget
 	constructor {args} {
-	    next {*}[dict merge [list id [my widget]] $args]
+	    next {*}[dict merge [list id [my wid]] $args]
 
 	    # TODO - add a -url option to deliver content
 	    set fmt [my cget? -format]
@@ -1333,7 +1334,7 @@ namespace eval ::WubWidgets {
 				    Debug.wubwidgets {[namespace tail [self]] changing: ($row,$col) $widget [uplevel 1 [list $widget type]] reports it's changed}
 				    
 				    set changed $widget
-				    lappend changed [uplevel 1 [list $widget id]]
+				    lappend changed [uplevel 1 [list $widget wid]]
 				    lappend changed [uplevel 1 [list $widget update]]
 				    lappend changed [uplevel 1 [list $widget type]]
 
@@ -1353,9 +1354,9 @@ namespace eval ::WubWidgets {
 
 	method changed? {} {return 1}
 
-	method id {row col} {
+	method tid {args} {
 	    variable name
-	    return [join [list grid {*}[string map {. _} $name] $row $col] _]
+	    return [join [list grid {*}[string map {. _} $name] {*}$args] _]
 	}
 
 	# style - construct an HTML style form
@@ -1444,9 +1445,9 @@ namespace eval ::WubWidgets {
 		    if {[dict exists $grid $row $col]} {
 			set el [dict get $grid $row $col]
 			dict with el {
-			    set id [my id $row $col]
+			    set id [my tid $row $col]
 			    Debug.wubwidgets {'[namespace tail [self]]' grid rendering $widget/$id with ($el)}
-			    uplevel 1 [list $widget id $id]		;# set widget's id
+			    uplevel 1 [list $widget rc $row $col]		;# set widget's id
 			    uplevel 1 [list $widget setparent $parent] ;# record widget parent
 			    set rendered [uplevel 1 [list $widget render style $style sticky $sticky]]
 
@@ -1463,12 +1464,12 @@ namespace eval ::WubWidgets {
 			    } else {
 				set rowspan {}
 			    }
-			    lappend cols [my connection <td> colspan $columnspan {*}$rowspan $rendered]
+			    lappend cols [my connection <td> id [my tid $row $col] colspan $columnspan {*}$rowspan $rendered]
 			}
 			incr col $columnspan
 		    } else {
 			if {[info exists wid] && ![info exists rspan($wid,$row.$col)]} {
-			    lappend cols [my connection <td> "&nbsp;"]
+			    lappend cols [my connection <td> id [my tid $row $col] "&nbsp;"]
 			}
 			incr col $columnspan
 		    }
@@ -1476,7 +1477,7 @@ namespace eval ::WubWidgets {
 
 		# now we have a complete row - accumulate it
 		# align and valign not allowed here
-		lappend rows [my connection <tr> style width:100% [join $cols \n]]
+		lappend rows [my connection <tr> id [my tid $row] style width:100% [join $cols \n]]
 	    }
 
 	    variable oldgrid $grid	;# record the old grid
@@ -1559,8 +1560,8 @@ namespace eval ::WubWidgets {
 	    Debug.wubwidgets {[namespace tail [self]] configure gridding $widget in [uplevel 1 {namespace current}]}
 	    uplevel 1 [list $widget setparent $parent]	;# record widget's parent
 
-	    set id [my id $row $column]
-	    uplevel 1 [list $widget id $id]	;# inform widget of its id
+	    #set id [my tid $row $column]
+	    #uplevel 1 [list $widget id $id]	;# inform widget of its id
 
 	    return $widget
 	}
@@ -1592,13 +1593,12 @@ namespace eval ::WubWidgets {
 
 	# render widget
 	method render {args} {
-	    set id [my id]
+	    set id [my wid]
 	    variable subw
 	    set li {}
 	    foreach n [lsort -integer [dict keys $subw]] {
 		set w .[my widget].[dict get $subw $n]
 		set sid ${id}_$n
-		uplevel 1 [list $w id $sid]
 		lappend li [my connection <li> [uplevel 1 [list $w render]]]
 	    }
 	    return [my connection <ul> id $id class {toolbar ui-widget ui-state-default ui-corner-all} {*}[my style $args] [join $li \n]]
@@ -1636,9 +1636,9 @@ namespace eval ::WubWidgets {
 	method render {args} {
 	    variable fgrid
 	    Debug.wubwidgets {Frame [namespace tail [self]] render gridded by $fgrid}
-	    set id [my id]
+	    set id [my wid]
 
-	    if {[my cexists -div] || ![my cexists -text]} {
+	    if {[my cexists -div] || [my cget? -text] eq ""} {
 		append content \n [uplevel 1 [list $fgrid render]]
 		return [my connection <div> id $id class frame {*}[my style $args] $content]
 	    } else {
@@ -1745,7 +1745,7 @@ namespace eval ::WubWidgets {
 	    }
 
 	    variable tgrid
-	    append content \n [<form> form_[string map {. _} [my widget]] onsubmit "return false;" [uplevel 1 [list $tgrid render]]]
+	    append content \n [<form> form_[my wid] onsubmit "return false;" [uplevel 1 [list $tgrid render]]]
 	    return [Http Ok $r $content x-text/html-fragment]
 	}
 
@@ -1789,7 +1789,7 @@ namespace eval ::WubWidgets {
     oo::class create uploadC {
 	# render widget
 	method render {args} {
-	    set id [my id]
+	    set id [my wid]
 	    set content [my connection layout form_$id action . enctype multipart/form-data class upload_form {*}[my style $args] [subst {
 		file file_$id id file_$id upload
 		submit submit_$id id submit_$id class ubutton Upload
@@ -1800,7 +1800,7 @@ namespace eval ::WubWidgets {
 	}
 
 	method js {r} {
-	    set r [Html postscript $r "\$('#[my id]').button();"]
+	    set r [Html postscript $r "\$('#[my wid]').button();"]
 	    set r [next $r]	;# include widget -js
 	    return $r
 	}
@@ -1829,13 +1829,12 @@ namespace eval ::WubWidgets {
 	
 	# render widget
 	method render {args} {
-	    set id [my id]
+	    set id [my wid]
 	    variable tabs
 	    set body {}; set js {}; set cnt 0
 	    set li {}
 	    foreach tab $tabs {
 		set tid ${id}_$cnt
-		uplevel 1 [list $tab id $tid]
 		lappend body [uplevel 1 [list $tab render]]
 		set cnf [uplevel 1 [list $tab configure]]
 		lappend li [my connection <li> [my connection <a> href "#$tid" [dict cnf.text]]]
@@ -1862,7 +1861,7 @@ namespace eval ::WubWidgets {
 
 	# optional - add per-widget js
 	method js {r} {
-	    set id [my id]
+	    set id [my wid]
 	    variable tabs
 	    variable set
 	    set cnt 0
@@ -1884,7 +1883,7 @@ namespace eval ::WubWidgets {
 
 	    if {!$set} {
 		incr set
-		set r [jQ tabs $r "#[my id]"]
+		set r [jQ tabs $r "#[my wid]"]
 		set r [next $r]	;# include widget -js
 	    }
 	    return $r
@@ -1937,12 +1936,11 @@ namespace eval ::WubWidgets {
 
 	# render widget
 	method render {args} {
-	    set id [my id]
+	    set id [my wid]
 	    variable panes
 	    set body {}; set cnt 0
 	    foreach pane $panes {
 		set tid ${id}_$cnt
-		uplevel 1 [list $pane id $tid]
 		set cnf [uplevel 1 [list $pane configure]]
 		lappend body [my connection <h3> [my connection <a> href # [dict cnf.text]]]
 		lappend body [uplevel 1 [list $pane render]]
@@ -1967,7 +1965,7 @@ namespace eval ::WubWidgets {
 
 	# optional - add per-widget js
 	method js {r} {
-	    set id [my id]
+	    set id [my wid]
 	    variable panes
 	    set cnt 0
 	    foreach pane $panes {
@@ -1977,7 +1975,7 @@ namespace eval ::WubWidgets {
 	    variable set
 	    if {!$set} {
 		incr set
-		set r [jQ accordion $r #[my id]]
+		set r [jQ accordion $r #[my wid]]
 		set r [next $r]	;# include widget -js
 	    }
 	    return $r
