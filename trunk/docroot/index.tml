@@ -32,17 +32,11 @@ if {[catch {set response [::sticky loader $response hotzone #sticky event click]
       
       <p>The interpreted nature of Tcl allows <a href='/nub/nubs'>dynamic reconfiguration of the server</a>. Once the core interface between the web server and the hosted application is defined, it is possible to manage the web server, upload Safe-Tcl control scripts, download logging information, and otherwise debug the Tcl part of the application without restarting the application.</p>
       
-      <h2>Related Articles</h2>
-      <p>Relating to this Wub distribution:</p>
-      
       <ul>
-	<!-- <li><a href='#'>README.txt</a></li> -->
+      <li>Site Configuration File: [<a> href file:[::Site var Wub home]/[::Site var Wub config] "[::Site var Wub home]/[::Site var Wub config]"]</li>
+      <li>Site Document Root: [<a> href file:[::Site var Wub docroot] "[::Site var Wub docroot]"]</li>
       </ul>
-      
-      <!-- <p>The main Wub information <a href='http://www.tcl.tk/software/Wub/'>page.</a></p> -->
-      
-      <p>The <a href='http://www.tcl.tk/software/tclhttpd/server.html'>white paper</a> presents a case for an embedded web server from more of a business angle.</p>
-      
+
       <p class='box'><strong>Note:</strong>  The server is distributed under a
 	<a href='#'>copyright</a> that allows free use.</p>
     </div>
@@ -67,7 +61,7 @@ if {[catch {set response [::sticky loader $response hotzone #sticky event click]
       <p class='list2'><a href='/introspect/req'>Request Dict</a></p>
       <p class='list2'><a href='/introspect/imglib'>Image Lib</a></p>
       <p class='listend'></p>
-      
+
       <!-- <h2>Server stats:</h2>
 	   <p>Home hits: 6</p>-->
       
