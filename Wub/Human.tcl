@@ -21,7 +21,8 @@ set ::API(Server/Human) {
 }
 
 oo::class create ::HumanC {
-    method ipaddr {ipaddr} {
+    # ip2int - turn ip address as string into int
+    method ip2int {ipaddr} {
 	set ip 0
 	foreach octet [split $ipaddr .] {
 	    set octet [string trimleft $octet 0]
@@ -34,10 +35,12 @@ oo::class create ::HumanC {
 	return $ip
     }
 
+    # ip - get ip addr as int from request
     method ip {r} {
-	return [my ipaddr [dict r.-ipaddr]]
+	return [my ip2int [dict r.-ipaddr]]
     }
 
+    # getcookie - get human cookie from request
     method getcookie {r} {
 	variable cookie
 	# try to find the application cookie
@@ -49,6 +52,7 @@ oo::class create ::HumanC {
 	}
     }
 
+    # addcookie - add human cookie to request
     method addcookie {r value} {
 	# add a cookie to reply
 	if {[dict exists $r -cookies]} {
@@ -95,8 +99,8 @@ oo::class create ::HumanC {
 	return $r
     }
 
+    # newhuman - add a human record + cookie
     method newhuman {r} {
-	# add a human record
 	set value [clock microseconds]
 	while {[dict size [my fetch id $value]]} {
 	    set value [clock microseconds]	;# get unique human value
@@ -117,12 +121,10 @@ oo::class create ::HumanC {
 	    return $r
 	}
 	
-	set human [my getcookie $r]		;# get human cookie
-	set ipaddr [my ip $r]	;# and IP address
+	set human [my getcookie $r]	;# get human cookie
+	set ipaddr [my ip $r]		;# and IP address
 
-	if {$human ne ""
-	    && [string is wideinteger -strict $human]
-	} {
+	if {$human ne "" && [string is wideinteger -strict $human]} {
 	    # we think they're human - they return cookies (?)
 	    # record human's ip addresses and last connection time
 	    set records [my by human $human]	;# unique record
@@ -143,7 +145,7 @@ oo::class create ::HumanC {
 		    Debug.human {known human, new IP $ipaddr}
 		    my append human $human ip $ipaddr count 1 last [clock milliseconds]
 		}
-		return $r
+		return $r	;# proceed, human.
 	    } else {
 		# the returned cookie is unknown
 		# - we should send a new cookie, and wait
@@ -173,7 +175,7 @@ oo::class create ::HumanC {
     }
 
     method /ip {r ip} {
-	set ipaddr [my ipaddr $ip]
+	set ipaddr [my ip2int $ip]
 	foreach el {human count last} {
 	    lappend row [<th> $el]
 	}
