@@ -127,7 +127,7 @@ oo::class create ::HumanC {
 	if {$human ne "" && [string is wideinteger -strict $human]} {
 	    # we think they're human - they return cookies (?)
 	    # record human's ip addresses and last connection time
-	    set records [my by human $human]	;# unique record
+	    set records [my by human $human]	;# get record keyed by cookie
 	    dict set r -ua_class browser	;# presume human
 
 	    if {[llength $records]} {
