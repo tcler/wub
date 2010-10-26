@@ -1225,6 +1225,7 @@ namespace eval Httpd {
     # coroutine-enabled read
     proc read {socket size} {
     	# read a chunk of size bytes
+	Debug.httpdlow {[info coroutine] reading $size from $socket}
 	set chunk ""
 	set gone [catch {chan eof $socket} eof]
 	while {$size && !$gone && !$eof} {
@@ -1235,6 +1236,7 @@ namespace eval Httpd {
 	    set gone [catch {chan eof $socket} eof]
 	}
 
+	Debug.httpdlow {[info coroutine] read complete $size gone:$gone eof:$eof}
 	set gone [catch {chan eof $socket} eof]
 	if {$gone || $eof} {
 	    Debug.httpdlow {[info coroutine] eof in read}
