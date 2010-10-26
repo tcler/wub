@@ -373,6 +373,14 @@ namespace eval ::Cookies {
 	    } {
 		dict unset cdict -path
 	    }
+
+	    if {[dict exists $cdict -max-age]
+		&& ![dict exists $cdict -expires]
+	    } {
+		# make -expires track -max-age
+		set expires [expr {[clock seconds] + [dict get $cdict -max-age]}]
+		dict set args -expires [clock format $expires -format "%a, %d-%b-%Y %H:%M:%S GMT" -gmt 1]
+	    }
 	    
 	    # cookie fields with values
 	    foreach k {comment domain max-age path expires} {
