@@ -2191,7 +2191,12 @@ namespace eval Httpd {
 	variable server_id
 	Debug.httpd {Connect $sock $ipaddr $rport $args}
 	if {[catch {
-	    set s [Socket new chan $sock -file sock.dump -capture 0]
+	    if {[dict exists $args -myaddr]} {
+		set myaddr [dict get $args -myaddr]
+	    } else {
+		set myaddr 0.0.0.0
+	    }
+	    set s [Socket new chan $sock socket $myaddr peer $ipaddr -file sock.dump -capture 0]
 	    chan create {read write} $s
 	} ns eo]} {
 	    # failed to connect.  This can be due to overconnecting
