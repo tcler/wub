@@ -53,7 +53,7 @@ class create ::IChan {
     method read {mychan n} {
 	set used [clock milliseconds]
 	if {[catch {::chan read $chan $n} result eo]} {
-	    Debug.chan {$mychan read $chan $n -> error $result ($eo)}
+	    Debug.error {$mychan read $chan $n -> error $result ($eo)}
 	} else {
 	    Debug.chan {$mychan read $chan $n -> [string length $result] bytes: [string map {\n \\n} "[string length $result] bytes '[string range $result 0 20]...[string range $result end-20 end]"]'}
 	    Debug.chan {$mychan read $chan eof     = [chan eof     $chan]}
