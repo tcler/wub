@@ -51,6 +51,7 @@ class create ::IChan {
 
     # Basic I/O
     method read {mychan n} {
+	Debug.chan {$mychan read $chan begin eof: [chan eof $chan], blocked: [chan blocked $chan]}
 	set used [clock milliseconds]
 	if {[catch {::chan read $chan $n} result eo]} {
 	    Debug.error {$mychan read $chan $n -> error $result ($eo)}
@@ -63,14 +64,16 @@ class create ::IChan {
 	    # ![chan configure $chan -blocking] - optimization -> save the
 	    # -blocking information in a flag, as it passes through method
 	    # 'blocking'.
-	    set gone [catch {chan eof $socket} eof]
+	    set gone [catch {chan eof $chan} eof]
 	    if {![string length $result] &&
 		!$gone && !$eof &&
 		![chan configure $chan -blocking]
 	    } {
+		Debug.error {$mychan EAGAIN}
 		return -code error EAGAIN
 	    }
 	}
+	Debug.chan {$mychan read $chan result: [string length $result] bytes}
 	return $result
     }
 
