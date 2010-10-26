@@ -149,10 +149,9 @@ class create ::IChan {
 	# process object args
 	set objargs [dict filter $args key {[a-zA-Z]*}]
 	foreach {n v} $objargs {
-	    if {$n ni [info class variables [info object class [self]]]} {
-		error "$n is not a valid parameter. ([info class variables [info object class [self]]] are)"
+	    if {$n in [info class variables [info object class [self]]]} {
+		set $n $v
 	    }
-	    set $n $v
 	}
 
 	# set some configuration data
@@ -239,7 +238,7 @@ class create ::Socket {
 	set others {}
 	switch -glob -- $option {
 	    max* {
-		set ip [dict get $endpoints peer ip]
+		set ip [dict get? $endpoints peer ip]
 		classvar maxconnections
 		dict set $maxconnections $ip $value
 	    }
@@ -261,7 +260,7 @@ class create ::Socket {
 	switch -- $option {
 	    -maxconnections {
 		classvar maxconnections
-		set ip [dict get $endpoints peer ip]
+		set ip [dict get? $endpoints peer ip]
 		if {[dict exists $maxconnections $ip]} {
 		    return [dict get $maxconnections $ip]
 		} else {
@@ -271,7 +270,7 @@ class create ::Socket {
 
 	    -connections {
 		classvar connections
-		set ip [dict get $endpoints peer ip]
+		set ip [dict get? $endpoints peer ip]
 		return [dict values [dict get $connections $ip]]
 	    }
 
@@ -301,12 +300,15 @@ class create ::Socket {
 
 	# process class parameters
 	set chan [dict get? $args chan]
+	set peer [dict get? $args peer]
+	set socket [dict get? $args socket]
+
 	set classargs [dict filter $args key {-*}]
 	foreach {n v} $classargs {
 	    switch -glob -- [string trim $n -] {
 		max* {
 		    if {$chan ne ""} {
-			dict set maxconnections $ip $v
+			dict set maxconnections $peer $v
 		    } else {
 			dict set maxconnections "" $v
 		    }
@@ -325,9 +327,21 @@ class create ::Socket {
 	set errs 0; set tries 0; set errmsgs {}
 	incr errs [catch {::chan configure $chan -blocking 0 -buffering none -encoding binary -eofchar {{} {}} -translation {binary binary}} e eo]
 	lappend errmsgs $e
+
 	# get the endpoints for this connected socket
-	foreach {n cn} {socket -sockname peer -peername} {
+	set epn {socket -sockname peer -peername}
+	if {$peer ne ""} {
+	    dict unset epn peer
+	    dict set endpoints peer ip $peer
+	}
+	if {$socket ne ""} {
+	    dict unset epn socket
+	    dict set endpoints socket ip $peer
+	}
+
+	foreach {n cn} $epn {
 	    incr tries
+	    Debug.log {Socket configure $cn for $chan}
 	    if {[catch {::chan configure $chan $cn} ep eo]} {
 		incr errs
 		lappend errmsgs $ep
@@ -336,8 +350,10 @@ class create ::Socket {
 		foreach pn {ip name port} {
 		    dict set endpoints $n $pn [set $pn]
 		}
+		set $n $ip
 	    }
 	}
+
 	if {$errs} {
 	    Debug.error {[self] $errs errors out of $tries tries - give up ($errmsgs).}
 	    error $errmsgs
@@ -351,26 +367,26 @@ class create ::Socket {
 	Debug.chan {Socket configured $chan to [::chan configure $chan]}
 
 	# keep tally of connections from a given peer
-	dict set connections $ip $port [self]
+	dict set connections $peer $port [self]
  
 	# determine maxconnections for this ip
 	if {![info exists maxconnections]} {
 	    dict set maxconnections "" 20	;# an arbitrary maximum
 	}
-	if {[dict get? $maxconnections $ip] ne ""} {
-	    set mc [dict get $maxconnections $ip]
+	if {[dict get? $maxconnections $peer] ne ""} {
+	    set mc [dict get $maxconnections $peer]
 	} else {
 	    # default maxconnections
 	    set mc [dict get $maxconnections ""]
 	}
 
 	# check overconnections
-	set x [dict get $connections $ip]
+	set x [dict get $connections $peer]
 	if {[dict size $x] > $mc} {
-	    Debug.connections {$ip has connections [dict size $x] > $mc from ([dict get $x]) / [llength [chan names]] open fds}
-	    #error "Too Many Connections from $name $ip"
+	    Debug.connections {$peer has connections [dict size $x] > $mc from ([dict get $x]) / [llength [chan names]] open fds}
+	    #error "Too Many Connections from $name $peer"
 	} else {
-	    Debug.connections {$ip connected from port $port ([dict size $x] connections) / [llength [chan names]] open fds}
+	    Debug.connections {$peer connected from port $port ([dict size $x] connections) / [llength [chan names]] open fds}
 	}
 	if {[llength [chan names]] > 400} {
 	    Debug.error {Waaaay too many open fds:  [llength [chan names]]}
