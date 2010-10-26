@@ -530,6 +530,7 @@ namespace eval ::Cookies {
 	    Debug.cookies {clearing '$n'}
 	    dict set cookies $n -value ""
 	    dict set cookies $n -max-age 0
+	    dict set cookies $n -expires -1
 	    dict set cookies $n -changed 1
 	}
 
