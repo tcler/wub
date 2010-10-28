@@ -86,6 +86,8 @@ set API(Server/Httpd) {
     }
 }
 
+set ::tcl::unsupported::noReverseDNS 1	;# turn off reverse DNS
+
 ##nagelfar syntax catch c n? n?
 proc bgerror {args} {
     Debug.error {bgerror: $args}
