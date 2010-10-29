@@ -191,6 +191,7 @@ namespace eval ::WubWidgets {
 
 	    # install varable values
 	    set tvchange 0
+	    set vchange 0
 	    set vars {}
 	    dict for {n v} $args {
 		set n [string trim $n -]
@@ -229,11 +230,23 @@ namespace eval ::WubWidgets {
 			    my itrace [set $n]
 			}
 
-			# add new trace
-			my itrace $v ::.[my widget] changevar
+			if {$v ne ""} {
+			    # indicate new traces must be set
+			    set variable $v
+			    dict set vars variable $v
+			    set vchange 1
+			} else {
+			    # we've deleted the -variable
+			    unset variable
+			}
 
-			set variable $v
-			dict set vars variable $v
+			# add new trace after we've processed all args
+		    }
+
+		    value {
+			# we have to record this, to allow variable to settle
+			set newvalue $v
+			dict set vars value $v
 		    }
 
 		    default {
@@ -243,9 +256,17 @@ namespace eval ::WubWidgets {
 		}
 	    }
 
-	    # result: tvchange means new textvariable
-	    # newtext means new text value
+	    # result:
+	    #
+	    #	tvchange means new textvariable
+	    #	newtext means new text value
+	    #
+	    #	vchange means new variable
+	    #	newvalue means new value
 
+	    ##################################################
+	    # Handle -textvariable and -text
+	    ##################################################
 	    if {[info exists newtext]} {
 		# we have new text value
 		Debug.wubwidgets {new -text value '$newtext'}
@@ -276,6 +297,21 @@ namespace eval ::WubWidgets {
 	    variable textvariable
 	    if {![info exists text] && ![info exists textvariable]} {
 		set text ""
+	    }
+
+	    ##################################################
+	    # Handle -variable and -value
+	    ##################################################
+	    if {[info exists newvalue]} {
+		# we have new -value
+		Debug.wubwidgets {new -value '$newvalue'}
+		set value $newvalue
+	    }
+
+	    # re-establish -variable trace
+	    if {$vchange} {
+		Debug.wubwidgets {tracking -variable '$variable' changes}
+		my itrace $variable ::.[my widget] changevar
 	    }
 
 	    Debug.wubwidgets {configured: $vars}
@@ -694,12 +730,6 @@ namespace eval ::WubWidgets {
 	    next {*}[dict merge [list -variable [my widget]] {
 		justify left
 	    } $args]
-
-	    set var [my cget variable]
-	    Debug.wubwidgets {checkbutton construction: setting $var}
-	    if {![my iexists $var]} {
-		my iset $var 0
-	    }
 	}
     }
 
@@ -760,8 +790,7 @@ namespace eval ::WubWidgets {
 	    set var [my cget variable]
 	    set rbvar [my connection rbvar $var]	;# construct a pseudo-widget to handle all rbs
 	    Debug.wubwidgets {radiobutton construction: setting $var} 
-	    my itrace $var	;# must remove any existing traces on the var
-	    $rbvar iset $var [my cget value]
+	    #$rbvar iset $var [my cget value]
 	}
     }
 
