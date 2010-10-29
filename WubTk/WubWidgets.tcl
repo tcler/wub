@@ -68,7 +68,7 @@ namespace eval ::WubWidgets {
 		dict set trace $what $args
 		{*}$interp [list trace add variable $what write $args]
 		Debug.wubwinterp {itrace add $what $args: ([{*}$interp [list trace info variable $what]])}
-	    } elseif {[dict exists trace $what]} {
+	    } elseif {[dict exists $trace $what]} {
 		{*}$interp [list trace remove variable $what write [dict get $trace $what]]
 		Debug.wubwinterp {itrace removed $what $args ([dict get $trace $what]) leaving ([{*}$interp [list trace info variable $what]])}
 		dict unset trace $what
@@ -703,6 +703,8 @@ namespace eval ::WubWidgets {
 	}
     }
 
+    # rbC - pseudo-widget which handles change events for a set of
+    # radiobuttons sharing the same variable.
     oo::class create rbC {
 	method render {args} {
 	    error "Can't render an rbC"
@@ -756,10 +758,10 @@ namespace eval ::WubWidgets {
 
 	    # construct a grid var to give us a name
 	    set var [my cget variable]
-	    my connection rbvar $var	;# construct a pseudo-widget to handle all rbs
-
+	    set rbvar [my connection rbvar $var]	;# construct a pseudo-widget to handle all rbs
 	    Debug.wubwidgets {radiobutton construction: setting $var} 
-	    my iset $var [my cget value]
+	    my itrace $var	;# must remove any existing traces on the var
+	    $rbvar iset $var [my cget value]
 	}
     }
 
