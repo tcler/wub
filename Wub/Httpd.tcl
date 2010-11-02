@@ -86,14 +86,6 @@ set API(Server/Httpd) {
     }
 }
 
-set ::tcl::unsupported::noReverseDNS 1	;# turn off reverse DNS
-
-##nagelfar syntax catch c n? n?
-proc bgerror {args} {
-    Debug.error {bgerror: $args}
-}
-interp bgerror {} ::bgerror
-
 # define a default [pest] predicate, allow it to be overriden by pest.tcl
 proc pest {req} {return 0}
 catch {source [file join [file dirname [info script]] pest.tcl]}
@@ -2191,7 +2183,7 @@ namespace eval Httpd {
     }
 
     # connect - process a connection request
-    proc Connect {sock ipaddr rport args} {
+    proc connect {sock ipaddr rport args} {
 	variable server_id
 	Debug.httpd {Connect $sock $ipaddr $rport $args}
 	if {[catch {
