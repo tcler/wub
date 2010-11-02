@@ -2,6 +2,7 @@
 
 # Site - simple configuration for single-threaded Wub Server.
 package require Tcl 8.6	;# minimum version of tcl required
+set ::tcl::unsupported::noReverseDNS 1	;# turn off reverse DNS
 
 namespace eval ::Site {
     variable home [file normalize [file dirname [info script]]]
@@ -107,6 +108,13 @@ proc findpaths {} {
 findpaths	;# have to do this before looking for Debug or Dict
 
 package require Debug	;# Debug before Dict, as it depends on it
+
+##nagelfar syntax catch c n? n?
+proc bgerror {args} {
+    Debug.error {bgerror: $args}
+}
+interp bgerror {} ::bgerror
+
 package require Dict
 package require Config	;# handle configuration
 
@@ -223,6 +231,7 @@ namespace eval ::Site {
 	    -port 8080	;# Wub listener port
 	    #-host	;# listening host (default [info hostname]
 	    #-http	;# dispatch handler (default Http)
+	    -httpd {::Httpd connect}
 	}
 
 	Https {
@@ -483,11 +492,28 @@ namespace eval ::Site {
 	::variable docroot
 	package require Httpd
 
+	#### Load Debug defaults
+	if {[config exists Debug]} {
+	    foreach {n v} [config section Debug] {
+		set v [lassign $v val]
+		if {[string is integer -strict $val]} {
+		    Debug on $n $val {*}$v
+		} elseif {$val eq "on"} {
+		    Debug on $n {*}$v
+		} elseif {$val eq "off"} {
+		    Debug off $n {*}$v
+		} else {
+		    puts stderr "Debug config error '$n $val $v'"
+		}
+	    }
+	    puts stderr "DEBUG: [Debug 2array]"
+	}
+
 	#### Load Convert module - content negotiation
 	# install default conversions
 	package require Convert
 	if {[config exists Convert]} {
-	    Convert create ::convert [config section Convert]
+	    Convert create ::convert {*}[config section Convert]
 	} else {
 	    Convert create ::convert
 	}
@@ -501,7 +527,7 @@ namespace eval ::Site {
 	    Debug.site {Module Block: YES}
 	    package require Block
 	    ::variable docroot
-	    Block new logdir $docroot [config section Block]
+	    Block new logdir $docroot {*}[config section Block]
 	} else {
 	    # NULL Block
 	    Debug.site {Module Block: NO}
@@ -658,10 +684,10 @@ namespace eval ::Site {
 	#### start Listeners
 	set lconf [config section Listener]
 	if {[dict get? $lconf -myaddr] eq ""} {
-	    Listener new {*}[config section Listener] -httpd ::Httpd
+	    Listener new {*}[config section Listener]
 	} else {
 	    foreach p [dict get? $lconf -myaddr] {
-		Listener new {*}[config section Listener] -myaddr $p -httpd ::Httpd
+		Listener new {*}[config section Listener] -myaddr $p
 	    }
 	}
 
@@ -692,7 +718,7 @@ namespace eval ::Site {
 	    package require Sscgi
 	    Listener new sscgi {*}[config section Sscgi] -httpd Sscgi
 	}
-
+	puts stderr "DEBUG2: [Debug 2array]"
     }
 
     # this will shut down the whole system
