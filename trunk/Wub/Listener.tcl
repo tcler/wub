@@ -95,7 +95,8 @@ class create ::Listener {
 	if {[catch {
 	    # select an Http object to handle incoming
 	    set server [chan configure $sock -sockname]
-	    {*}[dict get $opts -httpd] Connect $sock $ipaddr $rport {*}$opts -server $server
+	    Debug.listener {connect: [dict get $opts -httpd] $sock $ipaddr $rport {*}$opts -server $server}
+	    {*}[dict get $opts -httpd] $sock $ipaddr $rport {*}$opts -server $server
 	} result eo]} {
 	    Debug.error {accept: $eo}
 	}
@@ -132,7 +133,7 @@ class create ::Listener {
 	set args [dict merge [subst {
 	    -host [info hostname]
 	    -port 8080
-	    -httpd Httpd
+	    -httpd {Httpd connect}
 	}] $args]
 	dict set args -id [self]
 
