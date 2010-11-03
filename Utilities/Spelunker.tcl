@@ -19,7 +19,7 @@ namespace eval Spelunker {
 	    }
 	}
 
-	set children {
+	set children {}
 	set total $local
 	foreach child [namespace children ::${ns}] {
 	    set sumc [sum $child] 
@@ -30,12 +30,12 @@ namespace eval Spelunker {
 	}
 	return [list [list $ns $local $total] {*}$children]
     }
-
+    
     proc sumcsv {} {
 	package require csv
 	::csv::joinlist [sum]
     }
-
+    
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
