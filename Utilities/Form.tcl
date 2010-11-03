@@ -187,6 +187,7 @@ class create ::FormClass {
 	eval [string map [list %TI% $ti %T% $type] {
 	    method <%T%> {args} {
 		variable %T%A
+		variable metadata {}
 
 		set body [lindex $args end]
 		set args [lrange $args 0 end-1]
