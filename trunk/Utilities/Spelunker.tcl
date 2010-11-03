@@ -1,5 +1,6 @@
 # spelunker.tcl - dive into namespaces accumulating the reachable string rep lengths
 # of variables.
+package provide Spelunker 1.0
 
 namespace eval Spelunker {
     variable title Spelunker
@@ -18,7 +19,7 @@ namespace eval Spelunker {
 	    }
 	}
 
-	set children {}
+	set children {
 	set total $local
 	foreach child [namespace children ::${ns}] {
 	    set sumc [sum $child] 
