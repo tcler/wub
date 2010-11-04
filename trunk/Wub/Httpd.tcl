@@ -1503,7 +1503,7 @@ namespace eval Httpd {
 	variable todisk
 	if {$todisk < 0 || [file size [dict get $r -entitypath]] <= $todisk} {
 	    # we don't want to have things on disk, or it's small enough to have in memory
-	    set fd [dict gret $r -entity]
+	    set fd [dict get $r -entity]
 	    dict set r -entity [dict read $fd]
 	    chan close $fd				;# close the entity fd
 	    file delete [dict get $r -entitypath]	;# clean up the file
