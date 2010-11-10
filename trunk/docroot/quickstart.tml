@@ -35,13 +35,10 @@ return ""
       <p></p>
     </dd>
     
-    <dt>Step 4</dt> <dd>Run the demo application:
-      <p>tclsh8.6 Application.tcl</p>
+    <dt>Step 4</dt> <dd>Start the server:
+      <p>tclsh8.6 Site.tcl</p>
     </dd>
     
-    <dt>Step 5</dt> <dd>For later
-      <p>customise the nubs: look in wub/Domains/nubs/ create a nub file to suit.  See </p>
-      <p>quick and dirty: local.tcl in Application directory is always sourced before startup.</p>
     </dd>
   </dl>
     
