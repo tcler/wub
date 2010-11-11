@@ -26,7 +26,7 @@ set ::API(Domains/Threaded) {
 
 	Example: Nub domain Threaded -domain Direct ...
     }
-    -domain {names the domain to be constructed per thread, and commences the dict of its constructor args}
+    -domain {names the domain to be constructed per thread, and contains the dict of its constructor args}
     maxthreads {maximum number of threads to create (default 10)}
     newfirst {we prefer new threads to greater occupancy (default true)}
     occupancy {maximum occupancy of each thread (default 1)}
