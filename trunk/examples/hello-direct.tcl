@@ -243,3 +243,10 @@ namespace eval ::Hello {
 
 # this Nub inserts the Hello namespace into the URL space at /hello/
 Nub domain /hello/ Direct namespace ::Hello
+
+# in site.config you initialize it as follows:
+# hello {
+#	domain Direct
+#	url /hello
+#	namespace ::Hello
+#}
