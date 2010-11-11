@@ -68,16 +68,17 @@ oo::class create ::HttpdClient {
 
 	variable connections
 	dict set connections $what [clock seconds]
+	Debug.httpdclient {[self] add $what [dict size $connections]/$count}
     }
 
     method del {what} {
 	variable count
 	incr count -1
+	variable connections
+	dict unset connections $what
+	Debug.httpdclient {[self] del $what [dict size $connections]/$count}
 	if {$count <= 0} {
 	    my destroy
-	} else {
-	    variable connections
-	    dict unset connections $what
 	}
     }
 
