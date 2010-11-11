@@ -1751,7 +1751,9 @@ oo::class create ::Httpd {
 	::watchdog gone [self]	;# deregister from watchdog
 
 	variable client
-	$client del [self]
+	if {[info exists client]} {
+	    catch {$client del [self]}
+	}
 
 	variable files
 	foreach {f name} $files {
