@@ -156,15 +156,12 @@ namespace eval Cache {
 	set et [string trim [dict get? $req etag] \"]
 	if {$et ne ""
 	    && [exists? $et]
-	    && [info exists keys($et)]
 	} {
 	    # key by request's etag
 	    set key $keys($et)
 	    set found $et
 	    set by "etag '$et'"
-	} elseif {[exists? $uri]
-		  && [info exists keys($uri)]
-	      } {
+	} elseif {[exists? $uri]} {
 	    # key by request's URL
 	    set key $keys($uri)
 	    set found $uri
