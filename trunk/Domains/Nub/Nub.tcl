@@ -569,26 +569,6 @@ namespace eval ::Nub {
 	return [Http Ok $r $huh]
     }
 
-    proc urlorder {k1 k2} {
-	# make shorter lists come later in the order
-	set l1 [split $k1 /]
-	set l2 [split $k2 /]
-	set diff [expr {[llength $l2] - [llength $l1]}]
-	if {$diff != 0} {
-	    #Debug.nub {urlorder '$k1'=[llength $l1] '$k2'=[llength $l2] -> $diff}
-	    return $diff
-	}
-
-	# make wildcards come later in the order for the same length
-	if {[string map {* ~~} $k1] >= [string map {* ~~} $k2]} {
-	    #Debug.nub {urlorder '$k1' '$k2' -> 1}
-	    return 1
-	} else {
-	    #Debug.nub {urlorder '$k1' '$k2' -> -1}
-	    return -1
-	}
-    }
-
     proc outerr {name1 name2 op} {
 	upvar $name1 error
 	puts stderr "ERROR: $error"
@@ -834,7 +814,7 @@ namespace eval ::Nub {
 	    set url [join [lassign $k host] /]
 	    append code [string map [list %H% $host %U% $url %A% $a] {
 		"%H%,%U%" {
-		    Httpd Auth $r "%A%"
+		    Http Auth $r "%A%"
 		}
 	    }] \n
 	}
@@ -875,7 +855,8 @@ namespace eval ::Nub {
 	append body "return \$result"
 
 	Debug.nub {code_trailing: ($body)}
-	eval "::proc ::Httpd::trailing {r} [list $body]"
+	variable NS
+	namespace eval $NS [list proc trailing {r} [list $body]]
     }
 
     # code processed domains into a big switch
@@ -972,7 +953,7 @@ namespace eval ::Nub {
 	#trace add variable error {write} outerr
 
 	# order urls by key length - longest first
-	set ordered [lsort -command urlorder [dict keys $urls]]
+	set ordered [lsort -command {::Url order} [dict keys $urls]]
 
 	Debug.nub {URLs in order $ordered}
 	Debug.nub {URLs: $urls}
@@ -1051,8 +1032,9 @@ namespace eval ::Nub {
 	# ASSEMBLE generated code
 	# the code becomes a self-modifying proc within ::Httpd
 	# its function is to dispatch on URL
-	set p [string map [list %B% $blocking %RW% $rw %RD% $redirecting %D% $definitions %S $switch %AUTH% $au] {
-	    proc ::Httpd::nub {} {
+	variable NS
+	set p [string map [list %NS% $NS %B% $blocking %RW% $rw %RD% $redirecting %D% $definitions %S $switch %AUTH% $au] {
+	    proc ::%NS%::nub {} {
 		# this code generates definitions once, when invoked
 		# it then rewrites itself with code to use those definitions
 		variable defs
@@ -1071,7 +1053,7 @@ namespace eval ::Nub {
 	    }
 
 	    # this proc processes requests
-	    proc ::Httpd::do {op r} {
+	    proc ::%NS%::do {op r} {
 		Debug.nub {RX: [dict get? $r -uri] - [dict get? $r -url] - ([Url parse [dict get? $r -url]]) }
 		variable defs	;# functional definitions
 		
@@ -1103,8 +1085,10 @@ namespace eval ::Nub {
 	    }
 	}]
 
-	::proc ::Httpd::NotFound {r} {
-	    Http NotFound $r [<p> "page '[dict get $r -uri]' Not Found."]
+	namespace eval $NS {
+	    ::proc NotFound {r} {
+		Http NotFound $r [<p> "page '[dict get $r -uri]' Not Found."]
+	    }
 	}
 	Debug.nub {GEN: $p}
 	return $p
@@ -1285,7 +1269,8 @@ namespace eval ::Nub {
 	set do [generate $urls]
 	Debug.nub {apply: $do}
 	eval $do
-	::Httpd::nub
+	variable NS
+	namespace eval $NS {nub}
     }
 
     proc init {args} {
@@ -1297,7 +1282,7 @@ namespace eval ::Nub {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
-	
+	variable NS ::Httpd
 	variable {*}[Site var? Nub]	;# allow .ini file to modify defaults
 	foreach {n v} $args {
 	    variable [string trimleft $n -] $v
