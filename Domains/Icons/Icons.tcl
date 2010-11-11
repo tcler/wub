@@ -188,6 +188,7 @@ namespace eval ::Icons {
 	variable {*}[Site var? Icons]	;# allow .ini file to modify defaults
 	return ::Icons
     }
+
     proc create {junk args} {
 	return [new {*}$args]
     }
