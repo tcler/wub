@@ -80,7 +80,7 @@ oo::class create ::HttpdClient {
 	if {[dict size $connections] == 0} {
 	    variable ip
 	    Debug.httpdclient {destroying [self] for $ip}
-	    del_ $ip
+	    my del_ $ip
 	    my destroy
 	}
     }
