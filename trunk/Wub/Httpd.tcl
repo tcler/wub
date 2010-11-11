@@ -1539,7 +1539,7 @@ oo::class create ::Httpd {
 		       && ![chan eof $socket]
 		   } {
 		    my Yield	;# wait for READ event
-		    append chunk [chan read $socket $size]
+		    append chunk [chan read $socket $left]
 		}
 
 		dict append r -entity $chunk
