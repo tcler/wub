@@ -1790,6 +1790,7 @@ oo::class create ::Httpd {
 	variable sequence -1	;# which is the next response to queue?
 	variable writing 0	;# we're not writing yet
 	variable events {}	;# readable/writable
+	variable files {}	;# files open to this connection
 	variable client [::HttpdClient add $ip [self]]
 	variable proto [list -sock $socket -cid [self] -ipaddr $ipaddr -rport $rport -received_seconds [clock seconds]]
 	variable outbuffer 40960 ;# amount of output we are prepared to buffer
