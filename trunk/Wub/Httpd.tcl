@@ -93,11 +93,11 @@ oo::class create ::HttpdClient {
 	}
 	if {[dict exists $clients $ip]} {
 	    set x [dict get $clients $ip]
-	    Debug.httpclient {found existing $x for ip:$ip}
+	    Debug.httpdclient {found existing $x for ip:$ip}
 	} else {
 	    set x [HttpdClient new ip $ip]
 	    dict set clients $ip $x
-	    Debug.httpclient {created new $x for ip:$ip}
+	    Debug.httpdclient {created new $x for ip:$ip}
 	}
 	Debug.httpdclient {add $ip $what -> $x}
 	$x add_ $what
