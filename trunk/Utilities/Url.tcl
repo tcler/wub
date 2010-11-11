@@ -52,6 +52,27 @@ namespace eval ::Url {
 	return $str
     }
 
+    # order - lsort command to order URLs
+    proc order {k1 k2} {
+	# make shorter lists come later in the order
+	set l1 [split [string trim $k1 /] /]
+	set l2 [split [string trim $k2 /] /]
+	set diff [expr {[llength $l2] - [llength $l1]}]
+	if {$diff != 0} {
+	    Debug.nub {urlorder '$k1'=[llength $l1] '$k2'=[llength $l2] -> $diff}
+	    return $diff
+	}
+
+	# make wildcards come later in the order for the same length
+	if {[string map {* ~~} $k1] >= [string map {* ~~} $k2]} {
+	    Debug.nub {urlorder '$k1' '$k2' -> 1}
+	    return 1
+	} else {
+	    Debug.nub {urlorder '$k1' '$k2' -> -1}
+	    return -1
+	}
+    }
+
     # normalize -- 
     #
     #	collapse and normalize //, ../ and . components to avoid tricks
