@@ -231,7 +231,7 @@ namespace eval ::Site {
 	    -port 8080	;# Wub listener port
 	    #-host	;# listening host (default [info hostname]
 	    #-http	;# dispatch handler (default Http)
-	    -httpd {::Httpd connect}
+	    -httpd {::Httpd new}
 	}
 
 	Https {
@@ -286,12 +286,16 @@ namespace eval ::Site {
 	Nub {
 	    load 1
 	    nubs {}
+	    NS ::Dispatcher
 	    # nub.nub bogus.nub
+	}
+
+	Log {
+	    file "wub.log"	;# log filename for common log format logging
 	}
 
 	Httpd {
 	    # Httpd protocol engine configuration
-	    logfile "wub.log"	;# log filename for common log format logging
 	    max_conn 20		;# max connections per IP
 	    no_really 30	;# how many times to complain about max_conn
 	    # server_port	;# server's port, if different from Listener's
@@ -314,6 +318,7 @@ namespace eval ::Site {
 
 	::variable configuration
 	#Debug on config
+
 	Config create config $configuration
 	namespace export -clear *
 	namespace ensemble create -subcommands {}
@@ -490,7 +495,7 @@ namespace eval ::Site {
     #### Load those modules needed for the server to run
     proc modules {} {
 	::variable docroot
-	package require Httpd
+	package require Httpd 6.0
 
 	#### Load Debug defaults
 	if {[config exists Debug]} {
@@ -668,14 +673,30 @@ namespace eval ::Site {
 	    Nub apply
 	}
 
+	# open the web analysis log
+	if {[config exists Log]} {
+	    set logfile [config get Log file]
+	    if {$logfile ne ""} {
+		if {![catch {
+		    open $logfile a
+		} log eo]} {
+		    # we want to try to make writes atomic
+		    fconfigure $log -buffering line
+		} else {
+		    Debug.error {Failed to open logfile:'$logfile' - '$log' ($eo)}
+		}
+	    }
+	}
+
 	#### start Httpd protocol
 	::variable httpd
-	Httpd configure server_id "Wub [package present Httpd]" {*}[config section Httpd]
+	#config merge_section Httpd [list server_id {Wub [package present Httpd]}]
+	config merge_section Httpd [list log $log]
 
 	::variable server_port
 	if {[info exists server_port]} {
 	    # the listener and server ports differ
-	    Httpd configure server_port $server_port
+	    config merge_section Httpd [list server_port $server_port]
 	}
 
 	::variable host
