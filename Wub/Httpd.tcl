@@ -1,19 +1,10 @@
-# Httpd - near HTTP/1.1 protocol server.
-#
-
-if {[info exists argv0] && ($argv0 eq [info script])} {
-    # test Httpd
-    lappend auto_path [pwd] ../Utilities/ ../extensions/
-    package require Http
-}
-
 package require Debug
 Debug define httpd 10
 Debug define httpdlow 10
+Debug define httpdclient 10
 Debug define watchdog 10
 
-Debug define Entity 10
-Debug define slow 10
+Debug define entity 10
 
 package require Listener
 package require Chan
@@ -23,114 +14,230 @@ package require Query
 package require Html
 package require Url
 package require Http
+package require OO
 
-package provide Httpd 5.0
+package provide Httpd 6.0
 
-set API(Server/Httpd) {
-    {
-	Httpd is the low-level core Wub HTTP protocol module.  It parses HTTP traffic, dispatches on URL and handles pipelined responses.  It interfaces with other modules to provide blocking, caching, logging and other useful functionality.  It is easily configurable in code, and dispatch is configurable by means of the [../Domains/Nub Nub] module.
+# Dispatcher - contains all necessary code to dispatch on request
+namespace eval ::Dispatcher {
+    proc pre {r} {
+	package require Cookies
+	proc pre {r} {
+	    # default request pre-process
+	    catch {::pest $r}
+	    set r [::Cookies 4Server $r]	;# fetch the cookies
+	    set r [Human track $r]	;# track humans by cookie
+	    return $r
+	}
+	return [pre $r]
+    }
 
-	Httpd is intended to be non-permissive in its handling of requests.  In general, legitimate browsers and bots are well-behaved and conform closely to the RFC.  In rejecting ill-formed requests, Httpd is expected to somewhat reduce the impact and load of spammers on the server.
+    proc post {r} {
+	# do per-connection postprocess (if any)
+	foreach c [dict get? $r -postprocess] {
+	    set r [{*}$c $r]
+	}
 
-	While Httpd can be customised and used almost stand-alone in a minimal server system, it is designed as the protocol front-end to a series of modules known as [../Domains Domains] which provide a wide range of semantics to the site-author.  The module [../Domains/Nub Nub] generates dispatch and interface code to link these [../Domains Domains] to Httpd for processing.  By analogy with Apache, [../Domains/Nub Nub] performs the dispatch functions of Apaches .htaccess files.
+	# do per-connection conversions (if any)
+	foreach c [dict get? $r -convert] {
+	    set r [$c convert $r]
+	}
 
-	== Quickstart ==
-	Use [../Domains/Nub Nub] to define a URL mapping to instances of the various [../Domains Domains].  A complete site can be constructed using nothing but Nub over Domains.
+	# do default conversions
+	return [::convert convert $r]
+    }
 
-	== Interface ==
-	;Connect: Initializes an HTTP 1.1 connection and pipeline, may be called by some external connection handler (such as [Listener], by default) to initiate HTTP 1.1 protocol interaction and processing.
+    proc /clients {r} {
+	foreach client [info class instances ::HttpdClient] {
+	    set connections [$client connections]
+	    
+	    foreach connection $connections {
+	    }
+	}
+    }
 
-	;[[Http Resume $response]]: will resume a suspended request and pipeline the response out to the client.
+    namespace export -clear *
+    namespace ensemble create -subcommands {}
+}
 
-	All processing of requests (ie: transformation of requests into responses) is performed by ::Httpd::do, which can be defined directly by the user (see Customisation) or can be defined indirectly by [../Domains/Nub Nub].
+# HttpdClient - an object for each Httpd client currently connected
+oo::class create ::HttpdClient {
+    method add_ {what} {
+	variable count
+	incr count
 
-	== Customisation ==
+	variable connections
+	dict set connections $what [clock seconds]
+    }
 
-	To customise Httpd, the semantics of request processing need to be defined in a couple of plugged-in commands.  These commands have sensible minimally functional defaults, but are expected to be customised.
+    method del {what} {
+	variable count
+	incr count -1
+	if {$count <= 0} {
+	    my destroy
+	} else {
+	    variable connections
+	    dict unset connections $what
+	}
+    }
 
-	Httpd expects ''::Httpd::do'' to operate within the coroutine to process a request and return a response (or error.)  The [../Domains/Nub Nub] module generates such a command, which dispatches on URL to Domains specified in the configuration.
+    method connections {} {
+	variable connections
+	return $connections
+    }
 
-	Command ::Httpd::do will be called with REQUEST and a ''pre''-processed request expecting that the call will return a response.
+    classmethod add {ip what} {
+	classvar clients
+	if {![info exists clients]} {
+	    set clients {}
+	}
+	if {[dict exists $clients $ip]} {
+	    set x [dict get $clients $ip]
+	} else {
+	    set x [HttpdClient new ip $ip]
+	    dict set clients $ip $x
+	}
+	$x add_ $what
+	Debug.httpdclient {add $ip $what -> $x}
+	return $x
+    }
 
-	Command ::Httpd::do will be called with TERMINATE when a connection has closed.  A custom consumer may use this notification to clean up before termination.  No socket or reader interaction is possible at this point.
+    classmethod all {} {
+	classvar clients
+	return $clients
+    }
 
-	Httpd expects ''::Httpd::pre'' to pre-process the request within the coroutine's context before handing it to ::Httpd::do.  By default, ''pre'' unpacks [../Utility/Cookies Cookies] in the request.
+    destructor {
+	variable ip
+	Debug.httpdclient {destroying [self] for $ip}
+	classvar clients
+	dict unset clients $ip
+    }
 
-	Httpd expects ''::Httpd::post'' to post-process the response from ::Httpd::do.  By default, the [Convert] module is invoked to perform content-negotiation.  Other useful functionality might be [Cookie] handling, Session management, etc.
-
-	Httpd defines an ''::Httpd::reader'' command for protocol interaction and an ::Httpd::do for dispatching on URL, post-processing via ::Httpd::post and sending pipelined responses back to the client via ::Httpd::reader.  It's not expected that these should be modified, but (in keeping with the goal of extensibility) it is possible.
-
-	== Architecture ==
-	Httpd constructs one coroutine for each open connection in response to a '''Connect''' call from a [Listener].  The coroutine (whose semantics are contained in ::Httpd::reader) parses HTTP 1.1 from the socket into a request dict, which it then dispatches via [[::Httpd::do]].
-
-	=== Reader Protocol ===
-	;READ: [[fileevent readable]] - there's input to be read and processed
-	;CLOSING: [[fileevent readable]] - there's input, but we're half-closed, not processing any more input, and merely waiting for all pending responses to drain.
-	;WRITABLE: [[fileevent writable]] - there's space on the output queue.  We'll send any responses queued for sending, and unblock the reader if this makes output buffer space available.
-	;SEND: a ''consumer'' has a response for us to queue for delivery.
-	;SUSPEND: a ''consumer'' indicates that current response processing is suspended.  New requests will be processed, but the pipeline stalls until the consumer is RESUMEd, and generates a response to the current request.  This indication has little effect, but to extend some grace time to the connection which keeps the reaper away from it.
-	;REAPED: this connection has been reaped due to inactivity.
-	;TERMINATE: this connection is being closed due to unrecoverable error or a ''consumer'' request.
-
-	=== Reaping ===
-	The time of each event processed by the reader and consumer coroutines is logged.  If a (configurable) period of idleness occurs, a per-connection timer causes the connection to be reaped.  A consumer which suspends is given a little (configurable) grace time to produce its response.
-
-	== Ancillary Functionality ==
-	Httpd is not intended to be a minimal HTTP server, and so performs generally useful (but safe) optimisations and traffic management.
-
-	;[Cache]: Httpd (configurably) interacts with a server cache (also known as a reverse proxy) which automatically caches responses and serves them (as appropriate) to clients upon matching request.  The Cache is transparent to ''consumer'', which will not be invoked if cached content can be supplied.  Caching policy is determined entirely by response and request protocol elements - that is, if a response is publicly cacheable, the [Cache] module will capture and reproduce it, handling conditional fetches and such.
-	;Exhaustion: Httpd maintains a count of the current connections for each IP address, and may refuse service if they exceed a configured limit.  In practice, this has not been found to be very useful.
-	;[Block]ing: refuses service to blocked IP addresses
-	;[../Utility/spider Spider] detection: looks up User-Agent in a db of known bad-bots, to attempt to refuse them service.  In practice, this has not been found to be very useful.
-	;[../Utility/UA UA] classification: parses and classifies User-Agent in an attempt to classify interactions as 'bot', 'broser', 'spider'. 'spammer'.  Limited success.
+    constructor {args} {
+	variable {*}$args
+	variable count 0
+	Debug.httpdclient {constructed [self] for $ip}
     }
 }
 
-# define a default [pest] predicate, allow it to be overriden by pest.tcl
-proc pest {req} {return 0}
-catch {source [file join [file dirname [info script]] pest.tcl]}
+# watchdog timer
+namespace eval ::watchdog {
+    variable timeout 60000	;# mS of permissable inactivity
+    variable activity	;# this variable records activity of entities being watched
+    set activity() ""; unset activity()
 
-namespace eval Httpd {
-    variable server_port ;# server's port (if different from Listener's)
-    variable server_id "Wub/[package provide Httpd]"
-    variable cid 0		;# unique connection ID
-    variable exhaustion	20	;# how long to wait on exhaustion
-    variable maxconn		;# max connections
-    variable generation		;# worker/connection association generation
+    # stroke - placate the watchdog
+    proc stroke {what} {
+	variable activity
+	set activity($what) [clock milliseconds]
+    }
 
-    # common log format log - per request, for log analysis
-    variable log ""	;# fd of open log file - default none
-    variable logfile ""	;# name of log file - "" means none
-    variable customize ""	;# file to source to customise Httpd
+    # grace - give entity some grace
+    proc grace {what {grace 20000}} {
+	variable activity
+	if {$grace < 0} {
+	    # take this coro off the reaper's list until next activity
+	    Debug.watchdog {Giving $what infinite grace}
+	    catch {unset activity($what)}
+	} else {
+	    Debug.watchdog {Giving $what $grace grace}
+	    set activity($what) [expr {$grace + [clock milliseconds]}]
+	}
+    }
 
+    # gone - this entity is gone
+    proc gone {what} {
+	variable activity
+	catch {unset activity($what)}
+    }
 
-    # limits on header size
-    variable maxline 2048	;# max request line length
-    variable maxfield 4096	;# max request field length
-    variable maxhead 1024	;# maximum number of header lines
-    variable maxurilen 1024	;# maximum URI length
-    variable maxentity -1	;# maximum entity size
-    variable todisk 10000000	;# maximum entity size to handle in-memory
+    # every - run $script every $interval mS
+    proc every {interval script} {
+	variable everyIds
+	if {$interval eq "cancel"} {
+	    after cancel $everyIds($script)
+	    return
+	}
+	set everyIds($script) [after $interval [info level 0]]	;# restart the timer
+	set rc [catch {
+	    uplevel #0 $script
+	} result eo]
+	if {$rc == [catch break]} {
+	    after cancel $everyIds($script)
+	    set rc 0
+	} elseif {$rc == [catch continue]} {
+	    # Ignore - just consume the return code
+	    set rc 0
+	} elseif {$rc == [catch error ""]} {
+	    Debug.error {every: $interval ($script) - ERROR: $result ($eo)}
+	}
 
-    # timeout - by default none
-    variable timeout 60000
+	# TODO: Need better handling of errorInfo etc...
+	#return -code $rc $result
+	return $result
+    }
 
-    # activity log - array used for centralised timeout
-    variable activity
+    proc reaper {} {
+	Debug.watchdog {Reaper Running [Http Now]}
 
-    variable ce_encodings {gzip}
-    variable te_encodings {chunked}
+	variable timeout
+	set kill [expr {[clock milliseconds] - $timeout}]
 
-    variable uniq [pid]	;# seed for unique coroutine names
+	# kill any moribund entities
+	variable activity
+	foreach {n v} [array get activity] {
+	    if {[info commands $n] eq {}} {
+		Debug.log {Bogus watchdog over $n}
+		catch {unset activity($n)}	;# this is bogus
+	    } elseif {$v < $kill} {
+		Debug.watchdog {Reaping $n}
+		catch {unset activity($n)}	;# prevent double-triggering
+		if {[catch {
+		    $n terminate "Reaped"	;# kill this entity right now
+		} e eo]} {
+		    Debug.error {killed $n: '$e' ($eo)}
+		}
+	    }
+	}
+    }
 
-    # give a uniq looking name
-    proc uniq {} {
-	variable uniq
-	return [incr uniq]
+    namespace export -clear *
+    namespace ensemble create -subcommands {}
+
+    ::watchdog every $timeout {::watchdog reaper}	;# start the inactivity reaper
+}
+
+# Httpd - an object for each Httpd connection
+oo::class create ::Httpd {
+    # control the writable state of $socket
+    method unwritable {} {
+	variable socket
+	variable events
+	chan event $socket writable ""
+	dict unset events writable
+    }
+    method writable {{what respond}} {
+	variable socket
+	variable events
+	dict set events writable $what
+    }
+
+    # control the readable state of $socket
+    method unreadable {} {
+	variable socket
+	variable events
+	catch {chan event $socket readable ""}
+	catch {dict unset events readable}
+    }
+    method readable {{what READ}} {
+	variable socket
+	variable events
+	dict set events readable $what
     }
 
     # rdump - return a stripped request for printing
-    proc rdump {req} {
+    method rdump {req} {
 	dict set req -content "<ELIDED [string length [dict get? $req -content]]>"
 	dict set req -entity "<ELIDED [string length [dict get? $req -entity]]>"
 	dict set req -gzip "<ELIDED [string length [dict get? $req -gzip]]>"
@@ -138,212 +245,307 @@ namespace eval Httpd {
 	return [regsub {([^[:print:]])} $req .]
     }
 
-    # wrapper for chan ops - alert on errors
-    proc chan {args} {
-	set code [catch {uplevel 1 [list ::chan {*}$args]} e eo]
-	if {$code} {
-	    if {[info coroutine] ne ""} {
-		Debug.httpd {[info coroutine]: chan error $code - $e ($eo)}
-		if {[lindex $args 0] ne "close"} {
-		    terminate $e	;# clean up and close unless we're already closing
+    # terminate - destroy self, closing files and recovering resources
+    method terminate {reason} {
+	Debug.httpd {[self] terminated $reason}
+	my destroy
+    }
+
+    # handle - handle a protocol error
+    # close read-side of socket, send an error response
+    method handle {r {reason "Error"}} {
+	Debug.error {handle $reason: ([my rdump $r])}
+
+	# we have an error, so we're going to try to reply then die.
+	variable socket
+	catch {chan close $socket read}	;# close the read direction of socket
+
+	if {[catch {
+	    if {![dict exists $r -transaction]} {
+		variable transaction
+		dict set r -transaction [incr transaction]
+	    }
+
+	    # send a response to client
+	    my send $r 0	;# queue up error response (no caching)
+	} e eo]} {
+	    dict append r -error "(handler '$e' ($eo))"
+	    Debug.error {'handle' error: '$e' ($eo)}
+	}
+    }
+
+    # Yield wrapper with command dispatcher
+    method Yield {{retval ""}} {
+	variable socket
+	variable last
+	variable events
+
+	if {![info exists last]} {
+	    set last [::tcl::clock::milliseconds]
+	}
+
+	# this will repeat until we get a READ indication
+	while {1} {
+	    Debug.httpdlow {coro [info coroutine] yielding}
+
+	    # turn on selected events for this connection
+	    dict for {k v} $events {
+		if {[catch {chan event $socket $k [list [info coroutine] {*}$v]} e eo]} {
+		    Debug.httpdlow {coro [info coroutine] chan $k $v FAIL $e ($eo)}
+		} else {
+		    #Debug.httpdlow {coro [info coroutine] chan $k $v}
 		}
-	    } else {
-		Debug.error {chan error $code - $e ($eo)}
 	    }
-	} else {
-	    return $e
-	}
-    }
 
-    # shut down socket and reader
-    proc terminate {{reason ""}} {
-	# this is the reader - trying to terminate
-	Debug.httpd {[info coroutine] terminate: ($reason)}
+	    # unpack event
+	    set ::current ""
+	    set args [lassign [::yieldm $retval] op]; set retval ""
+	    set ::current [self]
 
-	# disable inactivity reaper for this coro
-	variable activity
-	catch {unset activity([info coroutine])}
-
-	# don't fear the reaper
-	variable reaper
-	catch {
-	    after cancel $reaper([info coroutine])
-	    unset reaper([info coroutine])
-	}
-	variable crs; unset crs([info coroutine])	;# destroy the coroutine record
-
-	# forget whatever higher level connection info
-	corovars cid socket ipaddr
-
-	# clean up all open files
-	# - the only point where we close $socket
-	variable files
-	if {[dict exists $files [info coroutine]]} {
-	    foreach fd [dict keys [dict get $files [info coroutine]]] {
-		catch {chan close $fd}
+	    # turn off all events for this connection
+	    foreach k {readable writable} {
+		catch {chan event $socket $k ""}
 	    }
-	    dict unset files [info coroutine]
-	}
 
-	# destroy reader - that's all she wrote
-	Debug.httpd {reader [info coroutine]: terminated}
-	rename [info coroutine] ""; ::yieldm	;# terminate coro
-    }
+	    #Debug.httpdlow {back from yield [info coroutine] -> $op ($args)}
 
-    # control the writable state of $socket
-    proc unwritable {} {
-	corovars socket events
-	chan event $socket writable ""
-	dict unset events writable
-    }
-    proc writable {{what WRITE}} {
-	corovars socket events
-	dict set events writable $what
-    }
-
-    # control the readable state of $socket
-    proc unreadable {} {
-	corovars socket events
-	chan event $socket readable ""
-	dict unset events readable
-    }
-    proc readable {{what READ}} {
-	corovars socket events
-	dict set events readable $what
-    }
-
-    # keep a log of a coroutine's transitions
-    proc logtransition {what} {
-	corovars last
-	variable crs
-	set now [::tcl::clock::milliseconds]
-	lappend crs([info coroutine])  [expr {$now - $last}] $what
-	return $now
-    }
-
-    # close? - should we close this connection?
-    proc close? {r} {
-	# don't honour 1.0 keep-alives - why?
-	set close [expr {[dict get $r -version] < 1.1}]
-	Debug.httpdlow {version [dict get $r -version] implies close=$close}
-
-	# handle 'connection: close' request from client
-	foreach ct [split [dict get? $r connection] ,] {
-	    if {[string tolower [string trim $ct]] eq "close"} {
-		Debug.httpdlow {Tagging close at connection:close request}
-		set close 1
-		break	;# don't need to keep going
-	    }
-	}
-
-	if {$close} {
-	    # we're not accepting more input but defer actually closing the socket
-	    # until all pending transmission's complete
-	    corovars closing socket
-	    set closing 1	;# flag the closure
-	    logtransition CLOSING
-	    readable CLOSING
-	}
-
-	return $close
-    }
-
-    # arrange gzip Transfer Encoding
-    variable chunk_size 4196	;# tiny little chunk size
-    variable gzip_bugged {}	;# these browsers can't take gzip
-
-    # gzip_content - gzip-encode the content
-    proc gzip_content {reply} {
-	if {[dict exists $reply -gzip]} {
-	    return $reply	;# it's already been gzipped
-	}
-
-	# prepend a minimal gzip file header:
-	# signature, deflate compression, no flags, mtime,
-	# xfl=0, os=3
-	set content [dict get $reply -content]
-	set gztype [expr {[string match text/* [dict get $reply content-type]]?"text":"binary"}]
-	set gzip [zlib gzip $content -header [list crc 0 time [clock seconds] type $gztype]]
-
-	dict set reply -gzip $gzip
-	return $reply
-    }
-
-    # CE - find and effect appropriate content encoding
-    proc CE {reply args} {
-	# default to identity encoding
-	set content [dict get $reply -content]
-	Debug.http {CE -encoding:[dict get? $args -encoding]}
-	if {![dict exists $reply -gzip]
-	    && ("gzip" in [dict get? $args -encoding])
-	    && ![string match image/* [dict get? $reply content-type]]
-	} {
-	    set reply [gzip_content $reply]
-	}
-
-	# choose content encoding - but not for MSIE
-	variable chunk_size
-	variable gzip_bugged
-	if {[dict get? $reply -ua id] ni $gzip_bugged
-	    && [dict exists $reply accept-encoding]
-	    && ![dict exists $reply content-encoding]
-	} {
-	    foreach en [split [dict get $reply accept-encoding] ","] {
-		lassign [split $en ";"] en pref
-		set en [string trim $en]
-		if {$en in [dict get? $args -encoding]} {
-		    switch $en {
-			"gzip" { # substitute the gzipped form
-			    if {[dict exists $reply -gzip]} {
-				set content [dict get $reply -gzip]
-				dict set reply content-encoding gzip
-				#set reply [Http Vary $reply Accept-Encoding User-Agent]
-				if {[dict get $reply -version] > 1.0} {
-				    # this is probably redundant, since 1.0
-				    # doesn't define accept-encoding (does it?)
-				    #dict set reply -chunked $chunk_size
-				    #dict set reply transfer-encoding chunked
-				}
-				break
-			    }
-			}
+	    # dispatch on command
+	    switch -- $op {
+		READ {
+		    # fileevent tells us there's input to be read
+		    # and we're waiting on input
+		    if {[chan pending input $socket] == -1
+			|| [chan eof $socket]
+		    } {
+			Debug.httpd {[info coroutine] eof detected from yield}
+			my unreadable	;# turn off reader
+		    } else {
+			::watchdog stroke [self]
+			return $args	;# return to the reader
 		    }
 		}
+
+		default {
+		    Debug.httpdlow {back from yield [info coroutine] -> $op ($args)}
+		    [self] $op {*}$args	;# coro calls object
+		}
 	    }
 	}
-	return [list $reply $content]
     }
 
-    # charset - ensure correctly encoded content
-    proc charset {reply} {
-	if {[dict exists $reply -chconverted]} {
-	    return $reply	;# don't re-encode by charset
+    # inbound entity fcopy has completed - now process the request
+    method fcin {r fd bytes read {error ""}} {
+	variable socket
+	Debug.entity {[info coroutine] fcin: entity:$fd expected:$bytes read:$read error:'$error'}
+	# reset socket to header config, having read the entity or failed
+	chan configure $socket -encoding binary -translation {crlf binary}
+
+	if {[set gone [catch {chan eof $socket} eof]] || $eof} {
+	    # detect socket closure ASAP in sending
+	    Debug.entity {[info coroutine] Lost connection on fcin}
+	    if {$error eq ""} {
+		set error "eof on $socket in fcin"
+	    }
 	}
 
-	# handle charset for text/* types
-	lassign [split [dict get? $reply content-type] {;}] ct
-	if {[string match text/* $ct] || [string match */*xml $ct]} {
-	    if {[dict exists $reply -charset]} {
-		set charset [dict get $reply -charset]
-	    } else {
-		set charset utf-8	;# default charset
+	# if $bytes != $written or $error ne "", we have a problem
+	variable outbuffer
+	if {$gone || $eof || $bytes != $read || $error ne ""} {
+	    if {$error eq ""} {
+		set error "fcin failed to receive $bytes bytes, only got $read."
 	    }
-	    dict set reply -charset $charset
-	    dict set reply -chconverted $charset
-	    dict set reply content-type "$ct; charset=$charset"
-	    dict set reply -content [encoding convertto $charset [dict get $reply -content]]
+	    Debug.error $error
+	    my terminate "$error in fcin"
+	    return
+	} elseif {[chan pending output $socket] <= $outbuffer} {
+	    # only when the client has consumed our output do we
+	    # restart reading input
+	    Debug.entity {[info coroutine] fcin: restarting reader}
+	    my readable	;# this will restart the reading loop
+	} else {
+	    Debug.entity {[info coroutine] fcin: suspending reader [chan pending output $socket]}
 	}
-	return $reply
+
+	# see if the writer needs service
+	my writable
+
+	# at this point we have a complete entity in $entity file, it's already been ungzipped
+	# we need to process it somehow
+	chan seek $fd 0
+
+	# invoke process in coroutine
+	variable coro; after 0 [list $coro process $r]
+    }
+
+    # process a chunk which has been fcopied in
+    method fchunk {r raw entity total bytes read {error ""}} {
+	variable socket
+	Debug.entity {[info coroutine] fchunk: raw:$raw entity:$entity read:$read error:'$error'}
+	incr total $bytes	;# keep track of total read
+
+	if {[set gone [catch {chan eof $socket} eof]] || $eof} {
+	    # detect socket closure ASAP in sending
+	    Debug.entity {[info coroutine] Lost connection on fchunk}
+	    if {$error eq ""} {
+		set error "eof on $socket in fchunk"
+	    }
+	}
+
+	# if $bytes != $written or $error ne "", we have a problem
+	if {$gone || $eof || $bytes != $read || $error ne ""} {
+	    if {$error eq ""} {
+		set error "fchunk failed to receive all my chunks - expected:$bytes got:$read."
+	    }
+	    Debug.error $error
+	    my terminate "$error in fchunk"
+	    return
+	}
+
+	# read a chunksize
+	chan configure $socket -translation {crlf binary}
+	set chunksize 0x[get $socket FCHUNK]	;# we have this many bytes to read
+	chan configure $socket -translation {binary binary}
+
+	if {$chunksize ne "0x0"} {
+	    Debug.entity {[info coroutine] fchunking along}
+	    # enforce server limits on Entity length
+	    variable maxentity
+	    if {$maxentity > 0 && $total > $maxentity} {
+		# 413 "Request Entity Too Large"
+		my handle [Http Bad $r "Request Entity Too Large" 413] "Entity Too Large"
+		return -code break
+	    } else {
+		# do another fchunk
+		chan copy $raw $entity -size $chunksize -command [list [info coroutine] fchunk $r $raw $entity $total $chunksize]
+	    }
+	    return	;# await arrival
+	}
+
+	# we have all the chunks we're going to get
+	# reset socket to header config, having read the entity or failed
+	chan configure $socket -encoding binary -translation {crlf binary}
+	variable outbuffer
+	if {[chan pending output $socket] <= $outbuffer} {
+	    # only when the client has consumed our output do we
+	    # restart reading input
+	    Debug.entity {[info coroutine] fchunk: restarting reader}
+	    my readable	;# this will restart the reading loop
+	} else {
+	    Debug.entity {[info coroutine] fchunk: suspending reader [chan pending output $socket]}
+	}
+
+	# see if the writer needs service
+	my writable
+
+	Debug.entity {got chunked entity in $entity}
+
+	# at this point we have a complete entity in $entity file, it's already been ungzipped
+	# we need to process it somehow
+
+	chan seek $entity 0
+	variable files; set epath [dict get $files $entity]
+	variable todisk
+	if {$todisk < 0 || [file size $epath] <= $todisk} {
+	    # we don't want to have things on disk, or it's small enough to have in memory
+	    # ??? How is entity encoded?
+	    dict set r -entity [dict read $entity]	;# grab the entity
+	    chan close $entity				;# close the entity fd
+	    file delete [dict get $files $entity]	;# clean up the file
+	    dict unset files $entity			;# don't need to clean up for us
+	} else {
+	    # leave some hints for Query file processing
+	    dict set r -entity $entity
+	    dict set r -entitypath [dict get $files $entity]
+	}
+
+	variable coro; after 0 [list $coro my process $r]
+    }
+
+    # headers - read headers as a block
+    method Headers {} {
+	upvar 1 r r
+	# keep receiving input requests
+	set headering 1
+	set lines {}
+	variable maxline
+	variable socket
+	set hstart 0
+
+	while {$headering} {
+	    my Yield	;# wait for READ event
+	    set line ""
+	    set status 0
+	    while {![chan eof $socket]
+		   && [chan pending input $socket] > -1
+		   && [set status [chan gets $socket line]] == -1
+	       } {
+		Debug.httpdlow {[info coroutine] Get: '$line' [chan blocked $socket] [chan pending input $socket]}
+
+		my Yield	;# wait for READ event
+		if {$maxline && [chan pending input $socket] > $maxline} {
+		    my handle [Http Bad $r "Line too long (over $maxline)"] "Line too long (over $maxline) '[string range $line 0 20]..."
+		    return -code break	;# signal error to caller
+		}
+	    }
+
+	    Debug.httpdlow {line:'$line' status:$status eof:[chan eof $socket] pending:[chan pending input $socket]}
+
+	    if {!$hstart} {
+		set hstart [clock microseconds]	;# time we got first line
+	    }
+
+	    Debug.httpdlow {reader [info coroutine] got line: ($line)}
+	    if {[string trim $line] eq ""} {
+		# rfc2616 4.1: In the interest of robustness,
+		# servers SHOULD ignore any empty line(s)
+		# received where a Request-Line is expected.
+		if {[llength $lines]} {
+		    set headering 0
+		}
+	    } else {
+		lappend lines $line	;# append all lines in header
+	    }
+	}
+
+	# record some timings
+	variable start; dict set r -time headerstart [expr {$hstart - $start}]
+	dict set r -time headerdone [expr {[clock microseconds] - $start}]
+
+	# record the header
+	set lines [lassign $lines header]
+	dict set r -header $header
+	lassign [split $header] method
+	dict set r -method [string toupper $method]
+
+	# ensure the method is valid
+	switch -- [dict get $r -method] {
+	    GET - PUT - POST - HEAD {
+		# these are acceptable headers - pass through
+	    }
+
+	    CONNECT -
+	    LINK {
+		# stop the bastard SMTP spammers
+		Block block [dict get $r -ipaddr] "[dict get $r -method] method ([dict get? $r user-agent])"
+		my handle [Http NotImplemented $r "Connect Method [dict get $r -method]"] "CONNECT method [dict get $r -method]"
+		return -code break	;# signal error to caller
+	    }
+
+	    default {
+		# Could check for and service FTP requests, etc, here...
+		dict set r -error_line $line
+		my handle [Http Bad $r "Method unsupported '[lindex $header 0]'" 405] "Method Unsupported [lindex $header 0]"
+		return -code break	;# signal error to caller
+	    }
+	}
+
+	return $lines
     }
 
     # make GET/HEAD conditional
     # this will transform a request if there's a conditional which
     # applies to it.
-    proc conditional {r} {
-	if {[dict get $r -code] != 200} {
-	    return $r
-	}
-
+    method Conditional {r} {
 	set etag [dict get? $r etag]
 	# Check if-none-match
 	if {[Http any-match $r $etag]} {
@@ -384,13 +586,297 @@ namespace eval Httpd {
 	return $r
     }
 
-    # format4send - format up a reply for sending.
-    proc format4send {reply args} {
-	Debug.httpd {format4send $args ([dict merge $reply {content <ELIDED>}])}
+    # close? - should we close this connection?
+    method close? {r} {
+	# don't honour 1.0 keep-alives - why?
+	set close [expr {[dict get $r -version] < 1.1}]
+	Debug.httpdlow {version [dict get $r -version] implies close=$close}
+
+	# handle 'connection: close' request from client
+	foreach ct [split [dict get? $r connection] ,] {
+	    if {[string tolower [string trim $ct]] eq "close"} {
+		Debug.httpdlow {Tagging close at connection:close request}
+		set close 1
+		break	;# don't need to keep going
+	    }
+	}
+
+	if {$close} {
+	    # we're not accepting more input but defer actually closing the socket
+	    # until all pending transmission's complete
+	    catch {chan close $socket read}	;# close the read direction of socket
+	    variable reading 0			;# we are no longer open for input
+	}
+
+	return $close
+    }
+
+    # fcopy: our outbound fcopy has completed
+    method fcopy {fd bytes written {error ""}} {
+	variable replies
+	variable socket
+
+	Debug.httpd {[info coroutine] fcopy: $fd $bytes $written '$error'}
+	::watchdog stroke [self]
+
+	catch {close $fd}	;# remove file descriptor
+	variable files; dict unset files $fd
+
+	if {[set gone [catch {chan eof $socket} eof]] || $eof} {
+	    # detect socket closure ASAP in sending
+	    Debug.httpd {[info coroutine] Lost connection on fcopy}
+	    if {$error eq ""} {
+		append error "eof on $socket in fcopy"
+	    }
+	}
+
+	# if $bytes != $written or $error ne "", we have a problem
+	variable outbuffer
+	if {$gone || $eof || $bytes != $written || $error ne ""} {
+	    if {$error eq ""} {
+		set error "fcopy failed to send $bytes bytes, only sent $written."
+	    }
+	    Debug.error $error
+	    my terminate "$error in fcopy"
+	    return
+	} elseif {[chan pending output $socket] <= $outbuffer} {
+	    # only when the client has consumed our output do we
+	    # restart reading input
+	    Debug.httpdlow {[info coroutine] fcopy: restarting reader}
+	    my readable
+	} else {
+	    Debug.httpdlow {[info coroutine] fcopy: suspending reader [chan pending output $socket]}
+	}
+
+	# see if the writer needs service
+	my writable
+    }
+
+    # respond - to client with as many consecutive responses as he can consume
+    method respond {} {
+	variable sequence
+	variable satisfied
+	variable transaction
+	variable socket
+	variable outbuffer
+
+	variable unsatisfied
+	if {[chan pending input $socket] < 0
+	    && ![dict size $unsatisfied]
+	} {
+	    # we have no more requests to satisfy and no more input
+	    Debug.httpd {[info coroutine] closing as there's nothing pending}
+	    my terminate "finally close in responder"
+	}
+
+	# shut down responder if there's nothing to write
+	# we expect there'll be another request soon
+	variable replies
+	if {![dict size $replies]} {
+	    my unwritable	;# no point in trying to write
+	}
+
+	# send all responses in sequence from the next expected to the last available
+	Debug.httpd {[info coroutine] pending to send: ([dict keys $replies])}
+	variable response
+	variable outbuffer
+	foreach next [lsort -integer [dict keys $replies]] {
+	    if {[chan pending output $socket] > $outbuffer} {
+		# the client hasn't consumed our output yet - stop communicating
+		my unwritable	;# stop writing
+		my unreadable	;# stop reading
+		after 10 [list [info coroutine] respond] ;# restart in 10mS
+		break
+	    }
+
+	    ::watchdog stroke [self]	;# tickle the watchdog
+
+	    if {[set gone [catch {chan eof $socket} eof]] || $eof} {
+		# detect socket closure ASAP in sending
+		Debug.httpd {[info coroutine] Lost connection on transmit}
+		my terminate "eof on $socket"
+		return 1	;# socket's gone - terminate session
+	    }
+
+	    # ensure we don't send responses out of sequence
+	    if {$next != $response} {
+		# something's blocking the response pipeline
+		# so we don't have a response for the next transaction.
+		# we must therefore wait until all the preceding transactions
+		# have something to send
+		Debug.httpd {[info coroutine] no pending or $next doesn't follow $response}
+		my unwritable	;# no point in trying to write
+
+		if {[chan pending output $socket] > $outbuffer} {
+		    # the client hasn't consumed our output yet
+		    # stop reading input until he does
+		    unreadable
+		} else {
+		    # there's space for more output, so accept more input
+		    readable
+		}
+
+		return 0
+	    }
+	    set response [expr {1 + $next}]	;# move to next response
+
+	    # respond to the next transaction in trx order
+	    # unpack and consume the reply from replies queue
+	    # remove this response from the pending response structure
+	    lassign [dict get $replies $next] req cache head content file close empty range
+	    dict unset replies $next		;# consume next response
+
+	    # connection close after transmission required?
+	    # NB: we only consider closing if all pending requests
+	    # have been satisfied.
+	    if {$close} {
+		# inform client of intention to close
+		Debug.httpdlow {close requested on $socket - sending header}
+		append head "Connection: close" \r\n	;# send a close just in case
+		# Once this header's been sent, we're committed to closing
+	    }
+
+	    # send headers with terminating nl
+	    chan puts -nonewline $socket "$head\r\n"
+	    Debug.httpd {[info coroutine] SENT HEADER: $socket '[lindex [split $head \r] 0]' [string length $head] bytes} 4
+	    chan flush $socket	;# try to flush as early as possible
+	    Debug.httpdlow {[info coroutine] flushed $socket} 4
+
+	    # send the content/entity (if any)
+	    # note: we must *not* send a trailing newline, as this
+	    # screws up the content-length and confuses the client
+	    # which doesn't then pick up the next response
+	    # in the pipeline
+	    if {!$empty} {
+		if {$file ne ""} {
+		    # send content of file descriptor using fcopy
+		    set fd [open $file r]
+		    variable files; dict set files [info coroutine] $fd 1
+		    set bytes [file size $file]
+
+		    chan configure $socket -translation binary
+		    chan configure $fd -translation binary
+		    my unreadable	;# stop reading input while fcopying
+		    my unwritable	;# stop writing while fcopying
+		    ::watchdog grace [self] 120000	;# stop the watchdog resetting the link
+
+		    if {[llength $range]} {
+			lassign $range from to
+			chan seek $fd $from
+			set bytes [expr {$to-$from+1}]
+			Debug.httpd {[info coroutine] FCOPY RANGE: '$file' bytes $from-$to/$bytes} 8
+			chan copy $fd $socket -command [list [info coroutine] fcopy $fd $bytes]
+		    } else {
+			Debug.httpd {[info coroutine] FCOPY ENTITY: '$file' $bytes bytes} 8
+			chan copy $fd $socket -command [list [info coroutine] fcopy $fd $bytes]
+		    }
+		    break	;# no more i/o on $socket until fcopy completion
+		} elseif {[llength $range]} {
+		    # send literal content
+		    lassign $range from to
+		    chan puts -nonewline $socket [string range $content $from $to]
+		    Debug.httpd {[info coroutine] SENT RANGE: bytes $from-$to/[string length $content] bytes} 8
+		} else {
+		    chan puts -nonewline $socket $content	;# send the content
+		    Debug.httpd {[info coroutine] SENT ENTITY: [string length $content] bytes} 8
+		}
+	    }
+
+	    if {$close} {
+		return 1	;# terminate session on request
+	    } elseif {[dict get $req -code] == 100} {
+		# this was a continue ... we need to reschedule entity reading
+		# keep the transaction unsatisfied
+		after 0 [list [dict get $req -send] entity $r]
+	    } else {
+		# this request is no longer unsatisfied
+		dict unset unsatisfied $next
+	    }
+	}
+
+	if {[chan pending output $socket] > $outbuffer} {
+	    # the client hasn't consumed our output yet
+	    # stop reading input until he does
+	    my unreadable
+	} else {
+	    # there's space for more output, so accept more input
+	    my readable
+	}
+
+	return 0
+    }
+
+    # CE - find and effect appropriate content encoding
+    method CE {reply args} {
+	# default to identity encoding
+	set content [dict get $reply -content]
+	variable ce_encodings	;# what encodings do we support?
+	Debug.http {CE -encoding: $ce_encodings}
+	if {![dict exists $reply -gzip]
+	    && ("gzip" in $ce_encodings)
+	    && ![string match image/* [dict get? $reply content-type]]
+	} {
+	    # prepend a minimal gzip file header:
+	    # signature, deflate compression, no flags, mtime,
+	    # xfl=0, os=3
+	    set content [dict get $reply -content]
+	    set gztype [expr {[string match text/* [dict get $reply content-type]]?"text":"binary"}]
+	    set gzip [::zlib gzip $content -header [list crc 0 time [clock seconds] type $gztype]]
+
+	    dict set reply -gzip $gzip
+	}
+
+	# choose content encoding - but not for MSIE
+	if {[dict exists $reply accept-encoding]
+	    && ![dict exists $reply content-encoding]
+	} {
+	    foreach en [split [dict get $reply accept-encoding] ","] {
+		lassign [split $en ";"] en pref
+		set en [string trim $en]
+		if {$en in $ce_encodings} {
+		    switch $en {
+			"gzip" { # substitute the gzipped form
+			    if {[dict exists $reply -gzip]} {
+				set content [dict get $reply -gzip]
+				dict set reply content-encoding gzip
+				#set reply [Http Vary $reply Accept-Encoding User-Agent]
+				break
+			    }
+			}
+		    }
+		}
+	    }
+	}
+	return [list $reply $content]
+    }
+
+    # Charset - ensure correctly encoded content
+    method Charset {reply} {
+	if {[dict exists $reply -chconverted]} {
+	    return $reply	;# don't re-encode by charset
+	}
+
+	# handle charset for text/* types
+	lassign [split [dict get? $reply content-type] {;}] ct
+	if {[string match text/* $ct] || [string match */*xml $ct]} {
+	    if {[dict exists $reply -charset]} {
+		set charset [dict get $reply -charset]
+	    } else {
+		set charset utf-8	;# default charset
+	    }
+	    dict set reply -charset $charset
+	    dict set reply -chconverted $charset
+	    dict set reply content-type "$ct; charset=$charset"
+	    dict set reply -content [encoding convertto $charset [dict get $reply -content]]
+	}
+	return $reply
+    }
+
+    # Format - format up a reply for sending.
+    method Format {reply cache} {
+	Debug.httpd {Format (cache: $cache) ([dict merge $reply {-content <ELIDED>}])}
 
 	set file ""
-	set sock [dict get $reply -sock]
-	set cache [expr {[dict get? $args -cache] eq "1"}]
 	if {[catch {
 	    # unpack and consume the reply from replies queue
 	    if {![dict exists $reply -code]} {
@@ -405,8 +891,11 @@ namespace eval Httpd {
 	    }
 
 	    # make reply conditional
-	    set reply [conditional $reply]
-	    set code [dict get $reply -code]
+	    if {$code eq 200} {
+		# non-OK responses aren't conditional (?)
+		set reply [my Conditional $reply]
+		set code [dict get $reply -code]
+	    }
 
 	    # Deal with content data
 	    set range {}	;# default no range
@@ -416,25 +905,26 @@ namespace eval Httpd {
 		    # 204 (no content),
 		    # and 304 (not modified)
 		    # responses MUST NOT include a message-body
-		    Debug.httpdlow {format4send: code is $code}
-		    set reply [Http expunge $reply]
+		    Debug.httpdlow {Format: code is $code}
+		    set reply [Http expunge $reply]	;#remove metadata from reply dict
 		    set content ""
 		    catch {dict unset reply -content}
 		    catch {dict unset reply -file}
 		    set cache 0	;# can't cache these
-		    set empty 1
+		    set empty 1	;# this is explicitly empty - no entity in reply
 		}
 
 		default {
-		    set empty 0
+		    # responses may include a message-body
+		    set empty 0		;# assume non-empty
 		    if {[dict exists $reply -content]} {
 			# correctly charset-encode content
-			set reply [charset $reply]
+			set reply [my Charset $reply]
 
 			#Debug.httpdlow {pre-CE content length [string length [dict get $reply -content]]}
 			# also gzip content so cache can store that.
 			# this is happening too soon ... what if there's a range?
-			lassign [CE $reply {*}$args] reply content
+			lassign [my CE $reply] reply content
 			set file ""	;# this is not a file
 
 			# ensure content-length is correct
@@ -446,7 +936,7 @@ namespace eval Httpd {
 			dict set reply content-length [file size $file]
 			set content ""
 		    } else {
-			Debug.error {format4send: contentless - response empty - no content in reply ($reply)}
+			Debug.error {Format: contentless - response empty - no content in reply ($reply)}
 			set content ""	;# there is no content
 			set file ""	;# this is not a file
 			set empty 1	;# it's empty
@@ -497,7 +987,7 @@ namespace eval Httpd {
 	    }
 
 	    # format header
-	    set header "$code $errmsg\r\n"	;# note - needs prefix
+	    set header "HTTP/1.1 $code $errmsg\r\n"	;# note - needs prefix
 
 	    # format up the headers
 	    if {$code != 100} {
@@ -545,10 +1035,8 @@ namespace eval Httpd {
 		set cache 0	;# don't cache no content
 	    } elseif {$cache} {
 		# use -dynamic flag to avoid caching even if it was requested
-		set cache [expr {
-				 ![dict exists $reply -dynamic]
-				 || ![dict get $reply -dynamic]
-			     }]
+		set cache [expr {![dict exists $reply -dynamic]
+				 || ![dict get $reply -dynamic] }]
 
 		if {$cache && [dict exists $reply cache-control]} {
 		    set cacheable [split [dict get $reply cache-control] ,]
@@ -593,285 +1081,37 @@ namespace eval Httpd {
 		    append header "$n: $v" \r\n
 		}
 	    }
-	} r eo]} {
+	} e eo]} {
 	    if {![info exists code] || $code >= 500} {
 		# Errors are completely dynamic - no caching!
 		set cache 0
 	    }
 
-	    Debug.error {Sending Error: '$r' ($eo) Sending Error}
+	    Debug.error {Sending Error: '$e' ($eo) Sending Error}
 	} else {
-	    Debug.httpdlow {format4send: ($header)}
+	    Debug.httpdlow {Format: ($header)}
 	}
-	return [list $reply $header $content $file $empty $cache $range]
+
+	return [list $reply $cache $header $content $file [my close? $reply] $empty $range]
     }
 
-    # our outbound fcopy has completed
-    proc fcopy_complete {fd bytes written {error ""}} {
-	corovars replies closing socket
-	Debug.httpd {[info coroutine] fcopy_complete: $fd $bytes $written '$error'}
-	watchdog
+    # send --
+    #	queue up responses for delivery in-sequence
+    #
+    # Arguments:
+    #
+    # Side Effects:
+    #	Send transaction responses to client
+    #	Possibly close socket, possibly cache response
 
-	catch {close $fd}	;# remove file descriptor
-	variable files; dict unset files [info coroutine] $fd
-
-	set gone [catch {chan eof $socket} eof]
-	if {$gone || $eof} {
-	    # detect socket closure ASAP in sending
-	    Debug.httpd {[info coroutine] Lost connection on fcopy}
-	    if {$error eq ""} {
-		set error "eof on $socket in fcopy"
-	    }
-	}
-
-	# if $bytes != $written or $error ne "", we have a problem
-	if {$gone || $eof || $bytes != $written || $error ne ""} {
-	    if {$error eq ""} {
-		set error "fcopy failed to send $bytes, only sent $written."
-	    }
-	    Debug.error $error
-	    terminate "$error in fcopy"
-	    return
-	} elseif {![chan pending output $socket]} {
-	    # only when the client has consumed our output do we
-	    # restart reading input
-	    Debug.httpdlow {[info coroutine] fcopy_complete: restarting reader}
-	    readable
-	} else {
-	    Debug.httpdlow {[info coroutine] fcopy_complete: suspending reader [chan pending output $socket]}
-	}
-
-	# see if the writer needs service
-	writable
-    }
-
-    proc associate {chan} {
-	variable files; dict set files [info coroutine] $chan 1
-    }
-
-    proc disassociate {chan} {
-	variable files; catch {dict unset files [info coroutine] $chan}
-    }
-
-    # extract some information from Httpd to aid in debugging
-    proc status {} {
-	variable crs	;# array of running coroutine transitions
-	variable activity ;# array of coroutine activity
-	variable files	;# dict of open files per coroutine
-	variable reaper ;# when will this be reaped?
-
-	set now [clock milliseconds]
-	lappend result "[<th> coro] [<th> activity] [<th> reaping] [<th> self] [<th> fd] [<th> peer] [<th> connections] [<th> used] [<th> created] [<th> transitions] [<th> files]"
-	set sockets [lsort -dictionary [chan names rc*]]
-	foreach socket $sockets {
-	    set coro [info commands ::Httpd::$socket*]
-	    if {[llength $coro] > 0} {
-		set coro [lindex $coro 0]
-	    } else {
-		set coro $socket
-	    }
-	    set line [<th> [namespace tail $coro]]
-	    if {[info exists activity($coro)]} {
-		append line [<td> [expr {$now - $activity($coro)}]]
-	    } else {
-		append line [<td> ""]
-	    }
-	    if {[info exists reaper($coro)]} {
-		append line [<td> [expr {$reaper($coro) - $now}]]
-	    } else {
-		append line [<td> ""]
-	    }
-
-	    lassign [split $coro _] conn
-	    set conn [namespace tail $conn]
-	    if {![catch {chan configure $conn} conf]} {
-		set conf [dict merge $conf [chan configure [dict get $conf -fd]]]
-	    } else {
-		set conf {}
-	    }
-	    foreach n {self fd peername connections used created} {
-		append line [<td> [dict get? $conf -$n]]
-	    }
-
-	    if {[info exists crs($coro)]} {
-		append line [<td> $crs($coro)]
-	    } else {
-		append line [<td> ""]
-	    }
-
-	    if {[dict exists $files $coro]} {
-		append line [<td> [dict keys [dict get $files $coro]]]
-	    } else {
-		append line [<td> ""]
-	    }
-
-	    lappend result $line
-	}
-
-	set result <tr>[join $result </tr><tr>]</tr>
-	set header [<h2> "Status of [llength $sockets] Sockets"]
-	return $header\n[<table> border 1 width 90% $result]
-    }
-
-    # respond to client with as many consecutive responses as he can consume
-    proc respond {} {
-	corovars replies response sequence generation satisfied transaction closing unsatisfied socket
-	if {[string match DEAD* [info coroutine]]} {
-	    Debug.httpd {[info coroutine] appears to be dead}
-	    terminate "oops - we're dead in respond"
-	    return
-	}
-	if {$closing && ![dict size $unsatisfied]} {
-	    # we have no more requests to satisfy and we want to close
-	    Debug.httpd {[info coroutine] closing as there's nothing pending}
-	    terminate "finally close in responder"
-	    return
-	}
-
-	# shut down responder if there's nothing to write
-	if {![dict size $replies]} {
-	    unwritable	;# no point in trying to write
-	}
-
-	variable activity
-
-	# send all responses in sequence from the next expected to the last available
-	Debug.httpd {[info coroutine] pending to send: ([dict keys $replies])}
-	foreach next [lsort -integer [dict keys $replies]] {
-	    watchdog	;# tickle the watchdog
-
-	    set gone [catch {chan eof $socket} eof]
-	    if {$gone || $eof} {
-		# detect socket closure ASAP in sending
-		Debug.httpd {[info coroutine] Lost connection on transmit}
-		terminate "eof on $socket"
-		return 1	;# socket's gone - terminate session
-	    }
-
-	    # ensure we don't send responses out of sequence
-	    if {$next != $response} {
-		# something's blocking the response pipeline
-		# so we don't have a response for the next transaction.
-		# we must therefore wait until all the preceding transactions
-		# have something to send
-		Debug.httpd {[info coroutine] no pending or $next doesn't follow $response}
-		unwritable	;# no point in trying to write
-
-		if {[chan pending output $socket]} {
-		    # the client hasn't consumed our output yet
-		    # stop reading input until he does
-		    unreadable
-		} else {
-		    # there's space for more output, so accept more input
-		    readable
-		}
-
-		return 0
-	    }
-	    set response [expr {1 + $next}]	;# move to next response
-
-	    # respond to the next transaction in trx order
-	    # unpack and consume the reply from replies queue
-	    # remove this response from the pending response structure
-	    lassign [dict get $replies $next] head content file close empty range
-	    dict unset replies $next		;# consume next response
-
-	    # connection close after transmission required?
-	    # NB: we only consider closing if all pending requests
-	    # have been satisfied.
-	    if {$close} {
-		# inform client of intention to close
-		Debug.httpdlow {close requested on $socket - sending header}
-		append head "Connection: close" \r\n	;# send a close just in case
-		# Once this header's been sent, we're committed to closing
-	    }
-
-	    # send headers with terminating nl
-	    chan puts -nonewline $socket "$head\r\n"
-	    Debug.httpd {[info coroutine] SENT HEADER: $socket '[lindex [split $head \r] 0]' [string length $head] bytes} 4
-	    chan flush $socket	;# try to flush as early as possible
-	    Debug.httpdlow {[info coroutine] flushed $socket} 4
-
-	    # send the content/entity (if any)
-	    # note: we must *not* send a trailing newline, as this
-	    # screws up the content-length and confuses the client
-	    # which doesn't then pick up the next response
-	    # in the pipeline
-	    if {!$empty} {
-		if {$file ne ""} {
-		    # send content of file descriptor using fcopy
-		    set fd [open $file r]
-		    variable files; dict set files [info coroutine] $fd 1
-		    set bytes [file size $file]
-
-		    chan configure $socket -translation binary
-		    chan configure $fd -translation binary
-		    unreadable	;# stop reading input while fcopying
-		    unwritable	;# stop writing while fcopying
-		    grace 120000	;# stop the watchdog resetting the link
-		    set raw [chan configure $socket -fd]
-
-		    if {[llength $range]} {
-			lassign $range from to
-			chan seek $fd $from
-			set bytes [expr {$to-$from+1}]
-			Debug.httpd {[info coroutine] FCOPY RANGE: '$file' bytes $from-$to/$bytes} 8
-			chan copy $fd $raw -command [list [info coroutine] FCOPY $fd $bytes]
-		    } else {
-			Debug.httpd {[info coroutine] FCOPY ENTITY: '$file' $bytes bytes} 8
-			set raw [chan configure $socket -fd]
-			chan copy $fd $raw -command [list [info coroutine] FCOPY $fd $bytes]
-		    }
-		    break	;# we don't process any more i/o on $socket
-		} elseif {[llength $range]} {
-		    # send literal content
-		    lassign $range from to
-		    chan puts -nonewline $socket [string range $content $from $to]
-		    Debug.httpd {[info coroutine] SENT RANGE: bytes $from-$to/[string length $content] bytes} 8
-		} else {
-		    chan puts -nonewline $socket $content	;# send the content
-		    Debug.httpd {[info coroutine] SENT ENTITY: [string length $content] bytes} 8
-		}
-	    }
-	    #chan flush $socket
-
-	    # only send for unsatisfied requests
-	    catch {dict unset unsatisfied $next}
-
-	    if {$close} {
-		return 1	;# terminate session on request
-	    }
-
-	    if {[chan pending output $socket]} {
-		# the client hasn't consumed our output yet - stop sending more
-		break
-	    }
-	}
-
-	if {[chan pending output $socket]} {
-	    # the client hasn't consumed our output yet
-	    # stop reading input until he does
-	    unreadable
-	} else {
-	    # there's space for more output, so accept more input
-	    readable
-	}
-    }
-
-    # we have been told we can write a reply
-    # write is the entry point for response from cached content
-    proc write {r cache} {
-	corovars replies response sequence generation satisfied transaction closing unsatisfied socket last
-
-	# keep pipeline open while we have unsatisfied requests
-	if {$closing && ![dict size $unsatisfied]} {
-	    # we have no more requests to satisfy and we want to close
-	    terminate "finally close in write"
-	}
+    method send {r {cache 1}} {
+	Debug.httpd {[info coroutine] send: ([my rdump $r]) $cache [expr {[dict get? $r -ua_class] ni {browser unknown}}]}
+	variable socket
+	variable start; dict set r -time sent [expr {[clock microseconds] - $start}]
 
 	# process suspension at lowest level
 	if {[dict exists $r -suspend]} {
-	    return 0	;# this reply has been suspended - we haven't got it yet
+	    return	;# this reply has been suspended - we haven't got it yet
 	    # so we simply return.  The lack of a response for the corresponding
 	    # pipelined request has the effect of suspending the pipeline until
 	    # the response has been delivered.
@@ -879,50 +1119,39 @@ namespace eval Httpd {
 	    # but their responses will only be returned in strict and close order.
 	}
 
-	Debug.httpd {write: [info coroutine] ([rdump $r]) satisfied: ($satisfied) unsatisfied: ($unsatisfied)}
+	# if this isn't a browser - do not cache!
+	variable ua
+	if {$ua && [dict get? $r -ua_class] ni {browser unknown}} {
+	    Debug.httpd {not a browser - do not cache [dict get $r -uri]}
+	    set cache 0
+	}
 
-	# fetch transaction from the caller's identity
-	if {![dict exists $r -transaction]} {
+	variable satisfied
+	variable unsatisfied
+	Debug.httpd {send: [info coroutine] ([my rdump $r]) satisfied: ([dict keys $satisfied]) unsatisfied: ([dict keys $unsatisfied])}
+
+	# send all pending responses, ensuring we don't send out of sequence
+	# discard duplicate responses
+	# fetch transaction from the response
+	set trx [dict get? $r -transaction]
+	if {$trx eq ""} {
 	    # can't Send reply: no -transaction associated with request
 	    Debug.error {Send discarded: no transaction ($r)}
-	    return 1	;# close session
-	}
-	set trx [dict get $r -transaction]
-
-	# discard duplicate responses
-	if {[dict exists $satisfied $trx]} {
+	    my terminate "no transaction"
+	    return
+	} elseif {[dict exists $satisfied $trx]} {
 	    # a duplicate response has been sent - discard this
 	    # this could happen if a dispatcher sends a response,
 	    # then gets an error.
-	    Debug.error {Send discarded: duplicate ([rdump $r]) - sent:([rdump [dict get $satisfied $trx]])}
-	    return {0 0}	;# duplicate response - just ignore
+	    Debug.error {Send discarded: duplicate ([my rdump $r]) - sent:([my rdump [dict get $satisfied $trx]])}
+	    return	;# duplicate response - just ignore
+	} elseif {![dict exists $unsatisfied $trx]} {
+	    # only send for unsatisfied requests
+	    Debug.error {Send discarded: satisfied duplicate ([my rdump $r])}
+	    return	;# duplicate response - just ignore
 	}
 
-	# only send for unsatisfied requests
-	if {![dict exists $unsatisfied $trx]} {
-	    Debug.error {Send discarded: satisfied duplicate ([rdump $r])}
-	    return {0 0}	;# duplicate response - just ignore
-	}
-    
-	# record the behaviour
-	logtransition SENT
-	variable crs
-	dict set r -behaviour $crs([info coroutine])
-	unset crs([info coroutine])	;# we only want to remember last transaction
-
-	# generate a log line
-	variable log
-	if {$log ne "" && [catch {
-	    puts $log [Http clf $r]	;# generate a log line
-	    chan flush $log
-	} le leo]} {
-	    Debug.error {log error: $le ($leo)}
-	}
-    
 	# wire-format the reply transaction - messy
-	variable ce_encodings	;# what encodings do we support?
-	lassign [format4send $r -cache $cache -encoding $ce_encodings] r header content file empty cache range
-    	set header "HTTP/1.1 $header" ;# add the HTTP signifier
 
 	# record transaction reply and kick off the responder
 	# response has been collected and is pending output
@@ -934,332 +1163,69 @@ namespace eval Httpd {
 	# close? - is the connection to be closed after this response?
 	# chunked? - is the content to be sent in chunked mode?
 	# empty? - is there actually no content, as distinct from 0-length content?
-	Debug.httpd {[info coroutine] ADD TRANS: ([dict keys $replies])}
-	dict set replies $trx [list $header $content $file [close? $r] $empty $range]
-	dict set satisfied $trx [dict merge $r {-content <elided>}]	;# record satisfaction of transaction
+	variable replies
+	if {[dict get $r -code] != 100} {
+	    set response [my Format $r $cache]
+	    lassign $response r cache
+	    dict set replies $trx $response
+	    Debug.httpd {[info coroutine] ADD TRANS: ([dict keys $replies])}
 
-	if {[chan pending output $socket]} {
-	    # the client hasn't consumed our output yet
-	    # stop reading input until he does
-	    unreadable
-	} else {
-	    # there's space for more output, so accept more input
-	    readable
-	}
-
-	logtransition READY
-
-	# having queued the response, we allow it to be sent on 'socket writable' event
-	writable
-
-    	return [list 0 $cache]
-    }
-
-    # send --
-    #	deliver in-sequence transaction responses
-    #
-    # Arguments:
-    #
-    # Side Effects:
-    #	Send transaction responses to client
-    #	Possibly close socket, possibly cache response
-    proc send {r {cache 1}} {
-	Debug.httpd {[info coroutine] send: ([rdump $r]) $cache [expr {[dict get? $r -ua_class] ni {browser unknown}}]}
-	dict set r -sent [clock microseconds]
-
-	# precheck generation
-	corovars generation
-	if {[dict exists $r -generation] && [dict get $r -generation] != $generation} {
-	    dict set r -code 599	;# signal a really bad packet
-	}
-
-	# if this isn't a browser - do not cache!
-	if {[dict get? $r -ua_class] ni {browser unknown}} {
-	    Debug.httpd {not a browser - do not cache [dict get $r -uri]}
-	    set cache 0	;# ??? TODO
-	}
-
-	# check generation
-	if {![dict exists $r -generation]} {
-	    # there's no generation here - hope it's a low-level auto response
-	    # like Block etc.
-	    Debug.log {[info coroutine] Send without -generation ($r)}
-	    dict set r -generation $generation
-	} elseif {[dict get $r -generation] != $generation} {
-	    # report error to sender, but don't die ourselves
-	    Debug.error {Send discarded: out of generation [dict get $r -generation] != $generation ($r)}
-	    return ERROR
-	}
-
-	# global consequences - caching
-	if {$cache} {
-	    # handle caching (under no circumstances cache bot replies)
-	    set r [Cache put $r]	;# cache it before it's sent
-	    dict set r -caching inserted
-	} else {
-	    Debug.httpd {Do Not Cache put: ([rdump $r]) cache:$cache}
-	}
-
-	if {[catch {
-	    # send all pending responses, ensuring we don't send out of sequence
-	    write $r $cache
-	} result eo]} {
-	    Debug.error {FAILED write $result ($eo) IP [dict get $r -ipaddr] ([dict get? $r user-agent]) wanted [dict get $r -uri]}
-
-	    terminate "closed on error $result"
-	}
-
-	lassign $result close cache
-
-	# deal with socket closure
-	if {$close} {
-	    terminate "closed by request"
-	}
-    }
-
-    variable crs
-
-    # yield wrapper with command dispatcher
-    proc yield {{retval ""}} {
-	corovars cmd unsatisfied socket last events
-	if {![info exists last]} {
-	    set last [::tcl::clock::milliseconds]
-	}
-	variable crs
-	while {1} {
-	    Debug.httpdlow {coro [info coroutine] yielding}
-	    set x [after info]
-	    if {[llength $x] > 10} {
-		Debug.log {After: [llength $x]}
+	    # global consequences - caching
+	    if {$cache} {
+		# handle caching (under no circumstances cache bot replies)
+		set r [Cache put $r]	;# cache it before it's sent
+	    } else {
+		Debug.httpd {Do Not Cache put: ([my rdump $r]) cache:$cache}
 	    }
 
-	    # unpack event
-	    if {[catch {
-		dict for {k v} $events {
-		    chan event $socket $k [list [info coroutine] $v]
-		}
-
-		set args [lassign [::yieldm $retval] op]; set retval ""
-
-		foreach k {readable writable} {
-		    chan event $socket $k ""
-		}
-
-		set last [logtransition $op]
-	    } e eo]} {
-		Debug.httpdlow {yield crashed $e ($eo)}
-		terminate yieldcrash
+	    # generate a log line
+	    variable log
+	    if {$log ne "" && [catch {
+		puts $log [Http clf $r]	;# generate a log line
+		chan flush $log
+	    } le leo]} {
+		Debug.error {log error: $le ($leo)}
 	    }
-
-	    set gone [catch {chan eof $socket} eof]
-	    if {$gone || $eof || [string match DEAD* [info coroutine]]} {
-		Debug.httpdlow {[info coroutine] yield - eof $socket}
-		terminate "oops - we're dead in yield"
-		return
+	    variable satisfied; dict set satisfied $trx 1	;# record satisfaction of transaction
+	    variable outbuffer
+	    if {[chan pending output $socket] > $outbuffer} {
+		# the client hasn't consumed our output yet
+		# stop reading input until he does
+		my unreadable
+	    } else {
+		# there's space for more output, so accept more input
+		my readable
 	    }
+	} elseif {![my close? $r]} {
+	    dict set replies $trx [my Format $r $cache]
+	    Debug.httpd {[info coroutine] ADD CONTINUATION: ([dict keys $replies])}
 
-	    Debug.httpdlow {back from yield [info coroutine] -> $op}
-
-	    # record a log of our activity to fend off the reaper
-	    variable activity
-
-	    # dispatch on command
-	    switch -- [string toupper $op] {
-		STATS {
-		    set retval {}
-		    foreach x [uplevel \#1 {info locals}] {
-			catch [list uplevel \#1 [list set $x]] r
-			lappend retval $x $r
-		    }
-		}
-
-		READ {
-		    # fileevent tells us there's input to be read
-		    # check the channel
-		    set gone [catch {eof $socket} eof]
-		    if {$gone || $eof} {
-			Debug.httpd {[info coroutine] eof detected from yield}
-			terminate "EOF on reading"
-		    } else {
-			watchdog
-			return $args
-		    }
-		}
-
-		CLOSING {
-		    # fileevent tells us there's input, but we're half-closed
-		    # and won't process any more input, but we want to send
-		    # all pending responses
-		    set gone [catch {chan eof $socket} eof]
-		    if {$gone || $eof} {
-			# remote end closed - just forget it
-			terminate "socket is closed"
-		    } else {
-			# just read incoming data
-			watchdog
-			set x [chan read $socket]
-			Debug.httpd {[info coroutine] is closing, read [string length $x] bytes}
-		    }
-		}
-
-		SEND {
-		    # send a response to client
-		    watchdog
-		    set retval [send {*}$args]
-		}
-
-		WRITE {
-		    # there is space available in the output queue
-		    set retval [respond {*}$args]
-		}
-
-		SUSPEND {
-		    #puts stderr "SUSPEND: ($args)"
-		    grace [lindex $args 0]	;# a response has been suspended
-		}
-
-		REAPED {
-		    # we've been reaped
-		    corovars satisfied ipaddr closing headering
-		    Debug.watchdog {[info coroutine] Reaped - satisfied:($satisfied) unsatisfied:($unsatisfied) ipaddr:$ipaddr closing:$closing headering:$headering}
-
-		    terminate "REAPED $args"
-		}
-
-		TERMINATE {
-		    # we've been informed that the socket closed
-		    terminate "TERMINATED $args"
-		}
-
-		TIMEOUT {
-		    # we've timed out - oops
-		    terminate TIMEOUT
-		}
-
-		FCOPY {
-		    fcopy_complete {*}$args
-		}
-
-		FCIN {
-		    Debug.entity {FCIN done - $args}
-		    fcin {*}$args
-		}
-
-		FCHUNK {
-		    Debug.entity {FCHUNK done - $args}
-		    fchunk {*}$args
-		}
-
-		default {
-		    Debug.error {[info coroutine]: Unknown op '$op' ($args)}
-		    error "[info coroutine]: Unknown op '$op' ($args)"
-		}
-	    }
+	    # this is a continuation - we expect more
+	    my readable
 	}
+
+	my writable
     }
 
-    # handle - handle a protocol error
-    proc handle {req {reason "Error"}} {
-	Debug.error {handle $reason: ([rdump $req])}
-
-	# we have an error, so we're going to try to reply then die.
-	corovars transaction generation closing socket
-	logtransition "ERROR $reason"
-	if {[catch {
-	    dict set req connection close	;# we want to close this connection
-	    if {![dict exists $req -transaction]} {
-		dict set req -transaction [incr transaction]
-	    }
-	    dict set req -generation $generation
-
-	    # send a response to client
-	    send $req 0	;# queue up error response (no caching)
-	} r eo]} {
-	    dict append req -error "(handler '$r' ($eo))"
-	    Debug.error {'handle' error: '$r' ($eo)}
-	}
-
-	# return directly to event handler to process SEND and STATUS
-	set closing 1
-	readable CLOSING
-
-	#Debug.error {'handle' closing}
-	return -level [expr {[info level] - 1}]	;# return to the top coro level
-	#rename [info coroutine] ""; ::yield	;# terminate coro
-    }
-
-    # coroutine-enabled gets
-    proc get {socket {reason ""}} {
-	Debug.httpdlow {[info coroutine] get started}
-	variable maxline
-	set result [yield]
-	set line ""
-   	set gone [catch {eof $socket} eof]
-	while {[set status [chan gets $socket line]] == -1 && !$gone && !$eof} {
-	    Debug.httpdlow {[info coroutine] gets $socket - status:$status '$line'}
-	    set result [yield]
-	    if {$maxline && [chan pending input $socket] > $maxline} {
-		error "Line too long (over $maxline) '[string range $line 0 20]..."
-	    }
-	    set gone [catch {eof $socket} eof]
-	}
-	Debug.httpdlow {[info coroutine] get - success:$status}
-
-	set gone [catch {chan eof $socket} eof]
-	if {$gone || $eof} {
-	    Debug.httpdlow {[info coroutine] eof in get}
-	    terminate "Socket gone while $reason"	;# check the socket for closure
-	}
-
-	# return the line
-	Debug.httpdlow {[info coroutine] get: '$line' [chan blocked $socket] [chan eof $socket]}
-	return $line
-    }
-
-    # coroutine-enabled read
-    proc read {socket size} {
-    	# read a chunk of size bytes
-	Debug.httpdlow {[info coroutine] reading $size from $socket}
-	set chunk ""
-	set gone [catch {chan eof $socket} eof]
-	while {$size && !$gone && !$eof} {
-	    set result [yield]
-	    set chunklet [chan read $socket $size]
-	    incr size -[string length $chunklet]
-	    append chunk $chunklet
-	    set gone [catch {chan eof $socket} eof]
-	}
-
-	Debug.httpdlow {[info coroutine] read complete $size gone:$gone eof:$eof}
-	set gone [catch {chan eof $socket} eof]
-	if {$gone || $eof} {
-	    Debug.httpdlow {[info coroutine] eof in read}
-	    terminate "eof in reading entity - $size"	;# check the socket for closure
-	}
-
-	# return the chunk
-	Debug.httpdlow {[info coroutine] read: '$chunk'}
-    	return $chunk
-    }
-
-    proc parse {lines} {
-	# we have a complete header - parse it.
-	set r {}
-	set last ""
+    # parse - convert a complete header to a request dict
+    method Parse {lines} {
+	upvar 1 r r
 	set size 0
 	foreach line $lines {
 	    if {[string index $line 0] in {" " "\t"}} {
 		# continuation line
-		dict append r $last " [string trim $line]"
-		set key $last	;# remember key for length checking
+		dict append r $key " [string trim $line]"
 	    } else {
 		set value [join [lassign [split $line ":"] key] ":"]
 		set key [string tolower [string trim $key "- \t"]]
 
 		if {[dict exists $r $key]} {
+		    # duplicate header
 		    dict append r $key ",$value"
 		} else {
+		    # new header
 		    dict set r $key [string trim $value]
+		    dict lappend r -clientheaders $key
 		}
 	    }
 
@@ -1268,14 +1234,330 @@ namespace eval Httpd {
 	    if {$maxfield
 		&& [string length [dict get $r $key]] > $maxfield
 	    } {
-		handle [Http Bad $r "Illegal header: '[string range $line 0 20]...' [string length [$dict get $r $key]] is too long"] "Illegal Header - [string length [dict get $r $key]] is too long"
+		my handle [Http Bad $r "Illegal header: '[string range $line 0 20]...' [string length [$dict get $r $key]] is too long"] "Illegal Header - [string length [dict get $r $key]] is too long"
+		return -code break
+	    }
+	}
+    }
+
+    method Protocol {} {
+	upvar 1 r r
+	# get and test HTTP version
+	dict set r -version [lindex [dict get $r -header] end]		;# HTTP version
+	if {[string match HTTP/* [dict get $r -version]]} {
+	    dict set r -version [lindex [split [dict get $r -version] /] 1]
+	}
+
+	# Send 505 for protocol != HTTP/1.0 or HTTP/1.1
+	if {[dict get $r -version] ni {1.1 1.0}} {
+	    my handle [Http Bad $r "HTTP Version '[dict get $r -version]' not supported" 505] "Unsupported HTTP Version"
+	    return -code break
+	}
+
+	# get request URL
+	# check URI length (per rfc2616 3.2.1
+	# A server SHOULD return 414 (Requestuest-URI Too Long) status
+	# if a URI is longer than the server can handle
+	# (see section 10.4.15).)
+	dict set r -uri [Url decode [join [lrange [dict get $r -header] 1 end-1]]]
+
+	variable maxurilen
+	if {$maxurilen && [string length [dict get $r -uri]] > $maxurilen} {
+	    # send a 414 back
+	    my handle [Http Bad $r "URI too long '[dict get $r -uri]'" 414] "URI too long"
+	    return -code break
+	}
+
+	Debug.httpd {[info coroutine] reader got request: ($r)}
+
+	# parse the URL
+	set r [dict merge $r [Url parse [dict get $r -uri] 1]]
+
+	# ua - analyse user-agent strings.
+	variable ua
+	if {$ua} {
+	    dict set r -ua [UA parse [dict get? $r user-agent]]
+	    dict set r -ua_class [UA classify [dict get? $r user-agent]]	;# classify client by UA
+	    switch -- [dict get $r -ua_class] {
+		blank {
+		    # anonymous by user-agent
+		    if {[dict get $r -uri] ne "/robots.txt"} {
+			my handle [Http NotImplemented $r "Possible Spider Service - set your User-Agent"] "Spider"
+			return -code break
+		    } else {
+			# allow anonymous people to collect robots.txt
+		    }
+		}
+		spammer {
+		    # known spider user-agent
+		    Block block [dict get $r -ipaddr] "spider UA ([dict get? $r user-agent])"
+		    my handle [Http NotImplemented $r "Spammer"] "Spammer"
+		    return -code break
+		}
+
+		browser {
+		    # let known browsers through
+		}
+
+		unknown {
+		    #Debug.log {unknown UA: [dict get $r user-agent]}
+		}
+
+		default {
+		    # dict set r -dynamic 1	;# make this dynamic
+		}
 	    }
 	}
 
-	return $r
+	# ensure that the client sent a Host: if protocol requires it
+	if {[dict exists $r host]} {
+	    # client sent Host: field
+	    if {[string match http*:* [dict get $r -uri]]} {
+		# rfc 5.2 1 - a host header field must be ignored
+		# if request-line specified an absolute URL host/port
+		set r [dict merge $r [Url parse [dict get $r -uri]]]
+		dict set r host [Url host $r]
+	    } else {
+		# no absolute URL was specified by the request-line
+		# use the Host field to determine the host
+		foreach c [split [dict get $r host] :] f {host port} {
+		    dict set r -$f $c
+		}
+		dict set r host [Url host $r]
+		set r [dict merge $r [Url parse http://[dict get $r host][dict get $r -uri]]]
+	    }
+	} elseif {[dict get $r -version] > 1.0} {
+	    my handle [Http Bad $r "HTTP 1.1 required to send Host"] "No Host"
+	    return -code break
+	} else {
+	    # HTTP 1.0 isn't required to send a Host field
+	    # but we still need it
+	    if {![dict exists $r -host]} {
+		# make sure the request has some idea of our host&port
+		dict set r -host $host
+		dict set r -port $port
+		dict set r host [Url host $r]
+	    }
+	    set r [dict merge $r [Url parse http://[Url host $r]/[dict get $r -uri]]]
+	}
+	dict set r -url [Url url $r]	;# normalize URL
+
+	# rfc2616 14.10:
+	# A system receiving an HTTP/1.0 (or lower-version) message that
+	# includes a Connection header MUST, for each connection-token
+	# in this field, remove and ignore any header field(s) from the
+	# message with the same name as the connection-token.
+	if {[dict get $r -version] < 1.1 && [dict exists $r connection]} {
+	    foreach token [split [dict get $r connection] ","] {
+		catch {dict unset r [string trim $token]}
+	    }
+	    dict unset r connection
+	}
+
+	# completed request header decode - now dispatch on the URL
+	Debug.httpd {[info coroutine] reader complete: [dict get $r -header] ([my rdump $r])}
+
+	# rename fields whose names are the same in request/response
+	foreach n {cache-control pragma} {
+	    if {[dict exists $r $n]} {
+		dict set r -$n [dict get $r $n]
+		dict unset r $n
+	    }
+	}
+
+	# remove 'netscape extension' length= from if-modified-since
+	if {[dict exists $r if-modified-since]} {
+	    dict set r if-modified-since [lindex [split [dict get $r if-modified-since] {;}] 0]
+	}
+
+	# trust x-forwarded-for if we get a forwarded request from
+	# a local ip (presumably local ip forwarders are trustworthy)
+	set forwards {}
+	if {[dict exists $r x-forwarded-for]} {
+	    foreach xff [split [dict get? $r x-forwarded-for] ,] {
+		set xff [string trim $xff]
+		set xff [lindex [split $xff :] 0]
+		if {$xff eq ""
+		    || $xff eq "unknown"
+		    || [Http nonRouting? $xff]
+		} continue
+		lappend forwards $xff
+	    }
+	}
+	dict set r -forwards $forwards
+	#dict set r -ipaddr [lindex $forwards 0]
+
+	# filter out all X-* forms, move them to -x-* forms
+	# so we don't re-send them in reply
+	foreach x [dict keys $r x-*] {
+	    dict set r -$x [dict get $r $x]
+	    dict unset r $x
+	}
     }
 
-    proc process_request {r} {
+    method Entity {} {
+	upvar 1 r r
+	variable start; dict set r -time entitystart [expr {[clock microseconds] - $start}]
+	variable socket
+
+	# rfc2616 4.3
+	# The presence of a message-body in a request is signaled by the
+	# inclusion of a Content-Length or Transfer-Encoding header field in
+	# the request's headers.
+	if {[dict exists $r transfer-encoding]} {
+	    set te [dict get $r transfer-encoding]
+	    Debug.entity {got transfer-encoding: $te}
+
+	    # chunked 3.6.1, identity 3.6.2, gzip 3.5,
+	    # compress 3.5, deflate 3.5
+	    set tels {}
+	    array set params {}
+
+	    variable te_encodings
+	    variable te_params
+	    foreach tel [split $te ,] {
+		set param [lassign [split $tel ";"] tel]
+		set tel [string trim $tel]
+		if {$tel ni $te_encodings} {
+		    # can't handle a transfer encoded entity
+		    # queue up error response (no caching)
+		    Debug.log {Got a $tel transfer-encoding which we can't handle}
+		    my send [Http NotImplemented $r "$tel transfer encoding"] 0
+		    return -code continue	;# listen for new request
+
+		    # see 3.6 - 14.41 for transfer-encoding
+		    # 4.4.2 If a message is received with both
+		    # a Transfer-EncodIing header field
+		    # and a Content-Length header field,
+		    # the latter MUST be ignored.
+		} else {
+		    lappend tels $tel
+		    set params($tel) [split $param ";"]
+		}
+	    }
+
+	    dict set r -te $tels
+	    dict set r -te_params [array get params]
+	} elseif {[dict get $r -method] in {POST PUT}
+		  && ![dict exists $r content-length]} {
+	    dict set r -te {}
+
+	    # this is a content-length driven entity transfer
+	    # 411 Length Required
+	    my send [Http Bad $r "Length Required" 411]
+	    return -code continue
+	}
+
+	# fetch the entity (if any)
+	if {"chunked" in [dict get? $r -te]} {
+	    # write chunked entity to disk
+	    set chunksize 0x[get $socket FCHUNK]	;# how many bytes to read?
+	    Debug.entity {[info coroutine] FCHUNK} 8
+
+	    if {$chunksize ne "0x0"} {
+		# create a temp file to contain entity, remember it in $r and files
+		set entity [file tempfile entitypath]
+		dict set r -entity $entity		;# entity fd
+		variable files; dict set files $entity $entitypath
+
+		# prepare output file for receiving chunks
+		chan configure $entity -translation binary
+		if {"gzip" in [dict get? $r -te]} {
+		    Debug.entity {[info coroutine] FCHUNK is gzipped} 8
+		    ::zlib push inflate $entity	;# inflate it on the run
+		}
+
+		# prepare the socket for fchunk
+		my unreadable	;# stop reading input while fcopying
+		my unwritable	;# stop writing while fcopying
+		::watchdog grace [self] 120000	;# prevent the watchdog resetting the link
+
+		# start the entity fcopy
+		chan configure $socket -translation binary
+		chan copy $socket $entity -size $chunksize -command [list [info coroutine] fchunk $r $raw $entity 0 $chunksize]
+	    } else {
+		# we had a 0-length chunk ... may as well let it fall through
+		dict set r -entity ""
+	    }
+	    return -code continue	;# we loop around until there are more requests
+	} elseif {[dict exists $r content-length]} {
+	    set left [dict get $r content-length]
+	    Debug.entity {content-length: $left}
+
+	    # enforce server limits on Entity length
+	    variable maxentity
+	    if {$maxentity > 0 && $left > $maxentity} {
+		# 413 "Request Entity Too Large"
+		my handle [Http Bad $r "Request Entity Too Large" 413] "Entity Too Large"
+		return -code break
+	    }
+
+	    variable todisk
+	    if {$todisk > 0 && $left > $todisk} {
+		# this entity is too large to be handled in memory,
+		# write it to disk
+		Debug.entity {[info coroutine] FCIN: '$left' bytes} 8
+
+		# create a temp file to contain entity, remember it in $r and files
+		set entity [file tempfile entitypath]
+		dict set r -entity $entity
+		variable files; dict set files [info coroutine] $entity $entitypath
+
+		# prepare entity file for receiving chunks
+		chan configure $entity -translation {binary binary}
+		if {"gzip" in [dict get? $r -te]} {
+		    Debug.entity {[info coroutine] FCIN is gzipped} 8
+		    ::zlib push inflate $entity	;# inflate it on the run
+		}
+
+		# prepare the socket for fcin
+		my unreadable	;# stop reading input while fcopying
+		my unwritable	;# stop writing while fcopying
+		::watchdog grace [self] 120000	;# stop the watchdog resetting the link
+
+		Debug.entity {[info coroutine] FCIN: starting with $left writing to '$entitypath'} 8
+
+		# start the fcopy
+		chan configure $socket -translation binary
+		chan copy $socket $entity -size $left -command [list [info coroutine] fcin $r $entity $left]
+		return -code continue	;# we loop around until there are more requests
+	    }
+
+	    # load entity into memory
+	    if {$left == 0} {
+		dict set r -entity ""
+		# the entity, length 0, is therefore already read
+		# 14.13: Any Content-Length greater than
+		# or equal to zero is a valid value.
+	    } else {
+		set entity ""
+		chan configure $socket -translation {binary binary}
+		Debug.httpdlow {[info coroutine] getting entity of length ($left)}
+		set chunk ""
+		while {[string length $chunk] < $left
+		       && [chan pending input $socket] != -1
+		       && ![chan eof $socket]
+		   } {
+		    my Yield	;# wait for READ event
+		    append chunk [chan read $socket $size]
+		}
+
+		dict append r -entity $chunk
+	    }
+	    Debug.entity {memory entity of length: [string length [dict get $r -entity]]}
+	}
+
+	# reset socket to header config, having read the entity
+	chan configure $socket -encoding binary -translation {crlf binary}
+
+	# now we postprocess/decode the entity
+	Debug.entity {entity read complete - '[dict get? $r -te]'}
+	if {"gzip" in [dict get? $r -te]} {
+	    dict set r -entity [::zlib inflate [dict get $r -entity]]
+	}
+    }
+
+    method process {r} {
 	# check Cache for match
 	if {[dict size [set cached [Cache check $r]]] > 0} {
 	    # reply directly from cache
@@ -1283,16 +1565,15 @@ namespace eval Httpd {
 	    dict set cached -caching retrieved
 	    dict set cached -sent [clock microseconds]
 
-	    Debug.httpd {[info coroutine] sending cached [dict get $r -uri] ([rdump $cached])}
-	    logtransition CACHED
+	    Debug.httpd {[info coroutine] sending cached [dict get $r -uri] ([my rdump $cached])}
 	    set fail [catch {
-		write [dict merge $r $cached] 0	;# write cached response directly into outgoing structs
+		my send [dict merge $r $cached] 0
 	    } result eo]
 
 	    # clean up any entity file hanging about
 	    if {[dict exists $r -entitypath]} {
 		variable files; dict unset files [dict get $r -$entitypath]
-		catch {close $entfd}
+		catch {close [dict get $r -entity]}
 		# leave the temp file ... should we delete it here?
 	    }
 
@@ -1313,9 +1594,9 @@ namespace eval Httpd {
 	}
 
 	catch {
-	    do REQUEST [pre $r]
+	    ::Dispatcher::do REQUEST [::Dispatcher::pre $r]
 	} rsp eo	;# process the request
-	
+
 	# handle response code from processing request
 	set done 0
 	switch -- [dict get $eo -code] {
@@ -1328,10 +1609,9 @@ namespace eval Httpd {
 		    } else {
 			set duration [dict get $rsp -suspend]
 		    }
-		    
+
 		    Debug.httpd {SUSPEND: $duration}
-		    logtransition SUSPEND
-		    grace $duration	;# response has been suspended
+		    ::watchdog grace $duration	;# response has been suspended
 		    incr done
 		} elseif {[dict exists $rsp -passthrough]} {
 		    # the output is handled elsewhere (as for WOOF.)
@@ -1344,29 +1624,28 @@ namespace eval Httpd {
 		    set rsp [Http Ok $rsp]	;# default to OK
 		}
 	    }
-	    
+
 	    1 { # error - return the details
 		set rsp [Http ServerError $r $rsp $eo]
 	    }
 	}
 
 	if {!$done} {
-	    watchdog
-	    logtransition POSTPROCESS
+	    ::watchdog stroke [self]
 	    if {[catch {
-		post $rsp	;# postprocess the response
+		::Dispatcher::post $rsp	;# postprocess the response
 	    } rspp eo]} {
 		# post-processing error - report it
 		Debug.error {[info coroutine] postprocess error: $rspp ($eo)} 1
-		watchdog
-		
+		::watchdog stroke [self]
+
 		# report error from post-processing
-		send [::convert convert [Http ServerError $r $rspp $eo]]
+		my send [::convert convert [Http ServerError $r $rspp $eo]]
 	    } else {
 		# send the response to client
-		Debug.httpd {[info coroutine] postprocess: [rdump $rspp]} 10
-		watchdog
-		
+		Debug.httpd {[info coroutine] postprocess: [my rdump $rspp]} 10
+		::watchdog stroke [self]
+
 		# does post-process want to suspend?
 		if {[dict size $rspp] == 0 || [dict exists $rspp -suspend]} {
 		    if {[dict size $rspp] == 0} {
@@ -1376,14 +1655,14 @@ namespace eval Httpd {
 			# set the grace duration as per request
 			set duration [dict get $rspp -suspend]
 		    }
-		    
+
 		    Debug.httpd {SUSPEND in postprocess: $duration}
-		    grace $duration	;# response has been suspended for $duration
+		    ::watchdog grace $duration	;# response has been suspended for $duration
 		} elseif {[dict exists $rspp -passthrough]} {
 		    # the output is handled elsewhere (as for WOOF.)
 		    # so we don't need to do anything more.
 		} else {
-		    send $rspp	;# send the response through to client
+		    my send $rspp	;# send the response through to client
 		}
 	    }
 	}
@@ -1396,974 +1675,138 @@ namespace eval Httpd {
 	}
     }
 
-    # inbound entity fcopy has completed - now process the request
-    proc fcin {r fd bytes read {error ""}} {
-	corovars replies closing socket
-	Debug.entity {[info coroutine] fcin: entity:$fd expected:$bytes read:$read error:'$error'}
-
-	set gone [catch {chan eof $socket} eof]
-	if {$gone || $eof} {
-	    # detect socket closure ASAP in sending
-	    Debug.entity {[info coroutine] Lost connection on fcin}
-	    if {$error eq ""} {
-		set error "eof on $socket in fcin"
-	    }
-	}
-
-	# if $bytes != $written or $error ne "", we have a problem
-	if {$gone || $eof || $bytes != $read || $error ne ""} {
-	    if {$error eq ""} {
-		set error "fcin failed to receive $bytes, only got $read."
-	    }
-	    Debug.error $error
-	    terminate "$error in fcin"
-	    return
-	} elseif {![chan pending output $socket]} {
-	    # only when the client has consumed our output do we
-	    # restart reading input
-	    Debug.entity {[info coroutine] fcin: restarting reader}
-	    readable	;# this will restart the reading loop
-	} else {
-	    Debug.entity {[info coroutine] fcin: suspending reader [chan pending output $socket]}
-	}
-	
-	# reset socket to header config, having read the entity
-	chan configure $socket -encoding binary -translation {crlf binary}
-	    
-	# see if the writer needs service
-	writable
-	
-	# at this point we have a complete entity in $entity file, it's already been ungzipped
-	# we need to process it somehow
-	chan seek $fd 0
-	process_request $r
+    method entity {r} {
+	my Entity		;# process entity
+	tailcall my process $r	;# now process the request
     }
 
-    # process a chunk which has been fcopied in
-    proc fchunk {r raw entity total bytes read {error ""}} {
-	corovars replies closing socket
-	Debug.entity {[info coroutine] fchunk: raw:$raw entity:$entity read:$read error:'$error'}
-	incr total $bytes	;# keep track of total read
-
-	set gone [catch {chan eof $socket} eof]
-	if {$gone || $eof} {
-	    # detect socket closure ASAP in sending
-	    Debug.entity {[info coroutine] Lost connection on fcin}
-	    if {$error eq ""} {
-		set error "eof on $socket in fchunk"
-	    }
-	}
-
-	# if $bytes != $written or $error ne "", we have a problem
-	if {$gone || $eof || $bytes != $read || $error ne ""} {
-	    if {$error eq ""} {
-		set error "fchunk failed to receive all my chunks - expected:$bytes got:$read."
-	    }
-	    Debug.error $error
-	    terminate "$error in fchunk"
-	    return
-	}
-
-	# read a chunksize
-	chan configure $socket -translation {crlf binary}
-	set chunksize 0x[get $socket FCHUNK]	;# we have this many bytes to read
-	chan configure $socket -translation {binary binary}
-
-	if {$chunksize ne "0x0"} {
-	    Debug.entity {[info coroutine] fchunking along}
-	    chan copy $raw $entity -size $chunksize -command [list [info coroutine] FCHUNK $r $raw $entity $total $chunksize]
-	    # enforce server limits on Entity length
-	    variable maxentity
-	    if {$maxentity > 0 && $total > $maxentity} {
-		# 413 "Request Entity Too Large"
-		handle [Http Bad $r "Request Entity Too Large" 413] "Entity Too Large"
-	    }
-	    return	;# await arrival
-	}
-
-	# we have all the chunks we're going to get
-	if {![chan pending output $socket]} {
-	    # only when the client has consumed our output do we
-	    # restart reading input
-	    Debug.entity {[info coroutine] fchunk: restarting reader}
-	    readable	;# this will restart the reading loop
-	} else {
-	    Debug.entity {[info coroutine] fchunk: suspending reader [chan pending output $socket]}
-	}
- 
-	# see if the writer needs service
-	writable
-
-	Debug.entity {got chunked entity in $entity}
-
-	# at this point we have a complete entity in $entity file, it's already been ungzipped
-	# we need to process it somehow
-
-	chan seek $entity 0
-	variable todisk
-	if {$todisk < 0 || [file size [dict get $r -entitypath]] <= $todisk} {
-	    # we don't want to have things on disk, or it's small enough to have in memory
-	    set fd [dict get $r -entity]
-	    dict set r -entity [dict read $fd]
-	    chan close $fd				;# close the entity fd
-	    file delete [dict get $r -entitypath]	;# clean up the file
-	    dict unset r -entitypath			;# forget we had a file
-
-	    # now it's all been read in and the files cleaned up
-	    variable files; dict unset files $entfd	;# don't need to clean up for us
-	}
-
-	process_request $r
-    }
-
-    proc reader {args} {
+    # reader - main coroutine supervising connection
+    method reader {args} {
 	Debug.httpd {create reader [info coroutine] - $args}
 
-	# unpack all the passed-in args
-	set replies {}	;# dict of replies pending
-	set requests {}	;# dict of requests unsatisfied
-	set satisfied {};# dict of requests satisfied
-	set unsatisfied {} ;# dict of requests unsatisfied
-	set response 1	;# which is the next response to send?
-	set sequence -1	;# which is the next response to queue?
-	set writing 0	;# we're not writing yet
-	set ipaddr 0	;# ip address
-	set events {}	;# readable/writable
-
-	readable	;# kick off the readable event
+	my readable	;# kick off the readable event
 
 	dict with args {}
-	set transaction 0	;# count of incoming requests
-	set closing 0	;# flag that we want to close
-	variable files; dict set files [info coroutine] $socket {}
+	variable transaction 0	;# count of incoming requests
+	variable socket
+	variable files; dict set files $socket SOCKET	;# police socket
+	variable unsatisfied	;# reader queues up unsatisfied requests
+	variable proto; dict set proto -send [info coroutine]	;# remember coroutine as sender
 
-	# keep receiving input requests
-	while {1} {
-	    # start with blank request
-	    set r {}
+	# check the incoming ip for blockage
+	variable ipaddr
+	if {[Block blocked? $ipaddr]} {
+	    my handle [Http Forbidden {}] Forbidden	;# this will never start reading
+	}
+
+	::watchdog stroke [self]
+	variable start [clock microseconds]
+	while {[chan pending input $socket] >= 0} {
+	    set r $proto	;# start with blank request
 	    dict set r -transaction [incr transaction]
-	    dict set r -sock $socket
+	    dict set r -time connected $start	;# when we got connected
 
-	    # get whole header
-	    set headering 1
-	    set lines {}
-	    set hstart 0
-	    while {$headering} {
-		set line [get $socket HEADER]
-		if {!$hstart} {
-		    set hstart [clock microseconds]
-		}
-		Debug.httpdlow {reader [info coroutine] got line: ($line)}
-		if {[string trim $line] eq ""} {
-		    # rfc2616 4.1: In the interest of robustness,
-		    # servers SHOULD ignore any empty line(s)
-		    # received where a Request-Line is expected.
-		    if {[llength $lines]} {
-			set headering 0
-		    }
-		} else {
-		    lappend lines $line
-		}
-	    }
+	    # read the header and unpack the header line
+	    # parse and merge header lines into request dict
+	    my Parse [my Headers]
+	    my Protocol			;# process request protocol
 
-	    # parse the header into a request
-	    set h [parse [lrange $lines 1 end]]	;# parse the header
-	    set r [dict merge $prototype $h $r]
+	    # remember request as unsatisfied
+	    dict set unsatisfied [dict get $r -transaction] 1
 
-	    set start [clock microseconds]
-	    dict set r -htime [expr {$start - $hstart}]
-	    dict set r -received $start
-	    dict set r -clientheaders [dict keys $h]
-
-	    # unpack the header line
-	    set header [lindex $lines 0]
-	    dict set r -header $header
-	    dict set r -method [string toupper [lindex $header 0]]
-	    switch -- [dict get $r -method] {
-		CONNECT -
-		LINK {
-		    # stop the bastard SMTP spammers
-		    Block block [dict get $r -ipaddr] "[dict get $r -method] method ([dict get? $r user-agent])"
-		    handle [Http NotImplemented $r "Connect Method"] "CONNECT method"
-		}
-
-		GET - PUT - POST - HEAD {}
-
-		default {
-		    # Could check for and service FTP requests, etc, here...
-		    dict set r -error_line $line
-		    handle [Http Bad $r "Method unsupported '[lindex $header 0]'" 405] "Method Unsupported"
-		}
-	    }
-
-	    # get and test HTTP version
-	    dict set r -version [lindex $header end]		;# HTTP version
-	    if {[string match HTTP/* [dict get $r -version]]} {
-		dict set r -version [lindex [split [dict get $r -version] /] 1]
-	    }
-	    # Send 505 for protocol != HTTP/1.0 or HTTP/1.1
-	    if {[dict get $r -version] ni {1.1 1.0}} {
-		handle [Http Bad $r "HTTP Version '[dict get $r -version]' not supported" 505] "Unsupported HTTP Version"
-	    }
-
-	    # get request URL
-	    # check URI length (per rfc2616 3.2.1
-	    # A server SHOULD return 414 (Requestuest-URI Too Long) status
-	    # if a URI is longer than the server can handle (see section 10.4.15).)
-	    variable maxurilen
-	    dict set r -uri [Url decode [join [lrange $header 1 end-1]]]	;# requested URL
-	    if {$maxurilen && [string length [dict get $r -uri]] > $maxurilen} {
-		# send a 414 back
-		handle [Http Bad $r "URI too long '[dict get $r -uri]'" 414] "URI too long"
-	    }
-
-	    Debug.httpd {[info coroutine] reader got request: ($r)}
-
-	    # parse the URL
-	    set r [dict merge $r [Url parse [dict get $r -uri] 1]]
-
-	    # check the incoming ip for blockage
-	    if {[Block blocked? [dict get? $r -ipaddr]]} {
-		handle [Http Forbidden $r] Forbidden
-		continue
-	    }
-
-	    # analyse the user agent strings.
-	    dict set r -ua [UA parse [dict get? $r user-agent]]
-	    dict set r -ua_class [UA classify [dict get? $r user-agent]]	;# classify client by UA
-	    switch -- [dict get $r -ua_class] {
-		blank {
-		    if {[dict get $r -uri] ne "/robots.txt"} {
-			handle [Http NotImplemented $r "Possible Spider Service - set your User-Agent"] "Spider"
-		    } else {
-			# allow anonymous people to collect robots.txt
-		    }
-		}
-		spammer {
-		    Block block [dict get $r -ipaddr] "spider UA ([dict get? $r user-agent])"
-		    handle [Http NotImplemented $r "Spammer"] "Spammer"
-		}
-
-		browser {
-		    # let the known browsers through
-		}
-
-		unknown {
-		    #Debug.log {unknown UA: [dict get $r user-agent]}
-		}
-
-		default {
-		    # dict set r -dynamic 1	;# make this dynamic
-		}
-	    }
-
-	    # ensure that the client sent a Host: if protocol requires it
-	    if {[dict exists $r host]} {
-		# client sent Host: field
-		if {[string match http*:* [dict get $r -uri]]} {
-		    # rfc 5.2 1 - a host header field must be ignored
-		    # if request-line specified an absolute URL host/port
-		    set r [dict merge $r [Url parse [dict get $r -uri]]]
-		    dict set r host [Url host $r]
-		} else {
-		    # no absolute URL was specified by the request-line
-		    # use the Host field to determine the host
-		    foreach c [split [dict get $r host] :] f {host port} {
-			dict set r -$f $c
-		    }
-		    dict set r host [Url host $r]
-		    set r [dict merge $r [Url parse http://[dict get $r host][dict get $r -uri]]]
-		}
-	    } elseif {[dict get $r -version] > 1.0} {
-		handle [Http Bad $r "HTTP 1.1 required to send Host"] "No Host"
-	    } else {
-		# HTTP 1.0 isn't required to send a Host request but we still need it
-		if {![dict exists $r -host]} {
-		    # make sure the request has some idea of our host&port
-		    dict set r -host $host
-		    dict set r -port $port
-		    dict set r host [Url host $r]
-		}
-		set r [dict merge $r [Url parse http://[Url host $r]/[dict get $r -uri]]]
-	    }
-	    dict set r -url [Url url $r]	;# normalize URL
-
-	    # rfc2616 14.10:
-	    # A system receiving an HTTP/1.0 (or lower-version) message that
-	    # includes a Connection header MUST, for each connection-token
-	    # in this field, remove and ignore any header field(s) from the
-	    # message with the same name as the connection-token.
-	    if {[dict get $r -version] < 1.1 && [dict exists $r connection]} {
-		foreach token [split [dict get $r connection] ","] {
-		    catch {dict unset r [string trim $token]}
-		}
-		dict unset r connection
-	    }
-
-	    # completed request header decode - now dispatch on the URL
-	    Debug.httpd {[info coroutine] reader complete: $header ([rdump $r])}
-
-	    # rename fields whose names are the same in request/response
-	    foreach n {cache-control pragma} {
-		if {[dict exists $r $n]} {
-		    dict set r -$n [dict get $r $n]
-		    dict unset r $n
-		}
-	    }
-
-	    # remove 'netscape extension' length= from if-modified-since
-	    if {[dict exists $r if-modified-since]} {
-		dict set r if-modified-since [lindex [split [dict get $r if-modified-since] {;}] 0]
-	    }
-
-	    # trust x-forwarded-for if we get a forwarded request from
-	    # a local ip (presumably local ip forwarders are trustworthy)
-	    set forwards {}
-	    if {[dict exists $r x-forwarded-for]} {
-		foreach xff [split [dict get? $r x-forwarded-for] ,] {
-		    set xff [string trim $xff]
-		    set xff [lindex [split $xff :] 0]
-		    if {$xff eq ""
-			|| $xff eq "unknown"
-			|| [Http nonRouting? $xff]
-		    } continue
-		    lappend forwards $xff
-		}
-	    }
-	    #lappend forwards [dict get $r -ipaddr]
-	    dict set r -forwards $forwards
-	    #dict set r -ipaddr [lindex $forwards 0]
-
-	    # filter out all X-* forms, move them to -x-* forms so we don't re-send them
-	    foreach x [dict keys $r x-*] {
-		dict set r -$x [dict get $r $x]
-		dict unset r $x
-	    }
-
-	    ##### PROCESS ENTITY
-
-	    # process the request - remember it as unsatisfied
-	    dict set unsatisfied [dict get $r -transaction] {}
-	    logtransition PROCESS
-
-	    dict set r -send [info coroutine]	;# remember its coroutine
-
-	    if {[string tolower [dict r.connection?]] eq "upgrade"} {
+	    # intercept websockets request, process it
+	    variable websockets
+	    if {$websockets
+		&& [string tolower [dict r.connection?]] eq "upgrade"
+	    } {
 		# initiate WebSockets connection
-		unreadable	;# turn off read processing
-		tailcall [WebSockets create] handshake $r
+		my unreadable; my unwritable	;# turn off socket processing
+		my destroy	;# destroy us
+		tailcall [WebSockets create] handshake $r ;# hand over to WebSockets
 	    }
 
-	    # rfc2616 4.3
-	    # The presence of a message-body in a request is signaled by the
-	    # inclusion of a Content-Length or Transfer-Encoding header field in
-	    # the request's headers.
-	    if {[dict exists $r transfer-encoding]} {
-		set te [dict get $r transfer-encoding]
-		Debug.entity {got transfer-encoding: $te}
-
-		# chunked 3.6.1, identity 3.6.2, gzip 3.5, compress 3.5, deflate 3.5
-		set tels {}
-		array set params {}
-
-		variable te_encodings
-		variable te_params
-		foreach tel [split $te ,] {
-		    set param [lassign [split $tel ";"] tel]
-		    set tel [string trim $tel]
-		    if {$tel ni $te_encodings} {
-			# can't handle a transfer encoded entity
-			Debug.log {Got a $tel transfer-encoding which we can't handle}
-			handle [Http NotImplemented $r "$tel transfer encoding"] "Unimplemented TE"
-			continue
-			# see 3.6 - 14.41 for transfer-encoding
-			# 4.4.2 If a message is received with both
-			# a Transfer-EncodIing header field
-			# and a Content-Length header field,
-			# the latter MUST be ignored.
-		    } else {
-			lappend tels $tel
-			set params($tel) [split $param ";"]
-		    }
-		}
-
-		dict set r -te $tels
-		dict set r -te_params [array get params]
-	    } elseif {[dict get $r -method] in {POST PUT}
-		      && ![dict exists $r content-length]} {
-		dict set r -te {}
-
-		# this is a content-length driven entity transfer
-		# 411 Length Required
-		handle [Http Bad $r "Length Required" 411] "Length Required"
-	    }
-
+	    # the client wants us to tell it to continue
+	    # before reading the body.
+	    # Do so, then proceed to process entity
 	    if {[dict get $r -version] >= 1.1
 		&& [dict exists $r expect]
 		&& [string match *100-continue* [string tolower [dict get $r expect]]]
 	    } {
-		# the client wants us to tell it to continue
-		# before reading the body.
-		# Do so, then proceed to read
-		puts -nonewline $socket "HTTP/1.1 100 Continue\r\n"
-	    }
-
-	    # fetch the entity (if any)
-	    if {"chunked" in [dict get? $r -te]} {
-		# write chunked entity to disk
-
-		set chunksize 0x[get $socket FCHUNK]	;# how many bytes to read?
-		Debug.entity {[info coroutine] FCHUNK} 8
-		if {$chunksize ne "0x0"} {
-		    # create a temp file to contain entity, remember it in $r
-		    set entity [file tempfile entitypath]
-		    dict set r -entitypath $entitypath
-		    dict set r -entity $entity
-
-		    # prepare output file for receiving chunks
-		    chan configure $entity -translation binary
-		    if {"gzip" in [dict get? $r -te]} {
-			Debug.entity {[info coroutine] FCHUNK is gzipped} 8
-			zlib push inflate $entity	;# inflate it on the run
-		    }
-
-		    # record our entity fd
-		    variable files; dict set files [info coroutine] $entity 1
-
-		    # prepare the socket for fcin
-		    unreadable	;# stop reading input while fcopying
-		    unwritable	;# stop writing while fcopying
-		    grace 120000	;# stop the watchdog resetting the link
-
-		    # start the fcopy
-		    chan configure $socket -translation binary
-		    chan copy $socket $entity -size $chunksize -command [list [info coroutine] FCHUNK $r $raw $entity 0 $chunksize]
-		} else {
-		    # we had a 0-length chunk ... may as well let it fall through
-		    dict set r -entity ""
-		}
-		continue	;# we loop around until there are more requests
-	    } elseif {[dict exists $r content-length]} {
-		set left [dict get $r content-length]
-		Debug.entity {content-length: $left}
-
-		# enforce server limits on Entity length
-		variable maxentity
-		if {$maxentity > 0 && $left > $maxentity} {
-		    # 413 "Request Entity Too Large"
-		    handle [Http Bad $r "Request Entity Too Large" 413] "Entity Too Large"
-		}
-
-		variable todisk
-		if {$todisk > 0 && $left > $todisk} {
-		    # this entity is too large to be handled in memory,
-		    # write it to disk
-		    Debug.entity {[info coroutine] FCIN: '$left' bytes} 8
-
-		    # create a temp file to contain entity, remember it in $r
-		    set entity [file tempfile entitypath]
-		    dict set r -entitypath $entitypath
-		    dict set r -entity $entity
-
-		    # prepare entity file for receiving chunks
-		    chan configure $entity -translation {binary binary}
-		    if {"gzip" in [dict get? $r -te]} {
-			Debug.entity {[info coroutine] FCIN is gzipped} 8
-			zlib push inflate $entity	;# inflate it on the run
-		    }
-
-		    # record our entity fd
-		    variable files; dict set files [info coroutine] $entity 1
-
-		    # prepare the socket for fcin
-		    unreadable	;# stop reading input while fcopying
-		    unwritable	;# stop writing while fcopying
-		    grace 120000	;# stop the watchdog resetting the link
-
-		    Debug.entity {[info coroutine] FCIN: starting with $left writing to '$entitypath'} 8
-
-		    # start the fcopy
-		    chan configure $socket -translation binary
-		    chan copy $socket $entity -size $left -command [list [info coroutine] FCIN $r $entity $left]
-		    continue	;# we loop around until there are more requests
-		}
-
-		# load it all into memory
-		if {$left == 0} {
-		    dict set r -entity ""
-		    # the entity, length 0, is therefore already read
-		    # 14.13: Any Content-Length greater than
-		    # or equal to zero is a valid value.
-		} else {
-		    set entity ""
-		    chan configure $socket -translation {binary binary}
-		    Debug.httpdlow {[info coroutine] reader getting entity of length ($left)}
-		    while {$left > 0} {
-			set chunk [read $socket $left]
-			incr left -[string length $chunk]
-			Debug.httpdlow {[info coroutine] reader getting remainder of entity of length ($left)}
-			dict append r -entity $chunk
-			Debug.httpdlow {[info coroutine] reader got whole entity}
-		    }
-		}
-		Debug.entity {entity of length: [string length [dict get $r -entity]]}
-	    }
-
-	    # reset socket to header config, having read the entity
-	    chan configure $socket -encoding binary -translation {crlf binary}
-
-	    # now we postprocess/decode the entity
-	    Debug.entity {entity read complete - '[dict get? $r -te]'}
-	    if {"gzip" in [dict get? $r -te]} {
-		dict set r -entity [zlib inflate [dict get $r -entity]]
-	    }
-
-	    process_request $r	;# now process the request
-	}
-    }
-
-    # handle responses from a client
-    proc client {op connection args} {
-	variable client
-	if {[info exists client($connection)]} {
-	    apply $client($connection) $op $connection {*}$args
-	}
-    }
-
-    # return a bunch of status information about sock procs
-    proc stats {} {
-	set result {}
-	foreach coro [info commands ::Httpd::sock*] {
-	    lappend result $coro [$coro STATS]
-	}
-	return $result
-    }
-
-    # return a bunch of data about all the channels in use by Httpd
-    proc chans {} {
-	foreach chan [chan names] {
-	    catch {
-		list eof [chan eof $chan] input [chan pending input $chan] output [chan pending output $chan] blocked [chan blocked $chan] readable [chan event $chan readable] writable [chan event $chan writable] {*}[chan configure $chan]
-	    } el
-	    lappend result "name $chan $el"
-	}
-	return $result
-    }
-
-    # tickle the watchdog
-    proc watchdog {} {
-	variable activity
-	# record fact of activity on this coro, which will prevent its being reaped
-	set activity([info coroutine]) [clock milliseconds]
-    }
-
-    # grant the caller some timeout grace
-    proc grace {{grace 20000}} {
-	variable activity
-	if {$grace < 0} {
-	    # take this coro off the reaper's list until next activity
-	    Debug.watchdog {Giving [info coroutine] infinite grace}
-	    catch {unset activity([info coroutine])}
-	} else {
-	    Debug.watchdog {Giving [info coroutine] $grace grace}
-	    set activity([info coroutine]) [expr {$grace + [clock milliseconds]}]
-	}
-    }
-
-    # format something to suspend this packet
-    proc Suspend {r {grace -1}} {
-	Debug.httpd {Suspending [rdump $r]}
-	dict set r -suspend $grace
-	return $r
-    }
-
-    # resume this request
-    proc Resume {r {cache 1}} {
-	Debug.httpd {Resuming [rdump $r]}
-        # ask socket coro to send the response for us
-	# we inject the SEND event into the coro so Resume may be called from any
-	# event, thread or coroutine
-	set r [post $r]
-	set code [catch {{*}[dict get $r -send] SEND $r} e eo]
-	if {$code != 0} {
-	    Debug.httpd {Failed Resumption $code '$e' ($eo)}
-	} else {
-	    Debug.httpd {Resumption $code '$e' ($eo)}
-	}
-	return [list $code $e $eo]
-    }
-
-    # every script
-    proc every {interval script} {
-	variable everyIds
-	if {$interval eq "cancel"} {
-	    after cancel $everyIds($script)
-	    return
-	}
-	set everyIds($script) [after $interval [info level 0]]	;# restart the timer
-	set rc [catch {
-	    uplevel #0 $script
-	} result eo]
-	if {$rc == [catch break]} {
-	    after cancel $everyIds($script)
-	    set rc 0
-	} elseif {$rc == [catch continue]} {
-	    # Ignore - just consume the return code
-	    set rc 0
-	} elseif {$rc == [catch error ""]} {
-	    Debug.error {every: $interval ($script) - ERROR: $result ($eo)}
-	}
-
-	# TODO: Need better handling of errorInfo etc...
-	#return -code $rc $result
-	return $result
-    }
-
-    proc active {what} {
-	variable activity
-	return [expr {[info exists activity($what)] && [info commands $what] ne {}}]
-    }
-
-    proc kill {args} {
-	Debug.watchdog {killing: "$args"}
-	variable files
-	variable crs
-	foreach what $args {
-	    if {[catch {
-		rename $what {}	;# kill this coro right now
-		unset crs($what) ;# remove record of coroutine activity
-	    } e eo]} {
-		Debug.error {killed $what: '$r' ($eo)}
-	    }
-
-	    if {[dict exists $files $what]} {
-		foreach fd [dict keys [dict get $files $what]] {
-		    if {[catch {chan close $fd} e eo]} {
-			# close coro's file
-			Debug.error {closing $what's $fd: '$e' ($eo)}
-		    }
-		}
-		dict unset files $what
-	    }
-	}
-    }
-
-    variable reaper	;# array of hardline events
-    proc reaper {} {
-	variable timeout
-	set now [clock milliseconds]
-	set then [expr {$now - $timeout}]
-	Debug.watchdog {Reaper Running [Http Now]}
-
-	# kill any moribund coroutines
-	variable reaper
-	foreach {n v} [array get reaper] {
-	    unset reaper($n)
-	    if {$v < $now} {
-		catch {kill $n}
-	    }
-	}
-
-	# close any files at EOF
-	foreach s [chan names] {
-	    catch {
-		if {[catch {chan eof $s} eof] || $eof} {
-		    if {[catch {chan close $s} e eo]} {
-			Debug.watchdog {closing $s: $e ($eo)}
-		    }
-		}
-	    }
-	}
-
-	# schedule inactive coroutines for reaping
-	variable activity
-	foreach {n v} [array get activity] {
-	    catch {
-		if {[info commands $n] eq {}} {
-		    Debug.log {Bogus watchdog over $n}
-		    catch {unset activity($n)}	;# this is bogus
-		} elseif {$v < $then} {
-		    Debug.watchdog {Reaping $n}
-		    catch {unset activity($n)}	;# prevent double-triggering
-		    catch {$n REAPED}	;# alert coro to its fate
-		    set reaper($n) [expr {$now + 2 * $timeout}]	;# if it doesn't respond, kill it.
-		}
-	    }
-	}
-    }
-
-    proc pre {r} {
-	package require Cookies
-	proc pre {r} {
-	    # default request pre-process
-	    catch {::pest $r}
-	    set r [::Cookies 4Server $r]	;# fetch the cookies
-	    set r [Human track $r]	;# track humans by cookie
-	    return $r
-	}
-	return [pre $r]
-    }
-
-    proc post {r} {
-	# do per-connection postprocess (if any)
-	foreach c [dict get? $r -postprocess] {
-	    set r [{*}$c $r]
-	}
-
-	# do per-connection conversions (if any)
-	foreach c [dict get? $r -convert] {
-	    set r [$c convert $r]
-	}
-
-	# do default conversions
-	return [::convert convert $r]
-    }
-
-    # Authorisation
-    variable realms
-    proc addRealm {realm args} {
-	set realms($realm) $args
-    }
-
-    proc Auth {r realm} {
-	variable realms
-	dict set r -realm $realm
-	if {[dict exists $r code]} {dict unset r code}
-	set r [{*}$realms($realm) $r {*}$realm]
-	if {[dict exists $r code]} {
-	    return -level 1 $r	;# return from the caller (do)
-	}
-    }
-
-    proc do {op req} {
-	if {[info commands ::wub] eq {}} {
-	    package require Mason
-	    Mason create ::wub -url / -root $::Site::docroot -auth .before -wrapper .after
-	}
-
-	proc do {op req} {
-	    switch -- $op {
-		REQUEST {
-		    switch -glob -- [dict get $req -path] {
-			/ -
-			/* {
-			    # redirect / to /wub
-			    return [::wub do $req]
-			}
-		    }
-		}
-		TERMINATE {
-		    return
-		}
-		RESPONSE {
-		    # HTTP client has sent us a response
-		}
-		CLOSED {
-		    # HTTP client has closed.
-		}
-		default {
-		    error "[info coroutine] OP $op not understood by consumer"
-		}
-	    }
-	}
-	return [do REQUEST $req]
-    }
-
-    proc Forbid {sock} {
-	Debug.httpd {Forbid $sock}
-	variable server_id
-	puts $sock "HTTP/1.1 403 Forbidden\r"
-	puts $sock "Date: [Http Now]\r"
-	puts $sock "Server: $server_id\r"
-	puts $sock "Connection: Close\r"
-	puts $sock "Content-Length: 0\r"
-	puts $sock \r
-	flush $sock
-	close $sock
-    }
-
-    # connect - process a connection request
-    proc connect {sock ipaddr rport args} {
-	variable server_id
-	Debug.httpd {Connect $sock $ipaddr $rport $args}
-	if {[catch {
-	    if {[dict exists $args -myaddr]} {
-		set myaddr [dict get $args -myaddr]
+		my send [Http Continue $r] 0	;# send a 100 Continue
 	    } else {
-		set myaddr 0.0.0.0
-	    }
-	    set s [Socket new chan $sock socket $myaddr peer $ipaddr -file sock.dump -capture 0]
-	    chan create {read write} $s
-	} ns eo]} {
-	    # failed to connect.  This can be due to overconnecting
-	    Debug.error {connection error from $ipaddr:$rport - $ns ($eo)}
-
-	    variable exhaustion
-	    set msg [dict get? [Http Unavailable {} "$ns ($eo)" $exhaustion] -content]
-
-	    puts $sock "HTTP/1.1 503 Exhaustion\r"
-	    puts $sock "Date: [Http Now]\r"
-	    puts $sock "Server: $server_id\r"
-	    puts $sock "Connection: Close\r"
-	    puts $sock "Content-Length: [string length $msg]\r"
-	    puts $sock \r
-	    puts -nonewline $sock $msg
-	    flush $sock
-	    close $sock
-	    return ""
-	} else {
-	    set sock $ns
-	}
-
-	# the socket must stay in non-block binary binary-encoding mode
-	chan configure $sock -blocking 0 -translation {binary binary} -encoding binary
-
-	# check for Block on this ipaddress
-	switch -- [::ip::type $ipaddr] {
-	    "normal" {
-		# check list of blocked ip addresses
-		if {[Block blocked? $ipaddr]} {
-		    # dump this connection with a minimum of fuss.
-		    Forbid $sock
-		    return
-		}
-	    }
-
-	    "private" {
-		# TODO - this may not be desired behavior.  ReThink
-		# just because an ip connection is local doesn't mean it's
-		# unlimited, does it?
-		# OTOH, it may just be from a local cache, and the original
-		# ip address may come from a higher level protocol.
-		if {[Block blocked? $ipaddr]} {
-		    Forbid $sock
-		    return
-		}
+		my entity $r		;# process entity
 	    }
 	}
 
-	# record connection id - unique over the life of this server process
-	variable cid; set id [incr cid]
-	dict set args -cid $id
-
-	# record significant values
-	dict set args -sock $sock
-	dict set args -ipaddr $ipaddr
-	dict set args -rport $rport
-	dict set args -received_seconds [clock seconds]
-
-	# get port on which connection arrived
-	# this may differ from Listener's port if reverse proxying
-	# or transparent ip-level forwarding is performed
-	variable server_port
-	if {[info exists server_port]} {
-	    # use defined server port
-	    dict set args -port $server_port
-	} else {
-	    # use listener's port
+	# reading is complete, but we may have more to send
+	my respond
+	while {1} {
+	    my Yield
 	}
-
-	# record some per-server request values
-	variable server_id; dict set args -server_id $server_id
-	dict set args -version 1.1	;# HTTP/1.1
-
-	# condition the socket
-	chan configure $sock -buffering none -translation {crlf binary}
-
-	# generate a connection record prototype
-	variable generation	;# unique generation
-	set gen [incr generation]
-	set args [dict merge $args [list -generation $gen]]
-
-	# send that we accept ranges
-	dict set args accept-ranges bytes
-
-	# create reader coroutine in a per-connection namespace
-	variable reader
-	if {![namespace exists ::Httpd::$ipaddr]} {
-	    namespace eval ::Httpd::$ipaddr {}
-	}
-	set R ::Httpd::${ipaddr}::${sock}_[uniq]	;# unique coro name per socket
-	chan configure $sock -user $R	;# record the coroutine as socket user data
-
-	# construct the reader
-	variable timeout
-	variable log
-	set result [::Coroutine $R ::Httpd::reader socket $sock prototype $args generation $gen cid $cid log $log]
-
-	variable activity
-	set activity($R) [clock milliseconds]	;# make creation a sign of activity
-	# this accounts for sockets created but not used.
-	return $result
     }
 
-    # configure - set Httpd protocol defaults
-    proc configure {args} {
+    destructor {
+	Debug.httpd {Destroying [self]}
+	::watchdog gone [self]	;# deregister from watchdog
+
+	variable client
+	$client del [self]
+
+	variable files
+	foreach {f name} $files {
+	    catch {close $f}
+	}
+    }
+
+    constructor {sock ip rport args} {
+	Debug.httpd {Constructed [self] for socket $sock ip $ip rport $rport $args}
+	variable socket $sock	;# remember the socket
+	chan configure $sock -blocking 0 -buffering none -translation {crlf binary}
+
+	variable ipaddr $ip
+	variable maxfield 0	;# maximum field size
+	variable maxentity 0	;# maximum entity size
+	variable ua 1		;# perform UA analysis
+	variable server_id "Wub [package present Httpd]"
+	variable maxurilen 0	;# maximum length of URI
+	variable websockets 0	;# want to support websockets?
+	variable log 0		;# log off by default
+
+	variable {*}[Site var? Httpd]	;# allow .config file to modify defaults
 	variable {*}$args
 
-	# open the web analysis log
-	variable logfile
-	variable log
-	if {$logfile ne "" && $log eq ""} {
-	    if {![catch {
-		open $logfile a
-	    } log eo]} {
-		# we want to try to make writes atomic
-		fconfigure $log -buffering line
-	    } else {
-		Debug.error {Failed to open logfile:'$logfile' - '$log' ($eo)}
-	    }
-	}
+	variable ce_encodings {gzip}	;# support these char encodings
+	variable te_encodings {chunked}
 
-	# source in local customisations for Httpd
-	# mainly useful for [pre] [post] and [pest]
-	variable customize
-	if {$customize ne ""} {
-	    set eo {}
-	    catch {source $customize} result eo
-	    Debug.log {Httpd Customisations from '$customize'->$result ($eo)}
-	}
+	variable replies {}	;# dict of replies pending
+	variable requests {}	;# dict of requests unsatisfied
+	variable satisfied {};# dict of requests satisfied
+	variable unsatisfied {} ;# dict of requests unsatisfied
+	variable response 1	;# which is the next response to send?
+	variable sequence -1	;# which is the next response to queue?
+	variable writing 0	;# we're not writing yet
+	variable events {}	;# readable/writable
+	variable client [::HttpdClient add $ip [self]]
+	variable proto [list -sock $socket -cid [self] -ipaddr $ipaddr -rport $rport -received_seconds [clock seconds]]
+	variable outbuffer 40960 ;# amount of output we are prepared to buffer
 
-	variable maxconn
-	if {[info exists maxconn]} {
-	    #Socket new -maxconnections $maxconn
-	}
+	variable coro [info object namespace [self]]::coro
+	::coroutine $coro [self] reader
     }
-
-    # called by logrotate to rotate log file
-    proc logrotate {} {
-	# open the web analysis log
-	variable logfile
-	variable log
-	if {$log ne ""} {
-	    close $log
-	}
-	if {$logfile ne ""} {
-	    set log [open $logfile a]		;# always add to the end
-	    fconfigure $log -buffering line	;# we want to try to make writes atomic
-	}
-    }
-
-    proc start {} {
-    }
-
-    namespace export -clear *
-    namespace ensemble create -subcommands {}
 }
 
-if {[info exists argv0] && ($argv0 eq [info script])} {
-    package require Stdin
-    package require Listener
-    package require Debug
+set ::current "";# current object
 
-    Debug off socket 10
-    Debug off http 2
-    Debug off cache 10
-
-    set listener [Listener %AUTO% -port 8080 -sockets Httpd -httpd {-dispatch "puts"}]
-    set forever 0
-    vwait forever
+##nagelfar syntax catch c n? n?
+proc ::bgerror {args} {
+    if {[info exists ::current]
+	&& $::current ne ""
+    } {
+	Debug.error {bgerror in $::current - $args}
+    } else {
+	Debug.error {bgerror: $args}
+    }
 }
+interp bgerror {} ::bgerror
 
-Httpd every $Httpd::timeout {Httpd reaper}	;# start the inactivity reaper
 # vim: ts=8:sw=4:noet
