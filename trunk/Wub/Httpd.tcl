@@ -104,7 +104,7 @@ oo::class create ::HttpdClient {
 	    Debug.httpdclient {created new $x for ip:$ip}
 	}
 	Debug.httpdclient {add $ip $what -> $x}
-	$x add_ $what $ip
+	$x add_ $what
 	return $x
     }
 
