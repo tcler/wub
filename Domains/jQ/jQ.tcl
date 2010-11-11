@@ -196,7 +196,6 @@ namespace eval ::jQ {
 	    onblur 'cancel'
 	    cssclass 'autogrow'
 	    event 'dblclick'
-	    tooltip {'Double click to edit'}
 	    style 'inherit'
 	}
 
