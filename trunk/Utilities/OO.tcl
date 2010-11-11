@@ -11,7 +11,8 @@ set ::API(Utilities/OO) {
 }
 
 proc ::oo::Helpers::classvar {name args} {
-    set ns [info object namespace [uplevel 1 {self class}]]
+    set self [uplevel 1 self]
+    set ns [info object namespace [info object class $self]]
     foreach v [list $name {*}$args] {
 	uplevel 1 [list namespace upvar $ns $v $v]
     }
