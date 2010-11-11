@@ -1772,6 +1772,7 @@ oo::class create ::Httpd {
 	variable maxurilen 0	;# maximum length of URI
 	variable websockets 0	;# want to support websockets?
 	variable log 0		;# log off by default
+	variable todisk 0	;# don't save entities to disk
 
 	variable {*}[Site var? Httpd]	;# allow .config file to modify defaults
 	variable {*}$args
