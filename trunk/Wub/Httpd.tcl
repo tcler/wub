@@ -73,6 +73,10 @@ oo::class create ::HttpdClient {
 	dict unset connections $what
 	Debug.httpdclient {[self] del $what [dict size $connections]/$count}
 	if {[dict size $connections] == 0} {
+	    Debug.httpdclient {destroying [self] for $ip}
+	    variable ip
+	    classvar clients
+	    dict unset clients $ip
 	    my destroy
 	}
     }
@@ -103,13 +107,6 @@ oo::class create ::HttpdClient {
     classmethod all {} {
 	classvar clients
 	return $clients
-    }
-
-    destructor {
-	variable ip
-	Debug.httpdclient {destroying [self] for $ip}
-	classvar clients
-	dict unset clients $ip
     }
 
     constructor {args} {
