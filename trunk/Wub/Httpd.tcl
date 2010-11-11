@@ -63,21 +63,16 @@ namespace eval ::Dispatcher {
 # HttpdClient - an object for each Httpd client currently connected
 oo::class create ::HttpdClient {
     method add_ {what} {
-	variable count
-	incr count
-
 	variable connections
 	dict set connections $what [clock seconds]
 	Debug.httpdclient {[self] add $what [dict size $connections]/$count}
     }
 
     method del {what} {
-	variable count
-	incr count -1
 	variable connections
 	dict unset connections $what
 	Debug.httpdclient {[self] del $what [dict size $connections]/$count}
-	if {$count <= 0} {
+	if {[dict size $connections] == 0} {
 	    my destroy
 	}
     }
@@ -119,7 +114,7 @@ oo::class create ::HttpdClient {
 
     constructor {args} {
 	variable {*}$args
-	variable count 0
+	variable connections {}
 	Debug.httpdclient {constructed [self] for $ip}
     }
 }
