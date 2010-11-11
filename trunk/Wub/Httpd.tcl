@@ -1593,6 +1593,7 @@ oo::class create ::Httpd {
 	    dict set $r -etag [dict get $r etag]
 	}
 
+	dict set r -received [clock microseconds]
 	catch {
 	    ::Dispatcher::do REQUEST [::Dispatcher::pre $r]
 	} rsp eo	;# process the request
