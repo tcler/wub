@@ -1681,8 +1681,7 @@ oo::class create ::Httpd {
 	tailcall my process $r	;# now process the request
     }
 
-    # reader - main coroutine supervising connection
-    method reader {args} {
+    method coro {args} {
 	Debug.httpd {create reader [info coroutine] - $args}
 
 	my readable	;# kick off the readable event
@@ -1744,6 +1743,14 @@ oo::class create ::Httpd {
 	while {1} {
 	    my Yield
 	}
+    }
+
+    # reader - main coroutine supervising connection
+    method reader {args} {
+	if {[catch {my coro {*}$args} e eo]} {
+	    Debug.error {reader [self]/[info coroutine]: $e ($eo)}
+	}
+	my destroy
     }
 
     destructor {
