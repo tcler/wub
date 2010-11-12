@@ -1775,6 +1775,7 @@ oo::class create ::Httpd {
 	variable ipaddr $ip
 	variable maxfield 0	;# maximum field size
 	variable maxentity 0	;# maximum entity size
+	variable maxline 4096	;# maximum line length
 	variable ua 1		;# perform UA analysis
 	variable server_id "Wub [package present Httpd]"
 	variable maxurilen 0	;# maximum length of URI
