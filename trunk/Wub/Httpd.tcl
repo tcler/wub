@@ -1633,7 +1633,7 @@ oo::class create ::Httpd {
 	if {!$done} {
 	    ::watchdog stroke [self]
 	    if {[catch {
-		::Dispatcher::post $rsp	;# postprocess the response
+		::Dispatcher post $rsp	;# postprocess the response
 	    } rspp eo]} {
 		# post-processing error - report it
 		Debug.error {[info coroutine] postprocess error: $rspp ($eo)} 1
