@@ -1822,7 +1822,7 @@ oo::objdefine ::Httpd {
         # ask socket coro to send the response for us
 	# we inject the SEND event into the coro so Resume may be called from any
 	# event, thread or coroutine
-	set r [::Dispatch post $r]
+	set r [::Dispatcher post $r]
 	set code [catch {{*}[dict get $r -send] SEND $r} e eo]
 	if {$code != 0} {
 	    Debug.httpd {Failed Resumption $code '$e' ($eo)}
