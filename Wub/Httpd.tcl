@@ -1814,10 +1814,9 @@ oo::objdefine ::Httpd {
 	dict set r -suspend $grace
 	return $r
     }
-}
+    export Suspend
 
-# resume this request
-oo::objdefine ::Httpd {
+    # resume this request
     method Resume {r {cache 1}} {
 	Debug.httpd {Resuming [rdump $r]}
         # ask socket coro to send the response for us
@@ -1832,6 +1831,7 @@ oo::objdefine ::Httpd {
 	}
 	return [list $code $e $eo]
     }
+    export Resume
 }
 
 set ::current "";# current object
