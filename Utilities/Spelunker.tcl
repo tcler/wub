@@ -3,7 +3,24 @@
 package provide Spelunker 1.0
 
 namespace eval Spelunker {
-    variable title Spelunker
+    proc vars {{ns ""}} {
+	# calculate local space
+	set result {}
+	foreach var [info vars ::${ns}::*] {
+	    set local 0
+	    if {[catch {string length [set $var]} len]} {
+		foreach {n v} [array get $var] {
+		    incr local [string length $n]
+		    incr local [string length $v]
+		}
+	    } else {
+		incr local $len
+	    }
+	    lappend result $n $local
+	}
+	return $result
+    }
+
     proc sum {{ns ""}} {
 	set local 0
 
