@@ -1806,6 +1806,33 @@ oo::class create ::Httpd {
     }
 }
 
+# format something to suspend this packet
+oo::objdefine ::Httpd {
+    method Suspend {r {grace -1}} {
+	Debug.httpd {Suspending [rdump $r]}
+	dict set r -suspend $grace
+	return $r
+    }
+}
+
+# resume this request
+oo::objdefine ::Httpd {
+    proc Resume {r {cache 1}} {
+	Debug.httpd {Resuming [rdump $r]}
+        # ask socket coro to send the response for us
+	# we inject the SEND event into the coro so Resume may be called from any
+	# event, thread or coroutine
+	set r [post $r]
+	set code [catch {{*}[dict get $r -send] SEND $r} e eo]
+	if {$code != 0} {
+	    Debug.httpd {Failed Resumption $code '$e' ($eo)}
+	} else {
+	    Debug.httpd {Resumption $code '$e' ($eo)}
+	}
+	return [list $code $e $eo]
+    }
+}
+
 set ::current "";# current object
 
 ##nagelfar syntax catch c n? n?
