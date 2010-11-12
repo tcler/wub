@@ -1594,7 +1594,7 @@ oo::class create ::Httpd {
 
 	dict set r -received [clock microseconds]
 	catch {
-	    ::Dispatcher::do REQUEST [::Dispatcher::pre $r]
+	    ::Dispatcher do REQUEST [::Dispatcher pre $r]
 	} rsp eo	;# process the request
 
 	# handle response code from processing request
@@ -1823,7 +1823,7 @@ oo::objdefine ::Httpd {
 	# we inject the SEND event into the coro so Resume may be called from any
 	# event, thread or coroutine
 	set r [::Dispatcher post $r]
-	set code [catch {{*}[dict get $r -send] SEND $r} e eo]
+	set code [catch {{*}[dict get $r -send] send $r} e eo]
 	if {$code != 0} {
 	    Debug.httpd {Failed Resumption $code '$e' ($eo)}
 	} else {
