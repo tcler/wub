@@ -327,7 +327,7 @@ namespace eval ::Nub {
 
 	# order urls by key length - longest first
 	variable urls
-	set ordered [lsort -command urlorder [dict keys $urls]]
+	set ordered [lsort -command {::Url order} [dict keys $urls]]
 	Debug.nub {ORDERED $ordered}
 
 	set count 0
