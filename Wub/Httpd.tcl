@@ -1818,7 +1818,7 @@ oo::objdefine ::Httpd {
 
 # resume this request
 oo::objdefine ::Httpd {
-    proc Resume {r {cache 1}} {
+    method Resume {r {cache 1}} {
 	Debug.httpd {Resuming [rdump $r]}
         # ask socket coro to send the response for us
 	# we inject the SEND event into the coro so Resume may be called from any
