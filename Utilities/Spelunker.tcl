@@ -16,7 +16,7 @@ namespace eval Spelunker {
 	    } else {
 		incr local $len
 	    }
-	    lappend result $n $local
+	    lappend result $var $local
 	}
 	return $result
     }
