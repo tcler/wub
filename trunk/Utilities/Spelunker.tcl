@@ -63,6 +63,8 @@ namespace eval Spelunker {
 	    foreach field {eof blocked {pending input} {pending output}} {
 		if {![catch {chan {*}$field $chan} e eo]} {
 		    lappend pchan $field $e
+		} else {
+		    lappend pchan $field ""
 		}
 	    }
 	    lappend result $chan $pchan
