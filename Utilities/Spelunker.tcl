@@ -72,7 +72,11 @@ namespace eval Spelunker {
 
     proc chanscsv {{chans *}} {
 	package require csv
-	return [::csv::joinlist [chans $chans]]
+	set result [::csv::join {chan blocking buffering encoding translation eof blocked pinput poutput}]\n
+	dict for {n v} [chans $chans] {
+	    append result [list $n {*}[dict values $v]] \n
+	}
+	return $result
     }
 
     namespace export -clear *
