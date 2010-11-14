@@ -848,15 +848,15 @@ namespace eval ::Nub {
 
 	# set up a selector to specify trailing/
 	set selector {"[dict get $r -host],[dict get $r -path]/"}
-	set body "Debug.nub {trailing: \[dict get \$r -host],\[dict get \$r -path]/}"
-	append body \n
+	catch {unset body}
+	append body "Debug.nub {trailing: \[dict get \$r -host],\[dict get \$r -path]/}" \n
 	append body "set result \[switch -glob -- $selector [list $switch]\]" \n
 	append body "Debug.nub {trailing: \[dict get? \$result -code] \[dict get? \$result location]}" \n
-	append body "return \$result"
+	append body "return \$result" \n
 
 	Debug.nub {code_trailing: ($body)}
 	variable NS
-	namespace eval $NS [list proc trailing {r} [list $body]]
+	namespace eval $NS [list proc trailing {r} $body]
     }
 
     # code processed domains into a big switch
