@@ -50,7 +50,7 @@ namespace eval Spelunker {
     
     proc sumcsv {} {
 	package require csv
-	::csv::joinlist [sum]
+	return [::csv::joinlist [sum]]
     }
 
     proc chans {{chans *}} {
@@ -68,6 +68,11 @@ namespace eval Spelunker {
 	    lappend result $chan $pchan
 	}
 	return $result
+    }
+
+    proc chanscsv {{chans *}} {
+	package require csv
+	return [::csv::joinlist [chans $chans]]
     }
 
     namespace export -clear *
