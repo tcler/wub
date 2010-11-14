@@ -53,7 +53,7 @@ namespace eval Spelunker {
 	return [::csv::joinlist [sum]]
     }
 
-    proc chans {{chans *}} {
+    proc chans {{chans sock*}} {
 	set result {}
 	foreach chan [chan names $chans] {
 	    set pchan {}
@@ -67,14 +67,25 @@ namespace eval Spelunker {
 		    lappend pchan $field ""
 		}
 	    }
+	    foreach field {readable writable} {
+		if {![catch {chan event $chan $field} e eo]} {
+		    if {$e eq ""} {
+			lappend pchan $field 0
+		    } else {
+			lappend pchan $field 1
+		    }
+		} else {
+		    lappend pchan $field ""
+		}
+	    }
 	    lappend result $chan $pchan
 	}
 	return $result
     }
 
-    proc chanscsv {{chans *}} {
+    proc chanscsv {{chans sock*}} {
 	package require csv
-	append result [::csv::join {chan blocking buffering encoding translation eof blocked pinput poutput}] \n
+	append result [::csv::join {chan blocking buffering encoding translation eof blocked pinput poutput ereadable ewritable}] \n
 	dict for {n v} [chans $chans] {
 	    append result [::csv::join [list $n {*}[dict values $v]]] \n
 	}
