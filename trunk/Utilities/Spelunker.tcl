@@ -52,7 +52,24 @@ namespace eval Spelunker {
 	package require csv
 	::csv::joinlist [sum]
     }
-    
+
+    proc chans {{chans *}} {
+	set result {}
+	foreach chan [chan names $chans] {
+	    set pchan {}
+	    foreach field {blocking buffering encoding translation} {
+		lappend pchan $field [chan $chan -$field]
+	    }
+	    foreach field {eof blocked {pending input} {pending output}} {
+		if {![catch {chan {*}$field $chan} e eo]} {
+		    lappend pchan $field $e
+		}
+	    }
+	    lappend result $chan $pchan
+	}
+	return $result
+    }
+
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
