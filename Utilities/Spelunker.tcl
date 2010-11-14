@@ -58,7 +58,7 @@ namespace eval Spelunker {
 	foreach chan [chan names $chans] {
 	    set pchan {}
 	    foreach field {blocking buffering encoding translation} {
-		lappend pchan $field [chan $chan -$field]
+		lappend pchan $field [chan configure $chan -$field]
 	    }
 	    foreach field {eof blocked {pending input} {pending output}} {
 		if {![catch {chan {*}$field $chan} e eo]} {
