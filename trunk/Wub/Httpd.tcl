@@ -246,7 +246,8 @@ oo::class create ::Httpd {
 
     # terminate - destroy self, closing files and recovering resources
     method terminate {reason} {
-	Debug.httpd {[self] terminated $reason}
+	variable socket
+	Debug.httpd {[self] terminated $reason over $socket}
 	my destroy
     }
 
@@ -284,8 +285,9 @@ oo::class create ::Httpd {
 	}
 
 	# this will repeat until we get a READ indication
-	while {1} {
-	    Debug.httpdlow {coro [info coroutine] yielding}
+	variable live 1
+	while {$live} {
+	    Debug.httpdlow {coro [info coroutine] yielding in [self]}
 
 	    # turn on selected events for this connection
 	    dict for {k v} $events {
@@ -297,9 +299,7 @@ oo::class create ::Httpd {
 	    }
 
 	    # unpack event
-	    set ::current ""
 	    set args [lassign [::yieldm $retval] op]; set retval ""
-	    set ::current [self]
 
 	    # turn off all events for this connection
 	    foreach k {readable writable} {
@@ -313,11 +313,18 @@ oo::class create ::Httpd {
 		READ {
 		    # fileevent tells us there's input to be read
 		    # and we're waiting on input
+		    variable unsatisfied
 		    if {[chan pending input $socket] == -1
 			|| [chan eof $socket]
 		    } {
-			Debug.httpd {[info coroutine] eof detected from yield}
+			Debug.httpd {[info coroutine] eof detected from yield ([dict size $unsatisfied] replies remaining)}
 			my unreadable	;# turn off reader
+
+			# determine whether there's anything pending
+			if {![dict size $unsatisfied]} {
+			    my terminate EOF
+			    return -level [expr {[info level]-1}]	;# return to the top coro level
+			}
 		    } else {
 			::watchdog stroke [self]
 			return $args	;# return to the reader
@@ -329,7 +336,10 @@ oo::class create ::Httpd {
 		    [self] $op {*}$args	;# coro calls object
 		}
 	    }
+
+	    Debug.httpdlow {coro [info coroutine] processed '$op' in [self]}
 	}
+	return -level [expr {[info level]-1}]	;# destroy the coro
     }
 
     # inbound entity fcopy has completed - now process the request
@@ -666,6 +676,7 @@ oo::class create ::Httpd {
 	    # we have no more requests to satisfy and no more input
 	    Debug.httpd {[info coroutine] closing as there's nothing pending}
 	    my terminate "finally close in responder"
+	    error "finally closed"
 	}
 
 	# shut down responder if there's nothing to write
@@ -694,7 +705,7 @@ oo::class create ::Httpd {
 		# detect socket closure ASAP in sending
 		Debug.httpd {[info coroutine] Lost connection on transmit}
 		my terminate "eof on $socket"
-		return 1	;# socket's gone - terminate session
+		error "finally closed"
 	    }
 
 	    # ensure we don't send responses out of sequence
@@ -782,7 +793,9 @@ oo::class create ::Httpd {
 	    }
 
 	    if {$close} {
-		return 1	;# terminate session on request
+		dict unset unsatisfied $next
+		my terminate "Closed on request"
+		return
 	    } elseif {[dict get $req -code] == 100} {
 		# this was a continue ... we need to reschedule entity reading
 		# keep the transaction unsatisfied
@@ -1746,15 +1759,21 @@ oo::class create ::Httpd {
 
     # reader - main coroutine supervising connection
     method reader {args} {
-	if {[catch {my coro {*}$args} e eo]} {
-	    Debug.error {reader [self]/[info coroutine]: $e ($eo)}
+	if {[set code [catch {my coro {*}$args} e eo]]} {
+	    Debug.error {reader obj:[self] coro:[info coroutine] $code: $e ($eo)}
+	} else {
+	    Debug.httpdlow {reader obj:[self] coro:[info coroutine] terminated}
 	}
-	my destroy
+	catch {my destroy}
     }
 
     destructor {
 	Debug.httpd {Destroying [self]}
 	::watchdog gone [self]	;# deregister from watchdog
+
+	variable socket
+	::Httpd delSock $socket [self]
+	set socket ""
 
 	variable client
 	if {[info exists client]} {
@@ -1765,6 +1784,9 @@ oo::class create ::Httpd {
 	foreach {f name} $files {
 	    catch {close $f}
 	}
+
+	variable live 0
+	Debug.httpd {Destroyed [self]}
     }
 
     constructor {sock ip rport args} {
@@ -1802,6 +1824,8 @@ oo::class create ::Httpd {
 	variable proto [list -sock $socket -cid [self] -ipaddr $ipaddr -rport $rport -received_seconds [clock seconds]]
 	variable outbuffer 40960 ;# amount of output we are prepared to buffer
 
+	::Httpd addSock $sock [self]
+
 	variable coro [info object namespace [self]]::coro
 	::coroutine $coro [self] reader
     }
@@ -1832,20 +1856,41 @@ oo::objdefine ::Httpd {
 	return [list $code $e $eo]
     }
     export Resume
-}
 
-set ::current "";# current object
-
-##nagelfar syntax catch c n? n?
-proc ::bgerror {args} {
-    if {[info exists ::current]
-	&& $::current ne ""
-    } {
-	Debug.error {bgerror in $::current - $args}
-    } else {
-	Debug.error {bgerror: $args}
+    method addSock {sock what} {
+	variable s2h
+	if {![info exists s2h]} {
+	    set s2h {}
+	}
+	if {[dict exists $s2h $sock]} {
+	    error "addSock: $sock already exists [dict get $s2h $sock]"
+	} else {
+	    dict set s2h $sock $what
+	}
     }
+    export addSock
+
+    method delSock {sock what} {
+	variable s2h
+	if {![dict exists $s2h $sock]} {
+	    error "delSock: $sock doesn't exist"
+	} elseif {[dict get $s2h $sock] ne $what} {
+	    error "delSock: $sock was [dict get $s2h $sock], not $what"
+	} else {
+	    dict unset s2h $sock
+	}
+    }
+    export delSock
+
+    method s2h {{sock {}}} {
+	variable s2h
+	if {$sock eq ""} {
+	    return $s2h
+	} else {
+	    return [dict get $s2h $sock]
+	}
+    }
+    export s2h
 }
-interp bgerror {} ::bgerror
 
 # vim: ts=8:sw=4:noet
