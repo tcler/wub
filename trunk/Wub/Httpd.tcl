@@ -1771,6 +1771,10 @@ oo::class create ::Httpd {
 	Debug.httpd {Destroying [self]}
 	::watchdog gone [self]	;# deregister from watchdog
 
+	# destroy reader coroutine
+	variable coro
+	catch {rename $coro {}}
+
 	variable socket
 	::Httpd delSock $socket [self]
 	set socket ""
@@ -1826,10 +1830,13 @@ oo::class create ::Httpd {
 
 	::Httpd addSock $sock [self]
 
-	variable coro [info object namespace [self]]::coro
+	#variable coro [info object namespace [self]]::coro
+	variable coro ::Httpd::coros::coro[incr ::Httpd::coros::count]
 	::coroutine $coro [self] reader
     }
 }
+
+namespace eval ::Httpd::coros {}
 
 # format something to suspend this packet
 oo::objdefine ::Httpd {
@@ -1892,5 +1899,23 @@ oo::objdefine ::Httpd {
     }
     export s2h
 }
+
+proc ::checkObj {} {
+    #Debug.log {Checking Objects}
+    foreach o [info class instances ::Httpd] {
+	if {[catch {info object namespace $o} ns]} {
+	    Debug.error {$o is undead}
+	} else {
+	    if {![namespace exists $ns]} {
+		Debug.error {$o namespace nonexistent}
+	    }
+	    if {![llength [info commands $o]]} {
+		Debug.error {$o no command}
+	    }
+	}
+    }
+}
+
+::watchdog every 1000 ::checkObj
 
 # vim: ts=8:sw=4:noet
