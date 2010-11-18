@@ -61,7 +61,7 @@ if {[lindex [split [platform::generic] -] 0] ni {macosx}} {
 	    lappend ::__source_log ${f}
 	    puts stderr "source $f"
 	}
-	return [uplevel source_org {*}$args]
+	return [uplevel source_org $args]
     }
 
     set ::__load_log {}
@@ -71,7 +71,7 @@ if {[lindex [split [platform::generic] -] 0] ni {macosx}} {
 	dict set ::Site::sourced [list load $f] $args
 	lappend ::__load_log ${args}
 	puts stderr "load $f"
-	return [uplevel load_org {*}$args]
+	return [uplevel load_org $args]
     }
 }
 
