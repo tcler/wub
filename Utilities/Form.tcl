@@ -489,7 +489,7 @@ class create ::FormClass {
 		    set value ""
 		}
 		
-		set config [my defaults %T% {*}$args name $name type %T% %F% [uplevel 1 [list subst $value]]]
+		set config [my defaults %T% readonly 0 {*}$args name $name type %T% %F% [uplevel 1 [list subst $value]]]
 		
 		if {![dict exists $config tabindex]} {
 		    variable tabindex
@@ -512,10 +512,16 @@ class create ::FormClass {
 
 		my metadata $name $config	;# remember config for field
 		variable %A%A
+		set readonly [dict get? $config readonly]
+		if {!$readonly} {
+		    dict unset config readonly
+		}
 		set result "<[my attr input {*}[dict in $config $%A%A] {*}[dict filter $config key data-*]]>"
 
 		set label [dict config.label?]
-		if {$label ne ""} {
+		if {[dict get? $config type] == "hidden"} {
+		    return "$result"
+		} elseif {$label ne ""} {
 		    set result "[my <label> for $id $label] $result"
 		} elseif {[set legend [dict config.legend?]] ne ""} {
 		    set result "[my <span> {*}[dict sattr.legend] $legend] $result"
