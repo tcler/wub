@@ -133,7 +133,7 @@ class create ::Listener {
 	set args [dict merge [subst {
 	    -host [info hostname]
 	    -port 8080
-	    -httpd {Httpd connect}
+	    -httpd {Httpd new}
 	}] $args]
 	dict set args -id [self]
 
