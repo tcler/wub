@@ -726,7 +726,7 @@ namespace eval ::Site {
 		#package require CA
 		#CA init dir $home/CA host $host port [dict get $https -port]
 		#dict lappend https -tls -cafile [CA cafile] -certfile [CA certificate $host] 
-		Listener new {*}[config section Https] -tls 1 -httpd ::Httpd
+		Listener new {*}[config section Https] -tls 1
 	    }
 	} else {
 	    Debug.site {Not loading HTTPS listener}
