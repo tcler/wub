@@ -519,8 +519,9 @@ class create ::FormClass {
 		set result "<[my attr input {*}[dict in $config $%A%A] {*}[dict filter $config key data-*]]>"
 
 		set label [dict config.label?]
-		if {[dict get? $config type] == "hidden"} {
-		    return "$result"
+		if {"%T%" eq "hidden"
+		    || [dict get? $config type] == "hidden"
+		} {
 		} elseif {$label ne ""} {
 		    set result "[my <label> for $id $label] $result"
 		} elseif {[set legend [dict config.legend?]] ne ""} {
