@@ -183,8 +183,8 @@ oo::class create Config {
 	Debug.config {evaling section '$section'}
 	dict for {n v} [dict get $raw $section] {
 	    set sv [my VarSub $v]
-	    Debug.config {eval section '$section': $n $v ($sv)}
-	    namespace eval _C::$section "variable $n $sv"
+	    Debug.config {eval section '$section': '$n'->'$v' ($sv)}
+	    set _C::${section}::$n [namespace eval _C::$section list $sv]
 	}
     }
 
@@ -360,4 +360,28 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	    xy -varmetadata yep {this is an error $moop(m}
 	}
     }]"
+    config destroy
+
+    package require tcltest
+
+    namespace eval ::Config::test {
+	namespace import ::tcltest::*
+
+	configure {*}$argv
+
+	variable SETUP {
+	    Config create config
+	}
+	variable CLEANUP {
+	    config destroy
+	}
+
+	test Config-test {} -setup $SETUP -body {
+	    config assign Wub topdir "hello world"
+	    config extract
+	    config get Wub topdir
+	} -cleanup $CLEANUP -result {hello world}
+
+	cleanupTests
+    }
 }
