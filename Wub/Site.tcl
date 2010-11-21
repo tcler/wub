@@ -231,7 +231,7 @@ namespace eval ::Site {
 	    -port 8080	;# Wub listener port
 	    #-host	;# listening host (default [info hostname]
 	    #-http	;# dispatch handler (default Http)
-	    -httpd {::Httpd new}
+	    -httpd "::Httpd new"
 	}
 
 	Https {
