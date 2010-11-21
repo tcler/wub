@@ -184,7 +184,8 @@ oo::class create Config {
 	dict for {n v} [dict get $raw $section] {
 	    set sv [my VarSub $v]
 	    Debug.config {eval section '$section': '$n'->'$v' ($sv)}
-	    set _C::${section}::$n [namespace eval _C::$section list $sv]
+	    #set _C::${section}::$n [namespace eval _C::$section return $sv]
+	    namespace eval _C::$section [list variable $n $sv]
 	}
     }
 
