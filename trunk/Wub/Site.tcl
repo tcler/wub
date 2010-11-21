@@ -692,7 +692,7 @@ namespace eval ::Site {
 	#### start Httpd protocol
 	::variable httpd
 	#config merge_section Httpd [list server_id {Wub [package present Httpd]}]
-	config merge_section Httpd [list log $log]
+	config assign Httpd log $log
 
 	::variable server_port
 	if {[info exists server_port]} {
