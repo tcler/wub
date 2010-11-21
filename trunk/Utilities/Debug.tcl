@@ -81,9 +81,9 @@ namespace eval ::Debug {
 		if {$timestamp} {
 		    set now [::tcl::clock::milliseconds]
 		    if {$delta} {
-			set time "[expr {$now - $baseline}]-[expr {$now - $delta}]mS "
+			set time "$now-[expr {$now - $delta}]mS "
 		    } else {
-			set time "[expr {$now - $baseline}]mS "
+			set time "${now}mS "
 		    }
 		    set delta $now
 		} else {
