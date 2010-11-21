@@ -92,6 +92,17 @@ namespace eval Spelunker {
 	return $result
     }
 
+    proc obj {} {
+	foreach class [info class instances class] {
+	    foreach obj [info class instances $class] {
+		if {![command exists $obj]} {
+		    lappend result "$obj leak under $class"
+		}
+	    }
+	}
+	return $result
+    }
+
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
