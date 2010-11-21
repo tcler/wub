@@ -301,6 +301,7 @@ namespace eval ::Site {
 	    # server_port	;# server's port, if different from Listener's
 	    # server_id		;# server ID to client (default "Wub")
 	    retry_wait	20	;# how long to advise client to wait on exhaustion
+	    log ""		;# clf log file descriptor
 	    timeout 60000	;# ms of idle to tolerate
 	}
     }
