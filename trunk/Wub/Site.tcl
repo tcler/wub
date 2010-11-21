@@ -683,6 +683,7 @@ namespace eval ::Site {
 		    # we want to try to make writes atomic
 		    fconfigure $log -buffering line
 		} else {
+		    set log 0
 		    Debug.error {Failed to open logfile:'$logfile' - '$log' ($eo)}
 		}
 	    }
