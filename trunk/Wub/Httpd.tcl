@@ -777,7 +777,7 @@ oo::class create ::Httpd {
 			Debug.httpd {[info coroutine] FCOPY RANGE: '$file' bytes $from-$to/$bytes} 8
 			chan copy $fd $socket -command [list [info coroutine] fcopy $fd $bytes]
 		    } else {
-			Debug.httpd {[info coroutine] FCOPY ENTITY: '$file' $bytes bytes} 8
+			Debug.httpd {[info coroutine] FCOPY ENTITY: '$file'/$fd $bytes bytes} 8
 			chan copy $fd $socket -command [list [info coroutine] fcopy $fd $bytes]
 		    }
 		    break	;# no more i/o on $socket until fcopy completion
@@ -1712,7 +1712,7 @@ oo::class create ::Httpd {
 	}
 
 	::watchdog stroke [self]
-	variable start [clock microseconds]
+	variable start
 	while {[chan pending input $socket] >= 0} {
 	    set r $proto	;# start with blank request
 	    dict set r -transaction [incr transaction]
@@ -1827,6 +1827,7 @@ oo::class create ::Httpd {
 	variable client [::HttpdClient add $ip [self]]
 	variable proto [list -sock $socket -cid [self] -ipaddr $ipaddr -rport $rport -received_seconds [clock seconds]]
 	variable outbuffer 40960 ;# amount of output we are prepared to buffer
+	variable start [clock microseconds]
 
 	::Httpd addSock $sock [self]
 
