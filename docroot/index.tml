@@ -59,7 +59,7 @@ if {[catch {set response [::sticky loader $response hotzone #sticky event click]
       <p class='list2'><a href='/introspect/map'>Url Handlers</a></p>
       <p class='list2'><a href='/introspect/ns/::'>Namespaces</a></p>
       <p class='list2'><a href='/introspect/req'>Request Dict</a></p>
-      <p class='list2'><a href='/introspect/imglib'>Image Lib</a></p>
+      <p class='list2'><a href='/wub/images'>Image Lib</a></p>
       <p class='listend'></p>
 
       <!-- <h2>Server stats:</h2>
@@ -87,5 +87,5 @@ if {[catch {set response [::sticky loader $response hotzone #sticky event click]
   <address><a href='mailto:colin@chinix.com'>Colin McCormack</a></address>
 <!-- Created: Thu Jan  5 13:00:57 EST 2006 -->
 <!-- hhmts start -->
-Last modified: Tue Sep 14 10:19 AEST 2010
+Last modified: Wed Nov 24 05:48 AEST 2010
 <!-- hhmts end -->
