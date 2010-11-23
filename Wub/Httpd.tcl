@@ -1826,6 +1826,7 @@ oo::class create ::Httpd {
 	variable files {}	;# files open to this connection
 	variable client [::HttpdClient add $ip [self]]
 	variable proto [list -sock $socket -cid [self] -ipaddr $ipaddr -rport $rport -received_seconds [clock seconds]]
+	set proto [dict merge $args $proto]
 	variable outbuffer 40960 ;# amount of output we are prepared to buffer
 	variable start [clock microseconds]
 
