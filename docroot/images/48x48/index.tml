@@ -1,0 +1,27 @@
+[
+set size "48x48"
+set maxcol 8
+
+package require OO
+package require HtmTable
+
+dict set response -title "Images Index ${size}"
+dict lappend response -headers [<stylesheet> /css/icons.css screen,projection]
+
+set path [file join [dict get ${response} -root] [join [lrange [split [dict get ${response} -suffix] {/}] 0 end-1] {/}]]
+set content "<h2>Images Index: /wub/images/${size}</h2><hr>"
+cd ${path}
+set t [HtmTable new]
+set col 1
+foreach name [lsort -dictionary [glob *.png *.gif]] {
+	${t} cell "<img src='/wub/images/${size}/${name}'><p>${name}" incr -no-armour
+	incr col
+	if { ${col} > ${maxcol} } {
+		${t} row incr
+		set col 1
+	}
+}
+append content [${t} render]
+${t} destroy
+return ${content}
+]

@@ -1,0 +1,48 @@
+[	
+package require OO
+package require HtmTable
+
+if { ![dict exists ${response} -query] } {
+	dict set response -title "Images Index"
+	dict lappend response -headers [<stylesheet> /css/IconsCSS/misc.css screen,projection]
+	set content "<h1>Images Index</h1>"
+	append content "<h3>Select an index.</h3>"
+	set path [file join [dict get ${response} -root] [join [lrange [split [dict get ${response} -suffix] {/}] 0 end-1] {/}]]
+	foreach s [glob -nocomplain -types d -directory ${path} -tail -- *] {
+		append content "<a href='/wub/images/${s}/'>${s}</a><br>"
+	}
+	append content "<a href='/wub/images/index.tml?Misc'>Misc</a><br>"
+} else {
+	set query [dict get ${response} -query]
+	if { ${query} eq "Misc" } {
+		set size "Misc"
+		set maxcol 1
+		dict set response -title "Images Index Misc"
+		dict lappend response -headers [<stylesheet> /css/icons.css screen,projection]
+		set path [file join [dict get ${response} -root] [join [lrange [split [dict get ${response} -suffix] {/}] 0 end-1] {/}]]
+		set content "<h2>Images Index: /wub/images/Misc</h2><hr>"
+		cd ${path}
+		set t [HtmTable new]
+		set col 1
+		foreach name [lsort -dictionary [glob *.png *.gif]] {
+			${t} cell "<img src='/wub/images/${name}'><p>${name}" incr -no-armour
+			incr col
+			if { ${col} > ${maxcol} } {
+				${t} row incr
+				set col 1
+			}
+		}
+		append content [${t} render]
+		${t} destroy
+	} else {
+	
+	}
+}
+if 0 {
+	append content "<br>"
+	foreach key [lsort -dictionary [dict keys ${response}]] {
+		append content "${key}: [dict get ${response} ${key}]<br>"
+	}
+}
+return ${content}
+]
