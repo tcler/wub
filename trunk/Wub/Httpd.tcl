@@ -679,7 +679,7 @@ oo::class create ::Httpd {
 	    error "finally closed"
 	}
 
-	# shut down responder if there's nothing to write
+	# shut down responder if there's nothing left to write
 	# we expect there'll be another request soon
 	variable replies
 	if {![dict size $replies]} {
@@ -692,7 +692,8 @@ oo::class create ::Httpd {
 	variable outbuffer
 	foreach next [lsort -integer [dict keys $replies]] {
 	    if {[chan pending output $socket] > $outbuffer} {
-		# the client hasn't consumed our output yet - stop communicating
+		# the client hasn't consumed our output yet
+		# stop communicating for 10mS then retry
 		my unwritable	;# stop writing
 		my unreadable	;# stop reading
 		after 10 [list [info coroutine] respond] ;# restart in 10mS
@@ -720,14 +721,15 @@ oo::class create ::Httpd {
 		if {[chan pending output $socket] > $outbuffer} {
 		    # the client hasn't consumed our output yet
 		    # stop reading input until he does
-		    unreadable
+		    my unreadable
 		} else {
 		    # there's space for more output, so accept more input
-		    readable
+		    my readable
 		}
 
 		return 0
 	    }
+
 	    set response [expr {1 + $next}]	;# move to next response
 
 	    # respond to the next transaction in trx order
@@ -761,7 +763,7 @@ oo::class create ::Httpd {
 		if {$file ne ""} {
 		    # send content of file descriptor using fcopy
 		    set fd [open $file r]
-		    variable files; dict set files [info coroutine] $fd 1
+		    variable files; dict set files $fd 1 ;# remember fd
 		    set bytes [file size $file]
 
 		    chan configure $socket -translation binary
@@ -902,14 +904,14 @@ oo::class create ::Httpd {
 		set code 500
 	    }
 
-	    # make reply conditional
+	    # make reply conditional if requested
 	    if {$code eq 200} {
 		# non-OK responses aren't conditional (?)
 		set reply [my Conditional $reply]
 		set code [dict get $reply -code]
 	    }
 
-	    # Deal with content data
+	    # Deal with content data by response type
 	    set range {}	;# default no range
 	    switch -glob -- $code {
 		204 - 304 - 1* {
@@ -1105,6 +1107,15 @@ oo::class create ::Httpd {
 	}
 
 	return [list $reply $cache $header $content $file [my close? $reply] $empty $range]
+	# response ready for [response] to blast it out the socket:
+	# reply - reply modified by Format
+	# cache - cache the response?
+	# header - fully serialized header
+	# content - string content or ""
+	# file - name of file to transmit or ""
+	# close - has the client requested close? have we decided to close?
+	# empty - is the reply empty of content/file?
+	# range - what content ranges have been requested?
     }
 
     # send --
@@ -1178,11 +1189,11 @@ oo::class create ::Httpd {
 	variable replies
 	if {[dict get $r -code] != 100} {
 	    set response [my Format $r $cache]
-	    lassign $response r cache
 	    dict set replies $trx $response
 	    Debug.httpd {[info coroutine] ADD TRANS: ([dict keys $replies])}
 
 	    # global consequences - caching
+	    lassign $response r cache
 	    if {$cache} {
 		# handle caching (under no circumstances cache bot replies)
 		set r [Cache put $r]	;# cache it before it's sent
@@ -1198,6 +1209,7 @@ oo::class create ::Httpd {
 	    } le leo]} {
 		Debug.error {log error: $le ($leo)}
 	    }
+
 	    variable satisfied; dict set satisfied $trx 1	;# record satisfaction of transaction
 	    variable outbuffer
 	    if {[chan pending output $socket] > $outbuffer} {
@@ -1209,9 +1221,9 @@ oo::class create ::Httpd {
 		my readable
 	    }
 	} elseif {![my close? $r]} {
+	    # special case 100-continue ... 
 	    dict set replies $trx [my Format $r $cache]
 	    Debug.httpd {[info coroutine] ADD CONTINUATION: ([dict keys $replies])}
-
 	    # this is a continuation - we expect more
 	    my readable
 	}
