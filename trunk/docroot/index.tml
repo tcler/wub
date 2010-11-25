@@ -55,7 +55,7 @@ if {[catch {set response [::sticky loader $response hotzone #sticky event click]
       
       <p class='list1'><a href='/introspect/'>Introspection</a></p>
       <p class='list2'><a href='/introspect/pkg'>Packages</a></p>
-      <p class='list2'><a href='/introspect/api'>Files</a></p>
+      <p class='list2'><a href='/introspect/sourced'>Sourced</a></p>
       <p class='list2'><a href='/introspect/map'>Url Handlers</a></p>
       <p class='list2'><a href='/introspect/ns/::'>Namespaces</a></p>
       <p class='list2'><a href='/introspect/req'>Request Dict</a></p>
