@@ -41,8 +41,12 @@ oo::class create ::HtmTable {
 				my headers ${hdr}
 			}	
 		}
-		
-		set attrs  ${args}
+		set alist  {}
+		foreach arg ${args} {
+			if { ${arg} eq "" } { continue }
+			lappend alist ${arg}
+		}
+		set attrs ${alist}
     }
 
 	method xmlarmour { str } {
@@ -148,7 +152,12 @@ oo::class create ::HtmTable {
         my variable rows
 		my variable attrs
 
-		set html "<table ${attrs}>"
+		if { ${attrs} ne "" } {
+			set attrs {*}${attrs}
+			set html "<table ${attrs}>"
+		} else {
+			set html "<table>"
+		}
 		for {set row 0} {${row}<=${rows}} {incr row} {
 			set ctok td
 			if { [array names tbl "${row},attrs"] ne "" } {
@@ -179,6 +188,7 @@ oo::class create ::HtmTable {
 						if { ${attrs} eq "" } {
 							append html "<${ctok}>${value}</${ctok}>"
 						} else {
+							set attrs {*}${attrs}
 							append html "<${ctok} ${attrs}>${value}</${ctok}>"
 						}
 					}
@@ -191,7 +201,7 @@ oo::class create ::HtmTable {
 	}
 
     # --
-    # 
+    # Return an html representation of a tcl list
     method list2table { alist {numcols 5} {armour 1} } {
 		set len [llength ${alist}]
 		if { ${len} == 0 } {
@@ -214,7 +224,7 @@ oo::class create ::HtmTable {
 	}
 
     # --
-    # 
+    # Return an html representation of a tcl array
     method array2table { ar } {
 		my headers [list KEY VALUE]
 		foreach idx [lsort -dictionary [array names ${ar}]] {
@@ -225,5 +235,15 @@ oo::class create ::HtmTable {
 		return [my render]
 	}
 
-
+    # --
+    # Return an html representation of a tcl dict
+    method dict2table { d } {
+		my headers [list KEY VALUE]
+		foreach key [lsort -dictionary [dict keys ${d}]] {
+			my cell [armour ${key}] incr
+			my cell [armour [dict get ${d} ${key}]] incr
+			my row
+		}
+		return [my render]
+	}
 }
