@@ -1,83 +1,59 @@
-package provide Introspect 1.0
-
 package require OO
 package require HtmTable
 package require Indent
+
+package provide Introspect 1.0
+
+set ::API(Domains/Introspect) {
+	{
+	The Introspect domain provides read access to the code for the
+	current instance of a WUB server.
+
+	== Path Suffix ==
+	The Introspect domain recognizes the following path suffixs.
+
+	;introspect/map: Display the current mapping of URL values to the
+	code that is handling the URL.
+
+	;introspect/ns: Display the contents (child namespaces, procs,
+	classes, aliases, etc.) of a namespace. If no path suffix is
+	provided then the default namesapce (i.e. '::') will be displayed.
+	You can clicking on an item in the namespace display to navigate
+	into the item. If a suffix is added to ns,
+	the suffix is assumed to be a namespace path (e.g. introspect/ns/::base32::hex). 
+	
+	;introspect/pkg: Display a list of compiled (binary) and script
+	packages that have been loaded in to the WUB server.
+
+	;introspect/req: Display the contents of the current WUB request
+	structure. Click on the info icon to view a discription of the
+	fields in the structure.
+
+	;introspect/sourced: Display a list of all files that have been
+	sourced in to the WUB server. The list will contain duplicates if
+	a file was sourced more than once and is in the order the files
+	were sourced. Clicking on a file name will display the contents of
+	the file.
+	
+	}
+}
 
 # -- Introspect
 # This namespace is a handler for the /introspect/ Direct domain.
 class create Introspect {
 
+	superclass Direct
+
+	constructor {args} {
+		variable home [file dirname [lindex [package ifneeded Introspect [package present Introspect] ] 1]]
+		variable built-in-commands [lsort -dictionary [namespace children ::tcl]]
+		next? {*}$args
+	}
+
 	# -- /
 	#
 	method / {r args} {
-		set content {
-			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-			<html>
-			<head>
-			<title>Server Introspect</title>
-			</head>
-			<body>
-		}
-
-		append content {
-			<h1>Server Introspection</h1>
-			<ul>
-			<li>View image library (<a href='/introspect/imglib?size=16x16'>16x16</a>, <a href='/introspect/imglib?size=24x24'>24x24</a>, <a href='/introspect/imglib?size=48x48'>48x48</a>)</li>
-			<li>Find out what has been <a href='/introspect/pkg'>loaded</a> into the main interp.</li>
-			<li>View the current URL to Domain <a href='/introspect/map'>mappings</a>.</li>
-			<li>View the contents of a WUB <a href='/introspect/req'>request</a> structure.</li>
-			<li>View the global name space and start <a href='/introspect/ns/'>introspecting</a> WUB code.</li>
-			</ul>
-			</body>
-			</html>
-		}
-		return [Http Ok $r $content text/html]
-	}
-
-	# -- /imglib
-	#
-	method /imglib {r size args} {
-		variable home
-		if { ${size} eq "" } {
-			set content "<h3>Select Image Library</h3>"
-			set t [HtmTable new "border='1'" -headers]
-			${t} headers {{image size}}
-			foreach s {16x16 24x24 48x48} {
-				${t} cell "<a href='/introspect/imglib?size=${s}'>${s}</a>" incr -no-armour
-				${t} row
-			}
-			append content [${t} render]
-			${t} destroy
-			return [Http Ok $r $content]
-		}
-		set path [file join $home images ${size}]
-		set content "<center><h2>${size} Images</h2></center><hr>"
-		set cwd [pwd]
-		cd ${path}
-		set t [HtmTable new "border='0'"]
-		set col 1
-		set maxcol 8
-		foreach name [lsort -dictionary [glob *.png]] {
-			${t} cell "[my CreateImg "${size}/${name}"]<p>${name}" incr -no-armour align=center
-			if { ${col} > ${maxcol} } {
-				${t} row incr
-				set col 0
-			}
-			incr col
-		}
-		append content [${t} render]
-		${t} destroy
-		cd ${cwd}
-		return [Http Ok [Http Cache $r] ${content}]
-	}
-	# -- /images
-	#
-	method /images {r} {
-		set extra [split [dict get ${r} -extra] /]
-		variable home
-		set path [file join $home images {*}${extra}]
-		return [Http CacheableFile $r ${path} text/html]
+		return [Http Redirect $r /wub/docs/Domains/Introspect]
 	}
 
 	# -- /pkg
@@ -162,7 +138,7 @@ class create Introspect {
 	#
 	method CreateImg { img args } {
 		set attrs [dict create border 0]
-		append content "<img src='images/${img}'"
+		append content "<img src='/wub/Icons/${img}'"
 		foreach arg ${args} {
 			lassign [split ${arg} {=}] attr val
 			set val [string trim ${val} \'\"]
@@ -192,13 +168,17 @@ class create Introspect {
 	method /map {r args} {
 		set content "<h3>URL to Domain mappings</h3>"
 		set names {{pattern url} domain body section}
-		set t [HtmTable new "border='1'" -map ${names} -headers]
+		set t [HtmTable new "style='border-width:0px;'" -map ${names} -headers]
 		foreach {k a} $::Nub::urls {
-			${t} cell ${k} pattern
+			${t} cell ${k} pattern "style='border-style:solid;border-width:1px;'"
 			foreach {n v} ${a} {
-				${t} cell ${v} ${n}
+				if { ${v} eq "" } {
+					${t} cell "&ensp;" ${n} "style='border-style:solid;border-width:1px;'" -no-armour
+				} else {
+					${t} cell ${v} ${n} "style='border-style:solid;border-width:1px;'"
+				}
 			}
-			${t} row
+			${t} row 
 		}
 		append content [${t} render]
 		${t} destroy
@@ -687,12 +667,5 @@ class create Introspect {
 		append content "<b>POINTS TO:</b> [my GetCommandLink "${cmd}" prefix] { [armour ${more}] }"
 
 		return [Http Ok $r ${content}]
-	}
-
-	superclass Direct
-	constructor {args} {
-		variable home [file dirname [lindex [package ifneeded Introspect [package present Introspect] ] 1]]
-		variable built-in-commands [lsort -dictionary [namespace children ::tcl]]
-		next? {*}$args
 	}
 }
