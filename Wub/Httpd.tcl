@@ -190,8 +190,13 @@ namespace eval ::watchdog {
 		Debug.log {Bogus watchdog over $n}
 		catch {unset activity($n)}	;# this is bogus
 	    } elseif {$v < $kill} {
+		# try to give some status of thing being destroyed
 		Debug.watchdog {Reaping $n}
 		catch {unset activity($n)}	;# prevent double-triggering
+		catch {
+		    Debug.watchdog {$n status}
+		}
+
 		if {[catch {
 		    $n terminate "Reaped"	;# kill this entity right now
 		} e eo]} {
@@ -209,6 +214,34 @@ namespace eval ::watchdog {
 
 # Httpd - an object for each Httpd connection
 oo::class create ::Httpd {
+    # state - report on connection state
+    method state {} {
+	variable state
+	set result $state
+	variable request
+	if {[dict size $request]} {
+	    set rr $request
+	    foreach f {-content -entity -gzip} {
+		if {[dict exists $rr $f]} {
+		    dict set rr $f "<ELIDED [string length [dict get? $rr $f]]>"
+		}
+	    }	    
+	    lappend result $request
+	}
+	return $request
+    }
+
+    # rdump - return a stripped request for printing
+    method rdump {req} {
+	foreach f {-content -entity -gzip} {
+	    if {[dict exists $req $f]} {
+		dict set req $f "<ELIDED [string length [dict get $req $f]]>"
+	    }
+	}	    
+
+	return [regsub {([^[:print:]])} $req .]
+    }
+
     # control the writable state of $socket
     method unwritable {} {
 	variable socket
@@ -233,15 +266,6 @@ oo::class create ::Httpd {
 	variable socket
 	variable events
 	dict set events readable $what
-    }
-
-    # rdump - return a stripped request for printing
-    method rdump {req} {
-	dict set req -content "<ELIDED [string length [dict get? $req -content]]>"
-	dict set req -entity "<ELIDED [string length [dict get? $req -entity]]>"
-	dict set req -gzip "<ELIDED [string length [dict get? $req -gzip]]>"
-
-	return [regsub {([^[:print:]])} $req .]
     }
 
     # terminate - destroy self, closing files and recovering resources
@@ -467,11 +491,14 @@ oo::class create ::Httpd {
 	    dict set r -entitypath [dict get $files $entity]
 	}
 
+	variable state POST_ENTITY
 	variable coro; after 0 [list $coro my process $r]
     }
 
     # headers - read headers as a block
     method Headers {} {
+	variable state HEADERS
+	variable request {}
 	upvar 1 r r
 	# keep receiving input requests
 	set headering 1
@@ -1233,6 +1260,7 @@ oo::class create ::Httpd {
 
     # parse - convert a complete header to a request dict
     method Parse {lines} {
+	variable state PARSE
 	upvar 1 r r
 	set size 0
 	foreach line $lines {
@@ -1264,7 +1292,9 @@ oo::class create ::Httpd {
 	}
     }
 
+    # Protocol - analyse the received request
     method Protocol {} {
+	variable state Protocol
 	upvar 1 r r
 	# get and test HTTP version
 	dict set r -version [lindex [dict get $r -header] end]		;# HTTP version
@@ -1274,6 +1304,7 @@ oo::class create ::Httpd {
 
 	# Send 505 for protocol != HTTP/1.0 or HTTP/1.1
 	if {[dict get $r -version] ni {1.1 1.0}} {
+	    set state UNSUPPORTED
 	    my handle [Http Bad $r "HTTP Version '[dict get $r -version]' not supported" 505] "Unsupported HTTP Version"
 	    return -code break
 	}
@@ -1288,6 +1319,7 @@ oo::class create ::Httpd {
 	variable maxurilen
 	if {$maxurilen && [string length [dict get $r -uri]] > $maxurilen} {
 	    # send a 414 back
+	    set state LONGURI
 	    my handle [Http Bad $r "URI too long '[dict get $r -uri]'" 414] "URI too long"
 	    return -code break
 	}
@@ -1306,6 +1338,7 @@ oo::class create ::Httpd {
 		blank {
 		    # anonymous by user-agent
 		    if {[dict get $r -uri] ne "/robots.txt"} {
+			set state SPIDER
 			my handle [Http NotImplemented $r "Possible Spider Service - set your User-Agent"] "Spider"
 			return -code break
 		    } else {
@@ -1314,7 +1347,8 @@ oo::class create ::Httpd {
 		}
 		spammer {
 		    # known spider user-agent
-		    Block block [dict get $r -ipaddr] "spider UA ([dict get? $r user-agent])"
+		    set state SPAMMER
+		    Block block [dict get $r -ipaddr] "spammer UA ([dict get? $r user-agent])"
 		    my handle [Http NotImplemented $r "Spammer"] "Spammer"
 		    return -code break
 		}
@@ -1351,6 +1385,7 @@ oo::class create ::Httpd {
 		set r [dict merge $r [Url parse http://[dict get $r host][dict get $r -uri]]]
 	    }
 	} elseif {[dict get $r -version] > 1.0} {
+	    set state BADPROTOCOL
 	    my handle [Http Bad $r "HTTP 1.1 required to send Host"] "No Host"
 	    return -code break
 	} else {
@@ -1420,6 +1455,7 @@ oo::class create ::Httpd {
     }
 
     method Entity {} {
+	variable state ENTITY
 	upvar 1 r r
 	variable start; dict set r -time entitystart [expr {[clock microseconds] - $start}]
 	variable socket
@@ -1475,6 +1511,7 @@ oo::class create ::Httpd {
 	# fetch the entity (if any)
 	if {"chunked" in [dict get? $r -te]} {
 	    # write chunked entity to disk
+	    set state CHUNKED
 	    set chunksize 0x[get $socket FCHUNK]	;# how many bytes to read?
 	    Debug.entity {[info coroutine] FCHUNK} 8
 
@@ -1497,6 +1534,7 @@ oo::class create ::Httpd {
 		::watchdog grace [self] 120000	;# prevent the watchdog resetting the link
 
 		# start the entity fcopy
+		set state FCHUNK
 		chan configure $socket -translation binary
 		chan copy $socket $entity -size $chunksize -command [list [info coroutine] fchunk $r $raw $entity 0 $chunksize]
 	    } else {
@@ -1512,6 +1550,7 @@ oo::class create ::Httpd {
 	    variable maxentity
 	    if {$maxentity > 0 && $left > $maxentity} {
 		# 413 "Request Entity Too Large"
+		set state OVERSIZED_ENTITY
 		my handle [Http Bad $r "Request Entity Too Large" 413] "Entity Too Large"
 		return -code break
 	    }
@@ -1520,6 +1559,7 @@ oo::class create ::Httpd {
 	    if {$todisk > 0 && $left > $todisk} {
 		# this entity is too large to be handled in memory,
 		# write it to disk
+		set state ENTITY_TO_DISK
 		Debug.entity {[info coroutine] FCIN: '$left' bytes} 8
 
 		# create a temp file to contain entity, remember it in $r and files
@@ -1583,6 +1623,7 @@ oo::class create ::Httpd {
 
     method process {r} {
 	# check Cache for match
+	variable state PROCESS
 	if {[dict size [set cached [Cache check $r]]] > 0} {
 	    # reply directly from cache
 	    dict set unsatisfied [dict get $cached -transaction] {}
@@ -1618,9 +1659,11 @@ oo::class create ::Httpd {
 	}
 
 	dict set r -received [clock microseconds]
+	variable state DISPATCH
 	catch {
 	    ::Dispatcher do REQUEST [::Dispatcher pre $r]
 	} rsp eo	;# process the request
+	variable state POSTPROCESS
 
 	# handle response code from processing request
 	set done 0
@@ -1674,7 +1717,7 @@ oo::class create ::Httpd {
 		# does post-process want to suspend?
 		if {[dict size $rspp] == 0 || [dict exists $rspp -suspend]} {
 		    if {[dict size $rspp] == 0} {
-			# returning a {} from postprocess suspends it ... really?
+			# returning a {} from postprocess suspends it (really?)
 			set duration 0
 		    } else {
 			# set the grace duration as per request
@@ -1725,6 +1768,7 @@ oo::class create ::Httpd {
 
 	::watchdog stroke [self]
 	variable start
+	variable state RUNNING
 	while {[chan pending input $socket] >= 0} {
 	    set r $proto	;# start with blank request
 	    dict set r -transaction [incr transaction]
@@ -1732,8 +1776,11 @@ oo::class create ::Httpd {
 
 	    # read the header and unpack the header line
 	    # parse and merge header lines into request dict
+	    set request {}
 	    my Parse [my Headers]
+	    set request $r
 	    my Protocol			;# process request protocol
+	    set request $r
 
 	    # remember request as unsatisfied
 	    dict set unsatisfied [dict get $r -transaction] 1
@@ -1756,17 +1803,21 @@ oo::class create ::Httpd {
 		&& [dict exists $r expect]
 		&& [string match *100-continue* [string tolower [dict get $r expect]]]
 	    } {
+		set state CONTINUE
 		my send [Http Continue $r] 0	;# send a 100 Continue
 	    } else {
+		set state ENTITY
 		my entity $r		;# process entity
 	    }
 	}
 
 	# reading is complete, but we may have more to send
+	set state CLOSING
 	my respond
 	while {1} {
 	    my Yield
 	}
+	set state CLOSED
     }
 
     # reader - main coroutine supervising connection
@@ -1823,6 +1874,7 @@ oo::class create ::Httpd {
 
 	variable {*}[Site var? Httpd]	;# allow .config file to modify defaults
 	variable {*}$args
+	variable state INITIALIZING
 
 	variable ce_encodings {gzip}	;# support these char encodings
 	variable te_encodings {chunked}
