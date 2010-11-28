@@ -194,7 +194,7 @@ namespace eval ::watchdog {
 		Debug.watchdog {Reaping $n}
 		catch {unset activity($n)}	;# prevent double-triggering
 		catch {
-		    Debug.watchdog {$n status}
+		    Debug.watchdog {$n status: [$n status]}
 		}
 
 		if {[catch {
