@@ -498,7 +498,6 @@ oo::class create ::Httpd {
     # headers - read headers as a block
     method Headers {} {
 	variable state HEADERS
-	variable request {}
 	upvar 1 r r
 	# keep receiving input requests
 	set headering 1
@@ -1769,6 +1768,7 @@ oo::class create ::Httpd {
 	::watchdog stroke [self]
 	variable start
 	variable state RUNNING
+	variable request
 	while {[chan pending input $socket] >= 0} {
 	    set r $proto	;# start with blank request
 	    dict set r -transaction [incr transaction]
@@ -1776,7 +1776,6 @@ oo::class create ::Httpd {
 
 	    # read the header and unpack the header line
 	    # parse and merge header lines into request dict
-	    set request {}
 	    my Parse [my Headers]
 	    set request $r
 	    my Protocol			;# process request protocol
@@ -1874,7 +1873,9 @@ oo::class create ::Httpd {
 
 	variable {*}[Site var? Httpd]	;# allow .config file to modify defaults
 	variable {*}$args
-	variable state INITIALIZING
+
+	variable state INITIALIZING	;# processing state
+	variable request {}		;# last request received
 
 	variable ce_encodings {gzip}	;# support these char encodings
 	variable te_encodings {chunked}
