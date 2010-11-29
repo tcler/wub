@@ -228,7 +228,7 @@ oo::class create ::Httpd {
 	    }	    
 	    lappend result $request
 	}
-	return $request
+	return $result
     }
 
     # rdump - return a stripped request for printing
