@@ -3,6 +3,7 @@ Debug define httpd 10
 Debug define httpdlow 10
 Debug define httpdclient 10
 Debug define watchdog 10
+Debug define reaper 10
 
 Debug define entity 10
 
@@ -194,7 +195,7 @@ namespace eval ::watchdog {
 		Debug.watchdog {Reaping $n}
 		catch {unset activity($n)}	;# prevent double-triggering
 		catch {
-		    Debug.watchdog {$n status: [$n state]}
+		    Debug.reaper {$n status: [$n state]}
 		}
 
 		if {[catch {
@@ -561,6 +562,7 @@ oo::class create ::Httpd {
 	    CONNECT -
 	    LINK {
 		# stop the bastard SMTP spammers
+		variable state BAD_METHOD
 		Block block [dict get $r -ipaddr] "[dict get $r -method] method ([dict get? $r user-agent])"
 		my handle [Http NotImplemented $r "Connect Method [dict get $r -method]"] "CONNECT method [dict get $r -method]"
 		return -code break	;# signal error to caller
@@ -568,6 +570,7 @@ oo::class create ::Httpd {
 
 	    default {
 		# Could check for and service FTP requests, etc, here...
+		variable state UNKNOWN_METHOD
 		dict set r -error_line $line
 		my handle [Http Bad $r "Method unsupported '[lindex $header 0]'" 405] "Method Unsupported [lindex $header 0]"
 		return -code break	;# signal error to caller
