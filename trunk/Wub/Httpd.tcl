@@ -220,15 +220,24 @@ oo::class create ::Httpd {
 	variable state
 	set result $state
 	variable request
+	set rr $request
 	if {[dict size $request]} {
-	    set rr $request
 	    foreach f {-content -entity -gzip} {
 		if {[dict exists $rr $f]} {
 		    dict set rr $f "<ELIDED [string length [dict get? $rr $f]]>"
 		}
 	    }	    
-	    lappend result $request
 	}
+
+	variable events
+	dict set rr -comm_events $events
+
+	variable socket
+	foreach f {blocked eof {pending input} {pending output}} {
+	    catch {dict set rr -[join $f _] [chan {*}$f $socket]}
+	}
+
+	lappend result $rr
 	return $result
     }
 
