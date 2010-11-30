@@ -672,7 +672,7 @@ oo::class create ::Httpd {
     }
 
     # fcopy: our outbound fcopy has completed
-    method fcopy {fd bytes rn written {error ""}} {
+    method fcopy {fd bytes next written {error ""}} {
 	variable replies
 	variable socket
 
