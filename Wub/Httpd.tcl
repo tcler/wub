@@ -740,7 +740,7 @@ oo::class create ::Httpd {
 		my unreadable	;# stop reading
 		set ostate PENDING
 		after 10 [list [info coroutine] respond] ;# restart in 10mS
-		break
+		return 0
 	    }
 
 	    ::watchdog stroke [self]	;# tickle the watchdog
