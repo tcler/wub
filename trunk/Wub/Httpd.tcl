@@ -861,11 +861,9 @@ oo::class create ::Httpd {
 	if {[chan pending output $socket] > $outbuffer} {
 	    # the client hasn't consumed our output yet
 	    # stop reading input until he does
-	    set ostate "WAIT_UNREADABLE"
 	    my unreadable
 	} else {
 	    # there's space for more output, so accept more input
-	    set ostate "WAIT_READABLE"
 	    my readable
 	}
 
