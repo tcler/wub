@@ -1818,7 +1818,7 @@ oo::class create ::Httpd {
 	    set request $r
 
 	    # remember request as unsatisfied
-	    dict set unsatisfied [dict get $r -transaction] 1
+	    dict set unsatisfied [dict get $r -transaction] $r
 
 	    # intercept websockets request, process it
 	    variable websockets
