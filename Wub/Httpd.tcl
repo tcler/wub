@@ -233,6 +233,13 @@ oo::class create ::Httpd {
 	dict set rr -replies [dict size $replies]
 	variable unsatisfied
 	dict set rr -unsatisfied [dict size $unsatisfied]
+	dict for {u v} $unsatisfied {
+	    if {[catch {
+		dict lappend rr -unsatisfied [dict get $v -url]
+	    }]} {
+		dict lappend rr -unsatisfied [dict get $v -uri]
+	    }
+	}
 
 	variable request
 	if {[dict size $request]} {
@@ -1654,7 +1661,7 @@ oo::class create ::Httpd {
 	variable istate PROCESS
 	if {[dict size [set cached [Cache check $r]]] > 0} {
 	    # reply directly from cache
-	    dict set unsatisfied [dict get $cached -transaction] {}
+	    dict set unsatisfied [dict get $cached -transaction] $r
 	    dict set cached -caching retrieved
 	    dict set cached -sent [clock microseconds]
 
