@@ -672,11 +672,12 @@ oo::class create ::Httpd {
     }
 
     # fcopy: our outbound fcopy has completed
-    method fcopy {fd bytes written {error ""}} {
+    method fcopy {fd bytes rn written {error ""}} {
 	variable replies
 	variable socket
 
 	Debug.httpd {[info coroutine] fcopy: $fd $bytes $written '$error'}
+	
 	::watchdog stroke [self]
 
 	catch {close $fd}	;# remove file descriptor
@@ -707,6 +708,10 @@ oo::class create ::Httpd {
 	} else {
 	    Debug.httpdlow {[info coroutine] fcopy: suspending reader [chan pending output $socket]}
 	}
+
+	# record that this request was satisfied
+	variable unsatisfied
+	dict unset unsatisfied $next	;# satisfied this
 
 	# see if the writer needs service
 	my writable
@@ -829,20 +834,19 @@ oo::class create ::Httpd {
 		    chan configure $fd -translation binary
 		    my unreadable	;# stop reading input while fcopying
 		    my unwritable	;# stop writing while fcopying
-		    ::watchdog grace [self] 120000	;# stop the watchdog resetting the link
+		    ::watchdog grace [self] -1	;# stop the watchdog resetting the link
 
 		    if {[llength $range]} {
 			lassign $range from to
 			chan seek $fd $from
 			set bytes [expr {$to-$from+1}]
 			Debug.httpd {[info coroutine] FCOPY RANGE: '$file' bytes $from-$to/$bytes} 8
-			chan copy $fd $socket -command [list [info coroutine] fcopy $fd $bytes]
+			chan copy $fd $socket -command [list [info coroutine] fcopy $fd $bytes $next]
 		    } else {
 			Debug.httpd {[info coroutine] FCOPY ENTITY: '$file'/$fd $bytes bytes} 8
-			chan copy $fd $socket -command [list [info coroutine] fcopy $fd $bytes]
+			chan copy $fd $socket -command [list [info coroutine] fcopy $fd $bytes $next]
 		    }
 		    set ostate "FCOPY $response"
-		    dict unset unsatisfied $next	;# satisfied this
 		    break	;# no more i/o on $socket until fcopy completion
 		} elseif {[llength $range]} {
 		    # send literal content
