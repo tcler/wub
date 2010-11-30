@@ -232,7 +232,7 @@ oo::class create ::Httpd {
 	variable replies
 	dict set rr -replies [dict size $replies]
 	variable unsatisfied
-	dict set rr -unsatisfied [dict size unsatisfied]
+	dict set rr -unsatisfied [dict size $unsatisfied]
 
 	variable request
 	if {[dict size $request]} {
