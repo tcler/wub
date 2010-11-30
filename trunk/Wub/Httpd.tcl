@@ -229,6 +229,11 @@ oo::class create ::Httpd {
 	    catch {dict set rr -[join $f _] [chan {*}$f $socket]}
 	}
 
+	variable replies
+	dict set rr -replies [dict size $replies]
+	variable unsatisfied
+	dict set rr -unsatisfied [dict size unsatisfied]
+
 	variable request
 	if {[dict size $request]} {
 	    set rr [dict merge $rr $request]
