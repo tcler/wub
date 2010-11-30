@@ -842,6 +842,7 @@ oo::class create ::Httpd {
 			chan copy $fd $socket -command [list [info coroutine] fcopy $fd $bytes]
 		    }
 		    set ostate "FCOPY $response"
+		    dict unset unsatisfied $next	;# satisfied this
 		    break	;# no more i/o on $socket until fcopy completion
 		} elseif {[llength $range]} {
 		    # send literal content
