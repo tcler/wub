@@ -217,17 +217,9 @@ namespace eval ::watchdog {
 oo::class create ::Httpd {
     # state - report on connection state
     method state {} {
-	variable state
-	set result $state
-	variable request
-	set rr $request
-	if {[dict size $request]} {
-	    foreach f {-content -entity -gzip} {
-		if {[dict exists $rr $f]} {
-		    dict set rr $f "<ELIDED [string length [dict get? $rr $f]]>"
-		}
-	    }	    
-	}
+	variable istate
+	variable ostate
+	set rr [list -istate $istate -ostate $ostate]
 
 	variable events
 	dict set rr -comm_events $events
@@ -237,8 +229,17 @@ oo::class create ::Httpd {
 	    catch {dict set rr -[join $f _] [chan {*}$f $socket]}
 	}
 
-	lappend result $rr
-	return $result
+	variable request
+	if {[dict size $request]} {
+	    set rr [dict merge $rr $request]
+	    foreach f {-content -entity -gzip} {
+		if {[dict exists $rr $f]} {
+		    dict set rr $f "<ELIDED [string length [dict get? $rr $f]]>"
+		}
+	    }	    
+	}
+
+	return $rr
     }
 
     # rdump - return a stripped request for printing
@@ -501,13 +502,13 @@ oo::class create ::Httpd {
 	    dict set r -entitypath [dict get $files $entity]
 	}
 
-	variable state POST_ENTITY
+	variable istate POST_ENTITY
 	variable coro; after 0 [list $coro my process $r]
     }
 
     # headers - read headers as a block
     method Headers {} {
-	variable state HEADERS
+	variable istate HEADERS
 	upvar 1 r r
 	# keep receiving input requests
 	set headering 1
@@ -571,7 +572,7 @@ oo::class create ::Httpd {
 	    CONNECT -
 	    LINK {
 		# stop the bastard SMTP spammers
-		variable state BAD_METHOD
+		variable istate BAD_METHOD
 		Block block [dict get $r -ipaddr] "[dict get $r -method] method ([dict get? $r user-agent])"
 		my handle [Http NotImplemented $r "Connect Method [dict get $r -method]"] "CONNECT method [dict get $r -method]"
 		return -code break	;# signal error to caller
@@ -579,7 +580,7 @@ oo::class create ::Httpd {
 
 	    default {
 		# Could check for and service FTP requests, etc, here...
-		variable state UNKNOWN_METHOD
+		variable istate UNKNOWN_METHOD
 		dict set r -error_line $line
 		my handle [Http Bad $r "Method unsupported '[lindex $header 0]'" 405] "Method Unsupported [lindex $header 0]"
 		return -code break	;# signal error to caller
@@ -706,13 +707,15 @@ oo::class create ::Httpd {
 	variable transaction
 	variable socket
 	variable outbuffer
-
+	variable ostate
 	variable unsatisfied
+
 	if {[chan pending input $socket] < 0
 	    && ![dict size $unsatisfied]
 	} {
 	    # we have no more requests to satisfy and no more input
 	    Debug.httpd {[info coroutine] closing as there's nothing pending}
+	    set ostate CLOSED
 	    my terminate "finally close in responder"
 	    error "finally closed"
 	}
@@ -721,6 +724,7 @@ oo::class create ::Httpd {
 	# we expect there'll be another request soon
 	variable replies
 	if {![dict size $replies]} {
+	    set ostate EMPTY
 	    my unwritable	;# no point in trying to write
 	}
 
@@ -734,6 +738,7 @@ oo::class create ::Httpd {
 		# stop communicating for 10mS then retry
 		my unwritable	;# stop writing
 		my unreadable	;# stop reading
+		set ostate PENDING
 		after 10 [list [info coroutine] respond] ;# restart in 10mS
 		break
 	    }
@@ -743,6 +748,7 @@ oo::class create ::Httpd {
 	    if {[set gone [catch {chan eof $socket} eof]] || $eof} {
 		# detect socket closure ASAP in sending
 		Debug.httpd {[info coroutine] Lost connection on transmit}
+		set ostate EOF
 		my terminate "eof on $socket"
 		error "finally closed"
 	    }
@@ -760,15 +766,18 @@ oo::class create ::Httpd {
 		    # the client hasn't consumed our output yet
 		    # stop reading input until he does
 		    my unreadable
+		    set ostate OOS_UNREADABLE
 		} else {
 		    # there's space for more output, so accept more input
 		    my readable
+		    set ostate OOS_READABLE
 		}
 
 		return 0
 	    }
 
 	    set response [expr {1 + $next}]	;# move to next response
+	    set ostate "SENDING $response"
 
 	    # respond to the next transaction in trx order
 	    # unpack and consume the reply from replies queue
@@ -820,6 +829,7 @@ oo::class create ::Httpd {
 			Debug.httpd {[info coroutine] FCOPY ENTITY: '$file'/$fd $bytes bytes} 8
 			chan copy $fd $socket -command [list [info coroutine] fcopy $fd $bytes]
 		    }
+		    set ostate "FCOPY $response"
 		    break	;# no more i/o on $socket until fcopy completion
 		} elseif {[llength $range]} {
 		    # send literal content
@@ -835,10 +845,12 @@ oo::class create ::Httpd {
 	    if {$close} {
 		dict unset unsatisfied $next
 		my terminate "Closed on request"
+		set ostate RCLOSE
 		return
 	    } elseif {[dict get $req -code] == 100} {
 		# this was a continue ... we need to reschedule entity reading
 		# keep the transaction unsatisfied
+		set ostate CONTINUE
 		after 0 [list [dict get $req -send] entity $r]
 	    } else {
 		# this request is no longer unsatisfied
@@ -849,9 +861,11 @@ oo::class create ::Httpd {
 	if {[chan pending output $socket] > $outbuffer} {
 	    # the client hasn't consumed our output yet
 	    # stop reading input until he does
+	    set ostate "WAIT_UNREADABLE"
 	    my unreadable
 	} else {
 	    # there's space for more output, so accept more input
+	    set ostate "WAIT_READABLE"
 	    my readable
 	}
 
@@ -1271,7 +1285,7 @@ oo::class create ::Httpd {
 
     # parse - convert a complete header to a request dict
     method Parse {lines} {
-	variable state PARSE
+	variable istate PARSE
 	upvar 1 r r
 	set size 0
 	foreach line $lines {
@@ -1305,7 +1319,7 @@ oo::class create ::Httpd {
 
     # Protocol - analyse the received request
     method Protocol {} {
-	variable state Protocol
+	variable istate PROTOCOL
 	upvar 1 r r
 	# get and test HTTP version
 	dict set r -version [lindex [dict get $r -header] end]		;# HTTP version
@@ -1315,7 +1329,7 @@ oo::class create ::Httpd {
 
 	# Send 505 for protocol != HTTP/1.0 or HTTP/1.1
 	if {[dict get $r -version] ni {1.1 1.0}} {
-	    set state UNSUPPORTED
+	    set istate UNSUPPORTED
 	    my handle [Http Bad $r "HTTP Version '[dict get $r -version]' not supported" 505] "Unsupported HTTP Version"
 	    return -code break
 	}
@@ -1330,7 +1344,7 @@ oo::class create ::Httpd {
 	variable maxurilen
 	if {$maxurilen && [string length [dict get $r -uri]] > $maxurilen} {
 	    # send a 414 back
-	    set state LONGURI
+	    set istate LONGURI
 	    my handle [Http Bad $r "URI too long '[dict get $r -uri]'" 414] "URI too long"
 	    return -code break
 	}
@@ -1349,7 +1363,7 @@ oo::class create ::Httpd {
 		blank {
 		    # anonymous by user-agent
 		    if {[dict get $r -uri] ne "/robots.txt"} {
-			set state SPIDER
+			set istate SPIDER
 			my handle [Http NotImplemented $r "Possible Spider Service - set your User-Agent"] "Spider"
 			return -code break
 		    } else {
@@ -1358,7 +1372,7 @@ oo::class create ::Httpd {
 		}
 		spammer {
 		    # known spider user-agent
-		    set state SPAMMER
+		    set istate SPAMMER
 		    Block block [dict get $r -ipaddr] "spammer UA ([dict get? $r user-agent])"
 		    my handle [Http NotImplemented $r "Spammer"] "Spammer"
 		    return -code break
@@ -1396,7 +1410,7 @@ oo::class create ::Httpd {
 		set r [dict merge $r [Url parse http://[dict get $r host][dict get $r -uri]]]
 	    }
 	} elseif {[dict get $r -version] > 1.0} {
-	    set state BADPROTOCOL
+	    set istate BADPROTOCOL
 	    my handle [Http Bad $r "HTTP 1.1 required to send Host"] "No Host"
 	    return -code break
 	} else {
@@ -1466,7 +1480,7 @@ oo::class create ::Httpd {
     }
 
     method Entity {} {
-	variable state ENTITY
+	variable istate ENTITY
 	upvar 1 r r
 	variable start; dict set r -time entitystart [expr {[clock microseconds] - $start}]
 	variable socket
@@ -1522,7 +1536,7 @@ oo::class create ::Httpd {
 	# fetch the entity (if any)
 	if {"chunked" in [dict get? $r -te]} {
 	    # write chunked entity to disk
-	    set state CHUNKED
+	    set istate CHUNKED
 	    set chunksize 0x[get $socket FCHUNK]	;# how many bytes to read?
 	    Debug.entity {[info coroutine] FCHUNK} 8
 
@@ -1545,7 +1559,7 @@ oo::class create ::Httpd {
 		::watchdog grace [self] 120000	;# prevent the watchdog resetting the link
 
 		# start the entity fcopy
-		set state FCHUNK
+		set istate FCHUNK
 		chan configure $socket -translation binary
 		chan copy $socket $entity -size $chunksize -command [list [info coroutine] fchunk $r $raw $entity 0 $chunksize]
 	    } else {
@@ -1561,7 +1575,7 @@ oo::class create ::Httpd {
 	    variable maxentity
 	    if {$maxentity > 0 && $left > $maxentity} {
 		# 413 "Request Entity Too Large"
-		set state OVERSIZED_ENTITY
+		set istate OVERSIZED_ENTITY
 		my handle [Http Bad $r "Request Entity Too Large" 413] "Entity Too Large"
 		return -code break
 	    }
@@ -1570,7 +1584,7 @@ oo::class create ::Httpd {
 	    if {$todisk > 0 && $left > $todisk} {
 		# this entity is too large to be handled in memory,
 		# write it to disk
-		set state ENTITY_TO_DISK
+		set istate ENTITY_TO_DISK
 		Debug.entity {[info coroutine] FCIN: '$left' bytes} 8
 
 		# create a temp file to contain entity, remember it in $r and files
@@ -1634,7 +1648,7 @@ oo::class create ::Httpd {
 
     method process {r} {
 	# check Cache for match
-	variable state PROCESS
+	variable istate PROCESS
 	if {[dict size [set cached [Cache check $r]]] > 0} {
 	    # reply directly from cache
 	    dict set unsatisfied [dict get $cached -transaction] {}
@@ -1670,11 +1684,11 @@ oo::class create ::Httpd {
 	}
 
 	dict set r -received [clock microseconds]
-	variable state DISPATCH
+	variable istate DISPATCH
 	catch {
 	    ::Dispatcher do REQUEST [::Dispatcher pre $r]
 	} rsp eo	;# process the request
-	variable state POSTPROCESS
+	set istate POSTPROCESS
 
 	# handle response code from processing request
 	set done 0
@@ -1779,7 +1793,7 @@ oo::class create ::Httpd {
 
 	::watchdog stroke [self]
 	variable start
-	variable state RUNNING
+	variable istate RUNNING
 	variable request
 	while {[chan pending input $socket] >= 0} {
 	    set r $proto	;# start with blank request
@@ -1814,21 +1828,21 @@ oo::class create ::Httpd {
 		&& [dict exists $r expect]
 		&& [string match *100-continue* [string tolower [dict get $r expect]]]
 	    } {
-		set state CONTINUE
+		set istate CONTINUE
 		my send [Http Continue $r] 0	;# send a 100 Continue
 	    } else {
-		set state ENTITY
+		set istate ENTITY
 		my entity $r		;# process entity
 	    }
 	}
 
 	# reading is complete, but we may have more to send
-	set state CLOSING
+	set istate CLOSING
 	my respond
 	while {1} {
 	    my Yield
 	}
-	set state CLOSED
+	set istate CLOSED
     }
 
     # reader - main coroutine supervising connection
@@ -1886,7 +1900,8 @@ oo::class create ::Httpd {
 	variable {*}[Site var? Httpd]	;# allow .config file to modify defaults
 	variable {*}$args
 
-	variable state INITIALIZING	;# processing state
+	variable istate INITIALIZING	;# input state
+	variable ostate INITIALIZING	;# output state
 	variable request {}		;# last request received
 
 	variable ce_encodings {gzip}	;# support these char encodings
