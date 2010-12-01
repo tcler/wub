@@ -194,10 +194,10 @@ namespace eval ::watchdog {
 		# try to give some status of thing being destroyed
 		Debug.watchdog {Reaping $n}
 		catch {unset activity($n)}	;# prevent double-triggering
-		catch {
-		    Debug.reaper {$n status: [$n state]}
+		Debug.reaper {$n status: [$n state]}
+		if {[$n eof]} {
+		    Debug.log {$n lingered: [$n state]}
 		}
-
 		if {[catch {
 		    $n terminate "Reaped"	;# kill this entity right now
 		} e eo]} {
@@ -252,6 +252,11 @@ oo::class create ::Httpd {
 	}
 
 	return $rr
+    }
+
+    method eof {} {
+	variable socket
+	return [chan eof $socket]
     }
 
     # rdump - return a stripped request for printing
