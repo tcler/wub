@@ -47,7 +47,7 @@ set MODULE(HTTP) {
 	TBD: The HTTP1.1 protocol requires that a pipeline (of queued requests) be stalled until the response to a PUT or POST request has been received.  This version of HTTP doesn't do that, but later versions will.
 
 	=== Redirections ===
-	Servers may response with redirection response codes, indicating that the requested resource is located elsewhere.  This may necessitate a new connection be opened, perhaps to a different host.  The HTTP package doesn't attempt to follow redirections, reasoning that the consumer is in a better position to know what it wants.
+	Servers may respond with redirection response codes, indicating that the requested resource is located elsewhere.  This may necessitate a new connection be opened, perhaps to a different host.  The HTTP package doesn't attempt to follow redirections, reasoning that the consumer is in a better position to know what it wants to do with them.
 
 	=== Cookies ===
 	Cookies are received, and may be parsed with the [Wub] [Cookies] module, but are not further processed by HTTP.
@@ -65,19 +65,10 @@ set MODULE(HTTP) {
 
 package require Tcl 8.6	;# minimum version of tcl required
 package require TclOO
-namespace import oo::*
 
 # use the new coro functionality
 namespace eval tcl::unsupported namespace export yieldm
 namespace import tcl::unsupported::yieldm
-
-# import the relevant commands from WubUtils package
-if {[catch {package require WubUtils}]} {
-    proc corovars {args} {
-	foreach n $args {lappend v $n $n}
-	uplevel 1 [list upvar #1 {*}$v]
-    }
-}
 
 # import the relevant commands from Wub Http package
 if {[catch {package require Http}]} {
@@ -191,7 +182,7 @@ if {[catch {package require Url}]} {
 
 if {[catch {package require Debug}]} {
     proc Debug.HTTP {args} {}
-    #proc Debug.HTTP {args} {puts stderr HTTP@[uplevel subst $args]}
+    proc Debug.HTTP {args} {puts stderr HTTP@[uplevel subst $args]}
     proc Debug.HTTPdetail {args} {}
     #proc Debug.HTTPdetail {args} {puts stderr HTTPdetail@[uplevel subst $args]}
 } else {
@@ -230,16 +221,23 @@ know {[string match http://* [lindex $args 0]]} {
 
 package provide HTTP 2.0
 
-class create HTTP {
+
+namespace eval ::HTTPClient {}
+
+oo::class create HTTP {
     # send - send an op HTTP request to the server
     method send {method url {entity ""} args} {
-	corovars socket sent host http
-	Debug.HTTP {send method:$method url:$url entity: [string length $entity] ($args)}
+	variable socket
+	variable sent
+	variable host
+	variable port
+	variable http
+	Debug.HTTP {[self] send method:$method url:$url entity: [string length $entity] ($args)}
 
 	set T [dict merge $http $args [list -scheme http -port $port -host $host] [Url parse $url]]
 	set T [dict merge $T [list -method $method date [::Http::Date] host $host]]
-	set requrl([incr txcount]) [Url uri $T]
-	Debug.HTTP {T: ($T) #$txcount -> [Url http $T] -> [Url uri $T]}
+	variable txcount; variable requrl; set requrl([incr txcount]) [Url uri $T]
+	Debug.HTTP {[self] T: ($T) #$txcount -> [Url http $T] -> [Url uri $T]}
 
 	# format entity
 	if {$entity ne ""} {
@@ -266,21 +264,78 @@ class create HTTP {
 	}
 	append request "\r\n"	;# signal end of header
 	chan puts -nonewline $socket $request
-	Debug.HTTPdetail {Sent header: [string map {\r \\r \n \\n} $request]}
+	Debug.HTTPdetail {[self] Sent header: [string map {\r \\r \n \\n} $request]}
 
 	if {[info exists entity]} {
 	    # send the entity
 	    chan puts -nonewline $socket $entity
 	}
-	incr outstanding
-	chan event $socket readable [list [self] reader READ]
+	variable outstanding; incr outstanding
+	variable reader
+	chan event $socket readable [list $reader READ]
 
-	Debug.HTTP {sent $method $url - $outstanding outstanding}
+	Debug.HTTP {[self] sent $method $url - $outstanding outstanding}
     }
 
+    method gets {} {
+	variable socket
+
+	set line ""
+	set gone [catch {chan eof $socket} eof]
+	while {!$gone && !$eof
+	       && [chan gets $socket line] != -1
+	       && [chan blocked $socket]
+	   } {
+	    ::yieldm
+	    set gone [catch {chan eof $socket} eof]
+	}
+
+	if {$gone || $eof} {
+	    set reason "EOF reading HEADER"
+	    Debug.HTTPdetail {[self] gets: EOF reading HEADER}
+	    [self] destroy
+	} else {
+	    Debug.HTTPdetail {[self] gets: '$line' [chan blocked $socket] [chan eof $socket]}
+	    return $line
+	}
+    }
+
+    method read {{size -1}} {
+	variable socket
+	Debug.HTTP {[self] Reading $size}
+
+	set chunk ""
+	set gone [catch {chan eof $socket} eof]
+	while {$size && !$gone && !$eof} {
+	    ::yieldm	;# wait for read event
+	    set chunklet [chan read $socket {*}[expr {$size>0?$size:""}]]	;# get some
+	    append chunk $chunklet			;# remember it
+	    incr size -[string length $chunklet]	;# how much left?
+	    set gone [catch {chan eof $socket} eof]
+	    Debug.HTTPdetail {[self] Read chunk ($size left)}
+	}
+
+	if {$gone || $eof} {
+	    set reason "EOF reading ENTITY"
+	    return $chunk	;# can just EOF in entity
+	} else {
+	    # we have successfully read our chunk of $size
+	    Debug.HTTPdetail {[self] Read: chunk of size $size}
+	    return $chunk
+	}
+    }
+
+    # parse lines into response dict
     method parse {lines} {
-	# we have a complete header - parse it.
 	set r {}
+	set lines [lassign $lines header]
+	Debug.HTTP {[self] reader header: $header ($r)}
+
+	# split out some interesting parts of the first header line
+	dict set r -message [join [lassign [split $header] version code]]
+	dict set r -version $version
+	dict set r -code $code
+
 	set last ""
 	foreach line $lines {
 	    if {[string index $line 0] in {" " "\t"}} {
@@ -300,89 +355,258 @@ class create HTTP {
 	return $r
     }
 
-    method gets {} {
-	corovars socket
+    # reader proc - the functional base of the read coroutine
+    method reader {} {
+	# unpack all the passed-in args
+	::yieldm
 
-	set line ""
+	# keep receiving input resulting from our requests
+	variable socket
 	set gone [catch {chan eof $socket} eof]
-	while {!$gone && !$eof
-	       && [chan gets $socket line] != -1
-	       && [chan blocked $socket]
-	   } {
-	    ::yieldm
+	while {!$gone && !$eof} {
+	    # get whole header
+	    # keep a count of the number of packets received
+	    variable rqcount; incr rqcount
+
+	    variable requrl
+	    set r [list X-type RESPONSE X-object [self] X-count $rqcount X-url $requrl($rqcount)]
+
+	    set headering 1; set bogus 0
+	    set lines {}
+	    while {$headering} {
+		set line [my gets]
+		Debug.HTTP {[self] reader got line: ($line)}
+		if {[string trim $line] eq ""} {
+		    if {[llength $lines]} {
+			set headering 0
+		    }
+		} elseif {[string match <* [string trim $line]]} {
+		    set headering 0
+		    set bogus 1
+		} else {
+		    lappend lines $line
+		}
+	    }
+
+	    if {$bogus} {
+		# some sites (yes, ReCAPTCHA, you) don't even send headers
+		Debug.HTTP {[self] This site is bogus, no header sent, just content}
+		set entity $line
+		while {![eof $socket]} {
+		    append entity \n [my gets]
+		}
+		dict set r -content $entity
+	    } else {
+		# got the header
+		set r [dict merge $r [my parse $lines]]	;# parse the header
+		
+		# now we have to fetch the entity (if any)
+		if {[dict exists $r content-length]} {
+		    set left [dict get $r content-length]
+		    set entity ""
+		    chan configure $socket -encoding binary -translation {binary binary}
+		    Debug.HTTP {[self] reader getting entity of length ($left)}
+		    while {$left > 0} {
+			set chunk [my read $left]
+			incr left -[string length $chunk]
+			Debug.HTTP {[self] reader getting remainder of entity of length ($left)}
+			dict append r -content $chunk
+		    }
+		    Debug.HTTP {[self] reader got whole entity}
+		} elseif {[dict exists $r transfer-encoding]} {
+		    switch -- [dict get $r transfer-encoding] {
+			chunked {
+			    set chunksize 1
+			    while {$chunksize} {
+				chan configure $socket -encoding [encoding system] -translation {crlf binary}
+				set chunksize 0x[my gets]
+				chan configure $socket -encoding binary -translation {binary binary}
+				Debug.HTTPdetail {chunksize: $chunksize}
+				if {$chunksize eq "0x"} {
+				    set chunksize 0
+				}
+				if {!$chunksize} {
+				    my gets
+				    Debug.HTTP {[self] Chunks all done}
+				    break
+				}
+				set chunk [my read $chunksize]
+				my gets	;# get the closing \n
+				Debug.HTTP {[self] Chunk: $chunksize}
+				dict append r -content $chunk
+			    }
+			}
+			default {
+			    error "Unknown transfer encoding"
+			}
+		    }
+		} elseif {[string toupper $version] eq "HTTP/1.0"} {
+		    dict set r -content [my read]	;# read to EOF
+		}
+	    }
+
+	    # reset to header config
+	    if {![chan eof $socket]} {
+		chan configure $socket -encoding [encoding system] -translation {crlf binary}
+	    }
+
+	    # check content-encoding and gunzip content if necessary
+	    if {[dict exists $r content-encoding]} {
+		switch -- [string tolower [dict get $r content-encoding]] {
+		    gzip {
+			set content [dict get $r -content]
+			dict set r -content [::zlib gunzip $content]
+		    }
+		    default {}
+		}
+	    }
+
+	    # hand consumer the result
+	    variable consumer
+	    variable justcontent
+	    if {$justcontent} {
+		after 1 [list {*}$consumer [list [dict get $r -content]]]
+	    } else {
+		Debug.HTTPdetail {[self] formatting up consumer message $rqcount}
+		after 1 [list {*}$consumer $r]
+	    }
+
+	    # count the outstanding responses left
+	    # close if there are none
+	    variable outstanding; incr outstanding -1
+	    Debug.HTTP {[self] outstanding: $outstanding}
+
+	    variable closing
+	    if {[dict exists $r connection]
+		&& [string tolower [dict get $r connection]] eq "close"
+	    } {
+		set outstanding 0
+		incr closing
+	    }
+
+	    if {$closing && !$outstanding} {
+		set reason "requested by WRITER"
+		my destroy
+	    } elseif {!$outstanding} {
+		# nothing to read
+		variable reader
+		chan event $socket readable [list $reader EOF]
+	    }
+
+	    Debug.HTTP {[self] reader: sent response, waiting for next}
+	    if {[::yieldm] eq "EOF"} break
 	    set gone [catch {chan eof $socket} eof]
 	}
 
-	if {$gone || $eof} {
-	    set reason "EOF reading HEADER"
-	    Debug.HTTPdetail {gets: EOF reading HEADER}
-	    [self] destroy
-	} else {
-	    Debug.HTTPdetail {gets: '$line' [chan blocked $socket] [chan eof $socket]}
-	    return $line
+	my destroy	;# reader's gone, that's all she wrote
+    }
+
+    # writer - the functional basis of the writer coroutine
+    method writer {args} {
+	# writer - coro to send HTTP requests to a server
+
+	variable txcount
+	# construct a request template
+	variable template
+	variable http [dict merge $template $args]
+	dict set http User-Agent "TclHTTP/[package present HTTP]"
+	lappend http accept-encoding gzip
+
+	variable closing
+
+	# send any ops we were passed
+	variable ops
+	if {[info exists ops]} {
+	    Debug.HTTP {[self] initial ops: $ops}
+	    foreach {op val} $ops {
+		if {$op eq "close"} {
+		    # we've been asked to close
+		    Debug.HTTP {[self] closing upon request}
+		    variable reason "Requested by Consumer"
+		    set closing 1
+		    return
+		} else {
+		    set entity [lassign $val url]
+		    my send $op $url {*}$entity
+		}
+	    }
+	}
+
+	variable closing
+	set retval ""
+	while {!$closing} {
+	    # unpack event
+	    if {[catch {
+		set args [lassign [::yieldm [self]] op]; set retval ""
+	    } e eo]} {
+		Debug.HTTP {[self] [info coroutine] yield: $e ($eo)}
+		return
+	    }
+	    
+	    set op [string tolower $op]
+	    Debug.HTTP {[self] writer $op $args}
+	    if {$closing || $op eq "close"} {
+		Debug.HTTP {[self] close: $op / $closing}
+		variable reason "Requested by Consumer"
+		set closing 1
+		return
+	    } elseif {$op in {get put post delete}} {
+		# got a protocol operator from consumer
+		set entity [lassign $args url]
+		my send $op $url {*}$entity
+	    }
 	}
     }
 
-    method read {{size -1}} {
-	corovars socket
-	Debug.HTTP {Reading $size}
-
-	set chunk ""
-	set gone [catch {chan eof $socket} eof]
-	while {$size && !$gone && !$eof} {
-	    ::yieldm	;# wait for read event
-	    set chunklet [chan read $socket {*}[expr {$size>0?$size:""}]]	;# get some
-	    append chunk $chunklet			;# remember it
-	    incr size -[string length $chunklet]	;# how much left?
-	    set gone [catch {chan eof $socket} eof]
-	    Debug.HTTPdetail {Read chunk ($size left)}
-	}
-
-	if {$gone || $eof} {
-	    set reason "EOF reading ENTITY"
-	    return $chunk	;# can just EOF in entity
-	} else {
-	    # we have successfully read our chunk of $size
-	    Debug.HTTPdetail {Read: '$chunk' of size $size}
-	    return $chunk
+    # forward some methods for writing
+    method write {args} {
+	variable writer
+	if {[llength $args]} {
+	    $writer {*}$args
 	}
     }
-
-    variable closing outstanding rqcount txcount reader writer consumer socket reason self spawn notify justcontent host port requrl
 
     destructor {
-	Debug.HTTP {[self]: $socket closed because: $reason}
+	variable socket; variable reason
+	Debug.HTTP {[self]: $socket closed because: '$reason'}
 
 	# alert consumer
+	variable rqcount
 	set close [list X-type CLOSED X-count [incr rqcount] X-reason $reason]
+
+	variable notify
 	if {$notify ne ""} {
 	    catch {after 1 {*}$notify $close}
 	} else {
+	    variable consumer
 	    catch {after 1 {*}$consumer $close}
 	}
+
+	variable socket
 	catch {chan close $socket}
+
+	variable reader; catch {rename $reader {}}
+	variable writer; catch {rename $writer {}}
     }
 
     constructor {url _consumer args} {
 	Debug.HTTP {[self] construct $url $_consumer $args}
-
-	set self [self]		;# for identifying responses
-	set closing 0		;# signals EOF to both reader and writer
-	set outstanding 0	;# counts outstanding packets
-	set rqcount -1		;# counts received packets
-	set reason "none given"	;# reason for closure
-	set consumer $_consumer	;# who's consuming this?
-	set template {accept */*}	;# http template
-	set spawn 1		;# create a new instance for changed hosts (NYI)
-	set notify ";#"		;# notify close to consumer?
-	set justcontent 0	;# the consumer only wants content
-	set sockopts {}
+	variable closing 0		;# signals EOF to both reader and writer
+	variable outstanding 0	;# counts outstanding packets
+	variable rqcount -1		;# counts received responses
+	variable txcount -1		;# counts sent requests
+	variable reason "none given"	;# reason for closure
+	variable consumer $_consumer	;# who's consuming this?
+	variable template {accept */*}	;# http template
+	variable notify ";#"		;# notify close to consumer?
+	variable justcontent 0		;# consumer only wants content
+	variable sockopts {}
 
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
  
-	set ops {}
+	variable ops {}
 	foreach {n v} $args {
 	    if {$n in {get put post delete close}} {
 		lappend ops $n $v
@@ -392,24 +616,24 @@ class create HTTP {
 	}
 
 	# parse url into host,port
-	set urld [Url parse $url]
-	Debug.HTTPdetail {url dict: $urld}
+	variable urld [Url parse $url]
+	Debug.HTTPdetail {[self] url dict: $urld}
 	if {![dict exist $urld -host]} {
 	    error "'$url' is not a properly formed URL"
 	}
-	set host [dict get $urld -host]
+	variable host [dict get $urld -host]
 	if {[dict exists $urld -port]} {
-	    set port [dict get $urld -port]
+	    variable port [dict get $urld -port]
 	} else {
 	    if {[dict get $urld -scheme] ne "https"} {
-		set port 80
+		variable port 80
 	    } else {
-		set port 443
+		variable port 443
 	    }
 	}
 
 	# connect socket to host
-	set socket ""
+	variable socket ""
 	if {[catch {
 	    if {[dict get $urld -scheme] ne "https"} {
 		socket -async {*}$sockopts $host $port	;# create the socket
@@ -421,269 +645,26 @@ class create HTTP {
 	    chan configure $socket -blocking 0 -buffering none -encoding binary -translation {crlf binary}
 	}]} {
 	    set reason $socket
-	    catch {after 1 [self] destroy}
+	    Debug.HTTP {[self] connect failed: $reason}
+	    if {!$justcontent} {
+		{*}$consumer [list X-type FAILED X-reason $reason X-url $url X-object [self]]
+	    }
+	    my destroy	;# this HTTP can't last
 	    return
 	}
 
-	# reader proc - the functional base of the read coroutine
-	proc reader {args} {
-	    Debug.HTTP {reader: $args}
-
-	    # unpack all the passed-in args
-	    dict with args {}
-	    ::yieldm
-
-	    variable self;
-	    # keep receiving input resulting from our requests
-	    set gone [catch {chan eof $socket} eof]
-	    while {!$gone && !$eof} {
-		set r {}	;# empty header
-		# get whole header
-		# keep a count of the number of packets received
-		variable rqcount; set reqcount [incr rqcount]
-
-		set headering 1; set bogus 0
-		set lines {}
-		while {$headering} {
-		    set line [my gets]
-		    Debug.HTTP {reader got line: ($line)}
-		    if {[string trim $line] eq ""} {
-			if {[llength $lines]} {
-			    set headering 0
-			}
-		    } elseif {[string match <* [string trim $line]]} {
-			set headering 0
-			set bogus 1
-		    } else {
-			lappend lines $line
-		    }
-		}
-
-		if {$bogus} {
-		    # some sites (yes, ReCAPTCHA, you) don't even send headers
-		    Debug.HTTP {This site is bogus, no header sent, just content}
-		    set entity $line
-		    while {![eof $socket]} {
-			append entity \n [my gets]
-		    }
-		    dict set r -content $entity
-		} else {
-		    # got the header
-		    set header [lindex $lines 0]
-		    set r [my parse [lrange $lines 1 end]]	;# parse the header
-
-		    # split out some interesting parts of the first header line
-		    dict set r -message [join [lassign [split $header] version code]]
-		    dict set r -version $version
-		    dict set r -code $code
-		    Debug.HTTP {reader header: $header ($r)}
-		    
-		    # now we have to fetch the entity (if any)
-		    if {[dict exists $r content-length]} {
-			set left [dict get $r content-length]
-			set entity ""
-			chan configure $socket -encoding binary -translation {binary binary}
-			Debug.HTTP {reader getting entity of length ($left)}
-			while {$left > 0} {
-			    set chunk [my read $left]
-			    incr left -[string length $chunk]
-			    Debug.HTTP {reader getting remainder of entity of length ($left)}
-			    dict append r -content $chunk
-			}
-			Debug.HTTP {reader got whole entity}
-		    } elseif {[dict exists $r transfer-encoding]} {
-			switch -- [dict get $r transfer-encoding] {
-			    chunked {
-				set chunksize 1
-				while {$chunksize} {
-				    chan configure $socket -encoding [encoding system] -translation {crlf binary}
-				    set chunksize 0x[my gets]
-				    chan configure $socket -encoding binary -translation {binary binary}
-				    if {!$chunksize} {
-					my gets
-					Debug.HTTP {Chunks all done}
-					break
-				    }
-				    set chunk [my read $chunksize]
-				    my gets	;# get the closing \n
-				    Debug.HTTP {Chunk: $chunksize ($chunk)}
-				    dict append r -content $chunk
-				}
-			    }
-			    default {
-				error "Unknown transfer encoding"
-			    }
-			}
-		    } elseif {[string toupper $version] eq "HTTP/1.0"} {
-			dict set r -content [my read]
-		    }
-		}
-
-		# reset to header config
-		if {![chan eof $socket]} {
-		    chan configure $socket -encoding [encoding system] -translation {crlf binary}
-		}
-
-		# check content-encoding and gunzip content if necessary
-		if {[dict exists $r content-encoding]} {
-		    switch -- [string tolower [dict get $r content-encoding]] {
-			gzip {
-			    set content [dict get $r -content]
-			    dict set r -content [zlib gunzip $content]
-			}
-			default {}
-		    }
-		}
-
-		# hand consumer the result
-		variable consumer
-		variable justcontent
-		if {$justcontent} {
-		    after 1 [list {*}$consumer [list [dict get $r -content]]]
-		} else {
-		    variable requrl
-		    Debug.HTTPdetail {formatting up consumer message $reqcount}
-		    dict set r X-url $requrl($reqcount)
-		    dict set r X-count $rqcount
-		    dict set r X-object $self
-		    dict set r X-type RESPONSE
-		    after 1 [list {*}$consumer $r]
-		}
-
-		# count the outstanding responses left
-		# close if there are none
-		variable outstanding
-		incr outstanding -1
-		Debug.HTTP {outstanding: $outstanding}
-
-		variable closing
-		if {[dict exists $r connection]
-		    && [string tolower [dict get $r connection]] eq "close"
-		} {
-		    set outstanding 0
-		    incr closing
-		}
-
-		if {$closing && !$outstanding} {
-		    set reason "requested by WRITER"
-		    $self destroy
-		} elseif {!$outstanding} {
-		    # nothing to read
-		    chan event $socket readable {}
-		}
-		Debug.HTTP {reader: sent response, waiting for next}
-		::yieldm
-		set gone [catch {chan eof $socket} eof]
-	    }
-	    catch {chan close $socket}
-	    $self destroy
+	# forward some convenience methods
+	foreach v {get put post delete close} {
+	    oo::objdefine [self] forward $v [self] write $v	;# forward the method to the coro
 	}
 
 	# create reader coroutine
-	set reader [self]::${socket}R
-	coroutine $reader reader socket $socket
-	objdefine [self] forward reader $reader	;# forward the method to the coro
-
-	# writer proc - the functional basis of the writer coroutine
-	proc writer {args} {
-	    # writer - coro to send HTTP requests to a server
-	    Debug.HTTP {writer: $args}
-	    variable txcount -1
-
-	    # unpack all the passed-in args
-	    set ops {}
-	    set http {}
-
-	    foreach {var val} $args {
-		if {[string tolower $var] in {get put post delete close}} {
-		    # collect protocol operations
-		    lappend ops [string tolower $var] $val
-		} elseif {$var eq "ops"} {
-		    lappend ops {*}$val
-		} else {
-		    set $var $val
-		}
-	    }
-	    
-	    # construct a request template
-	    set http [dict merge $template $http]	;# http could have been passed in
-	    dict set http User-Agent "TclHTTP/[package present HTTP]"
-	    lappend http accept-encoding gzip
-	    
-	    variable closing; variable self
-
-	    # send any ops we were passed
-	    if {[info exists ops]} {
-		Debug.HTTP {initial ops: $ops}
-		foreach {op val} $ops {
-		    if {$op eq "close"} {
-			# we've been asked to close
-			Debug.HTTP {closing upon request}
-			variable reason "Requested by Consumer"
-			proc writethis {args} {
-			    error "The writer has been closed"
-			}
-			set closing 1
-			return
-		    } else {
-			set entity [lassign $val url]
-			my send $op $url {*}$entity
-		    }
-		}
-	    }
-
-	    variable closing; variable self
-	    set retval ""
-	    while {!$closing} {
-		# unpack event
-		if {[catch {
-		    set args [lassign [::yieldm $self] op]; set retval ""
-		} e eo]} {
-		    Debug.HTTP {[info coroutine] yield: $e ($eo)}
-		    return
-		}
-		
-		set op [string tolower $op]
-		Debug.HTTP {writer $op $args}
-		if {$closing || $op eq "close"} {
-		    Debug.HTTP {close: $op / $closing}
-		    variable reason "Requested by Consumer"
-		    proc writethis {args} {
-			error "The writer has been closed"
-		    }
-		    set closing 1
-		    return
-		} elseif {$op in {get put post delete}} {
-		    # got a protocol operator from consumer
-		    set entity [lassign $args url]
-		    my send $op $url {*}$entity
-		}
-	    }
-	}
+	variable reader ::HTTPClient::${socket}R
+	coroutine $reader [self] reader
 
 	# create writer coroutine
-	set writer [self]::${socket}W 
-	coroutine $writer writer socket $socket ops $ops template $template host $host
-	objdefine [self] forward write [self]::writethis	;# forward the method to the coro
-
-	# forward some methods for writing
-	proc writethis {args} {
-	    variable self
-	    variable host
-	    variable port
-	    variable writer
-	    if {[llength $args]} {
-		set args [lassign $args op url]
-		$writer $op $url {*}$args
-		return $self
-	    } else {
-		return $writer
-	    }
-	}
-
-	foreach v {get put post delete close} {
-	    objdefine [self] forward $v [self]::writethis $v	;# forward the method to the coro
-	}
+	variable writer ::HTTPClient::${socket}W 
+	coroutine $writer [self] writer
 
 	return $writer
     }
@@ -700,7 +681,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	}
     }
 
-    http://1023.1024.1025.0126:8080/ echo	;# a bad url
+    catch {http://1023.1024.1025.0126:8080/ echo}	;# a bad url
     set obj [http://localhost:8080/wub/ echo get /]	;# get a couple of URLs
     http://www.google.com.au/ echo justcontent 1	;# just get the content, not the dict
     puts $obj
@@ -708,7 +689,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     $obj get http://localhost:8080/ echo
 
     set fd [open [info script]]; set source [read $fd]; close $fd
-    if {![catch {zlib adler32 $source} crc]} {
+    if {![catch {::zlib adler32 $source} crc]} {
 	if {![catch {package require fileutil}]} {
 	    http://wub.googlecode.com/svn/trunk/Client/HTTP.tcl	{set ::source} justcontent 1	;# fetch the latest HTTP.tcl
 	}
@@ -717,7 +698,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     vwait ::source
     set source [subst -nocommands -novariables $source]
     puts stderr "Fetched [string length $source] bytes of source for HTTP.tcl"
-    if {![catch {zlib adler32 $source} crc2]} {
+    if {![catch {::zlib adler32 $source} crc2]} {
 	if {$crc ne $crc2} {
 	    puts stderr "There seems to be a newer version of HTTP.tcl"
 	    if {[lsearch $argv -autoupdate] != -1} {
@@ -734,4 +715,5 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	    puts stderr "You seem to have the most current version of HTTP.tcl"
 	}
     }
+    vwait ::forever
 }
