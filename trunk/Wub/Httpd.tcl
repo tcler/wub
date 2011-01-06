@@ -2039,8 +2039,9 @@ oo::objdefine ::Httpd {
     method Resume {r} {
 	Debug.httpd {Resuming [rdump $r]}
         # ask socket coro to send the response for us
-	# we inject the SEND event into the coro so Resume may be called from any
+	# inject the SEND event into the coro so Resume may be called from any
 	# event, thread or coroutine
+	catch {dict remove r -suspend}
 	set r [::Dispatcher post $r]
 	set code [catch {{*}[dict get $r -send] send $r} e eo]
 	if {$code != 0} {
