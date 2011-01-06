@@ -387,7 +387,7 @@ namespace eval ::Url {
 			     -host $host \
 			     -port $port]]
 	}
-
+	Debug.url {redir to: $to}
 	return $to
     }
 
