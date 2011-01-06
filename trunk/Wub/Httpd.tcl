@@ -1901,7 +1901,7 @@ oo::class create ::Httpd {
 
 	# generate thread script
 	set sscript [string map [list %S% [list $script] %V% [list $vars] %A% $vals %ME% [::thread::id] %R% [list $r] %O% [self]] {
-	    puts stderr "Thread Running: [::thread::id]"
+	    #puts stderr "Thread Running: [::thread::id]"
 	    set code [catch {::apply [list %V% %S%] %A%} rs eo]
 	    ::thread::send -async %ME% [list %O% thread_response %R% [::thread::id] $code $rs $eo]
 	}]
