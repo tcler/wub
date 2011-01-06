@@ -310,10 +310,8 @@ namespace eval Cache {
 	if {[dict exists $req etag]} {
 	    # let the domains generate their own etags
 	    # hope they're consistent and unique ...
-	    set etag [dict get $req etag]
-	    if {![string match \"* $etag]} {
-		dict set req etag \"$etag\"	;# store with ridiculous quotes
-	    }
+	    set etag [string trim [dict get $req etag] \"]
+	    dict set req etag \"$etag\"	;# store with ridiculous quotes
 	} else {
 	    # generate etag from MD5 of content
 	    set etag [etag $req]
@@ -340,7 +338,7 @@ namespace eval Cache {
 	    dict set cached -modified [clock seconds]
 	}
 
-	Debug.cache {cache entry: [Httpd rdump $cached]} 4
+	Debug.cache {cache entry: [Httpd dump $cached]} 4
 
 	variable cache; variable high; variable low
 	# ensure cache size is bounded
@@ -565,7 +563,7 @@ namespace eval Cache {
 	    counter $cached -hits	;# count individual entry hits
 	    set req [dict merge $req $cached]
 	    set req [Http CacheableContent $req [dict get $cached -modified]]
-	    Debug.cache {cached content for $uri ([Httpd rdump $req])}
+	    Debug.cache {cached content for $uri ([Httpd dump $req])}
 	    return $req
 	}
 
