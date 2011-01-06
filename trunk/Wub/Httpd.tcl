@@ -260,17 +260,6 @@ oo::class create ::Httpd {
 	return [chan eof $socket]
     }
 
-    # rdump - return a stripped request for printing
-    method rdump {req} {
-	foreach f {-content -entity -gzip} {
-	    if {[dict exists $req $f]} {
-		dict set req $f "<ELIDED [string length [dict get $req $f]]>"
-	    }
-	}	    
-
-	return [regsub {([^[:print:]])} $req .]
-    }
-
     # control the writable state of $socket
     method unwritable {} {
 	variable socket
@@ -307,7 +296,7 @@ oo::class create ::Httpd {
     # handle - handle a protocol error
     # close read-side of socket, send an error response
     method handle {r {reason "Error"}} {
-	Debug.error {handle $reason: ([my rdump $r])}
+	Debug.error {handle $reason: ([Httpd dump $r])}
 
 	# we have an error, so we're going to try to reply then die.
 	variable socket
@@ -1201,7 +1190,7 @@ oo::class create ::Httpd {
     #	Possibly close socket, possibly cache response
 
     method send {r {cache 1}} {
-	Debug.httpd {[info coroutine] send: ([my rdump $r]) $cache [expr {[dict get? $r -ua_class] ni {browser unknown}}]}
+	Debug.httpd {[info coroutine] send: ([Httpd dump $r]) $cache [expr {[dict get? $r -ua_class] ni {browser unknown}}]}
 	variable socket
 	variable start; dict set r -time sent [expr {[clock microseconds] - $start}]
 
@@ -1224,7 +1213,7 @@ oo::class create ::Httpd {
 
 	variable satisfied
 	variable unsatisfied
-	Debug.httpd {send: [info coroutine] ([my rdump $r]) satisfied: ([dict keys $satisfied]) unsatisfied: ([dict keys $unsatisfied])}
+	Debug.httpd {send: [info coroutine] ([Httpd dump $r]) satisfied: ([dict keys $satisfied]) unsatisfied: ([dict keys $unsatisfied])}
 
 	# send all pending responses, ensuring we don't send out of sequence
 	# discard duplicate responses
@@ -1239,11 +1228,11 @@ oo::class create ::Httpd {
 	    # a duplicate response has been sent - discard this
 	    # this could happen if a dispatcher sends a response,
 	    # then gets an error.
-	    Debug.error {Send discarded: duplicate ([my rdump $r]) - sent:([my rdump [dict get $satisfied $trx]])}
+	    Debug.error {Send discarded: duplicate ([Httpd dump $r]) - sent:([Httpd dump [dict get $satisfied $trx]])}
 	    return	;# duplicate response - just ignore
 	} elseif {![dict exists $unsatisfied $trx]} {
 	    # only send for unsatisfied requests
-	    Debug.error {Send discarded: satisfied duplicate ([my rdump $r])}
+	    Debug.error {Send discarded: satisfied duplicate ([Httpd dump $r])}
 	    return	;# duplicate response - just ignore
 	}
 
@@ -1271,7 +1260,7 @@ oo::class create ::Httpd {
 		# handle caching (under no circumstances cache bot replies)
 		set r [Cache put $r]	;# cache it before it's sent
 	    } else {
-		Debug.httpd {Do Not Cache put: ([my rdump $r]) cache:$cache}
+		Debug.httpd {Do Not Cache put: ([Httpd dump $r]) cache:$cache}
 	    }
 
 	    # generate a log line
@@ -1460,7 +1449,7 @@ oo::class create ::Httpd {
 	}
 
 	# completed request header decode - now dispatch on the URL
-	Debug.httpd {[info coroutine] reader complete: [dict get $r -header] ([my rdump $r])}
+	Debug.httpd {[info coroutine] reader complete: [dict get $r -header] ([Httpd dump $r])}
 
 	# rename fields whose names are the same in request/response
 	foreach n {cache-control pragma} {
@@ -1676,7 +1665,7 @@ oo::class create ::Httpd {
 	    dict set cached -caching retrieved
 	    dict set cached -sent [clock microseconds]
 
-	    Debug.httpd {[info coroutine] sending cached [dict get $r -uri] ([my rdump $cached])}
+	    Debug.httpd {[info coroutine] sending cached [dict get $r -uri] ([Httpd dump $cached])}
 	    set fail [catch {
 		my send [dict merge $r $cached] 0
 	    } result eo]
@@ -1757,7 +1746,7 @@ oo::class create ::Httpd {
 		my send [::convert convert [Http ServerError $r $rspp $eo]]
 	    } else {
 		# send the response to client
-		Debug.httpd {[info coroutine] postprocess: [my rdump $rspp]} 10
+		Debug.httpd {[info coroutine] postprocess: [Httpd dump $rspp]} 10
 		::watchdog stroke [self]
 
 		# does post-process want to suspend?
@@ -1879,7 +1868,7 @@ oo::class create ::Httpd {
     # thread_response - turn a threaded processing response into
     # an Http response, and resume it.
     method thread_response {r thread code rs eo} {
-	Debug.httpdthread {thread_response: $code ($eo) ([my rdump $r]) -> ([my rdump $rs])}
+	Debug.httpdthread {thread_response: $code ($eo) ([Httpd dump $r]) -> ([Httpd dump $rs])}
 	
 	# put thread back on available queue
 	set cns [info object namespace ::Httpd]
@@ -1999,6 +1988,18 @@ namespace eval ::Httpd::coros {}
 
 # format something to suspend this packet
 oo::objdefine ::Httpd {
+    # dump - return a stripped request for printing
+    method dump {req} {
+	foreach f {-content -entity -gzip} {
+	    if {[dict exists $req $f]} {
+		dict set req $f "<ELIDED [string length [dict get $req $f]]>"
+	    }
+	}	    
+
+	return [regsub {([^[:print:]])} $req .]
+    }
+    export dump
+
     # Thread - suspend, and run this script in a background thread
     method Thread {script rvar r args} {
 	if {[catch {package require Thread} e eo]} {
@@ -2088,18 +2089,6 @@ oo::objdefine ::Httpd {
 	}
     }
     export s2h
-
-    # dump - return a stripped request for printing
-    method dump {req} {
-	foreach f {-content -entity -gzip} {
-	    if {[dict exists $req $f]} {
-		dict set req $f "<ELIDED [string length [dict get $req $f]]>"
-	    }
-	}	    
-
-	return [regsub {([^[:print:]])} $req .]
-    }
-    export dump
 }
 
 proc ::checkObj {} {
