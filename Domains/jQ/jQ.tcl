@@ -83,7 +83,7 @@ namespace eval ::jQ {
     variable expires "next week"
     variable google 0
 
-    variable version 1.4.2
+    variable version 1.4.4
     variable uiversion 1.8.2
     variable min 1
 
