@@ -186,8 +186,8 @@ if {[catch {package require Debug}]} {
     proc Debug.HTTPdetail {args} {}
     #proc Debug.HTTPdetail {args} {puts stderr HTTPdetail@[uplevel subst $args]}
 } else {
-    Debug off HTTP 10
-    Debug off HTTPdetail 10
+    Debug define HTTP 10
+    Debug define HTTPdetail 10
 }
 
 # this enables urls to be commands.
@@ -226,13 +226,18 @@ namespace eval ::HTTPClient {}
 
 oo::class create HTTP {
     # send - send an op HTTP request to the server
-    method send {method url {entity ""} args} {
+    method send {method url args} {
 	variable socket
 	variable sent
 	variable host
 	variable port
 	variable http
-	Debug.HTTP {[self] send method:$method url:$url entity: [string length $entity] ($args)}
+	Debug.HTTP {[self] send method:$method url:$url ($args)}
+	if {[llength $args]%2} {
+	    set entity [lindex $args 0]
+	    set args [lrange $args 1 end]
+	    Debug.HTTP {[self] sending entity length [string length $entity]}
+	}
 
 	set T [dict merge $http $args [list -scheme http -port $port -host $host] [Url parse $url]]
 	set T [dict merge $T [list -method $method date [::Http::Date] host $host]]
@@ -240,11 +245,9 @@ oo::class create HTTP {
 	Debug.HTTP {[self] T: ($T) #$txcount -> [Url http $T] -> [Url uri $T]}
 
 	# format entity
-	if {$entity ne ""} {
+	if {[info exists entity]} {
 	    # encode entity body
 	    dict set T content-length [string length $entity]
-	} else {
-	    unset entity
 	}
 
 	# format up header
@@ -270,6 +273,7 @@ oo::class create HTTP {
 	    # send the entity
 	    chan puts -nonewline $socket $entity
 	}
+
 	variable outstanding; incr outstanding
 	variable reader
 	chan event $socket readable [list $reader READ]
@@ -336,11 +340,11 @@ oo::class create HTTP {
 	dict set r -version $version
 	dict set r -code $code
 
-	set last ""
+	set key ""
 	foreach line $lines {
 	    if {[string index $line 0] in {" " "\t"}} {
 		# continuation line
-		dict append r $last " [string trim $line]"
+		dict append r $key " [string trim $line]"
 	    } else {
 		set value [join [lassign [split $line ":"] key] ":"]
 		set key [string tolower [string trim $key "- \t"]]
@@ -508,13 +512,11 @@ oo::class create HTTP {
 	variable txcount
 	# construct a request template
 	variable template
-	variable http [dict merge $template $args]
+	variable http [dict merge $template $args] ;# complete request template
 	dict set http User-Agent "TclHTTP/[package present HTTP]"
-	lappend http accept-encoding gzip
+	variable closing 0
 
-	variable closing
-
-	# send any ops we were passed
+	# send all ops we have queued
 	variable ops
 	if {[info exists ops]} {
 	    Debug.HTTP {[self] initial ops: $ops}
@@ -526,44 +528,44 @@ oo::class create HTTP {
 		    set closing 1
 		    return
 		} else {
-		    set entity [lassign $val url]
-		    my send $op $url {*}$entity
+		    my send $op {*}$val	;# send init ops
 		}
 	    }
 	}
 
-	variable closing
-	set retval ""
+	# after initial ops are sent, sit in loop awaiting new op requests
 	while {!$closing} {
 	    # unpack event
 	    if {[catch {
-		set args [lassign [::yieldm [self]] op]; set retval ""
+		set args [lassign [::yieldm [self]] op url]
+		set op [string tolower $op]
 	    } e eo]} {
 		Debug.HTTP {[self] [info coroutine] yield: $e ($eo)}
+		my destroy
 		return
 	    }
-	    
-	    set op [string tolower $op]
-	    Debug.HTTP {[self] writer $op $args}
+ 
+	    Debug.HTTP {[self] writer op:$op url:$url args:$args}
 	    if {$closing || $op eq "close"} {
 		Debug.HTTP {[self] close: $op / $closing}
 		variable reason "Requested by Consumer"
 		set closing 1
+		my destroy
 		return
-	    } elseif {$op in {get put post delete}} {
+	    } elseif {$op in {get put post head delete}} {
 		# got a protocol operator from consumer
-		set entity [lassign $args url]
-		my send $op $url {*}$entity
+		my send $op $url {*}$args
+	    } else {
+		my destroy
+		error "Unknown op: $op $url $args"
 	    }
 	}
     }
 
     # forward some methods for writing
-    method write {args} {
+    method write {op url args} {
 	variable writer
-	if {[llength $args]} {
-	    $writer {*}$args
-	}
+	$writer $op $url {*}$args
     }
 
     destructor {
@@ -595,9 +597,9 @@ oo::class create HTTP {
 	variable outstanding 0	;# counts outstanding packets
 	variable rqcount -1		;# counts received responses
 	variable txcount -1		;# counts sent requests
-	variable reason "none given"	;# reason for closure
+	variable reason "server closed connection"	;# reason for closure
 	variable consumer $_consumer	;# who's consuming this?
-	variable template {accept */*}	;# http template
+	variable template {accept */* accept-encoding gzip}	;# http template
 	variable notify ";#"		;# notify close to consumer?
 	variable justcontent 0		;# consumer only wants content
 	variable sockopts {}
@@ -608,10 +610,10 @@ oo::class create HTTP {
  
 	variable ops {}
 	foreach {n v} $args {
-	    if {$n in {get put post delete close}} {
-		lappend ops $n $v
+	    if {$n in {get put post delete head close}} {
+		lappend ops $n $v	;# queue ops up for writer
 	    } else {
-		set $n $v
+		variable $n $v
 	    }
 	}
 
@@ -654,19 +656,22 @@ oo::class create HTTP {
 	}
 
 	# forward some convenience methods
-	foreach v {get put post delete close} {
+	foreach v {get put post head delete close} {
 	    oo::objdefine [self] forward $v [self] write $v	;# forward the method to the coro
 	}
 
+	# create coros inside our ns
+	set ns [info object namespace [self]]
+
 	# create reader coroutine
-	variable reader ::HTTPClient::${socket}R
+	variable reader ${ns}::${socket}R
 	coroutine $reader [self] reader
+	trace add command $reader delete [list [self] destroy]
 
 	# create writer coroutine
-	variable writer ::HTTPClient::${socket}W 
+	variable writer ${ns}::${socket}W 
 	coroutine $writer [self] writer
-
-	return $writer
+	trace add command $writer delete [list [self] destroy]
     }
 }
 
