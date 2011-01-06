@@ -115,7 +115,7 @@ class create ::File {
 
 		file {
 		    # allow client caching
-		    set r [Http Cache $r $expires]
+		    set r [Http Cache $r $expires $crealm]
 		    if {[file size $path] > $stream} {
 			# this is a large file - stream it using fcopy
 			return [Http File $r $path]
@@ -149,12 +149,12 @@ class create ::File {
 		    } else {
 			# no index file - generate a directory listing
 			set r [my dir $r $path]
-			return [Http CacheableContent [Http Cache $r $expires] [clock seconds]]
+			return [Http CacheableContent [Http Cache $r $expires $crealm] [clock seconds]]
 		    }
 		}
 
 		default {
-		    set r [Http Cache $r $expires]
+		    set r [Http Cache $r $expires $crealm]
 		    return [Http NotFound $r "<p>File '$suffix' is of illegal type [file type $path]</p>"]
 		}
 	    }
@@ -163,7 +163,7 @@ class create ::File {
 	return [Http NotFound $r "<p>File '$suffix' doesn't resolve to a file.</p>"]
     }
 
-    variable root indexfile mount hide redirdir expires dateformat dirparams nodir stream followextlinks sortparam
+    variable root indexfile mount hide redirdir expires dateformat dirparams nodir stream followextlinks sortparam crealm
 
     constructor {args} {
 	set indexfile "index.*"
@@ -172,6 +172,7 @@ class create ::File {
 	set hide {^([.].*)|(.*~)|(\#.*)$}
 	set redirdir 1	;# redirect dir to dir/
 	set expires 0	;# add an expiry to each response
+	set crealm ""	;# optionally make files 'public'
 	set dateformat "%Y %b %d %T"
 	set dirparams {
 	    sortable 1
