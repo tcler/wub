@@ -2030,7 +2030,7 @@ oo::objdefine ::Httpd {
 
     # Suspend server-processing of this request
     method Suspend {r {grace -1}} {
-	Debug.httpd {Suspending [rdump $r]}
+	Debug.httpd {Suspending [Httpd dump $r]}
 	dict set r -suspend $grace
 	return $r
     }
@@ -2038,7 +2038,7 @@ oo::objdefine ::Httpd {
 
     # Resume this request
     method Resume {r} {
-	Debug.httpd {Resuming [rdump $r]}
+	Debug.httpd {Resuming [Httpd dump $r]}
         # ask socket coro to send the response for us
 	# inject the SEND event into the coro so Resume may be called from any
 	# event, thread or coroutine
