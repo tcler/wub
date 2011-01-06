@@ -11,14 +11,7 @@ if {[catch {package require Debug}]} {
 package provide Store 1.0
 
 oo::class create Store {
-    # stmt - evaluate tdbc statement
-    # caches prepared statements
-    # returns resultset as dict
-    method stmt {stmt args} {
-	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
-	}
-
+    method prep {stmt} {
 	variable stmts	;# here are some statements we prepared earlier
 	if {[dict exists $stmts $stmt]} {
 	    set s [dict get $stmts $stmt]
@@ -26,9 +19,15 @@ oo::class create Store {
 	    set s [my db prepare $stmt]
 	    dict set stmts $stmt $s
 	}
+	return $s
+    }
 
+    # stmt - evaluate tdbc statement
+    # caches prepared statements
+    # returns resultset as dict
+    method stmt {stmt args} {
 	Debug.store {stmt '$stmt' over ($args)}
-	set result [$s allrows -as dicts $args]
+	set result [[my prep $stmt] allrows -as dicts $args]
 	Debug.store {stmt result: '$stmt' -> ($result)}
 	return $result
     }
@@ -37,19 +36,7 @@ oo::class create Store {
     # caches prepared statements
     # returns resultset as list
     method stmtL {stmt args} {
-	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
-	}
-
-	variable stmts	;# here are some statements we prepared earlier
-	if {[dict exists $stmts $stmt]} {
-	    set s [dict get $stmts $stmt]
-	} else {
-	    set s [my db prepare $stmt]
-	    dict set stmts $stmt $s
-	}
-
-	set result [$s allrows -as lists $args]
+	set result [[my prep $stmt] allrows -as lists $args]
 	Debug.store {stmtL result: '$stmt' -> ($result)}
 	return $result
     }
@@ -91,8 +78,8 @@ oo::class create Store {
 	dict for {n v} $args {
 	    lappend vs :$n
 	}
-
-	return [my stmt "INSERT INTO $table ([join [dict keys $args] ,]) VALUES ([join $vs ,]);" $args]
+	Debug.store {append $table ($args)}
+	return [my stmtL "INSERT INTO $table ([join [dict keys $args] ,]) VALUES ([join $vs ,]);SELECT last_insert_rowid();" {*}$args]
     }
 
     # matching tuples
@@ -114,6 +101,27 @@ oo::class create Store {
 	}
 	set sel [join $sel " AND "]
 	return [my stmt "SELECT * FROM $table WHERE $sel;" {*}$args]
+    }
+
+    # find rowid of first match
+    method find {args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	if {[llength $args]%2} {
+	    set args [lassign $args table]
+	} else {
+	    variable primary; set table $primary
+	}
+
+	Debug.store {find in '$table' $args}
+
+	set sel {}
+	foreach n [dict keys $args] {
+	    lappend sel $n=:$n
+	}
+	set sel [join $sel " AND "]
+	return [lindex [my stmtL "SELECT OID FROM $table WHERE $sel;" {*}$args] 0]
     }
 
     # delete matching tuples
@@ -145,6 +153,17 @@ oo::class create Store {
 	    error "one $name '$value' returned [llength $result] results: ($result)"
 	}
 	return [lindex $result 0]
+    }
+
+    method row {table row args} {
+	if {![llength $args]} {
+	    Debug.store {row $table $row}
+	    return [lindex [my stmt "SELECT * FROM $table where OID=:oid" oid $row] 0]
+	} else {
+	    set cols [join $args ,]
+	    Debug.store {row $table $row of $cols}
+	    return [dict values [lindex [my stmt "SELECT $cols FROM $table where OID=:oid" oid $row] 0]]
+	}
     }
 
     # return tuples by a single field match
