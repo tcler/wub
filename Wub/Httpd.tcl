@@ -1990,7 +1990,7 @@ namespace eval ::Httpd::coros {}
 oo::objdefine ::Httpd {
     # dump - return a stripped request for printing
     method dump {req} {
-	foreach f {-content -entity -gzip} {
+	foreach f {-content -entity -gzip -headers} {
 	    if {[dict exists $req $f]} {
 		dict set req $f "<ELIDED [string length [dict get $req $f]]>"
 	    }
