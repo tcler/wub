@@ -2,6 +2,7 @@ package require Debug
 Debug define httpd 10
 Debug define httpdlow 10
 Debug define httpdclient 10
+Debug define httpdthread 10
 Debug define watchdog 10
 Debug define reaper 10
 
@@ -1875,6 +1876,48 @@ oo::class create ::Httpd {
 	catch {my destroy}
     }
 
+    # thread_response - turn a threaded processing response into
+    # an Http response, and resume it.
+    method thread_response {r thread code rs eo} {
+	Debug.httpdthread {thread_response: $code ($eo) ([my rdump $r]) -> ([my rdump $rs])}
+	
+	# put thread back on available queue
+	set cns [info object namespace ::Httpd]
+	lappend ${cns}::threads $thread
+
+	if {$code} {
+	    set rs [Http ServerError $r $rs $eo]
+	}
+	return [Httpd Resume $rs]	;# resume request
+    }
+
+    # thread - run the given script in the given thread,
+    # suspending while processing, resuming when complete
+    method thread {thread script rvar r args} {
+	# collect thread args
+	set vars [list $rvar {*}[dict keys $args]]
+	set vals [list $r {*}[dict values $args]]
+
+	# generate thread script
+	set sscript [string map [list %S% [list $script] %V% [list $vars] %A% $vals %ME% [::thread::id] %R% [list $r] %O% [self]] {
+	    puts stderr "Thread Running: [::thread::id]"
+	    set code [catch {::apply [list %V% %S%] %A%} rs eo]
+	    ::thread::send -async %ME% [list %O% thread_response %R% [::thread::id] $code $rs $eo]
+	}]
+	Debug.httpdthread {thread: $thread sscript: '$sscript'}
+
+	::thread::send -async $thread $sscript	;# kick off the thread
+
+	# Thread's running - Suspend self
+	if {[dict exists $r -grace]} {
+	    set grace [dict get $r -grace]	;# caller specified grace
+	} else {
+	    set grace -1
+	}
+
+	return [Httpd Suspend $r $grace]
+    }
+
     destructor {
 	Debug.httpd {Destroying [self]}
 	::watchdog gone [self]	;# deregister from watchdog
@@ -1892,6 +1935,7 @@ oo::class create ::Httpd {
 	    catch {$client del [self]}
 	}
 
+	# close any open files
 	variable files
 	foreach {f name} $files {
 	    catch {close $f}
@@ -1954,6 +1998,36 @@ namespace eval ::Httpd::coros {}
 
 # format something to suspend this packet
 oo::objdefine ::Httpd {
+    # Thread - suspend, and run this script in a background thread
+    method Thread {script rvar r args} {
+	if {[catch {package require Thread} e eo]} {
+	    error "Httpd Thread requires package Thread, which is absent"
+	}
+
+	# pick a thread from available queue
+	set cns [info object namespace ::Httpd]
+	set thread ""
+	if {![info exists ${cns}::threads]} {
+	    set ${cns}::threads {}
+	} else {
+	    set ${cns}::threads [lassign [set ${cns}::threads] thread]
+	}
+
+	if {$thread eq ""} {
+	    # create a new thread
+	    set thread [::thread::create [string map [list %AP% [list $::auto_path]] {
+		set auto_path %AP%
+		#package require Thread
+		package require Http
+		set forever 0; vwait forever
+	    }]]
+	}
+
+	return [[dict get $r -cid] thread $thread $script $rvar $r {*}$args]
+    }
+    export Thread
+
+    # Suspend server-processing of this request
     method Suspend {r {grace -1}} {
 	Debug.httpd {Suspending [rdump $r]}
 	dict set r -suspend $grace
@@ -1961,8 +2035,8 @@ oo::objdefine ::Httpd {
     }
     export Suspend
 
-    # resume this request
-    method Resume {r {cache 1}} {
+    # Resume this request
+    method Resume {r} {
 	Debug.httpd {Resuming [rdump $r]}
         # ask socket coro to send the response for us
 	# we inject the SEND event into the coro so Resume may be called from any
@@ -2012,6 +2086,18 @@ oo::objdefine ::Httpd {
 	}
     }
     export s2h
+
+    # dump - return a stripped request for printing
+    method dump {req} {
+	foreach f {-content -entity -gzip} {
+	    if {[dict exists $req $f]} {
+		dict set req $f "<ELIDED [string length [dict get $req $f]]>"
+	    }
+	}	    
+
+	return [regsub {([^[:print:]])} $req .]
+    }
+    export dump
 }
 
 proc ::checkObj {} {
