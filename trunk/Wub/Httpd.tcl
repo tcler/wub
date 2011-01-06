@@ -1895,9 +1895,9 @@ oo::class create ::Httpd {
     # suspending while processing, resuming when complete
     method thread {thread script rvar r args} {
 	# collect thread args
+	dict set r -thread [::thread::id]
 	set vars [list $rvar {*}[dict keys $args]]
 	set vals [list $r {*}[dict values $args]]
-	dict set r -thread [::thread::id]
 
 	# generate thread script
 	set sscript [string map [list %S% [list $script] %V% [list $vars] %A% $vals %ME% [::thread::id] %R% [list $r] %O% [self]] {
