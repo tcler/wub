@@ -863,7 +863,9 @@ oo::class create ::Httpd {
 		# this was a continue ... we need to reschedule entity reading
 		# keep the transaction unsatisfied
 		set ostate CONTINUE
-		after 0 [list [dict get $req -send] entity $req]
+		Debug.httpd {[info coroutine] CONTINUE} 8
+		#after 0 [list [dict get $req -send] entity $req]
+		{*}[dict get $req -send] entity $req
 	    } else {
 		# this request is no longer unsatisfied
 		dict unset unsatisfied $next
