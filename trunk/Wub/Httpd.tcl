@@ -864,8 +864,7 @@ oo::class create ::Httpd {
 		# keep the transaction unsatisfied
 		set ostate CONTINUE
 		Debug.httpd {[info coroutine] CONTINUE} 8
-		#after 0 [list [dict get $req -send] entity $req]
-		my entity $req
+		after 0 [list [dict get $req -send] entity $req ok]
 	    } else {
 		# this request is no longer unsatisfied
 		dict unset unsatisfied $next
@@ -1491,7 +1490,7 @@ oo::class create ::Httpd {
 	}
     }
 
-    method Entity {} {
+    method Entity {{code continue}} {
 	variable istate ENTITY
 	upvar 1 r r
 	variable start; dict set r -time entitystart [expr {[clock microseconds] - $start}]
@@ -1520,7 +1519,7 @@ oo::class create ::Httpd {
 		    # queue up error response (no caching)
 		    Debug.log {Got a $tel transfer-encoding which we can't handle}
 		    my send [Http NotImplemented $r "$tel transfer encoding"] 0
-		    return -code continue	;# listen for new request
+		    return -code $code	;# listen for new request
 
 		    # see 3.6 - 14.41 for transfer-encoding
 		    # 4.4.2 If a message is received with both
@@ -1542,7 +1541,7 @@ oo::class create ::Httpd {
 	    # this is a content-length driven entity transfer
 	    # 411 Length Required
 	    my send [Http Bad $r "Length Required" 411]
-	    return -code continue
+	    return -code $code
 	}
 
 	# fetch the entity (if any)
@@ -1578,7 +1577,7 @@ oo::class create ::Httpd {
 		# we had a 0-length chunk ... may as well let it fall through
 		dict set r -entity ""
 	    }
-	    return -code continue	;# we loop around until there are more requests
+	    return -code $code	;# we loop around until there are more requests
 	} elseif {[dict exists $r content-length]} {
 	    set left [dict get $r content-length]
 	    Debug.entity {content-length: $left}
@@ -1621,7 +1620,7 @@ oo::class create ::Httpd {
 		# start the fcopy
 		chan configure $socket -translation binary
 		chan copy $socket $entity -size $left -command [list [info coroutine] fcin $r $entity $left]
-		return -code continue	;# we loop around until there are more requests
+		return -code $code	;# we loop around until there are more requests
 	    }
 
 	    # load entity into memory
@@ -1681,7 +1680,7 @@ oo::class create ::Httpd {
 
 	    if {$fail} {
 		Debug.error {FAILED write $result ($eo) IP [dict get $r -ipaddr] ([dict get? $r user-agent]) wanted [dict get $r -uri]}
-		terminate "closed while processing request $result"
+		my terminate "closed while processing request $result"
 	    }
 	    return	;# we've sent the cached copy, we're done
 	}
@@ -1780,8 +1779,8 @@ oo::class create ::Httpd {
 	}
     }
 
-    method entity {r} {
-	my Entity		;# process entity
+    method entity {r {code continue}} {
+	my Entity $code		;# process entity
 	tailcall my process $r	;# now process the request
     }
 
