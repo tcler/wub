@@ -865,7 +865,7 @@ oo::class create ::Httpd {
 		set ostate CONTINUE
 		Debug.httpd {[info coroutine] CONTINUE} 8
 		#after 0 [list [dict get $req -send] entity $req]
-		{*}[dict get $req -send] entity $req
+		my entity $req
 	    } else {
 		# this request is no longer unsatisfied
 		dict unset unsatisfied $next
