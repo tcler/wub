@@ -863,7 +863,7 @@ oo::class create ::Httpd {
 		# this was a continue ... we need to reschedule entity reading
 		# keep the transaction unsatisfied
 		set ostate CONTINUE
-		after 0 [list [dict get $req -send] entity $r]
+		after 0 [list [dict get $req -send] entity $req]
 	    } else {
 		# this request is no longer unsatisfied
 		dict unset unsatisfied $next
@@ -1798,7 +1798,7 @@ oo::class create ::Httpd {
 	# check the incoming ip for blockage
 	variable ipaddr
 	if {[Block blocked? $ipaddr]} {
-	    my handle [Http Forbidden {}] Forbidden	;# this will never start reading
+	    my handle [Http Forbidden {-reason blocked -ipaddr $ipaddr}] Forbidden	;# this will never start reading
 	}
 
 	::watchdog stroke [self]
