@@ -1,18 +1,20 @@
 # zen - parse and manipulate zencode
 # http://code.google.com/p/zen-coding/
 
+package require Tcl 8.5
 package provide Zen 1.0
 
 if {[catch {package require Debug}]} {
     proc Debug.zenparse {args} {puts stderr zen@[uplevel subst $args]}
     proc Debug.zenparse {args} {}
     proc Debug.zengen {args} {puts stderr zengen@[uplevel subst $args]}
-    #proc Debug.zengen {args} {}
+    proc Debug.zengen {args} {}
 } else {
     Debug define zenparse 10
     Debug define zengen 10
 }
 
+# ZenGen is a parent class providing support for generators
 oo::class create ::ZenGen {
     # find free -variables in children of an element
     method freevars {args} {
@@ -194,6 +196,7 @@ oo::class create ::ZenGen {
     }
 }
 
+# ZenHTML is a class to generate HTML from zencode
 oo::class create ::ZenHTML {
     method attr {args} {
 	set result {}
@@ -228,6 +231,11 @@ oo::class create ::ZenHTML {
     }
 }
 
+# Zen is a parser/compiler for zencode.
+# [$zen parse $zencode] produces a tcl list
+# [$zen generate $lang $zencode args...] generates $lang output
+#  using the ::Zen$lang class and with args as an association list
+#  for variable resolution within the $zencode
 oo::class create Zen {
     method token {string {type wordchar}} {
 	set failed 0
