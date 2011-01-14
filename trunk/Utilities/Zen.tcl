@@ -937,19 +937,19 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     # /* comment */
     set count 0
     foreach {from to} {
-	"h1{color white background-color orange}" "h1 {color: white; background-color: orange;}"
-	"h1{color white background-color {orange !important}}" "h1 {color: white; background-color: orange !important;}"
-	"h1.class#id{color white background-color {orange !important}}" "h1.class#id {color: white; background-color: orange !important;}"
-	"div>ul>li {color white}" "div>ul>li {color: white;}"
-	{"h1 h2" {color white}} "h1 h2 {color: white;}"
-	"* {color white}" {* {color: white;}}
-	"(h1+h2) {color white}" "h1+h2 {color: white;}"
+	{h1{color white background-color orange}} {h1 {color: white; background-color: orange;}}
+	{h1{color white background-color {orange !important}}} {h1 {color: white; background-color: orange !important;}}
+	{h1.class#id{color white background-color {orange !important}}} {h1.class#id {color: white; background-color: orange !important;}}
+	{div>ul>li {color white}} {div>ul>li {color: white;}}
+	{"h1 h2" {color white}} {h1 h2 {color: white;}}
+	{* {color white}} {* {color: white;}}
+	{(h1+h2) {color white}} {h1+h2 {color: white;}}
 	{E{foo warning}{color white}} {E[n="warning"] {color: white;}}
 	{E} {E {}}
 	{"E F"} {E F {}}
 	{E > F} {E>F {}}
 	{E:first-child} {E:first-child {}}
-	{E+F {color white}} .
+	{E+F {color white}} "KNOWN TO FAIL"
 	{"E+F" {color white}} {E+F {color: white;}}
     } {
 	incr count
