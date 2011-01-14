@@ -6,7 +6,7 @@ package provide Zen 1.0
 
 if {[catch {package require Debug}]} {
     proc Debug.zenparse {args} {puts stderr zen@[uplevel subst $args]}
-    proc Debug.zenparse {args} {}
+    #proc Debug.zenparse {args} {}
     proc Debug.zengen {args} {puts stderr zengen@[uplevel subst $args]}
     proc Debug.zengen {args} {}
 } else {
@@ -250,6 +250,11 @@ oo::class create ::ZenCSS {
 	return "$tag \{[my attr {*}$args]\}"
     }
 
+    method default {args} {
+	# TODO fix this - it won't work
+	return [my term * {*}$args]	;# * is the default selector
+    }
+
     method naked {nattr args} {
 	Debug.zengen {naked: $nattr $args}
 	set sel {}
@@ -295,6 +300,10 @@ oo::class create ::ZenCSS {
 
 # ZenHTML is a class to generate HTML from zencode
 oo::class create ::ZenHTML {
+    method default {args} {
+	error "HTML has no defaults for '$args'"
+    }
+
     method attr {args} {
 	set result {}
 	foreach {n v} [next {*}$args] {
@@ -651,13 +660,20 @@ oo::class create Zen {
 
 	    switch -- $punct {
 		. {
+		    Debug.zenparse {term leading '$punct'}
+		    set rest *.$rest
+		    return [my term rest $nesting]
 		    return [list default . {*}[my compounding rest $nesting]]
 		}
 		\# {
+		    Debug.zenparse {term leading '$punct'}
+		    set rest *#$rest
+		    return [my term rest $nesting]
 		    return [list default \# {*}[my compounding rest $nesting]]
 		}
 
 		* {
+		    Debug.zenparse {term leading '$punct'}
 		    return [list term * {*}[my compounding rest $nesting]]
 		}
 
@@ -968,8 +984,11 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	{div>ul>li {color white}} {div>ul>li {color: white;}}
 	{"h1 h2" {color white}} {h1 h2 {color: white;}}
 	{* {color white}} {* {color: white;}}
+	{*.warning {color white}} {*.warning {color: white;}}
+	{.warning {color white}} {*.warning {color: white;}}
 	{(h1+h2) {color white}} {h1+h2 {color: white;}}
 	{E{foo warning}{color white}} {E[n="warning"] {color: white;}}
+	{E{foo ~warning}{color white}} {E[n~="warning"] {color: white;}}
 	{E} {E {}}
 	{"E F"} {E F {}}
 	{E > F} {E>F {}}
