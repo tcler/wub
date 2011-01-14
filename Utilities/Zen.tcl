@@ -16,6 +16,24 @@ if {[catch {package require Debug}]} {
 
 # ZenGen is a parent class providing support for generators
 oo::class create ::ZenGen {
+    method depth {} {
+	set depth 0
+	for {set i [info level]} {$i >= 0} {incr i -1} {
+	    if {[string match "my child*" [info level $i]]} {
+		incr depth
+	    }
+	}
+	return $depth
+    }
+
+    # pretty: add -pretty 4 to generator constructor for indenting
+    method pretty {{offset 0}} {
+	variable pretty
+	if {$pretty} {
+	    return [string repeat " " [expr {$pretty * ([my depth] - $offset)}]]
+	}
+    }
+
     # find free -variables in children of an element
     method freevars {args} {
 	Debug.zengen {freevars $args}
@@ -190,10 +208,17 @@ oo::class create ::ZenGen {
 	return [join $result \n]
 
     }
-
+    
     constructor {args} {
 	variable multiplying 0
-	variable context $args
+	variable context {}
+	dict for {n v} $args {
+	    if {[string match -* $n]} {
+		variable [string trimleft $n -] $v
+	    } else {
+		lappend context $n $v
+	    }
+	}
     }
 }
 
@@ -279,27 +304,27 @@ oo::class create ::ZenHTML {
     }
 
     method term {tag args} {
-	lappend result "<[join [list $tag {*}[my attr {*}$args]]]>"
+	lappend result "[my pretty]<[join [list $tag {*}[my attr {*}$args]]]>"
 	lappend result {*}[my value {*}$args]
-	lappend result </$tag>
+	lappend result "[my pretty]</$tag>"
 	return [join $result \n]
     }
 
     method child {parent args} {
 	set attrs [lassign $parent -> tag]
-	lappend result "<[join [list $tag {*}[my attr {*}$attrs]]]>"
+	lappend result "[my pretty 1]<[join [list $tag {*}[my attr {*}$attrs]]]>"
 
 	foreach arg $args {
 	    lappend result [my {*}$arg]
 	}
 
-	lappend result </$tag>
+	lappend result "[my pretty 1]</$tag>"
 	return [join $result \n]
     }
 
     superclass ::ZenGen
     constructor {args} {
-	next {*}$args
+	next -pretty 0 {*}$args
     }
 }
 
