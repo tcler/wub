@@ -148,6 +148,7 @@ oo::class create ::ZenGen {
 	set result ""
 	foreach {n v} $args {
 	    if {![string match -* $n]} {
+		if {$v eq ""} continue
 		lappend result $n [::apply [list [dict keys $context] [string map [list %V% $v] {subst %V%}]] {*}[dict values $context]]
 	    }
 	}
@@ -193,6 +194,77 @@ oo::class create ::ZenGen {
     constructor {args} {
 	variable multiplying 0
 	variable context $args
+    }
+}
+
+# ZenCSS is a class to generate CSS from zencode
+oo::class create ::ZenCSS {
+    method attr {args} {
+	set result {}
+	foreach {n v} [next {*}$args] {
+	    lappend result "$n: $v;"
+	}
+	return [join $result " "]
+    }
+
+    method tagAttrs {tag var} {
+	upvar $var attrs
+	if {[dict exists $attrs class]} {
+	    append tag .[dict get $attrs class]
+	    dict unset attrs class
+	}
+	if {[dict exists $attrs id]} {
+	    append tag #[dict get $attrs id]
+	    dict unset attrs id
+	}
+	return $tag
+    }
+
+    method term {tag args} {
+	set tag [my tagAttrs $tag args]
+	return "$tag \{[my attr {*}$args]\}"
+    }
+
+    method naked {nattr args} {
+	Debug.zengen {naked: $nattr $args}
+	set sel {}
+	foreach arg $args {
+	    Debug.zengen {selector: '$arg'}
+	    set attr [lassign $arg -> tag]
+	    set s [my tagAttrs $tag attr]
+	    if {[llength $attr]} {
+		append s \[
+		foreach {n v} $attr {
+		    if {[string index $v 0] eq "~"} {
+			append s n~=\"[string trimleft $v ~]\"
+		    } else {
+			append s n=\"$v\"
+		    }
+		}
+		append s \]
+	    }
+	    lappend sel $s
+	}
+
+	return "[join $sel +] \{[my attr {*}$nattr]\}"
+    }
+
+    method child {parent args} {
+	set attrs [lassign $parent -> tag]
+	set tag [my tagAttrs $tag attrs]
+	foreach arg $args {
+	    lappend tag [my {*}$arg]
+	}
+	if {[llength $attrs]} {
+	    return "[join $tag >] \{[my attr {*}$attrs]\}"
+	} else {
+	    return [join $tag >]
+	}
+    }
+
+    superclass ::ZenGen
+    constructor {args} {
+	next {*}$args
     }
 }
 
@@ -250,17 +322,54 @@ oo::class create Zen {
 	}
     }
 
+    method literal {match_var rest_var} {
+	upvar 1 $match_var match; set match ""
+	upvar 1 $rest_var rest
+	while {$rest ne ""} {
+	    set next [string index $rest 0]
+	    set rest [string range $rest 1 end]
+	    if {$next eq "\\"} {
+		append match $next
+		append match [string index $rest 0]
+		set rest [string range $rest 1 end]
+	    } elseif {$next eq "\""} {
+		break
+	    } else {
+		append match $next
+	    }
+	}
+	return [expr {$match ne ""}]
+    }
+
     method tokenize {match_var rest_var {type wordchar}} {
 	upvar 1 $match_var match
 	upvar 1 $rest_var rest
-
-	lassign [my token $rest $type] match rest
-	set match [string trim $match]
 	set rest [string trim $rest]
-	if {[string range $rest 0 1] eq "\\\$"} {
-	    set rest [string range $rest 2 end]
-	    my tokenize submatch rest
-	    append match \$ $submatch
+	if {$rest eq ""} {
+	    return 0
+	}
+
+	if {[string index $rest 0] eq "\""} {
+	    Debug.zenparse {tokenize $type: looking for literal id}
+	    set rest [string range $rest 1 end]
+	    my literal match rest
+	} else {
+	    lassign [my token $rest $type] match rest
+	    set match [string trim $match]
+	    set rest [string trim $rest]
+	    if {[string range $rest 0 1] eq "\\\$"} {
+		set rest [string range $rest 2 end]
+		my tokenize submatch rest
+		append match \$ $submatch
+	    } elseif {[string index $rest 0] eq ":"} {
+		set rest [string range $rest 1 end]
+		my tokenize submatch rest
+		append match : $submatch
+	    } elseif {[string index $rest 0] eq "-"} {
+		set rest [string range $rest 1 end]
+		my tokenize submatch rest
+		append match - $submatch
+	    }
 	}
 
 	Debug.zenparse {tokenize $type: '$match' '[string range $rest 0 10]'}
@@ -280,25 +389,6 @@ oo::class create Zen {
 	    Debug.zenparse {punct failed over '$rest'}
 	    return ""
 	}
-    }
-
-    method literal {match_var rest_var} {
-	upvar 1 $match_var match; set match ""
-	upvar 1 $rest_var rest
-	while {$rest ne ""} {
-	    set next [string index $rest 0]
-	    set rest [string range $rest 1 end]
-	    if {$next eq "\\"} {
-		append match $next
-		append match [string index $rest 0]
-		set rest [string range $rest 1 end]
-	    } elseif {$next eq "\""} {
-		break
-	    } else {
-		append match $next
-	    }
-	}
-	return [expr {$match ne ""}]
     }
 
     method get_attr {match_var rest_var {brace "\{"}} {
@@ -386,6 +476,7 @@ oo::class create Zen {
 
     method compound {rest_var {nesting 0}} {
 	upvar 1 $rest_var rest
+	upvar 1 done_attrs done_attrs
 	set $rest [string trim $rest]
 	if {$rest eq ""} {
 	    return ""
@@ -444,12 +535,17 @@ oo::class create Zen {
 	    \[ -
 	    \{ {
 		# attribute
+		if {$punct eq "\{" && $done_attrs} {
+		    set rest "\{$rest"
+		    return ""
+		}
 		if {[my get_attr match rest $punct]} {
 		    Debug.zenparse {compound attribute match:($match) '$rest'}
 		    if {$punct eq "\["} {
 			return [list -command [string trim $match \[\]]]
 		    } else {
 			set attrs [my split_attr $match]
+			incr done_attrs
 			return $attrs
 		    }
 		} else {
@@ -492,6 +588,7 @@ oo::class create Zen {
 	Debug.zenparse {compounding '$rest'}
 
 	set result {}
+	set done_attrs 0
 	while {1} {
 	    set compound [my compound rest $nesting]
 	    if {$compound eq ""} {
@@ -536,7 +633,7 @@ oo::class create Zen {
 		}
 
 		* {
-		    return [list default * {*}[my compounding rest $nesting]]
+		    return [list term * {*}[my compounding rest $nesting]]
 		}
 
 		\( {
@@ -580,13 +677,17 @@ oo::class create Zen {
 		return sib
 	    }
 
+	    "\{" {
+		return braced
+	    }
+
 	    "" -
 	    \) {
 		return $punct
 	    }
 
 	    default {
-		error "unknown punctuation '$punct' in '$rest'"
+		error "unknown copula '$punct' in '$rest'"
 	    }
 	}
     }
@@ -619,6 +720,13 @@ oo::class create Zen {
 		    lappend result $copula $rhs
 		}
 
+		braced {
+		    # naked attributes
+		    Debug.zenparse {naked attributes: '$rest'}
+		    my get_attr match rest
+		    lappend result naked $match
+		}
+
 		\) {
 		    if {$nesting == 0} {
 			error "Extraneous trailing \) in $rest"
@@ -627,7 +735,7 @@ oo::class create Zen {
 		}
 
 		"" {
-		    Debug.zenparse {parsed: $result}
+		    Debug.zenparse {parsed: $result rest:'$rest'}
 		    if {$nesting != 0} {
 			error "No closing \) in $rest"
 		    }
@@ -662,9 +770,9 @@ oo::class create Zen {
 
 	    if {$op eq "child"} {
 		# 'child' operation
-		Debug.zenparse {compile child '$el' and '$result'}
+		Debug.zenparse {compile child '$el' rest:'$result'}
 		if {[lindex $el 0] eq "subexpr"} {
-		    Debug.zenparse {compiling a subexpr ([lrange $el 1 end])}
+		    Debug.zenparse {child subexpr ([lrange $el 1 end])}
 		    set se {}
 		    foreach sub [lrange $el 1 end] {
 			lappend se {*}[my compile $sub]
@@ -672,6 +780,20 @@ oo::class create Zen {
 		    set el [join $se]
 		}
 		lappend cmd [list [list child $el {*}[my compile $result]]]
+		break
+	    } elseif {$op eq "naked"} {
+		Debug.zenparse {compile naked '$el' rest:'$result'}
+		if {[lindex $el 0] eq "subexpr"} {
+		    Debug.zenparse {naked subexpr ([lrange $el 1 end])}
+		    set se {}
+		    foreach sub [lrange $el 1 end] {
+			lappend se [my compile $sub]
+		    }
+		    set el [join $se]
+		    lappend cmd [list [list naked {*}[my compile $result] {*}$el]]
+		} else {
+		    lappend cmd [list [list naked {*}[my compile $result] $el]]
+		}
 		break
 	    } else {
 		# 'sibling' operation
@@ -800,9 +922,38 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	{ul>li#id\$simple*3$simple} "<ul>\n<li id='id0'>\n0\n</li>\n<li id='id1'>\n1\n</li>\n<li id='id2'>\n2\n</li>\n</ul>"
 	{ul>li#id\$_*$list} "<ul>\n<li id='id0'>\na\n</li>\n<li id='id1'>\nlist\n</li>\n<li id='id2'>\nof\n</li>\n<li id='id3'>\nwords\n</li>\n</ul>"
 	{ul>li#id\$_*[upto 5 $_]} "<ul>\n<li id='id0'>\n5\n</li>\n<li id='id1'>\n4\n</li>\n<li id='id2'>\n3\n</li>\n<li id='id3'>\n2\n</li>\n<li id='id4'>\n1\n</li>\n<li id='id5'>\n0\n</li>\n</ul>"
+	{ul>li#"id[upto 5 $_]"*[upto 5 $_]} "<ul>\n<li id='id5'>\n5\n</li>\n<li id='id4'>\n4\n</li>\n<li id='id3'>\n3\n</li>\n<li id='id2'>\n2\n</li>\n<li id='id1'>\n1\n</li>\n<li id='id0'>\n0\n</li>\n</ul>"
     } {
 	incr count
-	test generate-$count {} -setup $SETUP -body [list zen generate HTML $from line "this is a line" list {a list of words} simple simple] -cleanup $CLEANUP -result $to
+	test html-$count {} -setup $SETUP -body [list zen generate HTML $from line "this is a line" list {a list of words} simple simple] -cleanup $CLEANUP -result $to
+    }
+
+    # test CSS generation
+    # selector [, selector2, ...][:pseudo-class] {
+    # 	property: value;
+    # 	[property2: value2;
+    # 	...]
+    # }
+    # /* comment */
+    set count 0
+    foreach {from to} {
+	"h1{color white background-color orange}" "h1 {color: white; background-color: orange;}"
+	"h1{color white background-color {orange !important}}" "h1 {color: white; background-color: orange !important;}"
+	"h1.class#id{color white background-color {orange !important}}" "h1.class#id {color: white; background-color: orange !important;}"
+	"div>ul>li {color white}" "div>ul>li {color: white;}"
+	{"h1 h2" {color white}} "h1 h2 {color: white;}"
+	"* {color white}" {* {color: white;}}
+	"(h1+h2) {color white}" "h1+h2 {color: white;}"
+	{E{foo warning}{color white}} {E[n="warning"] {color: white;}}
+	{E} {E {}}
+	{"E F"} {E F {}}
+	{E > F} {E>F {}}
+	{E:first-child} {E:first-child {}}
+	{E+F {color white}} .
+	{"E+F" {color white}} {E+F {color: white;}}
+    } {
+	incr count
+	test css-$count {} -setup $SETUP -body [list zen generate CSS $from] -cleanup $CLEANUP -result $to
     }
 
     # To see test statistics (Total/Passed/Skipped/Failed), best put this line in the end:
