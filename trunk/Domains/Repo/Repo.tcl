@@ -294,7 +294,7 @@ namespace eval ::Repo {
 			    cd $dir
 			    file delete $tname
 			    return [Http CacheableContent [Http Cache $r $expires] [file mtime $path] $content application/x-tar]
-			} r $r path $path expires $expires]
+			} r $r path $path expires $expires suffix $suffix]
 		    } else {
 			# redirect to the proper name
 			dict set r -path "$rpath/"
