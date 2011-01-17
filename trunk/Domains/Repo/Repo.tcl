@@ -285,6 +285,9 @@ namespace eval ::Repo {
 		if {[string index $rpath end] ne "/"} {
 		    if {$tar} {
 			return [Httpd Thread {
+			    package require tar
+			    package require fileutil
+			    package require Http
 			    # return the whole dir in one hit as a tar file
 			    set dir [pwd]
 			    cd [file dirname $path]
