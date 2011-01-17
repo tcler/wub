@@ -291,6 +291,7 @@ namespace eval ::Repo {
 			::tar::create $tname $suffix
 			set content [::fileutil::cat -encoding binary -translation binary -- $tname]
 			cd $dir
+			file delete $tname
 			return [Http CacheableContent [Http Cache $r $expires] [file mtime $path] $content application/x-tar]
 		    } else {
 			# redirect to the proper name
