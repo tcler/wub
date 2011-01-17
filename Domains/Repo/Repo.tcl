@@ -284,15 +284,17 @@ namespace eval ::Repo {
 		set rpath [dict get $r -path]
 		if {[string index $rpath end] ne "/"} {
 		    if {$tar} {
-			# return the whole dir in one hit as a tar file
-			set dir [pwd]
-			cd [file dirname $path]
-			set tname /tmp/tar[clock seconds]
-			::tar::create $tname $suffix
-			set content [::fileutil::cat -encoding binary -translation binary -- $tname]
-			cd $dir
-			file delete $tname
-			return [Http CacheableContent [Http Cache $r $expires] [file mtime $path] $content application/x-tar]
+			return [Httpd Thread {
+			    # return the whole dir in one hit as a tar file
+			    set dir [pwd]
+			    cd [file dirname $path]
+			    set tname /tmp/tar[clock seconds]
+			    ::tar::create $tname $suffix
+			    set content [::fileutil::cat -encoding binary -translation binary -- $tname]
+			    cd $dir
+			    file delete $tname
+			    return [Http CacheableContent [Http Cache $r $expires] [file mtime $path] $content application/x-tar]
+			} r $r path $path expires $expires]
 		    } else {
 			# redirect to the proper name
 			dict set r -path "$rpath/"
