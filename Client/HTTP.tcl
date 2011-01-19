@@ -261,6 +261,7 @@ oo::class create HTTP {
 		    lappend sv [string range $v 0 99]
 		    set v [string range $v 100 end]
 		}
+		lappend sv $v
 		set v [join $sv "\r\n "]
 	    }
 	    append request "$n: $v\r\n"
