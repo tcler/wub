@@ -130,13 +130,13 @@ namespace eval OAuthUtils {
 	    set args [lindex $args 0]
 	}
 	set pairs {}
-	foreach {n v} $args {
-	    lappend pairs "[OAuthUtils encode $n]=\"[OAuthUtils encode $v]\""
+	foreach key [lsort [dict keys $args]] {
+	    lappend pairs [OAuthUtils encode $key]="[OAuthUtils encode [dict get $args $key]]"
 	}
 	return [join $pairs {, }]
     }
 
-    proc sign_request {req provider {token_secret {}}} {
+    proc sign_request {req provider reqmethod url {token_secret {}}} {
 	# normalize request parameters
 	# > sort
 	dict unset req oauth_signature
@@ -147,15 +147,15 @@ namespace eval OAuthUtils {
 	# > concat
 	set query [OAuthUtils encode [OAuthUtils encodeD $sorted]]
 	Debug.OAuth {Sorted query is $query}
-	set url [OAuthUtils encode [Url url [Url parse [dict get $provider requesturi]]]]
+	set url [OAuthUtils encode [Url url [Url parse $url]]]
 	Debug.OAuth {Url is $url}
 	lappend secrets [OAuthUtils encode [dict get $provider secret]]
 	lappend secrets [OAuthUtils encode $token_secret]
 	set secrets [join $secrets &]
 	Debug.OAuth {Secrets are $secrets}
-	set base [OAuthUtils encode [dict get $provider reqmethod]]
-	Debug.OAuth {Signature base string is $base&$url&$query}
-	set signature [OAuthUtils encode [base64::encode [::sha1::hmac -bin $secrets "$base&$url&$query"]]]
+        set reqmethod [OAuthUtils encode $reqmethod]
+	Debug.OAuth {Signature base string is $reqmethod&$url&$query}
+	set signature [base64::encode [::sha1::hmac -bin $secrets "$reqmethod&$url&$query"]]
 	Debug.OAuth {Signature is $signature}
 	return $signature
     }
@@ -165,16 +165,69 @@ namespace eval OAuthUtils {
 }
 
 class create OAuth {
+    method sign_request args {
+	set authtype {}
+	set timestamp [clock seconds]
+	set nonce [::md5::md5 -hex "$timestamp[clock milliseconds]"]
+	foreach {n v} $args {
+	    set $n $v
+	}
+
+	set provider [dict get $providers $provider_name]
+	if {$authtype eq ""} {
+	    set authtype [dict get? $provider authtype]
+	}
+
+	set reqd [list oauth_version 1.0 oauth_nonce $nonce oauth_timestamp $timestamp oauth_consumer_key [dict get $provider key] oauth_signature_method [dict get $provider signmethod] oauth_token $token]
+
+	set req_urld [Url parse $url]
+
+	Debug.OAuth {Request dict is $reqd}
+
+	dict set reqd oauth_signature [OAuthUtils sign_request [dict merge $reqd $query] $provider $reqmethod $url $token_secret]
+
+	Debug.OAuth {Signed request dict is $reqd}
+
+	switch $authtype {
+	    header {
+		set headers [list Authorization "OAuth [OAuthUtils authhead $reqd]"]
+		Debug.OAuth {Requesting via header: $headers}
+		set entity {}
+	    }
+	    url -
+	    uri {
+		dict set req_urld -query [Query encodeL [dict merge $query $reqd]]
+		Debug.OAuth {Requesting via URI: $req_urld}
+		set headers {}
+		set entity {}
+	    }
+	    post -
+	    entity {
+		set headers {content-type application/x-www-form-urlencoded}
+		set entity [Query encodeL $reqd]
+		Debug.OAuth {Requesting via entity: $entity}
+	    }
+	}
+
+	Debug.OAuth {Url http: [Url http $req_urld]}
+	return [dict create urld $req_urld headers $headers entity $entity]
+    }
+
     method request_temp_credentials {r provider {override {}}} {
 	set timestamp [clock seconds]
 	set authtype [dict get? $provider authtype]
 	set nonce [::md5::md5 -hex "$timestamp[clock milliseconds]"]
 
-        foreach {n v} $override {
+	foreach {n v} $override {
 	    set $n $v
 	}
 
-	set reqd [list oauth_version 1.0 oauth_nonce $nonce oauth_timestamp $timestamp oauth_consumer_key [dict get $provider key] oauth_callback [dict get $provider callback] oauth_signature_method [dict get $provider signmethod]]
+	set token [base64::encode [::sha1::hmac -bin [clock seconds] $provider]]
+	set rand [expr {int(65536 * rand())}]
+	set token [::md5::md5 -hex [clock milliseconds]$rand$timestamp$nonce]
+	set oauth_callback "[string trimright [dict get $provider callback] /]/$token"
+
+	set reqd [list oauth_version 1.0 oauth_nonce $nonce oauth_timestamp $timestamp oauth_consumer_key [dict get $provider key] oauth_callback $oauth_callback oauth_signature_method [dict get $provider signmethod]]
 
 	# dict unset reqd oauth_callback
 
@@ -188,7 +241,7 @@ class create OAuth {
 	set sign_reqd [dict merge $reqd $queryd]
 	Debug.OAuth {reqd: $reqd}
 
-	dict set reqd oauth_signature [OAuthUtils sign_request $sign_reqd $provider]
+	dict set reqd oauth_signature [OAuthUtils sign_request $sign_reqd $provider [dict get $provider reqmethod] [dict get $provider requesturi]]
 
 	Debug.OAuth {Request dict is $reqd}
 
@@ -215,7 +268,7 @@ class create OAuth {
 
 	Debug.OAuth {Url http: [Url http $req_urld]}
 
-	set V [HTTP new [dict get $provider requesturi] [lambda {v} [string map [list %SELF [self] %R $r %PROVIDER $provider] {
+	set V [HTTP new [dict get $provider requesturi] [lambda {v} [string map [list %SELF [self] %R $r %PROVIDER $provider %TOKEN $token] {
 	    set r [list %R]
 	    set provider [list %PROVIDER]
 	    Debug.OAuth {V: $v}
@@ -225,8 +278,8 @@ class create OAuth {
 	    set authurl [Url parse [dict get $provider authorizeuri]]
 	    set query [Query flatten [Query parse $authurl]]
 	    dict set query oauth_token [dict get? $result oauth_token]
-            set token [base64::encode [::sha1::hmac -bin [clock seconds] $provider[dict get? $result oauth_token]]]
-	    dict set query oauth_callback "[string trimright [dict get $r -url] /]/$token"
+	    set token %TOKEN
+	    dict set query oauth_callback "[string trimright [dict get $provider callback] /]/$token"
 	    Debug.OAuth {query is $query}
 	    dict set authurl -query [Query encodeL $query]
 	    set authurl [Url uri $authurl]
@@ -247,7 +300,7 @@ class create OAuth {
 	set authtype [dict get? $provider authtype]
 	set nonce [::md5::md5 -hex "$timestamp[clock milliseconds]"]
 
-        foreach {n v} $override {
+	foreach {n v} $override {
 	    set $n $v
 	}
 
@@ -265,7 +318,7 @@ class create OAuth {
 	set sign_reqd [dict merge $reqd $queryd]
 	Debug.OAuth {reqd: $reqd}
 
-	dict set reqd oauth_signature [OAuthUtils sign_request $sign_reqd $provider]
+	dict set reqd oauth_signature [OAuthUtils sign_request $sign_reqd $provider [dict get $provider reqmethod] [dict get $provider requesturi]]
 
 	Debug.OAuth {Request dict is $reqd}
 
@@ -292,7 +345,7 @@ class create OAuth {
 
 	Debug.OAuth {Url http: [Url http $req_urld]}
 
-	set V [HTTP new [dict get $provider requesturi] [lambda {v} [string map [list %SELF [self] %TOKENID $tokenid %R $r %PROVIDER $provider] {
+	set V [HTTP new [dict get $provider requesturi] [lambda {v} [string map [list %SELF [self] %TOKENID $tokenid %R $r %PROVIDER $provider %LAMBDA $lambda] {
 	    set r [list %R]
 	    set provider [list %PROVIDER]
 	    Debug.OAuth {V: $v}
@@ -300,17 +353,17 @@ class create OAuth {
 	    set result [OAuthUtils decodeD $result]
 	    Debug.OAuth {Result: $result}
 
-            return [Httpd Resume [Http Ok+ $r "token=[dict get? $result oauth_token], secret=[dict get? $result oauth_token_secret]"]]
+	    %LAMBDA
+
+	    return [Httpd Resume $r]
 	}]] [string tolower [dict get $provider reqmethod]] [list [Url http $req_urld] $entity {*}$headers]]
 	return [Httpd Suspend $r 100000]
-	#
     }
-
 
     method set-token-info {id k v} {
-        dict set tokens $id $k $v
+	dict set tokens $id $k $v
     }
-    
+
     method / {r} {
 	set suffix [string trim [dict get? $r -suffix] /]
 	# clean up expired tokens --- todo
@@ -323,7 +376,7 @@ class create OAuth {
 		return [Http NotFound $r {Session not found} text/plain]
 	    } else {
 		set queryd [Query flatten [Query parse $r]]
-                set result [my request_access_token $r [dict get $tokens $suffix provider] $suffix [dict get? $queryd oauth_token]]
+		set result [my request_access_token $r [dict get $tokens $suffix provider] $suffix [dict get? $queryd oauth_token]]
 		dict unset tokens $suffix
 		return $result
 	    }
@@ -331,13 +384,14 @@ class create OAuth {
     }
 
     mixin Direct
-    variable mount providers tokens
+    variable mount providers tokens lambda
 
     # the tokens array contains data needed to continue OAuth sequence together with timestamp
 
     constructor {args} {
 	set mount ""
-        set tokens ""
+	set tokens ""
+	set lambda {set r [Http Ok+ $r "token=[dict get? $result oauth_token], secret=[dict get? $result oauth_token_secret]"]}
 	foreach {n v} $args {
 	    set $n $v
 	}
