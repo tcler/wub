@@ -1837,7 +1837,7 @@ oo::class create ::Httpd {
 	    # the client wants us to tell it to continue
 	    # before reading the body.
 	    # Do so, then proceed to process entity
-	    if {[dict get $r -version] >= 1.1
+	    if {0 && [dict get $r -version] >= 1.1
 		&& [dict exists $r expect]
 		&& [string match *100-continue* [string tolower [dict get $r expect]]]
 	    } {
