@@ -295,7 +295,7 @@ class create OAuth {
 	#
     }
 
-    method request_access_token {r provider tokenid token {override {}}} {
+    method request_access_token {r provider tokenid token verifier {override {}}} {
 	set timestamp [clock seconds]
 	set authtype [dict get? $provider authtype]
 	set nonce [::md5::md5 -hex "$timestamp[clock milliseconds]"]
@@ -305,10 +305,13 @@ class create OAuth {
 	}
 
 	set reqd [list oauth_version 1.0 oauth_nonce $nonce oauth_timestamp $timestamp oauth_consumer_key [dict get $provider key] oauth_signature_method [dict get $provider signmethod] oauth_token $token]
+	if {$verifier ne ""} {
+	    dict set reqd oauth_verifier $verifier
+	}
 
 	# dict unset reqd oauth_callback
 
-	set req_url [dict get $provider requesturi]
+	set req_url [dict get $provider accessuri]
 
 	set req_urld [Url parse $req_url]
 
@@ -345,7 +348,7 @@ class create OAuth {
 
 	Debug.OAuth {Url http: [Url http $req_urld]}
 
-	set V [HTTP new [dict get $provider requesturi] [lambda {v} [string map [list %SELF [self] %TOKENID $tokenid %R $r %PROVIDER $provider %LAMBDA $lambda] {
+	set V [HTTP new [dict get $provider accessuri] [lambda {v} [string map [list %SELF [self] %TOKENID $tokenid %R $r %PROVIDER $provider %LAMBDA $lambda] {
 	    set r [list %R]
 	    set provider [list %PROVIDER]
 	    Debug.OAuth {V: $v}
@@ -376,7 +379,7 @@ class create OAuth {
 		return [Http NotFound $r {Session not found} text/plain]
 	    } else {
 		set queryd [Query flatten [Query parse $r]]
-		set result [my request_access_token $r [dict get $tokens $suffix provider] $suffix [dict get? $queryd oauth_token]]
+		set result [my request_access_token $r [dict get $tokens $suffix provider] $suffix [dict get? $queryd oauth_token] [dict get? $queryd oauth_verifier]]
 		dict unset tokens $suffix
 		return $result
 	    }
