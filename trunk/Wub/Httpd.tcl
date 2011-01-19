@@ -1870,12 +1870,14 @@ oo::class create ::Httpd {
 
     # thread_response - turn a threaded processing response into
     # an Http response, and resume it.
-    method thread_response {r thread code rs eo} {
+    method thread_response {r thread private code rs eo} {
 	Debug.httpdthread {thread_response: $code ($eo) ([Httpd dump $r]) -> ([Httpd dump $rs])}
 	
-	# put thread back on available queue
-	set cns [info object namespace ::Httpd]
-	lappend ${cns}::threads $thread
+	if {!$private} {
+	    # put thread back on available queue
+	    set cns [info object namespace ::Httpd]
+	    lappend ${cns}::threads $thread
+	}
 
 	if {$code} {
 	    set rs [Http ServerError $r $rs $eo]
@@ -1885,17 +1887,17 @@ oo::class create ::Httpd {
 
     # thread - run the given script in the given thread,
     # suspending while processing, resuming when complete
-    method thread {thread script rvar r args} {
+    method thread {thread private script rvar r args} {
 	# collect thread args
 	dict set r -thread [::thread::id]
 	set vars [list $rvar {*}[dict keys $args]]
 	set vals [list $r {*}[dict values $args]]
 
 	# generate thread script
-	set sscript [string map [list %S% [list $script] %V% [list $vars] %A% $vals %ME% [::thread::id] %R% [list $r] %O% [self]] {
+	set sscript [string map [list %S% [list $script] %V% [list $vars] %A% $vals %ME% [::thread::id] %R% [list $r] %O% [self] %P% $private] {
 	    #puts stderr "Thread Running: [::thread::id]"
 	    set code [catch {::apply [list %V% %S%] %A%} rs eo]
-	    ::thread::send -async %ME% [list %O% thread_response %R% [::thread::id] $code $rs $eo]
+	    ::thread::send -async %ME% [list %O% thread_response %R% [::thread::id] %P% $code $rs $eo]
 	}]
 	Debug.httpdthread {thread: $thread sscript: '$sscript'}
 
@@ -2009,13 +2011,21 @@ oo::objdefine ::Httpd {
 	    error "Httpd Thread requires package Thread, which is absent"
 	}
 
-	# pick a thread from available queue
-	set cns [info object namespace ::Httpd]
-	set thread ""
-	if {![info exists ${cns}::threads]} {
-	    set ${cns}::threads {}
+	if {[llength $args]%2} {
+	    # last arg is the thread to run.  What a complex API
+	    set thread [lindex $args end]
+	    set args [lrange $args 0 end-1]
+	    set private 1
 	} else {
-	    set ${cns}::threads [lassign [set ${cns}::threads] thread]
+	    # pick a thread from available queue
+	    set cns [info object namespace ::Httpd]
+	    set thread ""
+	    if {![info exists ${cns}::threads]} {
+		set ${cns}::threads {}
+	    } else {
+		set ${cns}::threads [lassign [set ${cns}::threads] thread]
+	    }
+	    set private 0
 	}
 
 	if {$thread eq ""} {
@@ -2028,7 +2038,8 @@ oo::objdefine ::Httpd {
 	    }]]
 	}
 
-	return [[dict get $r -cid] thread $thread $script $rvar $r {*}$args]
+	# call the request's supervisor object to perform actual work
+	return [[dict get $r -cid] thread $thread $private $script $rvar $r {*}$args]
     }
     export Thread
 
