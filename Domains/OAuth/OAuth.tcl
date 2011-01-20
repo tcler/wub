@@ -395,7 +395,7 @@ class create OAuth {
 	if {$suffix eq ""} {
 	    set queryd [Query flatten [Query parse $r]]
 	    set provider [dict get $queryd provider]
-	    set referer [dict get $queryd return]
+	    set referer [dict get? $queryd return]
 	    return [my request_temp_credentials $r provider [dict get $providers $provider] referer $referer]
 	} else {
 	    if {![dict exists $tokens $suffix]} {
