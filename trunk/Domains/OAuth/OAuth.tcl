@@ -213,14 +213,21 @@ class create OAuth {
 	return [dict create urld $req_urld headers $headers entity $entity]
     }
 
-    method request_temp_credentials {r provider {override {}}} {
+    # Parameters passed via args
+    # provider: the provider dict
+    method request_temp_credentials {r args} {
 	set timestamp [clock seconds]
-	set authtype [dict get? $provider authtype]
 	set nonce [::md5::md5 -hex "$timestamp[clock milliseconds]"]
+	set authtype ""
+	set provider ""
+	set referer [dict get? $r referer]
 
-	foreach {n v} $override {
+	foreach {n v} $args {
 	    set $n $v
 	}
+        if {$authtype eq ""} {
+            set authtype [dict get? $provider authtype]
+        }
 
 	set token [base64::encode [::sha1::hmac -bin [clock seconds] $provider]]
 	set rand [expr {int(65536 * rand())}]
@@ -268,8 +275,8 @@ class create OAuth {
 
 	Debug.OAuth {Url http: [Url http $req_urld]}
 
-	set V [HTTP new [dict get $provider requesturi] [lambda {v} [string map [list %SELF [self] %R $r %PROVIDER $provider %TOKEN $token] {
-	    set r [list %R]
+	set V [HTTP new [dict get $provider requesturi] [lambda {v} [string map [list %SELF [self] %R% $r %PROVIDER $provider %TOKEN $token %REFERER $referer] {
+	    set r [list %R%]
 	    set provider [list %PROVIDER]
 	    Debug.OAuth {V: $v}
 	    set result [lindex [split [dict get $v -content] \n] 0]
@@ -287,6 +294,7 @@ class create OAuth {
 	    %SELF set-token-info $token token [dict get? $result oauth_token]
 	    %SELF set-token-info $token provider $provider
 	    %SELF set-token-info $token timestamp [clock seconds]
+	    %SELF set-token-info $token referer "%REFERER"
 
 	    # return [Httpd Resume $r] ; # [[Http Redirect $r $authurl Redirect text/plain]]
 	    return [Httpd Resume [Http Redirect $r $authurl Redirect text/plain]]
@@ -295,13 +303,22 @@ class create OAuth {
 	#
     }
 
-    method request_access_token {r provider tokenid token verifier {override {}}} {
+    # Parameters passed via args
+    # provider: the provider dict
+    # token:    oauth_token
+    # verifier: oauth_verifier
+    method request_access_token {r args} {
 	set timestamp [clock seconds]
-	set authtype [dict get? $provider authtype]
+	set authtype ""
+	set provider ""
+	set referer ""
 	set nonce [::md5::md5 -hex "$timestamp[clock milliseconds]"]
 
-	foreach {n v} $override {
+	foreach {n v} $args {
 	    set $n $v
+	}
+	if {$authtype eq ""} {
+	    set authtype [dict get? $provider authtype]
 	}
 
 	set reqd [list oauth_version 1.0 oauth_nonce $nonce oauth_timestamp $timestamp oauth_consumer_key [dict get $provider key] oauth_signature_method [dict get $provider signmethod] oauth_token $token]
@@ -348,8 +365,9 @@ class create OAuth {
 
 	Debug.OAuth {Url http: [Url http $req_urld]}
 
-	set V [HTTP new [dict get $provider accessuri] [lambda {v} [string map [list %SELF [self] %TOKENID $tokenid %R $r %PROVIDER $provider %LAMBDA $lambda] {
-	    set r [list %R]
+	set V [HTTP new [dict get $provider accessuri] [lambda {v} [string map [list %SELF [self] %REFERER $referer %R% $r %PROVIDER $provider %LAMBDA $lambda] {
+	    set referer "%REFERER"
+	    set r [list %R%]
 	    set provider [list %PROVIDER]
 	    Debug.OAuth {V: $v}
 	    set result [lindex [split [dict get $v -content] \n] 0]
@@ -363,8 +381,12 @@ class create OAuth {
 	return [Httpd Suspend $r 100000]
     }
 
-    method set-token-info {id k v} {
-	dict set tokens $id $k $v
+    method set-token-info args {
+	dict set tokens {*}$args
+    }
+
+    method get-token-info args {
+	dict get $tokens {*}$args
     }
 
     method / {r} {
@@ -373,13 +395,14 @@ class create OAuth {
 	if {$suffix eq ""} {
 	    set queryd [Query flatten [Query parse $r]]
 	    set provider [dict get $queryd provider]
-	    return [my request_temp_credentials $r [dict get $providers $provider]]
+	    set referer [dict get $queryd return]
+	    return [my request_temp_credentials $r provider [dict get $providers $provider] referer $referer]
 	} else {
 	    if {![dict exists $tokens $suffix]} {
 		return [Http NotFound $r {Session not found} text/plain]
 	    } else {
 		set queryd [Query flatten [Query parse $r]]
-		set result [my request_access_token $r [dict get $tokens $suffix provider] $suffix [dict get? $queryd oauth_token] [dict get? $queryd oauth_verifier]]
+		set result [my request_access_token $r provider [dict get $tokens $suffix provider] tokenid $suffix token [dict get? $queryd oauth_token] verifier [dict get? $queryd oauth_verifier] referer [dict get $tokens $suffix referer]]
 		dict unset tokens $suffix
 		return $result
 	    }
