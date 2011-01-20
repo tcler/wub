@@ -225,9 +225,9 @@ class create OAuth {
 	foreach {n v} $args {
 	    set $n $v
 	}
-        if {$authtype eq ""} {
-            set authtype [dict get? $provider authtype]
-        }
+	if {$authtype eq ""} {
+	    set authtype [dict get? $provider authtype]
+	}
 
 	set token [base64::encode [::sha1::hmac -bin [clock seconds] $provider]]
 	set rand [expr {int(65536 * rand())}]
@@ -235,8 +235,6 @@ class create OAuth {
 	set oauth_callback "[string trimright [dict get $provider callback] /]/$token"
 
 	set reqd [list oauth_version 1.0 oauth_nonce $nonce oauth_timestamp $timestamp oauth_consumer_key [dict get $provider key] oauth_callback $oauth_callback oauth_signature_method [dict get $provider signmethod]]
-
-	# dict unset reqd oauth_callback
 
 	set req_url [dict get $provider requesturi]
 
@@ -275,9 +273,7 @@ class create OAuth {
 
 	Debug.OAuth {Url http: [Url http $req_urld]}
 
-	set V [HTTP new [dict get $provider requesturi] [lambda {v} [string map [list %SELF [self] %R% $r %PROVIDER $provider %TOKEN $token %REFERER $referer] {
-	    set r [list %R%]
-	    set provider [list %PROVIDER]
+	set V [HTTP new [dict get $provider requesturi] [lambda {self r provider token referer v} {
 	    Debug.OAuth {V: $v}
 	    set result [lindex [split [dict get $v -content] \n] 0]
 	    set result [OAuthUtils decodeD $result]
@@ -285,20 +281,19 @@ class create OAuth {
 	    set authurl [Url parse [dict get $provider authorizeuri]]
 	    set query [Query flatten [Query parse $authurl]]
 	    dict set query oauth_token [dict get? $result oauth_token]
-	    set token %TOKEN
 	    dict set query oauth_callback "[string trimright [dict get $provider callback] /]/$token"
 	    Debug.OAuth {query is $query}
 	    dict set authurl -query [Query encodeL $query]
 	    set authurl [Url uri $authurl]
 	    Debug.OAuth {authurl is $authurl}
-	    %SELF set-token-info $token token [dict get? $result oauth_token]
-	    %SELF set-token-info $token provider $provider
-	    %SELF set-token-info $token timestamp [clock seconds]
-	    %SELF set-token-info $token referer "%REFERER"
+	    $self set-token-info $token token [dict get? $result oauth_token]
+	    $self set-token-info $token provider $provider
+	    $self set-token-info $token timestamp [clock seconds]
+	    $self set-token-info $token referer $referer
 
 	    # return [Httpd Resume $r] ; # [[Http Redirect $r $authurl Redirect text/plain]]
 	    return [Httpd Resume [Http Redirect $r $authurl Redirect text/plain]]
-	}]] [string tolower [dict get $provider reqmethod]] [list [Url http $req_urld] $entity {*}$headers]]
+	} [self] $r $provider $token $referer] [string tolower [dict get $provider reqmethod]] [list [Url http $req_urld] $entity {*}$headers]]
 	return [Httpd Suspend $r 100000]
 	#
     }
@@ -325,8 +320,6 @@ class create OAuth {
 	if {$verifier ne ""} {
 	    dict set reqd oauth_verifier $verifier
 	}
-
-	# dict unset reqd oauth_callback
 
 	set req_url [dict get $provider accessuri]
 
@@ -365,19 +358,16 @@ class create OAuth {
 
 	Debug.OAuth {Url http: [Url http $req_urld]}
 
-	set V [HTTP new [dict get $provider accessuri] [lambda {v} [string map [list %SELF [self] %REFERER $referer %R% $r %PROVIDER $provider %LAMBDA $lambda] {
-	    set referer "%REFERER"
-	    set r [list %R%]
-	    set provider [list %PROVIDER]
+	set V [HTTP new [dict get $provider accessuri] [lambda {self r provider referer lambda v} {
 	    Debug.OAuth {V: $v}
 	    set result [lindex [split [dict get $v -content] \n] 0]
 	    set result [OAuthUtils decodeD $result]
 	    Debug.OAuth {Result: $result}
 
-	    %LAMBDA
+	    eval $lambda
 
 	    return [Httpd Resume $r]
-	}]] [string tolower [dict get $provider reqmethod]] [list [Url http $req_urld] $entity {*}$headers]]
+	} [self] $r $provider $referer $lambda] [string tolower [dict get $provider reqmethod]] [list [Url http $req_urld] $entity {*}$headers]]
 	return [Httpd Suspend $r 100000]
     }
 
