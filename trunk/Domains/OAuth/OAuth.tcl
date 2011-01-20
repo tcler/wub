@@ -419,5 +419,56 @@ class create OAuth {
 
 if {0} {
     # example of OAuth provider description
-    domain /oauth {OAuth oa} providers {peer {requesturi http://www.openstreetmap.org/oauth/request_token authorizeuri http://www.openstreetmap.org/oauth/authorize accessuri http://www.openstreetmap.org/oauth/access_token callback http://yourconsumer.org/oauth/ signmethod HMAC-SHA1 reqmethod POST key your-key secret your-secret authtype entity}}
+    domain /oauth {OAuth ::oa} providers {
+	osm {
+		requesturi http://www.openstreetmap.org/oauth/request_token
+		authorizeuri http://www.openstreetmap.org/oauth/authorize
+		accessuri http://www.openstreetmap.org/oauth/access_token
+		callback http://yourconsumer.org/oauth/
+		signmethod HMAC-SHA1
+		reqmethod POST
+		key your-key
+		secret your-secret
+		authtype entity
+	}} lambda {
+		dict set r set-cookie "token=[dict get? $result oauth_token]&secret=[dict get? $result oauth_token_secret]; domain=[dict get $r -host]; path=/"
+		set r [Http Redirect $r $referer "token=[dict get? $result oauth_token], secret=[dict get? $result oauth_token_secret], <$r>"]
+	}
+
+    # a real working example
+    mixin Direct
+    variable ... users
+
+    method /user/login {r} {
+	set l [Cookies Match $r -name token]
+	if {[llength $l]} {
+	    # authenticated but not logged in yet
+	    set cookie [dict get? [Cookies Fetch $r -name token] -value]
+	    lassign [string map {&secret= { }} $cookie] token secret
+	    set reqmethod GET
+	    set url http://api.openstreetmap.org/api/0.6/user/details
+	    set query {}
+	    set provider osm
+	    set d [::oa sign_request reqmethod $reqmethod url $url query $query provider_name $provider token $token token_secret $secret authtype header]
+	    foreach {k v} $d {
+		set $k $v
+	    }
+	    set V [HTTP new $url [lambda {self r d cookie v} {
+		set result [dict get $v -content]
+		set username anonymous
+		set img http://www.openstreetmap.org/images/anon_large.png
+		regexp {display_name="([^\x22]+)"} $result - username
+		regexp {img href="([^\x22]+)"} $result - img
+		$self set-user $cookie username $username
+		$self set-user $cookie img $img
+		return [Httpd Resume [Http Ok+ $r [<p> "You have successfully authenticated yourself as $username.<br/>[<img> src $img]"]]]
+	    } [self] $r $d $cookie] [string tolower $reqmethod] [list [Url http $urld] $entity {*}$headers]]
+
+	    return [Httpd Suspend $r 100000]
+	} else {
+	    # unauthenticated, redirect the user to our OAuth consumer's URL
+	    return [Http Redirect $r /oauth/?provider=osm&return=[string trimright $mount /]/user/login Redirect text/plain]
+	}
+    }
+
 }
