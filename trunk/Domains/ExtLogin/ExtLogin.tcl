@@ -67,8 +67,8 @@ class create ::ExtLogin {
         if {[llength $l]} {
             set cookie [dict get? [Cookies Fetch $r -name token] -value]
             dict set r set-cookie "token=$cookie; expires=Tue, 01-Jan-1980 01:01:00 GMT; domain=[dict get $r -host]; path=/"
-            if {[dict exists $users $cookie]} {
-                dict unset users $cookie
+            if {[dict exists $cookiemap $cookie]} {
+                dict unset cookiemap $cookie
                 return [Http Ok+ $r "Logged out" text/html]
             } else {
                 return [Http Ok+ $r "Not logged in." text/html]
