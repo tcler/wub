@@ -1,0 +1,51 @@
+h1 {
+  text-align: center;
+}
+
+h2 {
+  font-size: 100%;
+  border-left-width: 1em;
+  border-right-width: 1em;
+  border-top-width: 1em;
+  font-weight: bold;
+  margin: 0;
+  padding: .25em;
+}
+
+h3 {
+  font-size: 100%;
+  font-weight: bold;
+  margin-top: 1em;
+  margin-bottom: 1em;
+  text-transform: uppercase;
+}
+
+.banner {
+  text-align: center;
+}
+
+.leftbar, .rightbar, .commentform, .banner form {
+  display: none;
+}
+
+a.flamebait {
+  text-decoration: line-through;
+}
+
+del.flamebait a {
+  text-decoration: line-through;
+}
+
+.excerpt {
+  display: none;
+}
+
+.comment {
+  border-width: 1px;
+  border-style: dashed;
+  margin: 1em 1.5em;
+  padding-bottom: 1em; 
+  padding-right: 1.5em;
+  padding-left: 1.5em;
+  padding-top: 0;
+}

@@ -1,0 +1,13 @@
+   1. The end user initiates authentication (Initiation) by presenting a User-Supplied Identifier to the Relying Party via their User-Agent.
+
+   2. After normalizing (Normalization) the User-Supplied Identifier, the Relying Party performs discovery (Discovery) on it and establishes the OP Endpoint URL that the end user uses for authentication. It should be noted that the User-Supplied Identifier may be an OP Identifier, as discussed in Section 7.3.1 (Discovered Information), which allows selection of a Claimed Identifier at the OP or for the protocol to proceed without a Claimed Identifier if something else useful is being done via an extension (Extensions).
+
+   3. (optional) The Relying Party and the OP establish an association (Establishing Associations) -- a shared secret established using Diffie-Hellman Key Exchange (Rescorla, E., “Diffie-Hellman Key Agreement Method,” .) [RFC2631]. The OP uses an association to sign subsequent messages and the Relying Party to verify those messages; this removes the need for subsequent direct requests to verify the signature after each authentication request/response.
+
+   4. The Relying Party redirects the end user's User-Agent to the OP with an OpenID Authentication request (Requesting Authentication).
+
+   5. The OP establishes whether the end user is authorized to perform OpenID Authentication and wishes to do so. The manner in which the end user authenticates to their OP and any policies surrounding such authentication is out of scope for this document.
+
+   6. The OP redirects the end user's User-Agent back to the Relying Party with either an assertion that authentication is approved (Positive Assertions) or a message that authentication failed (Negative Assertions).
+
+   7. The Relying Party verifies (Verifying Assertions) the information received from the OP including checking the Return URL, verifying the discovered information, checking the nonce, and verifying the signature by using either the shared key established during the association or by sending a direct request to the OP.

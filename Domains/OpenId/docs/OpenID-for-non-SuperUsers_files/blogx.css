@@ -1,0 +1,647 @@
+
+/* --------------- global items --------------- */
+
+html {
+  font: medium sans-serif
+}
+
+body {
+  background-color: #dfe5f2;
+  margin-left : 0; 
+  margin-right : 0; 
+}
+
+h2 {
+  background: url('rc-039-FFF.svg') #039;
+  color: #FE1;
+  font-size: 100%;
+  font-weight: bold;
+  margin: 0.7em 0 0.1em 0;
+  padding: .25em 1em .25em 1em;
+  -webkit-border-radius: .7em;
+  -moz-border-radius: 1em;
+  border-radius: 1em;
+}
+
+aside h2 {
+  margin: 0.7em 0.7em 0.1em 0.7em;
+  background: url('rc-039-CCD.svg') #039;
+  font-family: Georgia, "New Century Schoolbook", sans-serif;
+  font-size: 120%;
+  font-style: italic;
+  padding-top: 0;
+}
+
+aside h2:first-letter {
+  font-size: 140%;
+}
+
+article, body > article {
+  padding: 0 2em 0 3em;
+  background-color: #FFF;
+  border-width: 1px;
+  border-style: outset;
+  border-color: #08F;
+}
+
+body > article {
+  -webkit-border-radius: 1em;
+  -moz-border-radius: 1em;
+}
+
+body > article header {
+  font-size: 120%;
+  margin-top: 0.4em;
+  margin-left: -0.2em;
+  margin-bottom: 0.8em;
+  text-indent: -28px;
+  display: block;
+  clear: both;
+}
+
+body > article h3 {
+  font-family: Georgia, "New Century Schoolbook", sans-serif;
+  font-style: italic;
+}
+
+body > article header h3 {
+  margin: 0;
+  text-indent: -28px;
+  border-bottom: 1px solid #BFCCE5;
+}
+
+section article header h3 {
+  font-family: Georgia, "New Century Schoolbook", sans-serif;
+  font-style: italic;
+  margin: 0 0 0 20px;
+  padding-left: 2.4em;
+  text-indent: -70px;
+  border-bottom: 1px solid #BFCCE5;
+}
+
+section article header time {
+  margin: 0 0 0.7em 0;
+}
+
+
+article header hr {
+  display: block;
+  background-color: #039;
+  margin: 0;
+  margin-left: 2px;
+}
+
+header time {
+  font-size:small;
+  font-weight: normal;
+  display: block;
+  text-align: right;
+}
+
+article footer {
+  font-family: Georgia, "New Century Schoolbook", sans-serif;
+  display: block;
+  text-align: right;
+  clear: right;
+}
+
+h3:before {
+  content: url("/images/intertwingly.png");
+  padding-right: 0.5em;
+}
+
+h3[id]:hover:after {
+  content: " #" attr(id); 
+  font-size: 50%;
+  color: #CCD;
+  text-decoration: none;
+  font-variant: normal;
+}
+
+hr {
+  display: none;
+}
+
+input, textarea {
+  color: #000;
+  background-color: #dfe5f2;
+  padding: 2px;
+  -webkit-border-radius: .9em;
+  -moz-border-radius: 1em;
+  border-radius: 1em;
+}
+
+/* ------------------- links ------------------ */
+
+a {
+  color: #049;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+a:link {
+  text-decoration: none;
+}
+
+a:visited {
+  color: #409;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+a.flamebait {
+  font-weight: normal;
+  text-decoration: line-through;
+}
+
+del.flamebait a {
+  text-decoration: line-through;
+  font-weight: normal;
+  background-color: transparent;
+}
+
+del.flamebait a:hover {
+  text-decoration: none;
+}
+
+a[rel~="nofollow"]:before {
+  content: url("/images/nofollow.png");
+}
+
+a.openid:before {
+  content: url('/images/openid.png');
+}
+
+/* ------------------ images ------------------ */
+
+img {
+  border: 0;
+}
+
+img.floatright {
+  padding-left: 1em;
+  float: right;
+}
+
+img.floatleft {
+  float: left;
+  padding-right: 1em;
+  padding-bottom: 0.2em;
+}
+
+
+/* ------------------ banner ------------------ */
+
+body > header h1 a {
+  text-decoration: none;
+  color : #FE1; 
+}
+
+body > header h1 a:hover {
+  text-decoration: none;
+}
+
+body > header h1 a:visited {
+  text-decoration: none;
+  color : #FE1; 
+}
+
+h1 {
+  float: left;
+  padding-left : 3%; 
+  margin: 0;
+  font-family: Georgia, "New Century Schoolbook", sans-serif;
+  font-style: italic;
+  line-height: 0.7em;
+  font-size: 340%;
+}
+
+body > header form {
+  z-index: 0;
+  float: right;
+  right: 1em;
+  text-align: center;
+  position: absolute;
+  width: 9em;
+  text-align: right;
+  margin-top: 0.1em;
+  margin-right: 0.2em;
+  margin-bottom: 0em;
+  padding: 0.4em 0.4em 0.2em 0em;
+  background-color: #039;
+  -webkit-border-radius: 1em;
+  -moz-border-radius: 1em;
+  border-radius: 1em;
+}
+
+#q {
+  width: 7.5em;
+  margin-bottom: 0.3em;
+}
+
+body > header form div {
+  display: inline
+}
+
+body > header form:before {
+  content: url("/images/opensearch.png");
+}
+
+body > header form label {
+  display: none;
+}
+
+body > header {
+  padding-top : .4em; 
+  margin: -0.5em 0 1.53em 0;
+  background : #039 url("/images/blueback.png") repeat-x;
+  color : #FFF; 
+  display: block;
+}
+
+body > header p {
+  padding: 0 0 0 3em;
+  margin: 0;
+  font-family: Geneva, Lucida, Helvetica, sans-serif;
+  clear: both;
+}
+
+/* --------------- center area --------------- */
+
+section article p {
+  margin-top: 0;
+  padding: 0;
+  clear: none;
+}
+
+section, article {
+  display: block;
+  line-height: 1.4;
+  color: #000;
+  margin: 0em 13em 1em 4em;
+  z-index: 0;
+  padding-left: 1em;
+}
+
+section article aside {
+  background: url('rc-tr-bl-CCD-FFF.svg') #bfcce5;
+  margin: -1.1em -1.1em 0 0;
+  padding : 0.5em;
+  min-width: 8em;
+  text-align: center;
+  -webkit-border-top-right-radius: 1em;
+  -webkit-border-bottom-left-radius: 1em;
+  -moz-border-radius: 0 1em 0 1em;
+  float: right;
+}
+
+section article footer {
+  font-size: small;
+}
+
+.excerpt {
+  display: none;
+}
+
+.warning {
+  border-width: 6px;
+  border-color: #000;
+  border-style: solid;
+  color: #FFF;
+  background-color: #F00;
+  margin: 1.5em 1.5em;
+  padding: 1em 1em 0em 1em;
+  -webkit-border-radius: 4em;
+  -moz-border-radius: 4em;
+  border-radius: 4em;
+}
+
+.ad {
+  text-align: center;
+}
+
+.ad2 {
+  text-align: center;
+  margin-bottom: 1em;
+}
+
+section article, .livepreview {
+  border-width: 1px;
+  border-style: outset;
+  font-weight: normal;
+  margin: 1em 0;
+  padding: 1em 1em;
+  -webkit-border-top-right-radius: 2em;
+  -webkit-border-top-left-radius: 2em;
+  -webkit-border-bottom-left-radius: 2em;
+  -moz-border-radius: 2em 2em 0 2em;
+  border-radius: 2em;
+}
+
+.livepreview {
+  border-color: #884;
+  background: #FF8;
+  font-size: small;
+}
+
+.livepreview h3 {
+  color: #00F;
+  font-style: italic !important;
+}
+
+input[name="name"], input[name="email"], input[name="url"],
+textarea[name="comment"] {
+  width: 100%;
+}
+
+input[name="url"] {
+  background: right url('/images/openid.png') no-repeat #dfe5f2;
+}
+
+header + svg {
+  float: right;
+  margin-left: 0.5em;
+}
+
+li > a > svg {
+  float: left;
+  margin-right: 0.3em;
+}
+
+body > footer {
+  color: #CC0;
+  font-size: 70%;
+  position: absolute;
+  top: 2.9em;
+  left: 10em;
+}
+
+footer ul {
+  list-style-type: none;
+}
+
+footer > ul > li {
+  display: inline;
+  padding: 0.5em;
+  float: left;
+}
+
+footer > ul > ul {
+  font-size: 130%;
+}
+
+footer ul ul {
+  float: left;
+  display: none;
+}
+
+footer ul li:hover ul {
+  display: block;
+  position: absolute;
+  padding: 0.5em;
+  width: 7em;
+  background-color: #FFA;
+  border: 1px solid #48C;
+  border-top: 0;
+  color: #00F;
+  border-style: outset;
+  -webkit-border-bottom-left-radius: .7em;
+  -webkit-border-bottom-right-radius: .7em;
+  -moz-border-radius: 0 0 1em 1em;
+  z-index: 2;
+}
+
+footer ul li:hover ul ul {
+  display: none;
+  z-index: 1;
+}
+
+footer ul li:hover ul li:hover ul {
+  margin-left: 6em;
+  margin-top: -1.6em;
+  width: 9em;
+  -webkit-border-radius: .7em;
+  -moz-border-radius: 1em;
+  display: block;
+}
+
+footer ul ul li {
+  margin-bottom: 0.5em;
+}
+
+footer svg {
+  position: fixed;
+  bottom: 20px;
+  right : 1em;
+  width: 14em;
+  height: 14em;
+  opacity: 0.3;
+  -webkit-opacity: 1; /* https://bugs.webkit.org/show_bug.cgi?id=14240 */
+}
+
+.spellcheck {
+  cursor: help;
+  border-bottom: 1px dashed red;
+}
+
+pre.code, blockquote.code {
+  margin: 1em;
+  background-color: #FED;
+  border-style: solid;
+  border-width: 1px;
+  -webkit-border-radius: .5em;
+  -moz-border-radius: .5em;
+  border-color: #48C;
+  padding: 0.5em;
+  overflow: auto;
+}
+
+code {
+  font-family: monospace, serif;
+}
+
+blockquote.quote {
+  border-left: medium solid black;
+  padding-left: 1em;
+  margin: 0;
+}
+
+dd {
+  margin-bottom: 1em
+}
+
+ins {
+  text-decoration: none;
+  border-bottom: 1px dotted;
+}
+
+/* --------------- right bar --------------- */
+
+body > aside {
+  background-color: #cfd9ec;
+  color: #000;
+  position: fixed;
+  right: 1em;
+  text-align: center;
+  top: 5.5em;
+  width: 10em;
+  z-index: 2;
+  -webkit-border-radius: 1em;
+  -moz-border-radius: 1em;
+  border-radius: 1em;
+  border-width: 1px;
+  border-style: outset;
+  border-color: #bfcce5;
+}
+
+nav {
+  margin-top: 0.5em;
+  margin-bottom: 0.7em;
+  display: block;
+  font-family: "Times New Roman", "Nimbus Roman No9 L", sans-serif;
+  line-height: 1.2em;
+}
+
+nav ul {
+  padding : 0;
+  list-style-type: none;
+  margin: 0;
+}
+
+nav a {
+  font-weight: normal;
+}
+
+.calendar {
+  width: 98%;
+  margin-left: 1%;
+  padding: 0;
+}
+
+table.calendar {
+  background-color: #ccd;
+  -webkit-border-radius: 1.2em;
+  -moz-border-radius: 1.2em;
+  border-color: #88F;
+  border-width: 1px;
+  border-style: outset;
+}
+
+table caption a {
+  border: 10px;
+  margin-bottom: 10px;
+  font-size: xx-large;
+}
+
+.calendar td {
+  height: 7em;
+  vertical-align: top;
+  background-color: white;
+}
+
+.calendar th {
+  color: white;
+  height: 2em;
+  width: 14%;
+  padding-top: 0.2em;
+  background-color: #039;
+}
+
+.calendar th:first-child {
+  -webkit-border-top-left-radius: 1em;
+  -moz-border-radius: 1em 0 0 0;
+  border-radius: 1em 0 0 0;
+}
+
+.calendar th:last-child {
+  -webkit-border-top-right-radius: 1em;
+  -moz-border-radius: 0 1em 0 0;
+  border-radius: 0 1em 0 0;
+}
+
+.calendar tr:last-child > td:first-child {
+  -webkit-border-bottom-left-radius: 1em;
+  -moz-border-radius: 0 0 0 1em;
+  border-radius: 0 0 0 1em;
+}
+
+.calendar tr:last-child > td:last-child {
+  -webkit-border-bottom-right-radius: 1em;
+  -moz-border-radius: 0 0 1em 0;
+  border-radius: 0 0 1em 0;
+}
+
+td:hover a.day {
+  background-color: #FD0;
+}
+
+.day {
+  -webkit-border-bottom-left-radius: 0.5em;
+  -moz-border-radius: 0 0 0 0.5em;
+  border-radius: 0.2em;
+  font-family: verdana, arial, sans-serif;
+  font-weight: bold;
+  float: right;
+  color: #039;
+  background: #DFE5F2;
+  padding: 0.2em;
+  text-align: right;
+  width: 1.3em;
+  margin: -1px -1px 0 0;
+}
+
+.calendar ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 3px 0 3px;
+}
+
+.calendar li {
+  clear: left;
+}
+
+.entry {
+  font-weight: normal;
+  color: black;
+}
+
+.calendar li {
+  padding-top: 6px;
+  font-size: small;
+}
+
+.calendar tr td ul li a {
+  color: black
+}
+
+.calendar a div {
+  float:left !important
+}
+
+.leftbar {
+  color: yellow;
+  left: 1.25em;
+  position: absolute;
+  text-align: center;
+  top: 4em;
+  width: 10.5em;
+  z-index: 2;
+  -moz-border-radius: 1em;
+  border-radius: 1em;
+}
+.leftbar h2 a { color: yellow }
+.rightbar h2 a { color: yellow }
+
+.rightbar {
+  color: #000;
+  position: absolute;
+  right: 1em;
+  text-align: center;
+  top: 4em;
+  width: 10em;
+  z-index: 2;
+}
+
