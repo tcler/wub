@@ -18,7 +18,7 @@ set ::API(Domains/ExtLogin) {
 class create ::ExtLogin {
 
     method / {r} {
-	return [Http sysPage Sorry [<p> {No content here yet.}]]
+	return [Http sysPage $r Sorry [<p> {No content here yet.}]]
     }
 
     method getstatus r {
@@ -100,7 +100,7 @@ class create ::ExtLogin {
 
     method /providers {r} {
 	lassign [split [dict get $r -suffix] /] - provider action
-	if {$action ni {authenticate login}} {
+	if {$action ni {authenticate login getinfo}} {
 	    return [Http sysPage $r {Server error} [<p> {Wrong method}]]
 	}
 	set args {}

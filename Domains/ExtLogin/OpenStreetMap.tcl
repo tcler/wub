@@ -4,7 +4,6 @@ package require TclOO
 namespace import oo::*
 
 package require Debug
-Debug define ExtLogin 10
 
 package require Cookies
 package require HTTP
@@ -30,6 +29,7 @@ class create ::ExtLogin::OpenStreetMap {
 	    set img http://www.openstreetmap.org/images/anon_large.png
 	    regexp {display_name="([^\x22]+)"} $result - username
 	    regexp {img href="([^\x22]+)"} $result - img
+	    # here we probably need to deXMLize both username and img --- todo
 	    return [Httpd Resume [{*}$callback $r login cookie $cookie domain openstreetmap.org provider OpenStreetMap username $username image $img]]
 	} $r $d $cookie $callback] [string tolower $reqmethod] [list [Url http $urld] $entity {*}$headers]]
 
