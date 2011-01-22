@@ -37,7 +37,7 @@ class create ::ExtLogin::OpenStreetMap {
     }
 
     method authenticate {r args} {
-	return [Http Redirect $r [string trimright $oauth_mount /]/?provider=$oauth_provider&return=[string trimright $mount /]/providers/OpenStreetMap/login Redirect]
+	return [Http Redirect $r [string trimright $oauth_mount /]/?provider=$oauth_provider&return=[dict get $r -scheme]://[dict get $r -host][string trimright $mount /]/providers/OpenStreetMap/login Redirect]
     }
 
     method info {} {
