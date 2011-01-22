@@ -157,8 +157,7 @@ class create ::ExtLogin {
 	    set $n $v
 	}
 
-	foreach p $providers {
-		set p [lassign $p name]
+	foreach {name p} $providers {
 		package require ExtLogin::$name
 		set object [::ExtLogin::$name new mount $mount callback [list [self] callback] {*}$p]
 		dict set providersd $name [$object info]
