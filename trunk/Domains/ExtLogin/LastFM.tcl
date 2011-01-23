@@ -50,7 +50,7 @@ class create ::ExtLogin::LastFM {
 	    # here we probably need to deXMLize username, and urlencode it below --- todo
 	    dict set r set-cookie "token=lastfm.$key; domain=[dict get $r -host]; path=/"
 	    return [Httpd Resume [Http Redirect $r [string trimright $mount /]/providers/LastFM/getinfo?username=$username Redirect]]
-	} $r $mount] get [list [Url http $urld]]]
+	} $r $mount] get [list [Url http $urld]] close]
 
 	return [Httpd Suspend $r 100000]
     }
@@ -69,7 +69,7 @@ class create ::ExtLogin::LastFM {
 		set img {http://cdn.last.fm/flatness/catalogue/noimage/2/default_user_small.png}
 		regexp {<image>([^<]+)<} $result - img
 		return [Httpd Resume [{*}$callback $r login cookie $cookie domain last.fm provider LastFM username $username image $img]]
-	} $r $callback $username $cookie] get [list [Url http $urld]]]
+	} $r $callback $username $cookie] get [list [Url http $urld]] close]
 
 	return [Httpd Suspend $r 100000]
     }
