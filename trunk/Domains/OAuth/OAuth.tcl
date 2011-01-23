@@ -293,7 +293,7 @@ class create OAuth {
 
 	    # return [Httpd Resume $r] ; # [[Http Redirect $r $authurl Redirect text/plain]]
 	    return [Httpd Resume [Http Redirect $r $authurl Redirect text/plain]]
-	} [self] $r $provider $token $referer] [string tolower [dict get $provider reqmethod]] [list [Url http $req_urld] $entity {*}$headers]]
+	} [self] $r $provider $token $referer] [string tolower [dict get $provider reqmethod]] [list [Url http $req_urld] $entity {*}$headers] close]
 	return [Httpd Suspend $r 100000]
 	#
     }
@@ -367,7 +367,7 @@ class create OAuth {
 	    eval $lambda
 
 	    return [Httpd Resume $r]
-	} [self] $r $provider $referer $lambda] [string tolower [dict get $provider reqmethod]] [list [Url http $req_urld] $entity {*}$headers]]
+	} [self] $r $provider $referer $lambda] [string tolower [dict get $provider reqmethod]] [list [Url http $req_urld] $entity {*}$headers] close]
 	return [Httpd Suspend $r 100000]
     }
 
