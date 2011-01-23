@@ -58,10 +58,10 @@ class create ::ReCAPTCHA {
 	    }
 
 	    return [Httpd Resume $r]
-	}]] post [list /verify $entity content-type application/x-www-form-urlencoded]]
+	}]] post [list /verify $entity content-type application/x-www-form-urlencoded]] close
 
 	return [Httpd Suspend $r 100000]
-    }
+    } close
 
     method form {args} {
 	set theme white
