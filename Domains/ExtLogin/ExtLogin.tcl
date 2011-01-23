@@ -94,7 +94,8 @@ class create ::ExtLogin {
 		lappend urls [string trimright $mount /]/providers/[dict get $p name]/authenticate
 		lappend images [dict get $p image-url]
 	    }
-	    return [Http Ok+ $r $style[$zen generate HTML $zencode names $names urls $urls images $images]]
+	    dict lappend r -headers $style
+	    return [Http Ok+ $r [$zen generate HTML $zencode names $names urls $urls images $images]]
 	}
     }
 
