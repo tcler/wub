@@ -1581,8 +1581,7 @@ oo::class create ::Httpd {
 	    }
 	    return -code $code	;# we loop around until there are more requests
 	} elseif {[dict exists $r content-length]
-		  && [dict get $r content-length]
-	      } {
+		  && [dict get $r content-length]} {
 	    set left [dict get $r content-length]
 	    Debug.entity {content-length: $left}
 
@@ -1657,7 +1656,7 @@ oo::class create ::Httpd {
 	# now we postprocess/decode the entity
 	Debug.entity {entity read complete - '[dict get? $r -te]'}
 	if {"gzip" in [dict get? $r -te]} {
-	    dict set r -entity [::zlib inflate [dict get $r -entity]]
+	    dict set r -entity [::zlib inflate [dict get? $r -entity]]
 	}
     }
 
