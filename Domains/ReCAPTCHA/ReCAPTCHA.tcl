@@ -43,7 +43,7 @@ class create ::ReCAPTCHA {
 	    set args [list %ARGS%]
 	    set result [split [dict get $v -content] \n]
 	    Debug.recaptcha {ReCAPTCHA validation: $result}
-
+	    
 	    set pass [lindex $result 0]
 	    if {![string is boolean -strict $pass]} {
 		return [Http ServerError $r "ReCAPTCHA Failed to Reply Sensibly."]
@@ -56,12 +56,12 @@ class create ::ReCAPTCHA {
 		Debug.recaptcha {ReCAPTCHA failed}
 		%FAIL
 	    }
-
+	    
 	    return [Httpd Resume $r]
-	}]] post [list /verify $entity content-type application/x-www-form-urlencoded] close]
+	}]] post [list /verify $entity content-type application/x-www-form-urlencoded] close] close
 
 	return [Httpd Suspend $r 100000]
-    } close
+    }
 
     method form {args} {
 	set theme white
