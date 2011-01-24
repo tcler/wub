@@ -296,7 +296,14 @@ namespace eval ::Query {
 	    set count 0
 	}
     
-	if {[dict exists $r -entity]
+	if {[dict exists $r content-length]
+	    && ![dict get $r content-length]
+	} {
+	    dict unset r content-length
+	    catch {dict unset r content-type}
+	    catch {dict unset r -entity}
+	    catch {dict unset r -entitypath}
+	} elseifif {[dict exists $r -entity]
 	    || [dict exists $r -entitypath]
 	} {
 	    # there is an entity body
