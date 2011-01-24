@@ -264,10 +264,11 @@ oo::class create Store {
 	    if {$file eq ""} {
 		error "Must provide a db file"
 	    } else {
-		Debug.store {creating db: tdbc::${tdbc}::connection create [namespace current]::dbI $file $opts}
+		set ons [info object namespace object]
+		Debug.store {creating db: tdbc::${tdbc}::connection create ${ons}::dbI $file $opts}
 		file mkdir [file dirname $file]
-		tdbc::${tdbc}::connection create [namespace current]::dbI $file {*}$opts
-		oo::objdefine [self] forward db [namespace current]::dbI
+		tdbc::${tdbc}::connection create ${ons}::dbI $file {*}$opts
+		oo::objdefine [self] forward db ${ons}::dbI
 	    }
 	} else {
 	    Debug.store {provided db: '$db'}
