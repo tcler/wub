@@ -667,12 +667,20 @@ oo::class create HTTP {
 	# create reader coroutine
 	variable reader ${ns}::${socket}R
 	coroutine $reader [self] reader
-	trace add command $reader delete [list [self] destroy]
+	if {[catch {
+	    trace add command $reader delete [list [self] destroy]
+	}]} {
+	    my destroy; return
+	}
 
 	# create writer coroutine
 	variable writer ${ns}::${socket}W 
 	coroutine $writer [self] writer
-	trace add command $writer delete [list [self] destroy]
+	if {[catch {
+	    trace add command $writer delete [list [self] destroy]
+	}]} {
+	    my destroy; return
+	}
     }
 }
 
