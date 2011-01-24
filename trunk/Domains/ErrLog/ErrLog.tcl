@@ -50,7 +50,7 @@ oo::class create ErrLog {
 	dict for {t v} $log {
 	    lassign $v when er message eo
 	    set sline [list view [<a> href fetch/$t View]]
-	    foreach {var val} [list when $when from [dict get? $r -ipaddr] url [dict get? $r -url] message $message] {
+	    foreach {var val} [list when $when from [dict get? $er -ipaddr] url [dict get? $er -url] message $message] {
 		lappend sline $var $val
 	    }
 	    dict set summary $t $sline
