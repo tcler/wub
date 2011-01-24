@@ -303,7 +303,7 @@ namespace eval ::Query {
 	    catch {dict unset r content-type}
 	    catch {dict unset r -entity}
 	    catch {dict unset r -entitypath}
-	} elseifif {[dict exists $r -entity]
+	} elseif {[dict exists $r -entity]
 	    || [dict exists $r -entitypath]
 	} {
 	    # there is an entity body
