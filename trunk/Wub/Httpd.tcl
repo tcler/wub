@@ -1580,7 +1580,9 @@ oo::class create ::Httpd {
 		dict set r -entity ""
 	    }
 	    return -code $code	;# we loop around until there are more requests
-	} elseif {[dict exists $r content-length]} {
+	} elseif {[dict exists $r content-length]
+		  && [dict get $r content-length]
+	      } {
 	    set left [dict get $r content-length]
 	    Debug.entity {content-length: $left}
 
