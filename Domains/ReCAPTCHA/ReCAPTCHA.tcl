@@ -58,7 +58,7 @@ class create ::ReCAPTCHA {
 	    }
 
 	    return [Httpd Resume $r]
-	}]] post [list /verify $entity content-type application/x-www-form-urlencoded]] close
+	}]] post [list /verify $entity content-type application/x-www-form-urlencoded] close]
 
 	return [Httpd Suspend $r 100000]
     } close
