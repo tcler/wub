@@ -1,7 +1,6 @@
 # ErrLog - small repository of the errors Wub has thrown
 package require Debug
 Debug define errlog 10
-Debug on errlog 10
 
 package require Http
 package require Html
