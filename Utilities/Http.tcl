@@ -610,15 +610,9 @@ namespace eval ::Http {
 	return $rsp
     }
 
-    # construct an HTTP response containing a server error page
-    proc ServerError {rsp message {eo ""}} {
-	Debug.error {Server Error: '$message' ($eo) [dumpMsg $rsp]} 2
+    proc ErrorPage {rsp message {eo ""}} {
 	set content ""
 
-	dict set rsp -code 500
-	dict set rsp -rtype Error
-	dict set rsp -dynamic 1
-	    
 	if {[catch {
 	    if {$eo ne ""} {
 		append content [<h2> "Error Code '[dict get? $eo -errorcode]'"]
@@ -652,22 +646,37 @@ namespace eval ::Http {
 		set tmessage $message
 	    }
 
-	    # make this an x-system type page
-	    set rsp [sysPage $rsp "Server Error: $tmessage" [subst {
-		[<div> id summary [tclarmour $message]]
-		[<div> id errorinfo [tclarmour $content]]
-		[tclarmour [dump $rsp]]
-	    }]]
- 
-	    # Errors are completely dynamic - no caching!
-	    set rsp [NoCache $rsp]
 	} r1 eo1]} {
 	    Debug.error {Recursive ServerError $r1 ($eo1) from '$message' ($eo)}
 	} else {
 	    Debug.http {ServerError [dumpMsg $rsp 0]}
 	}
 
-	return $rsp
+	return [list [tclarmour $content] [tclarmour $message] $tmessage]
+    }
+
+    # construct an HTTP response containing a server error page
+    proc ServerError {rsp message {eo ""}} {
+	Debug.error {Server Error: '$message' ($eo) [dumpMsg $rsp]} 2
+	dict set rsp -code 500
+	dict set rsp -rtype Error
+	dict set rsp -dynamic 1
+	if {[llength [info commands ::errLog]]} {
+	    ::errLog add $rsp $message $eo
+	}
+
+	# format up the page
+	lassign [ErrorPage $rsp $message $eo] content message tmessage
+
+	# make this an x-system type page
+	set rsp [sysPage $rsp "Server Error: $tmessage" [subst {
+	    [<div> id summary $message]
+	    [<div> id errorinfo $content]
+	    [tclarmour [dump $rsp]]
+	}]]
+	
+	# Errors are completely dynamic - no caching!
+	return [NoCache $rsp]
     }
 
     # construct an HTTP NotImplemented response
