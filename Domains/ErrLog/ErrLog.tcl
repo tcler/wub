@@ -8,7 +8,7 @@ package require Report
 
 package provide ErrLog 1.0
 
-oo::class create ErrLog {
+oo::class create ::ErrLog {
     method add {r message eo} {
 	variable log
 	lappend log [clock clicks] [list [clock format [clock seconds]] $r $message $eo]
@@ -141,6 +141,7 @@ oo::class create ErrLog {
 	variable {*}[Site var? File]	;# allow .ini file to modify defaults
 	variable {*}$args
 	variable log {}
+	next? {*}$args
 
 	if {[llength [info class instances ::ErrLog]] > 1} {
 	    error "Can't create two ErrLogs ([info class instances ::ErrLog])"
