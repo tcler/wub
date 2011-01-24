@@ -54,3 +54,5 @@ package ifneeded WebSocket 1.0 [list source [file join $dir WebSocket WebSocket.
 package ifneeded ExtLogin 1.0 [list source [file join $dir ExtLogin ExtLogin.tcl]]
 package ifneeded ExtLogin::OpenStreetMap 1.0 [list source [file join $dir ExtLogin OpenStreetMap.tcl]]
 package ifneeded ExtLogin::LastFM 1.0 [list source [file join $dir ExtLogin LastFM.tcl]]
+
+package ifneeded ErrLog 1.0 [list source [file join $dir ErrLog ErrLog.tcl]]
