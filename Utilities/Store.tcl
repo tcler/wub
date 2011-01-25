@@ -419,23 +419,27 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	test store-append$count {Append record to Store} -body [list store append {*}$el] -result $count
     }
 
+    proc cmprec {id r1 r2} {
+	dict for {n v} $r2 {
+	    if {$n eq "id"} {
+		if {$v != $id} {
+		    error "id doesn't match"
+		}
+	    }  elseif {[dict get $r1 $n] ne $v} {
+		error "field $n doesn't match"
+	    }
+	}
+	return $id
+    }
+
     # fetch records by row number
     set count 0
     foreach el $records {
 	incr count
 	test store-get$count {Append record to Store} -body {
 	    # compare record to what we stored
-	    dict for {n v} [store get $count] {
-		if {$n eq "id"} {
-		    if {$v != $count} {
-			error "id doesn't match"
-		    }
-		}  elseif {[dict get $el $n] ne $v} {
-		    error "field $n doesn't match"
-		}
-	    }
-	    return 1
-	} -result 1
+	    cmprec $count $el [store get $count]
+	} -result $count
     }
 
     # fetch records by name match
@@ -444,16 +448,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	incr count
 	test store-match$count {match records by one field} -body {
 	    # compare record to what we stored
-	    dict for {n v} [store fetch name [dict get $el name]] {
-		if {$n eq "id"} {
-		    if {$v != $count} {
-			error "id doesn't match"
-		    }
-		}  elseif {[dict get $el $n] ne $v} {
-		    error "field $n doesn't match"
-		}
-	    }
-	    return $count
+	    cmprec $count $el [store fetch name [dict get $el name]]
 	} -result $count
     }
 
@@ -462,7 +457,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     foreach {from to} {
     } {
 	incr count
-	test store-$count {} -body [list zen parse $from]-result $to
+	test store-$count {} -body {} -result $to
     }
 
     store destroy
