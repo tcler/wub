@@ -381,7 +381,9 @@ namespace eval ::Cookies {
 		}
 	    }
 	    if {[dict exists $cdict -expires]} {
-		dict set args -expires [clock format [dict get $cdict -expires] -format "%a, %d-%b-%Y %H:%M:%S GMT" -gmt 1]
+		if {[string is int -strict [dict get $cdict -expires]]} {
+		    dict set args -expires [clock format [dict get $cdict -expires] -format "%a, %d-%b-%Y %H:%M:%S GMT" -gmt 1]
+		}
 	    }
 
 	    # cookie fields with values
