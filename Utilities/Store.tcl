@@ -21,6 +21,10 @@
 # If the name part of a match alist is suffixed with **, * or %, it will be
 # treated as a REGEXP, GLOB or LIKE field comparison, respectively.
 #
+# If the name part of a match alist is suffixed with ?, then it will be
+# interpreted as "IS NOT NULL" or "IS NULL" depending on the truth value
+# of its associated value, so fred? 0 will succceed if the field fred is null.
+#
 # The name part may also be suffixed with >=, <=, >, <, != or = to indicate
 # the respective SQL comparison operator.
 #
