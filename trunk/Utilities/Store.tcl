@@ -127,7 +127,7 @@ oo::class create Store {
 		if {$v} {
 		    lappend sel "$n IS NOT NULL"
 		} else {
-		    append sel "$n IS NULL"
+		    lappend sel "$n IS NULL"
 		}
 	    } else {
 		lappend sel "$n $op :_${n}_$count"
@@ -489,7 +489,7 @@ oo::class create Store {
 if {[info exists argv0] && ($argv0 eq [info script])} {
     package require tcltest
     namespace import ::tcltest::*
-    #proc Debug.store {msg} {puts stderr "STORE: [uplevel [list subst $msg]]"}
+    proc Debug.store {msg} {puts stderr "STORE: [uplevel [list subst $msg]]"}
 
     tcltest::skip unsupported-*
     set dbfile /tmp/storetest.db
