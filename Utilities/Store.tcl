@@ -12,7 +12,17 @@
 # Store provides get/set/incr for individual fields by record oid
 #
 # Store provides for record matching/fetching/updating/deleting
-# using a match dict passed in args.
+# using a match alist, passed in args, whose terms are ANDed together.
+#
+# Match alists comprise pairs of words, similar to a dict, but with repetition
+# permitted.  The name part of each pair may be a simple field name, in
+# which case it represents a match for equality with the named field.
+#
+# If the name part of a match alist is suffixed with **, * or %, it will be
+# treated as a REGEXP, GLOB or LIKE field comparison, respectively.
+#
+# The name part may also be suffixed with >=, <=, >, <, != or = to indicate
+# the respective SQL comparison operator.
 #
 # Despite its focus on simple matches and single table access,
 # Store exports [db], [stmt] and [stmtL], providing unfettered access
