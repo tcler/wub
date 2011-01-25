@@ -68,6 +68,39 @@ oo::class create Store {
 	return $result
     }
 
+    method selparse {n} {
+	set op ""
+	if {$n eq ""} {
+	    error "empty selector"
+	}
+	if {[string is alnum -fail fail $n]} {
+	    return [list $n =]	;# pure alpha selector
+	}
+
+	set op [string range $n fail end]
+	set n [string range $n 0 $fail-1]
+
+	switch -- $op {
+	    ** {
+		set op REGEXP
+	    }
+	    * {
+		set op GLOB
+	    }
+	    % {
+		set op LIKE
+	    }
+	    
+	    >= - <= - > - < -
+	    == - != - = {}
+
+	    default {
+		set op =
+	    }
+	}
+	return [list $n $op]
+    }
+
     # update matching tuples with the given dict
     method update {selector args} {
 	if {[llength $args] == 1} {
@@ -82,10 +115,12 @@ oo::class create Store {
 	    error "must specify primary table on creation, or explicitly mention table in call"
 	}
 
-	set sel {}; set selargs {}
-	foreach n [dict keys $selector] {
-	    lappend sel $n=:_S_$n
-	    dict set selargs _S_$n [dict get $selector $n]
+	set sel {}; set selargs {}; set count 0
+	foreach {n v} $selector {
+	    lassign [my selparse $n] n op
+	    lappend sel "$n $op :_${n}_$count"
+	    dict set selargs _${n}_$count $v
+	    incr count
 	}
 	set sel [join $sel " AND "]
 
@@ -179,12 +214,16 @@ oo::class create Store {
 
 	Debug.store {match in '$table$orderby' $args}
 
-	set sel {}
-	foreach n [dict keys $args] {
-	    lappend sel $n=:$n
+	set sel {}; set selargs {}; set count 0
+	foreach {n v} $args {
+	    lassign [my selparse $n] n op
+	    lappend sel "$n $op :_${n}_$count"
+	    dict set selargs _${n}_$count $v
+	    incr count
 	}
 	set sel [join $sel " AND "]
-	return [my stmt "SELECT * FROM $table WHERE $sel$orderby;" {*}$args]
+
+	return [my stmt "SELECT * FROM $table WHERE $sel$orderby;" {*}$selargs]
     }
 
     # find rowid of first match
@@ -211,12 +250,16 @@ oo::class create Store {
 
 	Debug.store {find in '$table$orderby' $args}
 
-	set sel {}
-	foreach n [dict keys $args] {
-	    lappend sel $n=:$n
+	set sel {}; set selargs {}; set count 0
+	foreach {n v} $args {
+	    lassign [my selparse $n] n op
+	    lappend sel "$n $op :_${n}_$count"
+	    dict set selargs _${n}_$count $v
+	    incr count
 	}
 	set sel [join $sel " AND "]
-	return [lindex [my stmtL "SELECT OID FROM $table WHERE $sel$orderby;" {*}$args] 0]
+
+	return [lindex [my stmtL "SELECT OID FROM $table WHERE $sel$orderby;" {*}$selargs] 0]
     }
 
     # delete tuples matching the args dict
@@ -235,12 +278,16 @@ oo::class create Store {
 
 	Debug.store {delete from '$table' $args}
 
-	set sel {}
-	foreach n [dict keys $args] {
-	    lappend sel $n=:$n
+	set sel {}; set selargs {}; set count 0
+	foreach {n v} $args {
+	    lassign [my selparse $n] n op
+	    lappend sel "$n $op :_${n}_$count"
+	    dict set selargs _${n}_$count $v
+	    incr count
 	}
 	set sel [join $sel " AND "]
-	return [my stmt "DELETE FROM $table WHERE $sel;" {*}$args]
+
+	return [my stmt "DELETE FROM $table WHERE $sel;" {*}$selargs]
     }
 
     # fetch first tuple matching the dict passed in $args
@@ -427,7 +474,7 @@ oo::class create Store {
 if {[info exists argv0] && ($argv0 eq [info script])} {
     package require tcltest
     namespace import ::tcltest::*
-    proc Debug.store {msg} {puts stderr "STORE: [uplevel [list subst $msg]]"}
+    #proc Debug.store {msg} {puts stderr "STORE: [uplevel [list subst $msg]]"}
 
     tcltest::skip unsupported-*
     set dbfile /tmp/storetest.db
