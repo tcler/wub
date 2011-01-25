@@ -1,4 +1,13 @@
 # Store - a simple wrapper around TDBC providing a store
+#
+# Store cached prepared statements for all DB interactions
+# It presumes we're mainly interested in one table of a db, and that
+# all tables can meaningfully be accessed by row number / oid.
+#
+# Store provides get/set for individual fields in numbered rows
+#
+# Store provides for matching/fetching of record sets using
+# dicts passed in args.
 
 package require tdbc
 if {[catch {package require Debug}]} {
@@ -11,19 +20,29 @@ if {[catch {package require Debug}]} {
 package provide Store 1.0
 
 oo::class create Store {
+    # prep - prepare a stmt or reused an already cached stmt
     method prep {stmt} {
 	variable stmts	;# here are some statements we prepared earlier
+	variable maxcache
 	if {[dict exists $stmts $stmt]} {
 	    set s [dict get $stmts $stmt]
+	    if {$maxcache > 0} {
+		# move matched element to end of cache (for LRU)
+		dict unset stmts $stmt
+		dict set stmts $stmt $s
+	    }
 	} else {
 	    set s [my db prepare $stmt]
 	    dict set stmts $stmt $s
+	    if {$maxcache > 0 && [dict size $stmts] > $maxcache} {
+		Debug.store {removing LRU cached statement}
+		set stmts [lrange $stmts 2 end]
+	    }
 	}
 	return $s
     }
 
-    # stmt - evaluate tdbc statement
-    # caches prepared statements
+    # stmt - evaluate (possibly cached) tdbc statement
     # returns resultset as dict
     method stmt {stmt args} {
 	Debug.store {stmt '$stmt' over ($args)}
@@ -32,8 +51,7 @@ oo::class create Store {
 	return $result
     }
 
-    # stmtL - evaluate tdbc statement
-    # caches prepared statements
+    # stmtL - evaluate (possibly cached) tdbc statement
     # returns resultset as list
     method stmtL {stmt args} {
 	set result [[my prep $stmt] allrows -as lists $args]
@@ -210,12 +228,21 @@ oo::class create Store {
     method by {name value {table ""}} {
 	if {$table eq ""} {
 	    variable primary; set table $primary
+	    set orderby ""
+	} else {
+	    set orderby [join [lassign [split $table ,] table] ,]
+	    if {$table eq ""} {
+		variable primary; set table $primary
+	    }
+	    if {$orderby ne ""} {
+		set orderby "ORDER BY $orderby"
+	    }
 	}
 	if {$table eq ""} {
 	    error "must specify primary table on creation, or explicitly mention table in call"
 	}
-	Debug.store {by name:$name value:$value table:$table}
-	return [my stmt "SELECT * FROM $table WHERE $name=:value;" value $value]
+	Debug.store {by name:$name value:$value table:$table$orderby}
+	return [my stmt "SELECT * FROM $table WHERE $name=:value$orderby;" value $value]
     }
 
     # get the named field (or its subcomponent as dict) given by args
@@ -303,6 +330,16 @@ oo::class create Store {
 	catch {my db destroy}
     }
 
+    # constructor
+    #
+    # tdbc - which tdbc driver? (default: sqlite3)
+    # db - an already-opened db
+    # file - db file to create or use
+    # schema - schema to create a db in $file
+    # opts - to pass to tdbc for creation
+    #
+    # primary - primary table of interest in store
+    # maxcache - maximum size of prepared statement cache (default unlimited)
     constructor {args} {
 	Debug.store {Creating Store [self] $args}
 	variable tdbc sqlite3	;# TDBC backend
@@ -313,7 +350,7 @@ oo::class create Store {
 	variable primary ""	;# primary table of interest
 	variable {*}$args
 	variable stmts {}
-
+	variable maxcache 0	;# limit size of cached stmts
 	# load the tdbc drivers
 	package require $tdbc
 	package require tdbc::$tdbc
@@ -350,7 +387,7 @@ oo::class create Store {
 if {[info exists argv0] && ($argv0 eq [info script])} {
     package require tcltest
     namespace import ::tcltest::*
-    proc Debug.store {msg} {puts stderr "STORE: [uplevel [list subst $msg]]"}
+    #proc Debug.store {msg} {puts stderr "STORE: [uplevel [list subst $msg]]"}
 
     tcltest::skip unsupported-*
     set dbfile /tmp/storetest.db
