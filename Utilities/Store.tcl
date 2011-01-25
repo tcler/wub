@@ -264,7 +264,7 @@ oo::class create Store {
 	    if {$file eq ""} {
 		error "Must provide a db file"
 	    } else {
-		set ons [info object namespace object]
+		set ons [info object namespace [self]]
 		Debug.store {creating db: tdbc::${tdbc}::connection create ${ons}::dbI $file $opts}
 		file mkdir [file dirname $file]
 		tdbc::${tdbc}::connection create ${ons}::dbI $file {*}$opts
@@ -276,7 +276,7 @@ oo::class create Store {
 	}
 
 	if {[my db tables] eq ""
-	    || ($primary ne "" && $primary ni [my db tables])
+	    || ($primary ne "" && [string tolower $primary] ni [my db tables])
 	} {
 	    # we don't have any tables - apply schema
 	    if {$schema eq ""} {
@@ -286,4 +286,90 @@ oo::class create Store {
 	    }
 	}
     }
+}
+
+
+if {[info exists argv0] && ($argv0 eq [info script])} {
+    package require tcltest
+    namespace import ::tcltest::*
+    proc Debug.store {msg} {puts stderr "STORE: [uplevel [list subst $msg]]"}
+
+    tcltest::skip unsupported-*
+    set dbfile /tmp/storetest.db
+    if {[file exists $dbfile]} {
+	file delete $dbfile
+    }
+
+    test store-init {Create a Store} -body {
+	Store create store file $dbfile primary phonebook schema {
+	    PRAGMA foreign_keys = on;
+	    CREATE TABLE phonebook (
+				 id INTEGER PRIMARY KEY AUTOINCREMENT,
+				 name TEXT UNIQUE NOT NULL COLLATE NOCASE,
+				 phone TEXT
+				 );
+	    CREATE UNIQUE INDEX name ON phonebook(name);
+	}
+    } -result ::store
+
+    set records {{name Colin phone 0296590404}
+	{name Santa phone 1234567890}
+	{phone 1234567890 name Santa2}
+    }
+
+    # create some records with append
+    set count 0
+    foreach el $records {
+	incr count
+	test store-append$count {Append record to Store} -body [list store append {*}$el] -result $count
+    }
+
+    # fetch records by row number
+    set count 0
+    foreach el $records {
+	incr count
+	test store-get$count {Append record to Store} -body {
+	    # compare record to what we stored
+	    dict for {n v} [store get $count] {
+		if {$n eq "id"} {
+		    if {$v != $count} {
+			error "id doesn't match"
+		    }
+		}  elseif {[dict get $el $n] ne $v} {
+		    error "field $n doesn't match"
+		}
+	    }
+	    return 1
+	} -result 1
+    }
+
+    # fetch records by row number
+    set count 0
+    foreach el $records {
+	incr count
+	test store-match$count {match records by one field} -body {
+	    # compare record to what we stored
+	    dict for {n v} [store fetch name [dict get $el name]] {
+		if {$n eq "id"} {
+		    if {$v != $count} {
+			error "id doesn't match"
+		    }
+		}  elseif {[dict get $el $n] ne $v} {
+		    error "field $n doesn't match"
+		}
+	    }
+	    return $count
+	} -result $count
+    }
+
+    # these are facilities we don't support
+    set count 0
+    foreach {from to} {
+    } {
+	incr count
+	test store-$count {} -body [list zen parse $from]-result $to
+    }
+
+    store destroy
+
 }
