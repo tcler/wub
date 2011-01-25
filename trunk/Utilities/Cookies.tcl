@@ -380,6 +380,7 @@ namespace eval ::Cookies {
 		    dict set cdict -expires [expr {[clock seconds] + [dict get $cdict -max-age]}]
 		}
 	    }
+
 	    if {[dict exists $cdict -expires]} {
 		if {[string is int -strict [dict get $cdict -expires]]} {
 		    dict set args -expires [clock format [dict get $cdict -expires] -format "%a, %d-%b-%Y %H:%M:%S GMT" -gmt 1]
