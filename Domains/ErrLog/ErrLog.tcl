@@ -29,7 +29,7 @@ oo::class create ::ErrLog {
 	set el [dict get? $log $el]
 	lassign $el when er message eo
 	lassign [Http ErrorPage $er $message $eo] content message title
-	set r [Http title $r "$when: [dict get $er -ipaddr] $title"]
+	set r [Http title $r "$when: [dict get? $er -ipaddr] $title"]
 	set page [<h2> class pretty $title]
 	append page \n [<div> id summary $message]
 	append page \n [<div> id errorinfo $content]
