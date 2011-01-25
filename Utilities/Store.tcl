@@ -95,7 +95,7 @@ oo::class create Store {
 	    if {[string is alnum -fail fail $n]} {
 		set op =	;# pure alpha selector
 	    } else {
-		set op [string range $n fail end]
+		set op [string range $n $fail end]
 		set n [string range $n 0 $fail-1]
 
 		switch -- $op {
@@ -504,7 +504,8 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 				 id INTEGER PRIMARY KEY AUTOINCREMENT,
 				 name TEXT UNIQUE NOT NULL COLLATE NOCASE,
 				 phone TEXT,
-				 busy INTEGER DEFAULT 0
+				 busy INTEGER DEFAULT 0,
+				 nada TEXT
 				 );
 	    CREATE UNIQUE INDEX name ON phonebook(name);
 	}
@@ -570,6 +571,11 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	return $count
     } -result 2
 
+    # test NULL predicate
+    test store-null {change records} -body {
+	return [llength [store match nada? 0]]
+    } -result [llength $records]
+
     # test record changing
     test store-change {change records} -body {
 	set count 0
@@ -591,7 +597,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	}
 	return $count
     } -result 0
-    
+
     # these are facilities we don't support
     set count 0
     foreach {from to} {
