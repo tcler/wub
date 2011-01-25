@@ -78,37 +78,62 @@ oo::class create Store {
 	return $result
     }
 
-    method selparse {n} {
-	set op ""
-	if {$n eq ""} {
-	    error "empty selector"
+    method selector {args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
 	}
-	if {[string is alnum -fail fail $n]} {
-	    return [list $n =]	;# pure alpha selector
+	set sel {}; set selargs {}; set count 0
+	foreach {n v} $args {
+	    set op ""
+	    if {$n eq ""} {
+		error "empty selector"
+	    }
+	    if {[string is alnum -fail fail $n]} {
+		set op =	;# pure alpha selector
+	    } else {
+		set op [string range $n fail end]
+		set n [string range $n 0 $fail-1]
+
+		switch -- $op {
+		    ** {
+			set op REGEXP
+		    }
+
+		    * {
+			set op GLOB
+		    }
+		    
+		    % {
+			set op LIKE
+		    }
+		    
+		    ? {
+			set op IS
+		    }
+		    >= - <= - > - < -
+		    == - != - = {}
+		    
+		    default {
+			set op =
+		    }
+		}
+	    }
+
+	    if {$op eq "IS"} {
+		if {$v} {
+		    lappend sel "$n IS NOT NULL"
+		} else {
+		    append sel "$n IS NULL"
+		}
+	    } else {
+		lappend sel "$n $op :_${n}_$count"
+		dict set selargs _${n}_$count $v
+		incr count
+	    }
 	}
 
-	set op [string range $n fail end]
-	set n [string range $n 0 $fail-1]
-
-	switch -- $op {
-	    ** {
-		set op REGEXP
-	    }
-	    * {
-		set op GLOB
-	    }
-	    % {
-		set op LIKE
-	    }
-	    
-	    >= - <= - > - < -
-	    == - != - = {}
-
-	    default {
-		set op =
-	    }
-	}
-	return [list $n $op]
+	set sel [join $sel " AND "]
+	return [list $sel $selargs]
     }
 
     # update matching tuples with the given dict
@@ -125,14 +150,8 @@ oo::class create Store {
 	    error "must specify primary table on creation, or explicitly mention table in call"
 	}
 
-	set sel {}; set selargs {}; set count 0
-	foreach {n v} $selector {
-	    lassign [my selparse $n] n op
-	    lappend sel "$n $op :_${n}_$count"
-	    dict set selargs _${n}_$count $v
-	    incr count
-	}
-	set sel [join $sel " AND "]
+	# parse selector into SQL and selector args
+	lassign [my selector $selector] sel selargs
 
 	set updates {}
 	foreach n [dict keys $args] {
@@ -224,14 +243,8 @@ oo::class create Store {
 
 	Debug.store {match in '$table$orderby' $args}
 
-	set sel {}; set selargs {}; set count 0
-	foreach {n v} $args {
-	    lassign [my selparse $n] n op
-	    lappend sel "$n $op :_${n}_$count"
-	    dict set selargs _${n}_$count $v
-	    incr count
-	}
-	set sel [join $sel " AND "]
+	# parse selector into SQL and selector args
+	lassign [my selector $args] sel selargs
 
 	return [my stmt "SELECT * FROM $table WHERE $sel$orderby;" {*}$selargs]
     }
@@ -260,14 +273,8 @@ oo::class create Store {
 
 	Debug.store {find in '$table$orderby' $args}
 
-	set sel {}; set selargs {}; set count 0
-	foreach {n v} $args {
-	    lassign [my selparse $n] n op
-	    lappend sel "$n $op :_${n}_$count"
-	    dict set selargs _${n}_$count $v
-	    incr count
-	}
-	set sel [join $sel " AND "]
+	# parse selector into SQL and selector args
+	lassign [my selector $args] sel selargs
 
 	return [lindex [my stmtL "SELECT OID FROM $table WHERE $sel$orderby;" {*}$selargs] 0]
     }
@@ -288,14 +295,8 @@ oo::class create Store {
 
 	Debug.store {delete from '$table' $args}
 
-	set sel {}; set selargs {}; set count 0
-	foreach {n v} $args {
-	    lassign [my selparse $n] n op
-	    lappend sel "$n $op :_${n}_$count"
-	    dict set selargs _${n}_$count $v
-	    incr count
-	}
-	set sel [join $sel " AND "]
+	# parse selector into SQL and selector args
+	lassign [my selector $args] sel selargs
 
 	return [my stmt "DELETE FROM $table WHERE $sel;" {*}$selargs]
     }
