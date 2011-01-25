@@ -377,7 +377,7 @@ namespace eval ::Cookies {
 	    if {[dict exists $cdict -max-age]} {
 		if {![dict exists $cdict -expires]} {
 		    # make -expires track -max-age
-		    set expires [expr {[clock seconds] + [dict get $cdict -max-age]}]
+		    dict set cdict -expires [expr {[clock seconds] + [dict get $cdict -max-age]}]
 		}
 	    }
 	    if {[dict exists $cdict -expires]} {
