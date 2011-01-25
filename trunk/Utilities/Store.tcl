@@ -1,13 +1,15 @@
 # Store - a simple wrapper around TDBC providing a store
 #
-# Store cached prepared statements for all DB interactions
-# It presumes we're mainly interested in one table of a db, and that
+# Store LRU-caches tdbc-prepared statements for all DB interactions
+# this saves time re-preparing statements which might not change
+#
+# Store presumes we're mainly interested in one table of a db, and that
 # all tables can meaningfully be accessed by row number / oid.
 #
-# Store provides get/set for individual fields in numbered rows
+# Store provides get/set/incr for individual fields by record oid
 #
-# Store provides for matching/fetching of record sets using
-# dicts passed in args.
+# Store provides for record matching/fetching/updating/deleting
+# using a match dict passed in args.
 
 package require tdbc
 if {[catch {package require Debug}]} {
@@ -57,6 +59,37 @@ oo::class create Store {
 	set result [[my prep $stmt] allrows -as lists $args]
 	Debug.store {stmtL result: '$stmt' -> ($result)}
 	return $result
+    }
+
+    # update matching tuples with the given dict
+    method update {selector args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	if {[llength $args]%2} {
+	    set args [lassign $args table]
+	} else {
+	    variable primary; set table $primary
+	}
+	if {$table eq ""} {
+	    error "must specify primary table on creation, or explicitly mention table in call"
+	}
+
+	set sel {}; set selargs {}
+	foreach n [dict keys $selector] {
+	    lappend sel $n=:_S_$n
+	    dict set selargs _S_$n [dict get $selector $n]
+	}
+	set sel [join $sel " AND "]
+
+	set updates {}
+	foreach n [dict keys $args] {
+	    if {$n ni {id}} {
+		lappend updates "$n=:$n"
+	    }
+	}
+
+	return [my stmt "UPDATE $table SET [join $updates ,] WHERE $sel;" {*}$args {*}$selargs]
     }
 
     # change a given tuple (by id) to the given dict
@@ -387,7 +420,7 @@ oo::class create Store {
 if {[info exists argv0] && ($argv0 eq [info script])} {
     package require tcltest
     namespace import ::tcltest::*
-    #proc Debug.store {msg} {puts stderr "STORE: [uplevel [list subst $msg]]"}
+    proc Debug.store {msg} {puts stderr "STORE: [uplevel [list subst $msg]]"}
 
     tcltest::skip unsupported-*
     set dbfile /tmp/storetest.db
@@ -401,31 +434,35 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	    CREATE TABLE phonebook (
 				 id INTEGER PRIMARY KEY AUTOINCREMENT,
 				 name TEXT UNIQUE NOT NULL COLLATE NOCASE,
-				 phone TEXT
+				 phone TEXT,
+				 busy INTEGER DEFAULT 0
 				 );
 	    CREATE UNIQUE INDEX name ON phonebook(name);
 	}
     } -result ::store
 
     set records {{name Colin phone 0296590404}
-	{name Santa phone 1234567890}
-	{phone 1234567890 name Santa2}
+	{name Santa phone 0123456789}
+	{phone 0123456789 name Santa2}
     }
 
     # create some records with append
     set count 0
     foreach el $records {
 	incr count
-	test store-append$count {Append record to Store} -body [list store append {*}$el] -result $count
+	test store-append$count {Append record to Store} -body {
+	    store append {*}$el
+	} -result $count
     }
 
+    # compare record sought with record fetched
     proc cmprec {id r1 r2} {
 	dict for {n v} $r2 {
 	    if {$n eq "id"} {
-		if {$v != $id} {
+		if {$id ne "" && $v != $id} {
 		    error "id doesn't match"
 		}
-	    }  elseif {[dict get $r1 $n] ne $v} {
+	    }  elseif {[dict exists $r1 $n] && [dict get $r1 $n] ne $v} {
 		error "field $n doesn't match"
 	    }
 	}
@@ -447,11 +484,45 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     foreach el $records {
 	incr count
 	test store-match$count {match records by one field} -body {
-	    # compare record to what we stored
+	    # fetch record matching name, compare it
 	    cmprec $count $el [store fetch name [dict get $el name]]
 	} -result $count
     }
 
+    # fetch matching records
+    test store-match$count {match records by phone field} -body {
+	dict unset el name
+	set count 0
+	# count and records whose phone matches 0123456789
+	foreach rec [store match phone 0123456789] {
+	    cmprec "" [list phone 0123456789] $rec
+	    incr count
+	}
+	return $count
+    } -result 2
+
+    # test record changing
+    test store-change {change records} -body {
+	set count 0
+	store update {phone 0123456789} busy 1
+	foreach rec [store match busy 1] {
+	    cmprec "" [list phone 0123456789] $rec
+	    incr count
+	}
+	return $count
+    } -result 2
+
+    # test record deletion
+    test store-delete {change records} -body {
+	set count 0
+	store delete busy 1
+	foreach rec [store match busy 1] {
+	    cmprec "" [list phone 0123456789] $rec
+	    incr count
+	}
+	return $count
+    } -result 0
+    
     # these are facilities we don't support
     set count 0
     foreach {from to} {
