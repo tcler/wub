@@ -41,7 +41,7 @@ oo::class create Store {
 	return $result
     }
 
-    # change a given tuple by id
+    # change a given tuple (by id) to the given dict
     method change {args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
@@ -50,6 +50,9 @@ oo::class create Store {
 	    set args [lassign $args table]
 	} else {
 	    variable primary; set table $primary
+	}
+	if {$table eq ""} {
+	    error "must specify primary table on creation, or explicitly mention table in call"
 	}
 	if {![dict exists $args id]} {
 	    error "changeset must contain id"
@@ -64,16 +67,28 @@ oo::class create Store {
 	return [my stmt "UPDATE $table SET [join $updates ,] WHERE id=:id;" {*}$args]
     }
 
-    # append a tuple, return its id
+    # append a tuple, returning its id
     method append {args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
 	if {[llength $args]%2} {
 	    set args [lassign $args table]
+	    set orderby [join [lassign [split $table ,] table] ,]
+	    if {$table eq ""} {
+		variable primary; set table $primary
+	    }
+	    if {$orderby ne ""} {
+		set orderby "ORDER BY $orderby"
+	    }
 	} else {
 	    variable primary; set table $primary
+	    set orderby ""
 	}
+	if {$table eq ""} {
+	    error "must specify primary table on creation, or explicitly mention table in call"
+	}
+
 	set vs {}
 	dict for {n v} $args {
 	    lappend vs :$n
@@ -82,25 +97,36 @@ oo::class create Store {
 	return [my stmtL "INSERT INTO $table ([join [dict keys $args] ,]) VALUES ([join $vs ,]);SELECT last_insert_rowid();" {*}$args]
     }
 
-    # matching tuples
+    # match - return a list of all tuples matching the args dict
     method match {args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
 	if {[llength $args]%2} {
 	    set args [lassign $args table]
+	    set orderby [join [lassign [split $table ,] table] ,]
+	    if {$table eq ""} {
+		variable primary; set table $primary
+	    }
+	    if {$orderby ne ""} {
+		set orderby " ORDER BY $orderby"
+	    }
 	} else {
 	    variable primary; set table $primary
+	    set orderby ""
+	}
+	if {$table eq ""} {
+	    error "must specify primary table on creation, or explicitly mention table in call"
 	}
 
-	Debug.store {match in '$table' $args}
+	Debug.store {match in '$table$orderby' $args}
 
 	set sel {}
 	foreach n [dict keys $args] {
 	    lappend sel $n=:$n
 	}
 	set sel [join $sel " AND "]
-	return [my stmt "SELECT * FROM $table WHERE $sel;" {*}$args]
+	return [my stmt "SELECT * FROM $table WHERE $sel$orderby;" {*}$args]
     }
 
     # find rowid of first match
@@ -110,21 +136,32 @@ oo::class create Store {
 	}
 	if {[llength $args]%2} {
 	    set args [lassign $args table]
+	    set orderby [join [lassign [split $table ,] table] ,]
+	    if {$table eq ""} {
+		variable primary; set table $primary
+	    }
+	    if {$orderby ne ""} {
+		set orderby "ORDER BY $orderby"
+	    }
 	} else {
 	    variable primary; set table $primary
+	    set orderby ""
+	}
+	if {$table eq ""} {
+	    error "must specify primary table on creation, or explicitly mention table in call"
 	}
 
-	Debug.store {find in '$table' $args}
+	Debug.store {find in '$table$orderby' $args}
 
 	set sel {}
 	foreach n [dict keys $args] {
 	    lappend sel $n=:$n
 	}
 	set sel [join $sel " AND "]
-	return [lindex [my stmtL "SELECT OID FROM $table WHERE $sel;" {*}$args] 0]
+	return [lindex [my stmtL "SELECT OID FROM $table WHERE $sel$orderby;" {*}$args] 0]
     }
 
-    # delete matching tuples
+    # delete tuples matching the args dict
     method delete {args} {
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
@@ -133,6 +170,9 @@ oo::class create Store {
 	    set args [lassign $args table]
 	} else {
 	    variable primary; set table $primary
+	}
+	if {$table eq ""} {
+	    error "must specify primary table on creation, or explicitly mention table in call"
 	}
 
 	Debug.store {delete from '$table' $args}
@@ -145,7 +185,7 @@ oo::class create Store {
 	return [my stmt "DELETE FROM $table WHERE $sel;" {*}$args]
     }
 
-    # return only one tuple by field match
+    # fetch first tuple matching the dict passed in $args
     method fetch {args} {
 	Debug.store {fetch $args}
 	set result [my match {*}$args]
@@ -166,20 +206,29 @@ oo::class create Store {
 	}
     }
 
-    # return tuples by a single field match
+    # by - return all tuples matching the single field given by name and value
     method by {name value {table ""}} {
 	if {$table eq ""} {
 	    variable primary; set table $primary
+	}
+	if {$table eq ""} {
+	    error "must specify primary table on creation, or explicitly mention table in call"
 	}
 	Debug.store {by name:$name value:$value table:$table}
 	return [my stmt "SELECT * FROM $table WHERE $name=:value;" value $value]
     }
 
+    # get the named field (or its subcomponent as dict) given by args
     method get {index args} {
 	lassign [split $index .] table id
-	if {$id eq ""} {
+	if {$table eq ""} {
+	    variable primary; set table $primary
+	} elseif {$id eq ""} {
 	    set id $table
 	    variable primary; set table $primary
+	}
+	if {$table eq ""} {
+	    error "must specify primary table on creation, or explicitly mention table in call"
 	}
 	Debug.store {get id:$id from table:$table}
 	set result [lindex [my stmt "SELECT * FROM $table WHERE id=:id;" id $id] 0]
@@ -187,12 +236,18 @@ oo::class create Store {
 	return [dict get $result {*}$args]
     }
 
-    # set a row's values
+    # set a row's values to those given in args dict
+    # table may be specified as $table.$index for the 'index' arg
     method set {index args} {
 	lassign [split $index .] table id
-	if {$id eq ""} {
+	if {$table eq ""} {
+	    variable primary; set table $primary
+	} elseif {$id eq ""} {
 	    set id $table
 	    variable primary; set table $primary
+	}
+	if {$table eq ""} {
+	    error "must specify primary table on creation, or explicitly mention table in call"
 	}
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
@@ -223,6 +278,9 @@ oo::class create Store {
     method maxid {{table ""}} {
 	if {$table eq ""} {
 	    variable primary; set table $primary
+	}
+	if {$table eq ""} {
+	    error "must specify primary table on creation, or explicitly mention table in call"
 	}
 	set result [my stmtL "SELECT MAX(id) FROM $table;"]
 	if {$result eq "{{}}"} {
@@ -343,7 +401,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	} -result 1
     }
 
-    # fetch records by row number
+    # fetch records by name match
     set count 0
     foreach el $records {
 	incr count
@@ -371,5 +429,4 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     }
 
     store destroy
-
 }
