@@ -1,15 +1,22 @@
 # Store - a simple wrapper around TDBC providing a store
 #
+# A 'store' is considered to be a database with fairly simple
+# access/update requirements: 
+#
+# Store presumes we're primarily interested in one table of a db, and that
+# all tables can meaningfully be accessed by row number / oid.
+#
 # Store LRU-caches tdbc-prepared statements for all DB interactions
 # this saves time re-preparing statements which might not change
-#
-# Store presumes we're mainly interested in one table of a db, and that
-# all tables can meaningfully be accessed by row number / oid.
 #
 # Store provides get/set/incr for individual fields by record oid
 #
 # Store provides for record matching/fetching/updating/deleting
 # using a match dict passed in args.
+#
+# Despite its focus on simple matches and single table access,
+# Store exports [db], [stmt] and [stmtL], providing unfettered access
+# to the underlying database.  The stmt commands provide caching.
 
 package require tdbc
 if {[catch {package require Debug}]} {
