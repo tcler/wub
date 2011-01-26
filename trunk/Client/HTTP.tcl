@@ -652,7 +652,7 @@ oo::class create HTTP {
 	    if {!$justcontent} {
 		{*}$consumer [list X-type FAILED X-reason $reason X-url $url X-object [self]]
 	    }
-	    my destroy	;# this HTTP can't last
+	    after 0 [list [self] destroy]	;# this HTTP can't last
 	    return
 	}
 
@@ -670,7 +670,7 @@ oo::class create HTTP {
 	if {[catch {
 	    trace add command $reader delete [list [self] destroy]
 	}]} {
-	    my destroy; return
+	    after 0 [list [self] destroy]; return
 	}
 
 	# create writer coroutine
@@ -679,7 +679,7 @@ oo::class create HTTP {
 	if {[catch {
 	    trace add command $writer delete [list [self] destroy]
 	}]} {
-	    my destroy; return
+	    after 0 [list [self] destroy]; return
 	}
     }
 }
