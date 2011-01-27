@@ -38,7 +38,7 @@ class create ::ReCAPTCHA {
 
 	set entity [Query encodeL privatekey $private remoteip [dict get $r -ipaddr] challenge $recaptcha_challenge_field response $recaptcha_response_field]
 
-	set V [HTTP new http://api-verify.recaptcha.net/ [lambda {v} [string map [list %PASS $pass %FAIL $fail %R $r %ARGS% $args] {
+	set V [HTTP run http://api-verify.recaptcha.net/ [lambda {v} [string map [list %PASS $pass %FAIL $fail %R $r %ARGS% $args] {
 	    set r [list %R]	;# our response
 	    set args [list %ARGS%]
 	    set result [split [dict get $v -content] \n]
