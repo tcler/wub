@@ -273,7 +273,7 @@ class create OAuth {
 
 	Debug.OAuth {Url http: [Url http $req_urld]}
 
-	set V [HTTP new [dict get $provider requesturi] [lambda {self r provider token referer v} {
+	set V [HTTP run [dict get $provider requesturi] [lambda {self r provider token referer v} {
 	    Debug.OAuth {V: $v}
 	    set result [lindex [split [dict get $v -content] \n] 0]
 	    set result [OAuthUtils decodeD $result]
@@ -358,7 +358,7 @@ class create OAuth {
 
 	Debug.OAuth {Url http: [Url http $req_urld]}
 
-	set V [HTTP new [dict get $provider accessuri] [lambda {self r provider referer lambda v} {
+	set V [HTTP run [dict get $provider accessuri] [lambda {self r provider referer lambda v} {
 	    Debug.OAuth {V: $v}
 	    set result [lindex [split [dict get $v -content] \n] 0]
 	    set result [OAuthUtils decodeD $result]
@@ -453,7 +453,7 @@ if {0} {
 	    foreach {k v} $d {
 		set $k $v
 	    }
-	    set V [HTTP new $url [lambda {self r d cookie v} {
+	    set V [HTTP run $url [lambda {self r d cookie v} {
 		set result [dict get $v -content]
 		set username anonymous
 		set img http://www.openstreetmap.org/images/anon_large.png
