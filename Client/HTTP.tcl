@@ -216,7 +216,7 @@ know {[string match http://* [lindex $args 0]]} {
 	set path [list get $path]	;# make a 'get' op for path remainder
     }
 
-    HTTP new [Url uri $urld] [lindex $args 1] $path	;# close close
+    HTTP run [Url uri $urld] [lindex $args 1] $path	;# close close
 }
 
 package provide HTTP 2.0
@@ -282,6 +282,10 @@ oo::class create HTTP {
 	Debug.HTTP {[self] sent $method $url - $outstanding outstanding}
     }
 
+    method reason {} {
+	variable reason; return $reason
+    }
+
     method gets {} {
 	variable socket
 
@@ -296,7 +300,7 @@ oo::class create HTTP {
 	}
 
 	if {$gone || $eof} {
-	    set reason "EOF reading HEADER"
+	    variable reason "EOF reading HEADER"
 	    Debug.HTTPdetail {[self] gets: EOF reading HEADER}
 	    [self] destroy
 	} else {
@@ -321,7 +325,7 @@ oo::class create HTTP {
 	}
 
 	if {$gone || $eof} {
-	    set reason "EOF reading ENTITY"
+	    variable reason "EOF reading ENTITY"
 	    return $chunk	;# can just EOF in entity
 	} else {
 	    # we have successfully read our chunk of $size
@@ -490,7 +494,7 @@ oo::class create HTTP {
 	    }
 
 	    if {$closing && !$outstanding} {
-		set reason "requested by WRITER"
+		variable reason "requested by WRITER"
 		my destroy
 	    } elseif {!$outstanding} {
 		# nothing to read
@@ -519,75 +523,121 @@ oo::class create HTTP {
 
 	# send all ops we have queued
 	variable ops
+	variable reason
 	if {[info exists ops]} {
 	    Debug.HTTP {[self] initial ops: $ops}
 	    foreach {op val} $ops {
 		if {$op eq "close"} {
 		    # we've been asked to close
 		    Debug.HTTP {[self] closing upon request}
-		    variable reason "Requested by Consumer"
+		    set reason "Requested by Consumer"
 		    set closing 1
-		    return
 		} else {
 		    my send $op {*}$val	;# send init ops
 		}
 	    }
 	}
+	
+	# we've closed per request - error on any more requests
+	if {$closing} {
+	    ::yieldm $closing; error "writer is closed: '$reason'"
+	}
 
 	# after initial ops are sent, sit in loop awaiting new op requests
+	# get next event
+	set args [lassign [::yieldm $closing] op url]
+	set op [string tolower $op]
 	while {!$closing} {
-	    # unpack event
-	    if {[catch {
-		set args [lassign [::yieldm [self]] op url]
-		set op [string tolower $op]
-	    } e eo]} {
-		Debug.HTTP {[self] [info coroutine] yield: $e ($eo)}
-		my destroy
-		return
-	    }
- 
 	    Debug.HTTP {[self] writer op:$op url:$url args:$args}
-	    if {$closing || $op eq "close"} {
-		Debug.HTTP {[self] close: $op / $closing}
-		variable reason "Requested by Consumer"
-		set closing 1
-		my destroy
-		return
-	    } elseif {$op in {get put post head delete}} {
-		# got a protocol operator from consumer
-		my send $op $url {*}$args
-	    } else {
-		my destroy
-		error "Unknown op: $op $url $args"
+	    switch -- $op {
+		close {
+		    set reason "Requested by Consumer"
+		    break	;# terminate peacefully per request
+		}
+		get - put - post - head - delete {
+		    # got a protocol operator from consumer
+		    my send $op $url {*}$args
+		}
+		default {
+		    error "Unknown op: $op $url $args"
+		}
 	    }
+
+	    # get next event
+	    set args [lassign [::yieldm $closing] op url]
+	    set op [string tolower $op]
 	}
+
+	Debug.HTTP {[self] writer closed: '$reason'}
+	return 1	;# terminate writer peacefully
     }
 
     # forward some methods for writing
     method write {op url args} {
-	variable writer
-	$writer $op $url {*}$args
+	variable closing; variable reason
+	if {$closing} {
+	    error "HTTP [self] has closed: '$reason'"
+	}
+	variable writer; $writer $op $url {*}$args
+    }
+
+    # start reader coroutine
+    method start_reader {} {
+	# create coros inside our ns
+	variable socket
+	set ns [info object namespace [self]]
+
+	# create reader coroutine
+	variable reader ${ns}::${socket}R
+	coroutine $reader [self] reader
+	trace add command $reader delete [list [self] destroy]
+    }
+
+    # start writer coroutine
+    method start_writer {} {
+	# create coros inside our ns
+	variable socket
+	set ns [info object namespace [self]]
+
+	variable writer ${ns}::${socket}W 
+	set result [coroutine $writer [self] writer]
+
+	if {!$result} {
+	    # writer reports that it's open and ready to go
+	    # its lifetime is [self]'s lifetime
+	    trace add command $writer delete [list [self] destroy]
+	}
+
+	return $result
     }
 
     destructor {
-	variable socket; variable reason
-	Debug.HTTP {[self]: $socket closed because: '$reason'}
+	variable socket; variable reason; variable urld
+	Debug.HTTP {[self]: $socket ($urld) closed because: '$reason'}
 
-	# alert consumer
+	# notify consumer that we've closed
 	variable rqcount
 	set close [list X-type CLOSED X-count [incr rqcount] X-reason $reason]
 
 	variable notify
 	if {$notify ne ""} {
-	    catch {after 1 {*}$notify $close}
+	    # consumer wants special close notification
+	    catch {
+		after 1 {*}$notify $close	;# notify completion
+	    }
 	} else {
+	    # consumer wants close in normal event stream
 	    variable consumer
-	    catch {after 1 {*}$consumer $close}
+	    catch {
+		after 1 {*}$consumer $close	;# send close event
+	    }
 	}
 
+	# close the socket
 	variable socket
 	catch {chan close $socket}
 
+	# destroy coroutines
 	variable reader; catch {rename $reader {}}
 	variable writer; catch {rename $writer {}}
     }
@@ -603,12 +653,13 @@ oo::class create HTTP {
 	variable template {accept */* accept-encoding gzip}	;# http template
 	variable notify ";#"		;# notify close to consumer?
 	variable justcontent 0		;# consumer only wants content
-	variable sockopts {}
+	variable sockopts {}		;# default socket options
 
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
  
+	# differentiate variable decls and HTTP operations
 	variable ops {}
 	foreach {n v} $args {
 	    if {$n in {get put post delete head close}} {
@@ -635,51 +686,74 @@ oo::class create HTTP {
 	    }
 	}
 
-	# connect socket to host
-	variable socket ""
-	if {[catch {
-	    if {[dict get $urld -scheme] ne "https"} {
-		socket -async {*}$sockopts $host $port	;# create the socket
-	    } else {
-		::tls::socket -async {*}$sockopts $host $port  ;# create SSL socket
-	    }
-	} socket eo] || [catch {
-	    # condition the socket
-	    chan configure $socket -blocking 0 -buffering none -encoding binary -translation {crlf binary}
-	}]} {
-	    set reason $socket
-	    Debug.HTTP {[self] connect failed: $reason}
-	    if {!$justcontent} {
-		{*}$consumer [list X-type FAILED X-reason $reason X-url $url X-object [self]]
-	    }
-	    after 0 [list [self] destroy]	;# this HTTP can't last
-	    return
-	}
-
 	# forward some convenience methods
 	foreach v {get put post head delete close} {
 	    oo::objdefine [self] forward $v [self] write $v	;# forward the method to the coro
 	}
+    }
 
-	# create coros inside our ns
-	set ns [info object namespace [self]]
-
-	# create reader coroutine
-	variable reader ${ns}::${socket}R
-	coroutine $reader [self] reader
+    # connect HTTP socket to host
+    method connect {} {
+	variable urld
+	variable socket ""
+	variable sockopts; variable host; variable port
+	set state init
 	if {[catch {
-	    trace add command $reader delete [list [self] destroy]
+	    if {[dict get $urld -scheme] ne "https"} {
+		Debug.HTTPdetail {[self] connect: $host $port}
+		set state connect
+		socket -async {*}$sockopts $host $port	;# create the socket
+	    } else {
+		Debug.HTTPdetail {[self] connect TLS: $host $port}
+		set state tls_connect
+		::tls::socket -async {*}$sockopts $host $port  ;# create SSL socket
+	    }
+	} socket eo] || [catch {
+	    # condition the socket
+	    Debug.HTTPdetail {[self] condition: $socket}
+	    set state condition
+	    chan configure $socket -blocking 0 -buffering none -encoding binary -translation {crlf binary}
 	}]} {
-	    after 0 [list [self] destroy]; return
+	    set reason $socket
+	    Debug.HTTP {[self] $state failed: $reason ($eo)}
+	    if {!$justcontent} {
+		{*}$consumer [list X-type FAILED X-state $state X-reason $reason X-url $url X-object [self]]
+	    }
+	    return [list $socket $eo]
 	}
+    }
 
-	# create writer coroutine
-	variable writer ${ns}::${socket}W 
-	coroutine $writer [self] writer
-	if {[catch {
-	    trace add command $writer delete [list [self] destroy]
-	}]} {
-	    after 0 [list [self] destroy]; return
+    # HTTP class method to create and run an HTTP pipeline
+    # returns an object to manage the pipeline, or "" if it's closed
+    self method run {url consumer args} {
+	set object [my new $url $consumer {*}$args]
+
+	$object connect	;# tcp connect to server
+	$object start_reader	;# prepare to read responses
+
+	# generate HTTP transactions
+	if {[$object start_writer]} {
+	    return ""		;# writer has failed, or completed
+	} else {
+	    return $object	;# writer is ready to go
+	}
+    }
+
+    # HTTP class method to create and run a named HTTP pipeline
+    self method runas {name url consumer args} {
+	set object [my create $name $url $consumer {*}$args]
+
+	$object connect	;# tcp connect to server
+	$object start_reader	;# prepare to read responses
+
+	# generate HTTP transactions
+	if {[$object start_writer]} {
+	    # pipeline writer has failed, or completed
+	    # we can't return a named command for it.
+	    error "writer complete: [$object reason]"
+	} else {
+	    # pipeline is ready to go
+	    return $object
 	}
     }
 }
@@ -698,36 +772,39 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     catch {http://1023.1024.1025.0126:8080/ echo}	;# a bad url
     set obj [http://localhost:8080/wub/ echo get /]	;# get a couple of URLs
     http://www.google.com.au/ echo justcontent 1	;# just get the content, not the dict
-    puts $obj
+    puts stderr "OBJ: $obj"
     $obj get /wub/?A=1&B=2 echo
     $obj get http://localhost:8080/ echo
 
     set fd [open [info script]]; set source [read $fd]; close $fd
-    if {![catch {::zlib adler32 $source} crc]} {
-	if {![catch {package require fileutil}]} {
-	    http://wub.googlecode.com/svn/trunk/Client/HTTP.tcl	{set ::source} justcontent 1	;# fetch the latest HTTP.tcl
+    if {[catch {::zlib adler32 $source} crc]} {
+	puts stderr "No Adler32 - no source fetch"
+    } elseif {[catch {package require fileutil}]} {
+	puts stderr "No fileutil - no source fetch"
+    } else {
+	http://wub.googlecode.com/svn/trunk/Client/HTTP.tcl {set ::source} justcontent 1	;# fetch the latest HTTP.tcl
+
+	vwait ::source
+	set source [subst -nocommands -novariables $source]
+	puts stderr "Fetched [string length $source] bytes of source for HTTP.tcl"
+	if {![catch {::zlib adler32 $source} crc2]} {
+	    if {$crc ne $crc2} {
+		puts stderr "There seems to be a newer version of HTTP.tcl"
+		if {[lsearch $argv -autoupdate] != -1} {
+		    puts stderr "Auto-updating HTTP.tcl in-place"
+		    set this [info script]
+		    if {![catch {fileutil::writeFile -- $this.new $source} e eo]} {
+			file rename -force $this $this.bak
+			file rename -force $this.new $this
+		    } else {
+			puts stderr "writing $this failed: $e ($eo)"
+		    }
+		}
+	    } else {
+		puts stderr "You seem to have the most current version of HTTP.tcl"
+	    }
 	}
     }
 
-    vwait ::source
-    set source [subst -nocommands -novariables $source]
-    puts stderr "Fetched [string length $source] bytes of source for HTTP.tcl"
-    if {![catch {::zlib adler32 $source} crc2]} {
-	if {$crc ne $crc2} {
-	    puts stderr "There seems to be a newer version of HTTP.tcl"
-	    if {[lsearch $argv -autoupdate] != -1} {
-		puts stderr "Auto-updating HTTP.tcl in-place"
-		set this [info script]
-		if {![catch {fileutil::writeFile -- $this.new $source} e eo]} {
-		    file rename -force $this $this.bak
-		    file rename -force $this.new $this
-		} else {
-		    puts stderr "writing $this failed: $e ($eo)"
-		}
-	    }
-	} else {
-	    puts stderr "You seem to have the most current version of HTTP.tcl"
-	}
-    }
     vwait ::forever
 }
