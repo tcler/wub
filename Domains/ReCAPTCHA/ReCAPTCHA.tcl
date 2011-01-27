@@ -38,9 +38,8 @@ class create ::ReCAPTCHA {
 
 	set entity [Query encodeL privatekey $private remoteip [dict get $r -ipaddr] challenge $recaptcha_challenge_field response $recaptcha_response_field]
 
-	set V [HTTP run http://api-verify.recaptcha.net/ [lambda {v} [string map [list %PASS $pass %FAIL $fail %R $r %ARGS% $args] {
-	    set r [list %R]	;# our response
-	    set args [list %ARGS%]
+	set V [HTTP run http://api-verify.recaptcha.net/ [lambda {r a pass_script fail_script v} {
+	    set args $a
 	    set result [split [dict get $v -content] \n]
 	    Debug.recaptcha {ReCAPTCHA validation: $result}
 	    
@@ -51,14 +50,13 @@ class create ::ReCAPTCHA {
 	    
 	    if {$pass} {
 		Debug.recaptcha {ReCAPTCHA passed}
-		%PASS
+		eval $pass_script
 	    } else {
 		Debug.recaptcha {ReCAPTCHA failed}
-		%FAIL
+		eval $fail_script
 	    }
-	    
 	    return [Httpd Resume $r]
-	}]] post [list /verify $entity content-type application/x-www-form-urlencoded] close] close
+	} $r $args $pass $fail] post [list /verify $entity content-type application/x-www-form-urlencoded] close] close
 
 	return [Httpd Suspend $r 100000]
     }
