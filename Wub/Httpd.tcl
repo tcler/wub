@@ -10,7 +10,9 @@ Debug define entity 10
 
 package require Listener
 package require Chan
-package require WebSockets
+if {[catch {package require WebSockets}e eo]} {
+    puts stderr "No WebSockets: '$e' ($eo)"
+}
 
 package require Query
 package require Html
@@ -1082,7 +1084,7 @@ oo::class create ::Httpd {
 	    # add in cookies already formatted up
 	    foreach hdr {set-cookie} {
 		if {[dict exists $reply set-cookie]} {
-		    append header $hdr: " " [dict get $reply $hdr] \n
+		    append header $hdr: " " [dict get $reply $hdr] \r\n
 		}
 	    }
 
@@ -1092,7 +1094,7 @@ oo::class create ::Httpd {
 		set c [dict get $reply -cookies]
 		foreach cookie [Cookies format4server $c] {
 		    Debug.cookies {Http set: '$cookie'}
-		    append header "set-cookie: $cookie\r\n"
+		    append header "set-cookie: $cookie" \r\n
 		}
 	    } else {
 		Debug.cookies {Http processing: no cookies}
