@@ -1,4 +1,5 @@
 #! /usr/bin/env tclsh
+lappend ::auto_path /usr/lib/tcltk/ /usr/share/tcltk/tcllib1.12/
 
 # Site - simple configuration for single-threaded Wub Server.
 package require Tcl 8.6	;# minimum version of tcl required
@@ -496,7 +497,6 @@ namespace eval ::Site {
     #### Load those modules needed for the server to run
     proc modules {} {
 	::variable docroot
-	package require Httpd 6.0
 
 	#### Load Debug defaults
 	if {[config exists Debug]} {
@@ -691,6 +691,7 @@ namespace eval ::Site {
 	}
 
 	#### start Httpd protocol
+	package require Httpd 6.0
 	::variable httpd
 	#config merge_section Httpd [list server_id {Wub [package present Httpd]}]
 	config assign Httpd log $log
