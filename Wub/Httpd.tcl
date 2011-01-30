@@ -10,7 +10,7 @@ Debug define entity 10
 
 package require Listener
 package require Chan
-if {[catch {package require WebSockets}e eo]} {
+if {[catch {package require WebSockets} e eo]} {
     puts stderr "No WebSockets: '$e' ($eo)"
 }
 
