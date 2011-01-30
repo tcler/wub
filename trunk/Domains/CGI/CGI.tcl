@@ -25,7 +25,7 @@ class create ::CGI {
     variable fields executors mount root maxcgi cgi whitelist
 
     method env {r} {
-	lappend env SERVER_SOFTWARE [string map {" " /} $::Httpd::server_id]
+	lappend env SERVER_SOFTWARE [string map {" " /} [dict get $r -server_id]]
 	# name and version of the server. Format: name/version
 
 	lappend env GATEWAY_INTERFACE CGI/1.1
