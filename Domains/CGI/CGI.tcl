@@ -272,6 +272,7 @@ class create ::CGI {
     method do {r} {
 	# calculate the suffix of the URL relative to $mount
 	lassign [Url urlsuffix $r $mount] result r suffix path
+	Debug.cgi {do: $result $suffix $path}
 	if {!$result} {
 	    return $r	;# the URL isn't in our domain
 	}
