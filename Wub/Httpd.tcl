@@ -1606,7 +1606,7 @@ oo::class create ::Httpd {
 		# create a temp file to contain entity, remember it in $r and files
 		set entity [file tempfile entitypath]
 		dict set r -entity $entity
-		variable files; dict set files [info coroutine] $entity $entitypath
+		variable files; dict set files $entity $entitypath
 
 		# prepare entity file for receiving chunks
 		chan configure $entity -translation {binary binary}
@@ -1789,12 +1789,24 @@ oo::class create ::Httpd {
 	tailcall my process $r	;# now process the request
     }
 
+    # associate - file descriptor with connection lifetime
+    method associate {fd {with unknown}} {
+	variable files
+	dict set files $fd $with	;# police fd
+    }
+
+    # disassociate - file descriptor from connection lifetime
+    method disassociate {fd} {
+	variable files
+	dict unset files $fd
+    }
+
     method coro {args} {
 	Debug.httpd {create reader [info coroutine] - $args}
 
 	my readable	;# kick off the readable event
 
-	dict with args {}
+	dict with args {}	;# instantiate $args alist as corovars
 	variable transaction 0	;# count of incoming requests
 	variable socket
 	variable files; dict set files $socket SOCKET	;# police socket
@@ -1809,14 +1821,12 @@ oo::class create ::Httpd {
 
 	::watchdog stroke [self]
 	variable start
-	variable server_id
 	variable istate RUNNING
 	variable request
 	while {[chan pending input $socket] >= 0} {
 	    set r $proto	;# start with blank request
 	    dict set r -transaction [incr transaction]
 	    dict set r -time connected $start	;# when we got connected
-	    dict set r -server_id $server_id
 
 	    # read the header and unpack the header line
 	    # parse and merge header lines into request dict
@@ -1987,10 +1997,11 @@ oo::class create ::Httpd {
 	variable events {}	;# readable/writable
 	variable files {}	;# files open to this connection
 	variable client [::HttpdClient add $ip [self]]
-	variable proto [list -sock $socket -cid [self] -ipaddr $ipaddr -rport $rport -received_seconds [clock seconds]]
-	set proto [dict merge $args $proto]
 	variable outbuffer 40960 ;# amount of output we are prepared to buffer
 	variable start [clock microseconds]
+	variable proto [list -sock $socket -cid [self] -ipaddr $ipaddr -rport $rport -received_seconds [clock seconds]]
+	dict set proto -server_id $server_id
+	set proto [dict merge $args $proto]
 
 	::Httpd addSock $sock [self]
 
