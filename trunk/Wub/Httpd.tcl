@@ -1809,12 +1809,14 @@ oo::class create ::Httpd {
 
 	::watchdog stroke [self]
 	variable start
+	variable server_id
 	variable istate RUNNING
 	variable request
 	while {[chan pending input $socket] >= 0} {
 	    set r $proto	;# start with blank request
 	    dict set r -transaction [incr transaction]
 	    dict set r -time connected $start	;# when we got connected
+	    dict set r -server_id $server_id
 
 	    # read the header and unpack the header line
 	    # parse and merge header lines into request dict
@@ -1914,6 +1916,12 @@ oo::class create ::Httpd {
 	}
 
 	return [Httpd Suspend $r $grace]
+    }
+
+    # access Httpd variables
+    method var {var} {
+	variable $var
+	return [set $var]
     }
 
     destructor {
