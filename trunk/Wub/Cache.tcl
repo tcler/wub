@@ -555,7 +555,7 @@ oo::class create ::CacheClass {
     method /dump {r} {
 	variable keys
 	variable cache
-	set etable [list [<tr> "[<th> key] [<th> url]"] [<th> age (s)] [<th> staleness]]
+	set etable [list [<tr> "[<th> key] [<th> url] [<th> age (s)] [<th> staleness]"]]
 	set utable $etable
 	set now [clock seconds]
 	foreach {name val} [array get keys] {
