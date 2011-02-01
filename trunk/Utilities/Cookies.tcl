@@ -339,6 +339,7 @@ namespace eval ::Cookies {
 	Debug.cookies {format4server save $cookie_dict}
 	set cookies {}	;# collection of cookies in cookie1 format
 	dict for {name cdict} $cookie_dict {
+	    Debug.cookies {format4server process $name ($cdict)}
 	    if {[string match "-*" $name]} {
 		Debug.cookies {format4server $name is synthetic}
 		continue
@@ -364,9 +365,9 @@ namespace eval ::Cookies {
 	    # -when (the absolute seconds when the cookie expires)
 	    set name [dict get $cdict -name]
 	    set val [dict get? $cdict -value]
-	    if {$val eq ""} {
-		set val ""
-	    }
+	    #if {$val eq ""} {
+	    #set val \"\"
+	    #}
 	    set cookie "$name=$val"
 	    if {[dict exists $cdict path]
 		&& [dict get $cdict -path] eq ""
@@ -383,7 +384,7 @@ namespace eval ::Cookies {
 
 	    if {[dict exists $cdict -expires]} {
 		if {[string is int -strict [dict get $cdict -expires]]} {
-		    dict set args -expires [clock format [dict get $cdict -expires] -format "%a, %d-%b-%Y %H:%M:%S GMT" -gmt 1]
+		    dict set cdict -expires [clock format [dict get $cdict -expires] -format "%a, %d-%b-%Y %H:%M:%S GMT" -gmt 1]
 		}
 	    }
 
@@ -400,7 +401,7 @@ namespace eval ::Cookies {
 		lappend cookie "Version=\"1\""
 	    }
 	    lappend cookies [join $cookie "; "]
-	    Debug.cookies {format4server cookie $name new value is '$cookie'}
+	    Debug.cookies {format4server cookie $name new value is '[join $cookie "; "]'}
 	}
 
 	Debug.cookies {format4server value: ($cookies)}
@@ -547,6 +548,7 @@ namespace eval ::Cookies {
 	    dict set cookies $n -changed 1
 	}
 
+	Debug.cookies {cleared '$cookies'}
 	return $cookies
     }
 
