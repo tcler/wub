@@ -40,6 +40,11 @@ oo::class create ::CacheClass {
 	}
     }
 
+    method counter {cached field} {
+	variable cache
+	dict incr cache([dict get $cached -key]) $field
+    }
+
     # is this cache content fresh?
     method unmodified? {req cached} {
 	# perform cache freshness check
@@ -59,7 +64,7 @@ oo::class create ::CacheClass {
 	set result [expr {$since >= [dict get $cached -modified]}]
 	Debug.cache {unmodified? $since >= [dict get $cached -modified] -> $result}
 	if {$result} {
-	    counter $cached -ifmod
+	    my counter $cached -ifmod
 	}
 	return $result
     }
@@ -436,11 +441,6 @@ oo::class create ::CacheClass {
 	    dict set result $n $v
 	}
 	return $result
-    }
-
-    method counter {cached field} {
-	variable cache
-	dict incr cache([dict get $cached -key]) $field
     }
 
     # check - can request be satisfied from cache?
