@@ -555,8 +555,9 @@ oo::class create ::CacheClass {
     method /dump {r} {
 	variable keys
 	variable cache
-	set etable [list [<tr> "[<th> key] [<th> when] [<th> url]"]]
+	set etable [list [<tr> "[<th> key] [<th> url]"] [<th> age (s)] [<th> staleness]]
 	set utable $etable
+	set now [clock seconds]
 	foreach {name val} [array get keys] {
 	    if {$name eq $val} {
 		# etag key
@@ -569,7 +570,7 @@ oo::class create ::CacheClass {
 	    if {![info exists cache($val)]} {
 		set el [<tr> [<td> $name][<td> "no matching cache $val"]]
 	    } else {
-		set el [<tr> [<td> $name][<td> [dict get $cache($val) -when]][<td> [dict get $cache($val) -uri]]]
+		set el [<tr> [<td> $name][<td> [dict get $cache($val) -uri]][<td> [expr {$now - [dict get $cache($val) -when]}]][<td> [my staleness $val]]]
 	    }
 	    lappend $table $el
 	}
