@@ -331,7 +331,7 @@ oo::class create ::CacheClass {
 	# ensure cache size is bounded
 	set cachesize [array size cache]
 	if {$cachesize > $high} {
-	    set ordered [lsort -command ::Cache::stale_sort [array names cache]]
+	    set ordered [lsort -command [list [self] stale_sort] [array names cache]]
 	    while {$cachesize > $low} {
 		# pick a cache entry to remove by weight
 		set c [lindex $ordered 0]
