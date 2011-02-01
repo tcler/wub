@@ -49,8 +49,8 @@ set ::API(Domains/Nub) {
     docurl {url prefix for domain docs. (default /wub/docs/Domains)}
 }
 
-namespace eval ::Nub {
-    proc stxify {about} {
+oo::class create ::NubClass {
+    method stxify {about} {
 	set about [string trim $about "\n"]
 	set about [::textutil::untabify $about]
 	set about [::textutil::undent $about]
@@ -65,33 +65,8 @@ namespace eval ::Nub {
 	}
     }
 
-    variable docurl /wub/docs/Domains/	;# this interfaces to the Mason domain /wub, if it's there
-
-    variable whatsthis [::textutil::undent [::textutil::untabify {
-	= Nub Domain =
-	Nubs define the mapping between URLs and Domains.
-
-	The nubs defining this site can be viewed and edited here: [nubs/]
-
-	Nub itself is a Domain which allows you to change the URLs the server responds to, and to create new nubs, edit or delete existing nubs, and apply them to the currently running server.
-
-	A nub is a mapping from a URL glob to content.  The content may be provided by domain handlers, listed below.
-	
-	== Synthetic Nubs ==
-	The following synthetic nubs are available to pre-filter or manipulate the URL request, or to provide immediate content:
-	
-	;Block: Blocks an IP address which attempts to access the URL.
-	;Redirect: Sends the client a redirect.
-	;Code: Returns the result of evaluating tcl code.
-	;Literal: Returns literal content to client.
-	;Rewrite: Transforms a URL (selected by regexp) into another (as calculate by the rewrite tcl script).
-
-	== Domain Nubs ==
-	Domains are modules which generate content from URLs. This is the currently available collection of domain 'nubs':
-    }]]
-
     # create Nub options from the API documentation
-    proc options {domain body} {
+    method options {domain body} {
 	upvar count count
 	global API
 	if {![info exists API(Domains/$domain)]} {
@@ -118,7 +93,7 @@ namespace eval ::Nub {
     }
 
     # construct an interaction form for each nub
-    proc donub {urls key count} {
+    method donub {urls key count} {
 	set script [dict get $urls $key]
 	set extra ""
 	set disable 0
@@ -178,7 +153,7 @@ namespace eval ::Nub {
 			Debug.error {Couldn't load package '$domain': $e ($eo)}
 		    }
 		    set section $url
-		    append extra [options $domain $body]
+		    append extra [my options $domain $body]
 
 		    global API
 		    if {[info exists API(Domains/$domain)]} {
@@ -212,43 +187,25 @@ namespace eval ::Nub {
 	return [list $domain $section $form]
     }
 
-    proc donubStyle {ordered style} {
+    method donubStyle {ordered style} {
 	variable urls
 	upvar count count
 	set acc {}
 	foreach key $ordered {
 	    if {[dict get $urls $key domain] ne $style} continue
 	    set keymap([incr count]) $key
-	    lappend acc {*}[donub $urls $key $count]
+	    lappend acc {*}[my donub $urls $key $count]
 	}
 	return $acc
     }
 
-    variable password ""
-    proc credentials {r} {
-	variable password
-	if {$password eq ""} {
-	    return "No Nub Password has been set.  Check site.ini and add a password definition under section \[nub\]."
-	}
-	lassign [Http Credentials $r] userid pass
-	if {$pass ne $password} {
-	    return "Passwords don't match.  Check site.ini for password."
-	} else {
-	    return ""
-	}
-    }
-
-    proc /css {r} {
-	set css {* {zoom: 1.0;}}
+    method /css {r} {
+	variable css
 	return [Http Ok $r $css text/css]
     }
 
-    variable loaded {}
-    variable theme start
-    variable keymap
-
     # display all nubs
-    proc all {r {etitle ""} {error ""}} {
+    method all {r {etitle ""} {error ""}} {
 	variable theme
 	dict lappend r -headers [<stylesheet> css]
 	set r [jQ theme $r $theme]
@@ -335,7 +292,7 @@ namespace eval ::Nub {
 	set acc {}
 
 	foreach style {Rewrite Block Redirect} {
-	    foreach {h s f} [donubStyle $ordered $style] {
+	    foreach {h s f} [my donubStyle $ordered $style] {
 		lappend acc [<h3> [<a> href # "$h $s"]] $f
 	    }
 	}
@@ -343,7 +300,7 @@ namespace eval ::Nub {
 	foreach key $ordered {
 	    if {[dict get $urls $key domain] in {Block Rewrite Redirect}} continue
 	    set keymap([incr count]) $key
-	    lassign [donub $urls $key $count] h s f
+	    lassign [my donub $urls $key $count] h s f
 	    lappend acc [<h3> [<a> href # "$h $s"]] $f
 	}
 
@@ -356,8 +313,72 @@ namespace eval ::Nub {
 	return [Http Ok $r $content]
     }
 
-    proc /nubs/edit {r args} {
-	if {[credentials $r] ne ""} {
+    method parseurl {url} {
+	if {$url eq "default"} {
+	    set url //*/*
+	}
+	set parsed [Url parse $url]
+	lassign [split [dict get $parsed -path] "#"] path	;# remove #-part
+	switch -nocase -glob -- $url {
+	    http://* -
+	    https://* -
+	    //* {
+		# absolute URL - specifies hosts
+		set key [dict get $parsed -host]
+		lappend key {*}$path
+		return $key
+	    }
+	    
+	    /* {
+		# relative URL - across all hosts
+		set key *
+		lappend key {*}$path
+		return $key
+	    }
+
+	    default {
+		error "$url is not a valid url"
+	    }
+	}
+    }
+
+    method auth_part {url} {
+	set auth ""
+	set auth [join [lassign [split $url "#"] body]]
+	return $auth
+    }
+
+    method non_auth {url} {
+	set url ""
+	lassign [split $url "#"] url
+	return $url
+    }
+
+    method auth {url realm} {
+	if {$realm eq ""} return
+
+	variable auths
+	variable realms
+	set purl [my parseurl $url]
+	dict set auths $purl $realm
+	dict lappend realms $realm $purl
+    }
+
+    method credentials {r} {
+	variable password
+	if {$password eq ""} {
+	    return "No Nub Password has been set.  Check site.ini and add a password definition under section \[nub\]."
+	}
+	lassign [Http Credentials $r] userid pass
+	if {$pass ne $password} {
+	    return "Passwords don't match.  Check site.ini for password."
+	} else {
+	    return ""
+	}
+    }
+
+    method /nubs/edit {r args} {
+	if {[my credentials $r] ne ""} {
 	    set challenge "Nub Modification"
 	    return [Http Unauthorized $r [Http BasicAuth $challenge]]
 	}
@@ -371,10 +392,10 @@ namespace eval ::Nub {
 
 	if {$url ne $section} {
 	    # they've changed the url - copy-edit its content
-	    set nkey [parseurl $url]
-	    set urls $nkey [dict merge [dict get $urls $keymap($el)] [list section [non_auth $url] auth [auth_part $url]]]
+	    set nkey [my parseurl $url]
+	    set urls $nkey [dict merge [dict get $urls $keymap($el)] [list section [my non_auth $url] auth [my auth_part $url]]]
 	    set keymap($el) $nkey
-	    set section [non_auth $url]
+	    set section [my non_auth $url]
 	}
 	
 	set domain [dict get $args domain_$el]; dict unset args domain_$el
@@ -411,11 +432,11 @@ namespace eval ::Nub {
 	    }
 	}
 
-	return [all $r Editing]
+	return [my all $r Editing]
     }
 
-    proc /nubs/delete {r args} {
-	if {[credentials $r] ne ""} {
+    method /nubs/delete {r args} {
+	if {[my credentials $r] ne ""} {
 	    set challenge "Nub Modification"
 	    return [Http Unauthorized $r [Http BasicAuth $challenge]]
 	}
@@ -425,11 +446,11 @@ namespace eval ::Nub {
 	variable urls
 	dict unset urls $keymap([dict get $args el])
 
-	return [all $r Deleting]
+	return [my all $r Deleting]
     }
 
-    proc /nubs/add {r args} {
-	if {[credentials $r] ne ""} {
+    method /nubs/add {r args} {
+	if {[my credentials $r] ne ""} {
 	    set challenge "Nub Modification"
 	    return [Http Unauthorized $r [Http BasicAuth $challenge]]
 	}
@@ -444,16 +465,16 @@ namespace eval ::Nub {
 	} else {
 	    set section $path
 	}
-	set key [parseurl $section]
+	set key [my parseurl $section]
 
 	variable urls
 	dict set urls $key [list domain $domain section $section body {}]
 
-	return [all $r Adding]
+	return [my all $r Adding]
     }
 
-    proc /nubs/load {r args} {
-	if {[credentials $r] ne ""} {
+    method /nubs/load {r args} {
+	if {[my credentials $r] ne ""} {
 	    set challenge "Nub Modification"
 	    return [Http Unauthorized $r [Http BasicAuth $challenge]]
 	}
@@ -461,11 +482,11 @@ namespace eval ::Nub {
 	if {![catch {configF [dict get $args load_file]} error]} {
 	    set error ""
 	}
-	return [all $r Loading $error]
+	return [my all $r Loading $error]
     }
 
-    proc /nubs/save {r args} {
-	if {[credentials $r] ne ""} {
+    method /nubs/save {r args} {
+	if {[my credentials $r] ne ""} {
 	    set challenge "Nub Modification"
 	    return [Http Unauthorized $r [Http BasicAuth $challenge]]
 	}
@@ -515,24 +536,24 @@ namespace eval ::Nub {
 	    lappend error "Refused to Save"
 	}
 
-	return [all $r Saving $error]
+	return [my all $r Saving $error]
     }
 
-    proc /nubs/apply {r args} {
-	if {[credentials $r] ne ""} {
+    method /nubs/apply {r args} {
+	if {[my credentials $r] ne ""} {
 	    set challenge "Nub Modification"
 	    return [Http Unauthorized $r [Http BasicAuth $challenge]]
 	}
 
 	variable urls
-	set do [generate $urls]
+	set do [my generate $urls]
 	if {$error eq ""} {
 	    eval $do
 	}
-	return [all $r Applying]
+	return [my all $r Applying]
     }
 
-    proc /nubs {r {submit ""} args} {
+    method /nubs {r {submit ""} args} {
 	Debug.nub {/nubs ($submit) $args}
 
 	switch -- $submit {
@@ -542,15 +563,15 @@ namespace eval ::Nub {
 	    }
 	}
 
-	if {[lindex $submit 0] ne "" && [credentials $r] ne ""} {
+	if {[lindex $submit 0] ne "" && [my credentials $r] ne ""} {
 	    set challenge "Nub Modification"
 	    return [Http Unauthorized $r [Http BasicAuth $challenge]]
 	}
 
-	return [all $r]
+	return [my all $r]
     }
 
-    proc / {r} {
+    method / {r} {
 	# Nub documentation
 	variable whatsthis; variable docurl
 	append huh $whatsthis \n
@@ -564,23 +585,23 @@ namespace eval ::Nub {
 	    }
 	    append huh [lindex [split $v \n] 0] \n
 	}
-	set huh [stxify $huh]
+	set huh [my stxify $huh]
 
 	return [Http Ok $r $huh]
     }
 
-    proc outerr {name1 name2 op} {
+    method outerr {name1 name2 op} {
 	upvar $name1 error
 	puts stderr "ERROR: $error"
     }
 
-    proc armr {str} {
+    method armr {str} {
 	return [string map [list \" \\\"] $str]
     }
 
     # this is called at runtime when a domain constructor fails
-    proc failed {domain e eo} {
-	return [string map [list %N $domain %EM [Nub armr $e] %EO $eo] [lambda {do r} {Http ServerError $r "Nub failed to construct domain '%N' because '%EM' upon construction" [list %EO]}]]
+    method failed {domain e eo} {
+	return [string map [list %N $domain %EM [::Nub armr $e] %EO $eo] [lambda {do r} {Http ServerError $r "Nub failed to construct domain '%N' because '%EM' upon construction" [list %EO]}]]
     }
 
 
@@ -590,7 +611,7 @@ namespace eval ::Nub {
     # to set a runtime defs() with the value of the constructor
     # rewrites are a special case.
     # the result of this code is emitted into "definitions"
-    proc gen_definitions {domains} {
+    method gen_definitions {domains} {
 	upvar 1 defs defs	;# for accumulating definitions
 
 	set definitions ""
@@ -607,7 +628,7 @@ namespace eval ::Nub {
 		    set rwtemplate {
 			if {[catch {set defs(%N) {::apply {r {return [regsub -- {%URL%} //[dict get $r -host]/[dict get $r -path] %SS%]}}}} e eo]} {
 			    Debug.error {Nub Definition Error: '$e' in rewrite "-regsub %AURL% -> %ASS%".  ($eo)}
-			    set defs(%N) [Nub failed "%N -regsub %URL%->%SS%" $e $eo]
+			    set defs(%N) [::Nub failed "%N -regsub %URL%->%SS%" $e $eo]
 			}
 		    }
 		    append definitions [string trim [string map [list %N $n %URL% $url %SS% $subspec %AURL% [tclarmour $url] %ASS% [tclarmour $subspec]] $rwtemplate] \n] \n
@@ -616,7 +637,7 @@ namespace eval ::Nub {
 		    set rwtemplate {
 			if {[catch {set defs(%N) {::apply {r {return "%L%"}}}} e eo]} {
 			    Debug.error {Nub Definition Error: '$e' in rewrite "lambda r {%AL%}".  ($eo)}
-			    set defs(%N) [Nub failed %N $e $eo]
+			    set defs(%N) [::Nub failed %N $e $eo]
 			}
 		    }
 		    append definitions [string trim [string map [list %N $n %L% $script %AL% [tclarmour $script]] $rwtemplate] \n] \n
@@ -632,6 +653,7 @@ namespace eval ::Nub {
 		append definitions [string map [list %D% $domain] {
 		    if {[catch {package require %D%} e eo]} {
 			Debug.error {Couldn't load 'package %D%' - '$e' ($eo)}
+			dict set def_errors %D% [list $e $eo]
 		    }
 		}]
 	    }
@@ -639,20 +661,21 @@ namespace eval ::Nub {
 	    # generate code to construct the domain
 	    if {[string match _anonymous* $n]} {
 		# anonymous domain definition
-		append definitions [string trim [string map [list %N $n %D $domain %A% $body %AA% [tclarmour $body]] {
-		    if {[catch {set defs(%N) [%D new %A%]} e eo]} {
-			Debug.error {Nub Definition Error: '$e' in anonymous "%D new %AA%".  ($eo)}
-			set defs(%N) [Nub failed %N $e $eo]
+		append definitions [string trim [string map [list %N% $n %D% $domain %A% $body %AA% [tclarmour $body]] {
+		    if {[catch {set defs(%N%) [%D% new %A%]} e eo]} {
+			Debug.error {Nub Definition Error: '$e' in anonymous "%D% new %AA%".  ($eo)}
+			dict lappend def_errors %N% [list $e $eo]
+			set defs(%N%) [::Nub failed %N% $e $eo]
 		    }
 		}] \n] \n
 	    } else {
 		# named domain definition
-		append definitions [string trim [string map [list %N $n %D $domain %A% $body %AA% [tclarmour $body]] {
+		append definitions [string trim [string map [list %N% $n %D% $domain %A% $body %AA% [tclarmour $body]] {
 		    if {[catch {
-			set defs(%N) [%D create %N %A%]
+			set defs(%N%) [%D% create %N% %A%]
 		    } e eo]} {
-			Debug.error {Nub Definition Error: '$e' in running "%D create %N %AA%".  ($eo)}
-			set defs(%N) [Nub failed %N $e $eo]
+			Debug.error {Nub Definition Error: '$e' in running "%D% create %N% %AA%".  ($eo)}
+			set defs(%N%) [::Nub failed %N% $e $eo]
 		    }
 		}] \n] \n
 	    }
@@ -663,7 +686,7 @@ namespace eval ::Nub {
     }
     
     # generate rewritingcode
-    proc gen_rewrites {rewrites} {
+    method gen_rewrites {rewrites} {
 	variable defs
 	set rewriting ""
 	foreach {url name} $rewrites {
@@ -681,7 +704,7 @@ namespace eval ::Nub {
     }
     
     # generate redirect code
-    proc gen_redirects {redirects} {
+    method gen_redirects {redirects} {
 	set redirecting ""
 	foreach {from to} $redirects {
 	    set url [join [lassign $from host] /]
@@ -700,7 +723,7 @@ namespace eval ::Nub {
     }
 
     # generate blocking code
-    proc gen_blocking {blocking} {
+    method gen_blocking {blocking} {
 	if {[llength $blocking]} {
 	    set blocking [string map [list %B% [join $blocking " -\n"]] {
 		switch -glob -- [dict get $r -host],[dict get $r -path] {
@@ -716,13 +739,11 @@ namespace eval ::Nub {
 	return $blocking
     }
 
-    variable redirect_dirs 1	;# do we emit redirection for non-/ dir refs?
-
     # reprocess domain:
     # 1) substituting referenced domain defs
     # 2) ensuring the content has a name
     # we then reconstruct the processed contents
-    proc accum_domains {key dom} {
+    method accum_domains {key dom} {
 	variable redirect_dirs
 	upvar 1 processed processed
 	upvar 1 domains domains
@@ -788,7 +809,7 @@ namespace eval ::Nub {
 		if {$redirect_dirs && [string match */ $section]} {
 		    # if the key is a directory, we redirect anything
 		    # which doesn't specify the trailing /
-		    set rkey [parseurl [string trimright $section /]]
+		    set rkey [my parseurl [string trimright $section /]]
 		    dict set redirects $rkey $section
 		}
 		
@@ -803,11 +824,11 @@ namespace eval ::Nub {
 
 	# record authentication
 	if {[dict get? $dom auth] ne ""} {
-	    auth $key [dict get $dom auth]
+	    my auth $key [dict get $dom auth]
 	}
     }
 
-    proc code_auths {auths} {
+    method code_auths {auths} {
 	if {![dict size $auths]} {return ""}
 
 	dict for {k a} $auths {
@@ -826,7 +847,7 @@ namespace eval ::Nub {
 	}]
     }
 
-    proc code_trailing {processed} {
+    method code_trailing {processed} {
 	upvar 1 domains domains
 	set switch ""
 	foreach {u d} $processed {
@@ -860,7 +881,7 @@ namespace eval ::Nub {
     }
 
     # code processed domains into a big switch
-    proc code_domains {processed} {
+    method code_domains {processed} {
 	upvar 1 domains domains
 	set switch ""
 	foreach {u d} $processed {
@@ -916,13 +937,13 @@ namespace eval ::Nub {
 
     # generate code for rewriting
     # TODO: this code doesn't include port in comparison - it likely should.
-    proc code_rewrites {rewriting} {
+    method code_rewrites {rewriting} {
 	Debug.nub {code_rewrites: $rewriting}
 	if {$rewriting eq ""} {
 	    return ""
 	}
 
-	return [string map [list %RW $rewriting] {
+	set rw {
 	    # Rewrites
 	    set count 0
 	    set done 0
@@ -931,8 +952,8 @@ namespace eval ::Nub {
 	    while {!$done && [incr count] < 30} {
 		set prior [Url url $r]
 		Debug.nub {pre-RW '$prior'}
-		switch -regexp -- "$prior" {
-		    %RW
+		switch -regexp -- $prior {
+		    %RW%
 		    default {
 			set url [dict get $r -url]
 			set done 1
@@ -944,10 +965,11 @@ namespace eval ::Nub {
 		if {$prior eq $post} break
 		dict set r -url [Url url $r]
 	    }
-	}]
+	}
+	return [string map [list %RW% $rewriting] $rw]
     }
 
-    proc generate {urls {domains {}} {defaults {}}} {
+    method generate {urls {domains {}} {defaults {}}} {
 	upvar error error
 
 	#trace add variable error {write} outerr
@@ -1006,7 +1028,7 @@ namespace eval ::Nub {
 		default {
 		    # everything else should be domains
 		    # add to processed category
-		    accum_domains $key [dict get $urls $key]
+		    my accum_domains $key [dict get $urls $key]
 		}
 	    }
 	}
@@ -1020,14 +1042,14 @@ namespace eval ::Nub {
 
 	# generate code for each of the categories
 	# order is important
-	set blocking [gen_blocking $blocking]
-	set definitions [gen_definitions $domains]	;# mods defs()
-	set rewriting [gen_rewrites $rewrites]
-	set redirecting [gen_redirects $redirects]
-	set switch [code_domains $processed]
-	code_trailing $processed	;# handle trailing/ problem
-	set rw [code_rewrites $rewriting]
-	set au [code_auths $auths]
+	set blocking [my gen_blocking $blocking]
+	set definitions [my gen_definitions $domains]	;# mods defs()
+	set rewriting [my gen_rewrites $rewrites]
+	set redirecting [my gen_redirects $redirects]
+	set switch [my code_domains $processed]
+	my code_trailing $processed	;# handle trailing/ problem
+	set rw [my code_rewrites $rewriting]
+	set au [my code_auths $auths]
 
 	# ASSEMBLE generated code
 	# the code becomes a self-modifying proc within ::Httpd
@@ -1038,6 +1060,7 @@ namespace eval ::Nub {
 		# this code generates definitions once, when invoked
 		# it then rewrites itself with code to use those definitions
 		variable defs
+		variable def_errors {}
 		if {[info exists defs]} {
 		    # try to remove any old definitions
 		    foreach o [array names defs] {
@@ -1050,6 +1073,7 @@ namespace eval ::Nub {
 		# Definitions
 		Debug.nub {Creating Defs}
 		%D%	;# this code generates definitions into defs()
+		return [dict size $def_errors]
 	    }
 
 	    # this proc processes requests
@@ -1064,7 +1088,7 @@ namespace eval ::Nub {
 		
 		# apply Blocks
 		%B%
-		    
+		
 		# apply Redirects
 		%RD%
 
@@ -1094,7 +1118,7 @@ namespace eval ::Nub {
 	return $p
     }
     
-    proc sect2dict {sect} {
+    method sect2dict {sect} {
 	set result {}
 	foreach {n v} $sect {
 	    set v [join $v]
@@ -1105,95 +1129,41 @@ namespace eval ::Nub {
 	return $result
     }
 
-    variable urls {}
-    
-    proc parseurl {url} {
-	if {$url eq "default"} {
-	    set url //*/*
-	}
-	set parsed [Url parse $url]
-	lassign [split [dict get $parsed -path] "#"] path	;# remove #-part
-	switch -nocase -glob -- $url {
-	    http://* -
-	    https://* -
-	    //* {
-		# absolute URL - specifies hosts
-		set key [dict get $parsed -host]
-		lappend key {*}$path
-		return $key
-	    }
-	    
-	    /* {
-		# relative URL - across all hosts
-		set key *
-		lappend key {*}$path
-		return $key
-	    }
-
-	    default {
-		error "$url is not a valid url"
-	    }
-	}
-    }
-
-    proc rewrite {url body} {
+    method rewrite {url body} {
 	#puts stderr "RW: '$url' '$body'"
 	variable urls
 	dict set urls $url [list domain Rewrite body [list $body] section $url]
     }
 
-    proc block {url} {
+    method block {url} {
 	variable urls
-	dict set urls [parseurl $url] [list domain Block section $url]
+	dict set urls [my parseurl $url] [list domain Block section $url]
     }
 
-    proc redirect {url to} {
+    method redirect {url to} {
 	variable urls
-	dict set urls [parseurl $url] [list domain Redirect body $to section $url]
+	dict set urls [my parseurl $url] [list domain Redirect body $to section $url]
     }
 
-    proc auth_part {url} {
-	set auth ""
-	set auth [join [lassign [split $url "#"] body]]
-	return $auth
-    }
-    proc non_auth {url} {
-	set url ""
-	lassign [split $url "#"] url
-	return $url
-    }
-
-    variable auths {}
-    variable realms {}
-    proc auth {url realm} {
-	if {$realm eq ""} return
-
-	variable auths
-	variable realms
-	set purl [parseurl $url]
-	dict set auths $purl $realm
-	dict lappend realms $realm $purl
-    }
-
-    proc literal {url content {ctype x-text/html-fragment}} {
+    method literal {url content {ctype x-text/html-fragment}} {
 	variable urls
-	dict set urls [parseurl $url] [list domain Literal body [list content $content ctype $ctype] section [non_auth $url]]
-	auth [parseurl $url] [auth_part $url]
+	dict set urls [my parseurl $url] [list domain Literal body [list content $content ctype $ctype] section [my non_auth $url]]
+	my auth [my parseurl $url] [my auth_part $url]
     }
 
-    proc code {url content {ctype x-text/html-fragment}} {
+    method code {url content {ctype x-text/html-fragment}} {
 	variable urls
-	dict set urls [parseurl $url] [list domain Code body [list content $content ctype $ctype] section [non_auth $url]]
-	auth [parseurl $url] [auth_part $url]
+	dict set urls [my parseurl $url] [list domain Code body [list content $content ctype $ctype] section [my non_auth $url]]
+	my auth [my parseurl $url] [my auth_part $url]
     }
 
-    proc domain {url domain args} {
+    method domain {url domain args} {
 	variable urls
-	dict set urls [parseurl $url] [list domain $domain body $args section [non_auth $url]]
-	auth [parseurl $url] [auth_part $url]
+	dict set urls [my parseurl $url] [list domain $domain body $args section [my non_auth $url]]
+	my auth [my parseurl $url] [my auth_part $url]
     }
 
-    proc process {file} {
+    method process {file} {
 	source $file
     }
 
@@ -1219,7 +1189,7 @@ namespace eval ::Nub {
 	domain /bin/ {File bin} root [file join $::Site::docroot bin]
     }
 
-    proc config {{config ""}} {
+    method config {{config ""}} {
 	# run the config
 	if {$config eq ""} {
 	    variable nub
@@ -1228,9 +1198,7 @@ namespace eval ::Nub {
 	eval $config
     }
 
-    variable nubdirSys [file join [file dirname [info script]] nubs]
-    variable nubdir ""
-    proc configF {file} {
+    method configF {file} {
 	if {$file eq ""} return
 	variable nubdirSys
 	variable nubdir
@@ -1256,55 +1224,83 @@ namespace eval ::Nub {
 	    Debug.nub {configF $f}
 	    variable loaded
 	    lappend loaded $file
-	    return [config [::fileutil::cat $f]]
+	    return [my config [::fileutil::cat $f]]
 	} else {
 	    error "Nub File $file can't be found"
 	}
     }
 
-    proc apply {{urls ""}} {
-	if {$urls eq ""} {
-	    set urls $::Nub::urls
+    method apply {{_urls ""}} {
+	if {$_urls eq ""} {
+	    variable urls
+	    set _urls $urls
 	}
-	set do [generate $urls]
+	set do [my generate $_urls]
 	Debug.nub {apply: $do}
 	eval $do
 	variable NS
 	namespace eval $NS {nub}
     }
 
-    proc init {args} {
+    method new {args} {
+	return [self]
+    }
+
+    superclass Direct
+    constructor {args} {
+	variable urls {}
+	variable nubdirSys [file join [file dirname [info script]] nubs]
+	variable nubdir ""
+	variable css {* {zoom: 1.0;}}
+	variable auths {}
+	variable realms {}
+
+	variable loaded {}
+	variable theme start
+	variable keymap
+
+	variable docurl /wub/docs/Domains/	;# this interfaces to the Mason domain /wub, if it's there
+	variable password ""
+	variable mount ""
+	variable whatsthis [::textutil::undent [::textutil::untabify {
+	    = Nub Domain =
+	    Nubs define the mapping between URLs and Domains.
+
+	    The nubs defining this site can be viewed and edited here: [nubs/]
+
+	    Nub itself is a Domain which allows you to change the URLs the server responds to, and to create new nubs, edit or delete existing nubs, and apply them to the currently running server.
+
+	    A nub is a mapping from a URL glob to content.  The content may be provided by domain handlers, listed below.
+	    
+	    == Synthetic Nubs ==
+	    The following synthetic nubs are available to pre-filter or manipulate the URL request, or to provide immediate content:
+	    
+	    ;Block: Blocks an IP address which attempts to access the URL.
+	    ;Redirect: Sends the client a redirect.
+	    ;Code: Returns the result of evaluating tcl code.
+	    ;Literal: Returns literal content to client.
+	    ;Rewrite: Transforms a URL (selected by regexp) into another (as calculate by the rewrite tcl script).
+
+	    == Domain Nubs ==
+	    Domains are modules which generate content from URLs. This is the currently available collection of domain 'nubs':
+	}]]
+	variable redirect_dirs 1	;# do we emit redirection for non-/ dir refs?
+
 	Debug.nub {construct $args}
-	package require jQ
-	package require stx2html
-	package require Html
-	package require Form
-	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
-	}
 	variable NS ::Httpd
+
 	variable {*}[Site var? Nub]	;# allow .ini file to modify defaults
-	foreach {n v} $args {
-	    variable [string trimleft $n -] $v
+	variable {*}$args
+
+	if {$mount ne ""} {
+	    package require jQ
+	    package require stx2html
+	    package require Html
+	    package require Form
+	    next mount $mount	;# this creates a /nub domain
+	    my domain $mount Nub
 	}
     }
-
-    proc new {args} {
-	init {*}$args
-	set cmd [Direct new namespace ::Nub {*}$args ctype "x-text/html-fragment"]
-	Debug.nub {new: $cmd}
-	return $cmd
-    }
-
-    proc create {name args} {
-	init {*}$args
-	set cmd [Direct create $name namespace ::Nub {*}$args ctype "x-text/html-fragment"]
-	Debug.nub {new: $cmd}
-	return $cmd
-    }
-
-    namespace export -clear *
-    namespace ensemble create -subcommands {}
 }
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
@@ -1314,5 +1310,5 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	variable docroot DOCROOT
     }
     
-    Nub config
+    NubClass create Nub
 }
