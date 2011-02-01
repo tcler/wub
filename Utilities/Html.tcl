@@ -147,6 +147,12 @@ namespace eval ::Html {
 	}
     }
 
+    # add a script to the response <head>
+    proc prescript {r url} {
+	dict set r -prescript $url {}
+	return $r
+    }
+
     # add a script to the response
     proc script {r url {script ""}} {
 	if {$script ne ""} {
