@@ -77,8 +77,9 @@ oo::class create Store {
     # stmtL - evaluate (possibly cached) tdbc statement
     # returns resultset as list
     method stmtL {stmt args} {
+	Debug.store {stmtL '$stmt' over ($args)}
 	set result [[my prep $stmt] allrows -as lists $args]
-	Debug.store {stmtL result: '$stmt' -> ($result)}
+	Debug.store {stmtL result: '$stmt' over ($args) -> ($result)}
 	return $result
     }
 
@@ -142,6 +143,7 @@ oo::class create Store {
 
     # update matching tuples with the given dict
     method update {selector args} {
+	Debug.store {update: $selector ($args)}
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
@@ -165,6 +167,34 @@ oo::class create Store {
 	}
 
 	return [my stmt "UPDATE $table SET [join $updates ,] WHERE $sel;" {*}$args {*}$selargs]
+    }
+
+    # replace matching tuples with the given dict
+    method replace {selector args} {
+	Debug.store {update: $selector ($args)}
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	if {[llength $args]%2} {
+	    set args [lassign $args table]
+	} else {
+	    variable primary; set table $primary
+	}
+	if {$table eq ""} {
+	    error "must specify primary table on creation, or explicitly mention table in call"
+	}
+
+	# parse selector into SQL and selector args
+	lassign [my selector $selector] sel selargs
+
+	set updates {}
+	foreach n [dict keys $args] {
+	    if {$n ni {id}} {
+		lappend updates "$n=:$n"
+	    }
+	}
+
+	return [my stmt "REPLACE INTO $table ([join $updates ,]) WHERE $sel;" {*}$args {*}$selargs]
     }
 
     # change a given tuple (by id) to the given dict
@@ -283,6 +313,31 @@ oo::class create Store {
 	return [lindex [my stmtL "SELECT OID FROM $table WHERE $sel$orderby;" {*}$selargs] 0]
     }
 
+    method count {args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	if {[llength $args]%2} {
+	    set args [lassign $args table]
+	    set orderby [join [lassign [split $table ,] table] ,]
+	    if {$table eq ""} {
+		variable primary; set table $primary
+	    }
+	} else {
+	    variable primary; set table $primary
+	}
+	if {$table eq ""} {
+	    error "must specify primary table on creation, or explicitly mention table in call"
+	}
+
+	Debug.store {exists '$table' $args}
+
+	# parse selector into SQL and selector args
+	lassign [my selector $args] sel selargs
+
+	return [llength [my stmtL "SELECT OID FROM $table WHERE $sel;" {*}$selargs]]
+    }
+
     # delete tuples matching the args dict
     method delete {args} {
 	if {[llength $args] == 1} {
@@ -345,6 +400,11 @@ oo::class create Store {
 	}
 	Debug.store {by name:$name value:$value table:$table$orderby}
 	return [my stmt "SELECT * FROM $table WHERE $name=:value$orderby;" value $value]
+    }
+
+    # get the named field (or its subcomponent as dict) given by args
+    method getf {selector args} {
+	return [dict get [my fetch $selector] {*}$args]
     }
 
     # get the named field (or its subcomponent as dict) given by args
@@ -448,6 +508,7 @@ oo::class create Store {
 	variable db ""		;# already open db
 	variable file ""	;# or db file
 	variable opts {}
+	variable schemafile ""	;# file containing schema
 	variable schema {}	;# schema for empty dbs
 	variable primary ""	;# primary table of interest
 	variable {*}$args
@@ -476,10 +537,16 @@ oo::class create Store {
 	    || ($primary ne "" && [string tolower $primary] ni [my db tables])
 	} {
 	    # we don't have any tables - apply schema
+	    if {$schema eq "" && $schemafile ne ""} {
+		set fd [open $schemafile r]
+		set schema [read $fd]
+		close $fd
+	    }
 	    if {$schema eq ""} {
-		error "Must provide a schema or an initialized db"
+		error "Must provide a schema,schemafile or an initialized db"
 	    } else {
-		my db allrows $schema
+		Debug.store {schema: $schema}
+		my db allrows -- $schema
 	    }
 	}
     }
