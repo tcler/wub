@@ -969,7 +969,7 @@ class create ::FormClass {
 ::FormClass create ::Form
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
-    Form default textarea rows 8 cols 60
+    #Form default textarea rows 8 cols 60
 
     if {0} {
 	puts "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head></head><body>"
@@ -1099,7 +1099,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     }
 
     if {1} {
-	Debug on form 10
+	#Debug on form 10
 	puts "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head></head><body>"
 	puts [Form layout foo {
 	    fieldset fsearch {
@@ -1155,6 +1155,25 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	    text text ...
 	}]
 	puts "</body>\n</html>"
+    }
+
+    if {0} {
+	puts [<form> newuser action new class login [<fieldset> [subst {
+	    [<legend> "Create User"]
+	    [<text> user title "user id" label "User Id: " "%USER"]
+	    [<text> password title "password" label "Password: " "%PASSWORD"]
+	    [<br>][<text> given title "given name" label "Given: " ""]
+	    [<text> surname title "surname" label "Surname: " ""]
+	    [<br>][<submit> submit value 1]
+	}]]]
+    }
+
+    if {0} {
+	puts [<form> action [file join mount login] class login {
+	    [<submit> submit style {display:none;} Login]
+	    [<text> user size 8 title Username]
+	    [<text> password size 8 title Password]
+	}]
     }
 }
 # vim: ts=8:sw=4:noet
