@@ -5,6 +5,7 @@ package require Debug
 Debug define cache 10	;# debug cache access decisions
 
 package require Http
+package require Direct
 package provide Cache 2.0
 
 set API(Server/Cache) {
@@ -23,10 +24,10 @@ set API(Server/Cache) {
     }
 }
 
-namespace eval Cache {
+oo::class create ::CacheClass {
 
     # has this cache content been modified since the time given?
-    proc filemodified? {req cached} {
+    method filemodified? {req cached} {
 	if {![dict exists $req if-modified-since] || ![dict exists $cached -file]} {
 	    return 0	;# not interested in modifications or not a file at all
 	}
@@ -40,7 +41,7 @@ namespace eval Cache {
     }
 
     # is this cache content fresh?
-    proc unmodified? {req cached} {
+    method unmodified? {req cached} {
 	# perform cache freshness check
 	if {![dict exists $req if-modified-since]} {
 	    Debug.cache {unmodified? 0 - no if-modified-since}
@@ -63,15 +64,8 @@ namespace eval Cache {
 	return $result
     }
 
-    variable keys	;# keys into cache
-    array set keys {}
-    variable cache	;# array of refcounted dicts
-    array set cache {}
-
-    variable maxsize [expr {2 * 1024 * 1024}]	;# maximum size of object to cache
-
     # does this key exist in cache?
-    proc exists? {key} {
+    method exists? {key} {
 	if {$key eq ""} {return 0}	;# special case - no key
 
 	variable keys
@@ -85,14 +79,14 @@ namespace eval Cache {
     # 1: key removed
     # 2: entry and key removed
     # -1: key removed, entry not removed
-    proc invalidate {key} {
+    method invalidate {key} {
 	set key [string trim $key \"]	;# remove ridiculous quotes
 	if {$key eq ""} {return 0}	;# special case - no key
 
 	Debug.cache {invalidate: $key}
 	variable keys
 	variable cache
-	if {[exists? $key]} {
+	if {[my exists? $key]} {
 	    Debug.cache {invalidating $key} 4
 	    set ckey $keys($key)	;# get cache key
 	    set result 1	;# indicate key removed
@@ -114,9 +108,9 @@ namespace eval Cache {
     }
 
     # delete a key's content from the cache
-    proc delete {key} {
+    method delete {key} {
 	Debug.cache {delete $key} 4
-	if {[exists? $key]} {
+	if {[my exists? $key]} {
 	    variable keys
 	    set key [string trim $key \"]	;# remove ridiculous quotes
 	    set ckey $keys($key) ;# key under which the cached value is stored
@@ -124,27 +118,23 @@ namespace eval Cache {
 	    if {[info exists cache($ckey)]} {
 		Debug.cache {found cache: etag:'[dict get? $cache($ckey) etag]' url:'[dict get? $cache($ckey) -uri]'}
 		set cached $cache($ckey)
-		invalidate [dict get? $cached etag]
-		invalidate [dict get? $cached -uri]
+		my invalidate [dict get? $cached etag]
+		my invalidate [dict get? $cached -uri]
 	    }
-	    invalidate $key	;# remove offered key
+	    my invalidate $key	;# remove offered key
 	}
     }
 
     # clear the whole cache
-    proc clear {} {
+    method clear {} {
 	variable keys
 	foreach key [array get keys http:*] {
 	    delete $key
 	}
     }
 
-    # cache effectiveness stats
-    variable hits 0
-    variable attempts 0
-
     # fetch - try to find an entry matching req
-    proc fetch {req} {
+    method fetch {req} {
 	Debug.cache {fetch: ([dumpMsg $req])}
 
 	variable keys
@@ -154,14 +144,12 @@ namespace eval Cache {
 	dict set req -uri $uri	;# regenerate the url, just in case
 
 	set et [string trim [dict get? $req etag] \"]
-	if {$et ne ""
-	    && [exists? $et]
-	} {
+	if {$et ne "" && [my exists? $et]} {
 	    # key by request's etag
 	    set key $keys($et)
 	    set found $et
 	    set by "etag '$et'"
-	} elseif {[exists? $uri]} {
+	} elseif {[my exists? $uri]} {
 	    # key by request's URL
 	    set key $keys($uri)
 	    set found $uri
@@ -173,7 +161,7 @@ namespace eval Cache {
 	# maintain some stats for cache management
 	variable hits; incr hits	;# count cache hit
 	if {![info exists cache($key)]} {
-	    invalidate $found	;# remove offending key
+	    my invalidate $found	;# remove offending key
 	    error "Cache $key by $by does not exist."
 	}
 
@@ -184,11 +172,11 @@ namespace eval Cache {
 	    set when  [dict get $cached -modified]
 	    set mtime [file mtime [dict get $cached -file]]
 	    if {$when ne $mtime} {
-		if {[exists? [dict get? $cached etag]]} {
-		    invalidate [dict get $cached etag]
+		if {[my exists? [dict get? $cached etag]]} {
+		    my invalidate [dict get $cached etag]
 		}
-		if {[exists? [dict get $cached -uri]]} {
-		    invalidate [dict get $cached -uri]
+		if {[my exists? [dict get $cached -uri]]} {
+		    my invalidate [dict get $cached -uri]
 		}
 		return {}	;# cache was invalid
 	    }
@@ -200,14 +188,8 @@ namespace eval Cache {
 	return $cached
     }
 
-    # high and low water mark for cache occupancy
-    variable high 100
-    variable low 90
-    variable weight_age 0.02
-    variable weight_hits -2.0
-
     # staleness of content
-    proc staleness {n} {
+    method staleness {n} {
 	variable cache;
 	variable weight_age; variable weight_hits
 
@@ -220,18 +202,18 @@ namespace eval Cache {
 
     # stale_sort - return objects in staleness order
     # staleness is a measure of #hits and age of entry
-    proc stale_sort {a b} {
+    method stale_sort {a b} {
 	variable cache;
 	variable weight_age; variable weight_hits
 
-	set weight_a [staleness $a]
-	set weight_b [staleness $b]
+	set weight_a [my staleness $a]
+	set weight_b [my staleness $b]
 
 	return [expr {int(100 * ($weight_b - $weight_a))}]
     }
 
     # etag - generate an etag for content
-    proc etag {req} {
+    method etag {req} {
 	# use MD5 of content for etag
 	if {[catch {
 	    if {[dict exists $req -file]} {
@@ -248,7 +230,7 @@ namespace eval Cache {
     }
 
     # put - insert request into cache
-    proc put {req} {
+    method put {req} {
 	Debug.cache {put: ([dumpMsg $req])}
 	
 	set uri [Url uri $req]	;# clean up URL just in case
@@ -269,9 +251,9 @@ namespace eval Cache {
 	}
 
 	# whatever the eventual cache status, must remove old matches
-	invalidate [dict get $req -uri]		;# invalidate by -uri
-	invalidate [dict get? $req -etag]	;# invalidate by request etag
-	invalidate [dict get? $req etag]	;# invalidate by response etag
+	my invalidate [dict get $req -uri]		;# invalidate by -uri
+	my invalidate [dict get? $req -etag]	;# invalidate by request etag
+	my invalidate [dict get? $req etag]	;# invalidate by response etag
 
 	# if there's no content, we can't cache
 	if {![dict exists $req -content] && ![dict exists $req -file]} {
@@ -314,7 +296,7 @@ namespace eval Cache {
 	    dict set req etag \"$etag\"	;# store with ridiculous quotes
 	} else {
 	    # generate etag from MD5 of content
-	    set etag [etag $req]
+	    set etag [my etag $req]
 	    dict set req etag \"$etag\"	;# store with ridiculous quotes
 	}
 
@@ -352,10 +334,10 @@ namespace eval Cache {
 
 		# remove the selected entry
 		catch { # invalidate by -uri
-		    invalidate [dict get $cache($c) -uri]
+		    my invalidate [dict get $cache($c) -uri]
 		}
 		catch { # invalidate by etag
-		    invalidate [dict get? $cache($c) etag]
+		    my invalidate [dict get? $cache($c) etag]
 		}
 
 		incr cachesize -1
@@ -376,13 +358,13 @@ namespace eval Cache {
     }
 
     # keys - return keys matching filter (default all)
-    proc keys {{filter {}}} {
+    method keys {{filter {}}} {
 	variable keys
 	return [array names keys {*}$filter]
     }
 
     # consistency - check or ensure cache consistency
-    proc consistency {{fix 1}} {
+    method consistency {{fix 1}} {
 	variable keys
 	variable cache
 	set check 1
@@ -412,14 +394,14 @@ namespace eval Cache {
 
 	    foreach {name val} [array get cache] {
 		if {[catch {
-		    if {![exists? keys($name)]} {
+		    if {![my exists? keys($name)]} {
 			# no etag key for cache
 			error {orphan cache by name '$name' / $cache($name)}
 		    }
-		    if {![exists? [dict get $val -uri]]} {
+		    if {![my exists? [dict get $val -uri]]} {
 			error {orphan cache by url '[dict get? $val -uri]' / $name - '$cache($name)'}
 		    }
-		    if {![exists? [dict get $val etag]]} {
+		    if {![my exists? [dict get $val etag]]} {
 			error {orphan cache by etag '[dict get? $val etag]' / $name - '$cache($name)'}
 		    }
 		    if {[string trim [dict get $val etag] \"] ne $name} {
@@ -436,11 +418,8 @@ namespace eval Cache {
 	}
     }
 
-    variable CC 0	;# do we bother to parse cache-control?
-    variable obey_CC 0	;# do we act on cache-control? (Not Implemented)
-
     # 2dict - convert cache to dict
-    proc 2dict {} {
+    method 2dict {} {
 	variable cache
 	set result {}
 	foreach {n v} [array get cache] {
@@ -459,27 +438,27 @@ namespace eval Cache {
 	return $result
     }
 
-    proc counter {cached field} {
+    method counter {cached field} {
 	variable cache
 	dict incr cache([dict get $cached -key]) $field
     }
 
     # check - can request be satisfied from cache?
     # if so, return it.
-    proc check {req} {
+    method check {req} {
 	Debug.cache {check [dict get $req -uri]: ([dumpMsg $req])}
 	variable attempts; incr attempts	;# count cache attempts
 
 	# first query cache to see if there's even a matching entry
 	set etag [dict get? $req etag]
-	if {$etag ne "" && ![exists? $etag]} {
+	if {$etag ne "" && ![my exists? $etag]} {
 	    # client provided an etag
 	    Debug.cache {etag '$etag' given, but not in cache}
 	    return {}	;# we don't have a copy matching etag
 	}
 
 	set uri [Url uri $req]; #dict get? $req -uri
-	if {$uri ne "" && ![exists? $uri]} {
+	if {$uri ne "" && ![my exists? $uri]} {
 	    Debug.cache {url '$uri' not in cache}
 	    return {}	;# we don't have a copy matching -uri either
 	}
@@ -518,7 +497,7 @@ namespace eval Cache {
 
 	# we may respond from cache, we *do* have a cached copy
 	if {[catch {
-	    fetch $req
+	    my fetch $req
 	} cached eo]} {
 	    # it's gotta be there!
 	    Debug.error {cache inconsistency '$cached' ($eo) - can't fetch existing entry for url:'$uri'/[exists? $uri] etag:'$etag'/[exists? $etag]}
@@ -543,24 +522,24 @@ namespace eval Cache {
 	    }
 	}
 
-	if {[unmodified? $req $cached]} {
+	if {[my unmodified? $req $cached]} {
 	    Debug.cache {unmodified $uri}
-	    counter $cached -unmod	;# count unmod hits
+	    my counter $cached -unmod	;# count unmod hits
 	    return [Http NotModified $req]
 	    # NB: the expires field is set in $req
-	} elseif {[filemodified? $req $cached]} {
+	} elseif {[my filemodified? $req $cached]} {
 	    # the cached is a -file type, and the underlying file is newer
 	    # so we invalidate the cached form
-	    if {[exists? [dict get? $req etag]]} {
-		invalidate [string trim [dict get $req etag] \"]
+	    if {[my exists? [dict get? $req etag]]} {
+		my invalidate [string trim [dict get $req etag] \"]
 	    }
-	    if {[exists? [dict get $req -uri]]} {
-		invalidate [dict get $req -uri]
+	    if {[my exists? [dict get $req -uri]]} {
+		my invalidate [dict get $req -uri]
 	    }
 	    return {}
 	} else {
 	    # deliver cached content in lieue of processing
-	    counter $cached -hits	;# count individual entry hits
+	    my counter $cached -hits	;# count individual entry hits
 	    set req [dict merge $req $cached]
 	    set req [Http CacheableContent $req [dict get $cached -modified]]
 	    Debug.cache {cached content for $uri ([Httpd dump $req])}
@@ -571,13 +550,69 @@ namespace eval Cache {
 	return {}	;# no cache available
     }
 
-    # initialise the state of Cache
-    proc new {args} {
-	variable {*}$args
-	return ::Cache
+    superclass Direct
+
+    method /dump {r} {
+	variable keys
+	variable cache
+	set etable [list [<tr> "[<th> key] [<th> when] [<th> url]"]]
+	set utable $etable
+	foreach {name val} [array get keys] {
+	    if {$name eq $val} {
+		# etag key
+		set table etable
+	    } else {
+		# url key
+		set table utable
+	    }
+
+	    if {![info exists cache($val)]} {
+		set el [<tr> [<td> $name][<td> "no matching cache $val"]]
+	    } else {
+		set el [<tr> [<td> $name][<td> [dict get $cache($val) -when]][<td> [dict get $cache($val) -uri]]]
+	    }
+	    lappend $table $el
+	}
+	set content [<h2> "Cache State"]
+	append content [<table> [join $etable \n]]
+	append content [<table> [join $utable \n]]
+	return [Http Ok $r $content]
     }
 
-    namespace export -clear *
-    namespace ensemble create -subcommands {}
+    method / {r} {
+	return [my /dump $r]
+    }
+
+    method new {args} {
+	return [self]
+    }
+
+    # initialise the state of Cache
+    constructor {args} {
+	# high and low water mark for cache occupancy
+	variable high 100
+	variable low 90
+	variable weight_age 0.02
+	variable weight_hits -2.0
+
+	# cache effectiveness stats
+	variable hits 0
+	variable attempts 0
+	variable CC 0	;# do we bother to parse cache-control?
+	variable obey_CC 0	;# do we act on cache-control? (Not Implemented)
+
+	variable maxsize [expr {2 * 1024 * 1024}]	;# maximum size of object to cache
+	variable mount ""
+	variable {*}$args
+	if {$mount ne ""} {
+	    next mount $mount
+	    ::Nub domain $mount Cache
+	}
+
+	variable keys	;# keys into cache
+	array set keys {}
+	variable cache	;# array of refcounted dicts
+	array set cache {}
+    }
 }
 
