@@ -600,27 +600,6 @@ namespace eval ::Site {
 	    Debug.site {Module Varnish: NO}
 	}
 
-	#### Load Cache Module - server caching
-	if {[config exists Cache]
-	    && [config get Cache load]
-	} {
-	    #### in-RAM Cache
-	    package require Cache 
-	    Cache new {*}[config section Cache]
-	    Debug.site {Module Cache: YES}
-	} else {
-	    #### Null Cache - provide a minimal non-Cache interface
-	    package provide Cache 2.0
-	    namespace eval ::Cache {
-		proc put {r} {return $r}
-		proc check {r} {return {}}
-		
-		namespace export -clear *
-		namespace ensemble create -subcommands {}
-	    }
-	    Debug.site {Module Cache: NO}
-	}
-
 	#### Load STX Module - rich text conversion
 	if {[config exists STX]
 	    && [config get STX load]
@@ -653,8 +632,29 @@ namespace eval ::Site {
 
 	#### Load up nubs
 	package require Nub
-	Nub init {*}[config section Nub]
+	NubClass create ::Nub {*}[config section Nub]
 	sections	;# initialize the nubs
+
+	#### Load Cache Module - server caching
+	if {[config exists Cache]
+	    && [config get Cache load]
+	} {
+	    #### in-RAM Cache
+	    package require Cache 
+	    CacheClass create ::Cache {*}[config section Cache]
+	    Debug.site {Module Cache: YES}
+	} else {
+	    #### Null Cache - provide a minimal non-Cache interface
+	    package provide Cache 2.0
+	    namespace eval ::Cache {
+		proc put {r} {return $r}
+		proc check {r} {return {}}
+		proc invalidate {args} {}
+		namespace export -clear *
+		namespace ensemble create -subcommands {}
+	    }
+	    Debug.site {Module Cache: NO}
+	}
 
 	#### Load local semantics from ./local.tcl
 	::variable local
