@@ -64,6 +64,16 @@ namespace eval ::conversions {
 	# add script and style preloads
 	set preloads {}
 
+	if {[dict exists $rsp -prescript]} {
+	    dict for {n v} [dict get $rsp -prescript] {
+		if {[string match !* $n]} {
+		    lappend preloads [<script> $v]
+		} else {
+		    lappend preloads [<script> src $n {*}$v]
+		}
+	    }
+	}
+
 	if {[dict exists $rsp -style]} {
 	    dict for {n v} [dict get $rsp -style] {
 		if {[string match !* $n]} {
