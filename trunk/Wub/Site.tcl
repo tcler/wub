@@ -384,13 +384,19 @@ namespace eval ::Site {
     Debug on block 10
 
     #### section - interrogate section for nub definitions
-    proc section {sect} {
+    proc section {sect {url ""}} {
 	set section [config get $sect]
+	if {$url ne ""} {
+	    dict set section url $url
+	}
+
 	if {[dict exists $section domain] || [dict exists $section handler]} {
 	    # Domain Nub declaration
 	    if {![dict exists $section url]} {
 		error "nub '$sect' declared in .config must have a url value"
 	    }
+	    set url [dict get $section url]
+	    dict unset section url
 
 	    # handler and domain are synonyms ... le sigh
 	    if {![dict exists $section handler]} {
@@ -404,8 +410,6 @@ namespace eval ::Site {
 		|| [string map {" " ""} $domain] ne $domain} {
 		error "Nub '$sect' domain arg '$domain' is badly formed."
 	    }
-	    set url [dict get $section url]
-	    dict unset section url
 
 	    if {[dict exists $section -loaddir]} {
 		set dir [dict get $section -loaddir]
@@ -488,6 +492,10 @@ namespace eval ::Site {
     #### sections - process each section for Domain definition
     proc sections {} {
 	::variable sections
+	foreach sect [config sections {/*}] {
+	    Debug.site {processing section: $sect}
+	    section $sect $sect
+	}
 	foreach sect [config sections {[a-z]*}] {
 	    Debug.site {processing section: $sect}
 	    section $sect
