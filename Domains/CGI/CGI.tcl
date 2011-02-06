@@ -22,7 +22,7 @@ set ::API(Domains/CGI) {
 }
 
 class create ::CGI {
-    variable fields executors mount root maxcgi cgi whitelist
+    variable fields executors mount root maxcgi cgi whitelist direct
 
     method env {r} {
 	lappend env SERVER_SOFTWARE [string map {" " /} [dict get $r -server_id]]
@@ -310,11 +310,17 @@ class create ::CGI {
 	dict set r -translated $probe[dict get $r -info]
 
 	# only execute scripts with appropriate extension
-	if {[catch {
-	    Debug.cgi {executors '$ext' in ($executors)}
-	    dict get $executors [string toupper $ext]
-	} executor]} {
-	    return [Http Forbidden $r [<p> "Can't execute files of type '$ext'"]]
+	if {$ext ne ""} {
+	    if {[catch {
+		Debug.cgi {executors '$ext' in ($executors)}
+		dict get $executors [string toupper $ext]
+	    } executor]} {
+		return [Http Forbidden $r [<p> "Can't execute files of type '$ext'"]]
+	    }
+	} elseif {$direct} {
+	    set executor ""	;# direct execution
+	} else {
+	    return [Http Forbidden $r [<p> "No direct execution permitted."]]
 	}
 
 	if {$suff eq {}} {
@@ -348,16 +354,23 @@ class create ::CGI {
 	set pwd [pwd]
 	cd [file dirname $script]
 
+	if {![info exists executor]} {
+	    # this is a direct invocation
+	    set executor $script
+	} else {
+	    lappend executor $script
+	}
+
 	# execute the script
-	Debug.cgi {running: open "|{*}$executor $script $arglist"}
+	Debug.cgi {running: open "|$executor $arglist"}
 	if {[catch {
 	    # run the script under the executor
 	    if {[dict exists $r -entitypath]} {
 		# the entity file is already open.
-		open "|$executor $script $arglist <@[dict get? $r -entity] 2>@1" r
+		open "|{*}$executor $arglist <@[dict get? $r -entity] 2>@1" r
 	    } else {
 		# entity content is in a string
-		open "|$executor $script $arglist <<[dict get? $r -entity] 2>@1" r
+		open "|{*}$executor $arglist <<[dict get? $r -entity] 2>@1" r
 	    }
 	} pipe eo]} {
 	    # execution failed
@@ -386,6 +399,7 @@ class create ::CGI {
 	set maxcgi 10
 	set cgi 0
 	set whitelist {PATH LD_LIBRARY_PATH TZ}
+	set direct 1
 	variable {*}[Site var? CGI]	;# allow .ini file to modify defaults
 
 	foreach {n v} $args {
