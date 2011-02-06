@@ -367,10 +367,10 @@ class create ::CGI {
 	    # run the script under the executor
 	    if {[dict exists $r -entitypath]} {
 		# the entity file is already open.
-		open "|{*}$executor $arglist <@[dict get? $r -entity] 2>@1" r
+		open "|$executor $arglist <@[dict get? $r -entity] 2>@1" r
 	    } else {
 		# entity content is in a string
-		open "|{*}$executor $arglist <<[dict get? $r -entity] 2>@1" r
+		open "|$executor $arglist <<[dict get? $r -entity] 2>@1" r
 	    }
 	} pipe eo]} {
 	    # execution failed
