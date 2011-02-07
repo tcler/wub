@@ -293,7 +293,10 @@ class create ::CGI {
 	# derive a script path from the URL path fields
 	Debug.cgi {searching for [file join $root $suffix]}
 	set extlc [string tolower $ext]
-	set suff [file split [string map [list / [file separator]] $path].$ext]
+	if {$ext ne ""} {
+	    set ext .$ext
+	}
+	set suff [file split [string map [list / [file separator]] $path]$ext]
 	dict set r -info {}
 	while {$suff ne {}} {
 	    set probe [file join $root {*}$suff]
@@ -326,7 +329,7 @@ class create ::CGI {
 	if {$suff eq {}} {
 	    # we've failed to find a match
 	    Debug.cgi {could not find script}
-	    return [Http NotFound $r]
+	    return [Http NotFound $r "Could not locate $suff"]
 	    # could do a search with different variant extensions
 	} else {
 	    # found our script
