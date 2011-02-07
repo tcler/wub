@@ -310,7 +310,7 @@ class create ::CGI {
 	dict set r -translated $probe[dict get $r -info]
 
 	# only execute scripts with appropriate extension
-	if {$ext ne ""} {
+	if {$ext ne "" && $ext ne "."} {
 	    if {[catch {
 		Debug.cgi {executors '$ext' in ($executors)}
 		dict get $executors [string toupper $ext]
