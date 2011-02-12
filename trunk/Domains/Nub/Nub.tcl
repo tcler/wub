@@ -1055,7 +1055,7 @@ oo::class create ::NubClass {
 	# the code becomes a self-modifying proc within ::Httpd
 	# its function is to dispatch on URL
 	variable NS
-	set p [string map [list %NS% $NS %B% $blocking %RW% $rw %RD% $redirecting %D% $definitions %S $switch %AUTH% $au] {
+	set p [string map [list %NS% $NS %B% $blocking %RW% $rw %RD% $redirecting %D% $definitions %S% $switch %AUTH% $au] {
 	    proc ::%NS%::nub {} {
 		# this code generates definitions once, when invoked
 		# it then rewrites itself with code to use those definitions
@@ -1099,7 +1099,7 @@ oo::class create ::NubClass {
 		Debug.dispatch {[dict get $r -url]}
 		# Processing rules
 		switch -glob -- [dict get $r -host],[dict get $r -path] {
-		    %S
+		    %S%
 		    default {
 			# this is the default behaviour
 			trailing $r
