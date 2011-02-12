@@ -184,7 +184,7 @@ class create ::Direct {
 
 	    # there's no exact match, so trim cprefix and try again.
 	    set cprefix [lrange $cprefix 0 end-1]
-	    lappend extra [lindex $prefix end]	;# remember trailing
+	    lappend extra [lindex $fprefix end]	;# remember trailing
 	    set fprefix [lrange $fprefix 0 end-1]
 	}
 
