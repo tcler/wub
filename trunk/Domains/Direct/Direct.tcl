@@ -59,10 +59,19 @@ class create ::Direct {
 	Debug.direct {direct ns:$namespace mount:$mount ctype:$ctype suffix:'[dict get $rsp -suffix]'}
 	
 	# search for a matching command prefix
-	set cmd ""
 	set fn [dict get $rsp -suffix]; if {$fn eq ""} {set fn /}
-	set cprefix [split [armour $fn] /]
+
+	# strip extensions from each component
+	set cprefix {}
+	set fprefix {}
+	foreach el [split [armour $fn] /] {
+	    lappend cprefix [file rootname $el]
+	    lappend fprefix $el
+	}
+	#set cprefix [split [armour $fn] /]
+
 	set extra {}
+	set cmd ""
 	while {$cmd eq "" && [llength $cprefix]} { 
 	    set probe [info commands ${namespace}::/[string trim [join $cprefix /] /]]
 	    Debug.direct {direct probe: ($probe) - ${namespace}::/[string trim [join $cprefix /] /]}
@@ -73,8 +82,9 @@ class create ::Direct {
 
 	    # there's no exact match, so trim cprefix and try again.
 	    Debug.direct {searching for ($cprefix) in '$namespace' among '$probe'}
-	    lappend extra [lindex $cprefix end]		;# remember trailing part of url
-	    set cprefix [lrange $cprefix 0 end-1]	;# trim url and try again
+	    set cprefix [lrange $cprefix 0 end-1]	;# trim url, try again
+	    lappend extra [lindex $fprefix end]	;# trailing part
+	    set fprefix [lrange $fprefix 0 end-1]	;# trim full prefix
 	}
 
 	# no match - use wildcard proc
@@ -82,12 +92,16 @@ class create ::Direct {
 	    Debug.direct {no match looking for '$fn' in '$namespace' ([info procs ${namespace}::/*])}
 	    set cmd ${namespace}::$wildcard
 	    dict set rsp -extra [dict get $rsp -suffix]
+	    dict set rsp -fprefix /
+	    dict set rsp -cprefix /
 	    if {[info commands $cmd] eq {}} {
 		Debug.direct {default not found looking for $cmd in ([info procs ${namespace}::/*])}
 		return [Http NotFound $rsp]
 	    }
 	} else {
 	    dict set rsp -extra [join [lreverse $extra] /]	;# record the extra parts of the domain
+	    dict set rsp -fprefix [join $fprefix /]
+	    dict set rsp -cprefix [join $cprefix /]
 	}
 
 	set params [lrange [info args $cmd] 1 end]
@@ -149,7 +163,14 @@ class create ::Direct {
 	
 	# search for a matching command prefix
 	set fn [dict get $rsp -suffix]
-	set cprefix [split [armour $fn] /]
+	# strip extensions from each component
+	set cprefix {}
+	set fprefix {}
+	foreach el [split [armour $fn] /] {
+	    lappend cprefix [file rootname $el]
+	    lappend fprefix $el
+	}
+	#set cprefix [split [armour $fn] /]
 	set extra {}
 	set cmd ""
 	while {$cmd eq "" && [llength $cprefix]} { 
@@ -162,8 +183,9 @@ class create ::Direct {
 	    }
 
 	    # there's no exact match, so trim cprefix and try again.
-	    lappend extra [lindex $cprefix end]	;# remember the non-matching bits
 	    set cprefix [lrange $cprefix 0 end-1]
+	    lappend extra [lindex $prefix end]	;# remember trailing
+	    set fprefix [lrange $fprefix 0 end-1]
 	}
 
 	# no match - use wildcard method
@@ -171,12 +193,16 @@ class create ::Direct {
 	    Debug.direct {'$cmd' not found looking for '$fn' in '$object' ($methods)}
 	    set cmd $wildcard
 	    dict set rsp -extra [dict get $rsp -suffix]
+	    dict set rsp -fprefix /
+	    dict set rsp -cprefix /
 	    if {![dict exists $methods $cmd] eq {}} {
 		Debug.direct {default not found looking for $cmd in ($methods)}
 		return [Http NotFound $rsp]
 	    }
 	} else {
 	    dict set rsp -extra [join [lreverse $extra]	/] ;# record the extra parts of the domain
+	    dict set rsp -fprefix [join $fprefix /]
+	    dict set rsp -cprefix [join $cprefix /]
 	}
 
 	# get the formal parameters and args-status of the method
