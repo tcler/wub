@@ -486,6 +486,8 @@ namespace eval ::Site {
 		Debug.nubsite {Nub auth [lindex $url 0] $auth}
 		Nub auth [lindex $url 0] $auth
 	    }
+	} else {
+	    error "Section $sect must have one of domain,handler,block,code,literal,redirect,rewrite or auth variables, to define its handler type."
 	}
     }
 
