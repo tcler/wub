@@ -26,12 +26,27 @@ package provide Httpd 6.0
 namespace eval ::Dispatcher {
     proc pre {r} {
 	package require Cookies
-	proc pre {r} {
-	    # default request pre-process
-	    catch {::pest $r}
-	    set r [::Cookies 4Server $r]	;# fetch the cookies
-	    set r [Human track $r]	;# track humans by cookie
-	    return $r
+	if {[llength [info command ::pest]]} {
+	    proc pre {r} {
+		# default request pre-process
+		set riposte [::pest $r]
+		if {$riposte eq ""} {
+		    set r [::Cookies 4Server $r]	;# fetch the cookies
+		    set r [Human track $r]	;# track humans by cookie
+		    return $r
+		} else {
+		    dict set r -passthrough 1
+		    set r [Http Forbidden $r $riposte]
+		    return $r
+		}
+	    }
+	} else {
+	    proc pre {r} {
+		# default request pre-process
+		set r [::Cookies 4Server $r]	;# fetch the cookies
+		set r [Human track $r]	;# track humans by cookie
+		return $r
+	    }
 	}
 	return [pre $r]
     }
@@ -1736,6 +1751,9 @@ oo::class create ::Httpd {
 
 	    1 { # error - return the details
 		set rsp [Http ServerError $r $rsp $eo]
+	    }
+	    default {
+		puts stderr "got $code"
 	    }
 	}
 
