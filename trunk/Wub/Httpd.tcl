@@ -29,16 +29,10 @@ namespace eval ::Dispatcher {
 	if {[llength [info command ::pest]]} {
 	    proc pre {r} {
 		# default request pre-process
-		set riposte [::pest $r]
-		if {$riposte eq ""} {
-		    set r [::Cookies 4Server $r]	;# fetch the cookies
-		    set r [Human track $r]	;# track humans by cookie
-		    return $r
-		} else {
-		    dict set r -passthrough 1
-		    set r [Http Forbidden $r $riposte]
-		    return $r
-		}
+		::pest $r
+		set r [::Cookies 4Server $r]	;# fetch the cookies
+		set r [Human track $r]	;# track humans by cookie
+		return $r
 	    }
 	} else {
 	    proc pre {r} {
