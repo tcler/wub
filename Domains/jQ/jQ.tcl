@@ -43,7 +43,7 @@ set ::API(Domains/JQ) {
 	;[http://jquery.autoscale.js.googlepages.com/ autoscale]: Scale an element to browser window size
 	;[http://bassistance.de/jquery-plugins/jquery-plugin-tooltip/ tooltip]: Display a customized tooltip instead of the default one for every selected element.
 	;[http://plugins.jquery.com/project/HoverImageText hoverimage]: create images along with descriptive text that is displayed on mouse over, similar to a tool hip, however the text is overlayed over the image.
-	;[http://monc.se/kitchen galleria]: image gallery
+	;[http://galleria.aino.se galleria]: image gallery
 	;[http://benjaminsterling.com/jquery-jqgalview-photo-gallery/ gallery]: another image gallery
 	;[http://www.appelsiini.net/projects/jeditable editable]: in-place editing
 	;[http://malsup.com/jquery/form/ form]: easily and unobtrusively upgrade HTML forms to use AJAX - numerous options which allows you to have full control over how the data is submitted.
@@ -169,6 +169,34 @@ namespace eval ::jQ {
 	return $r
     }
 
+    proc prescripts {r args} {
+	Debug.jq {scripts: $args}
+
+	variable version
+
+	# load each specified script
+	variable mount
+	foreach script $args {
+	    variable min
+	    switch -- $script {
+		jquery.js {
+		    # get the currently supported jquery
+		    set script jquery-${version}[expr {$min?".min":""}].js
+		}
+		jquery.ui.js {
+		    # get the currently supported jquery UI
+		    variable uiversion
+		    set script jquery-ui-${uiversion}[expr {$min?".min":""}].js
+		}
+	    }
+
+	    # record requirement for script
+	    set r [Html prescript $r [join [list $mount scripts $script] /]]
+	}
+	Debug.jq {SCRIPT: [dict get $r -prescript]}
+	return $r
+    }
+
     proc theme {r theme} {
 	variable mount; variable root
 	if {[file exists [file join $root themes $theme jquery.ui.all.css]]} {
@@ -203,11 +231,6 @@ namespace eval ::jQ {
 	    maxHeight 1000
 	    minHeight 100
 	}
-	galleria {
-	    history true
-	    clickNext true
-	}
-
 	map {
 	    center [0,0]
 	    mapType 'hybrid'
@@ -661,11 +684,33 @@ namespace eval ::jQ {
     }
 
     proc galleria {r selector args} {
-	return [weave $r {
-	    jquery.js jquery.galleria.js
-	} %SEL [S $selector] %OPTS [opts galleria {*}$args] {
-	    $('ul.%SEL').galleria(%OPTS)
+	if {[dict exists $args theme]} {
+	    set theme [dict get $args theme]
+	} else {
+	    set theme fullscreen
+	}
+
+	set r [prescripts $r jquery.js jquery.galleria.js ../galleria/themes/$theme/galleria.$theme.js]
+	return [weave $r {} %SEL [S $selector] %OPTS [opts galleria {*}$args] {
+	    $('%SEL').galleria(%OPTS)
 	}]
+    }
+
+    # do_galleria takes a list of photo dicts (image,thumb,alt,title)
+    # and arranges galleria to assemble them
+    proc do_galleria {r photos args} {
+	set result {}
+
+	foreach photo $photos {
+	    set thumb [dict get $photo thumb]
+	    dict unset photo thumb
+	    set image [dict get $photo image]
+	    dict unset photo image
+	    lappend result [<a> href $image [<img> src $thumb {*}$photo]]
+	}
+
+	set result [<div> id gallery [join $result \n]]
+	return [list [galleria $r #galleria {*}$args] $result]
     }
 
     # http://benjaminsterling.com/jquery-jqgalview-photo-gallery/
@@ -868,7 +913,7 @@ namespace eval ::jQ {
     # comet - server side push
     proc comet {r url args} {
 	set url '[string trim $url ']'
-	set opts [opts datepicker {*}$args]
+	set opts [opts comet {*}$args]
 	if {$opts eq ""} {
 	    set opts "{}"
 	}
@@ -878,44 +923,44 @@ namespace eval ::jQ {
 	    jQuery.comet = {
 		fetching: false,
 		url: %URL,
-
 		timeout: 60000,
 		wait: 10000,
 		onError: null,
 		type: 'GET',
-		dataType: "script",
+		dataType: "html",
 		async: true,
 		cache: false,
 		ifModified: false,
 
-		success: function(xhr, status, error) {
+		fetch: function() {
+		    if (!this.fetching) {
+			this.fetching = true;
+			//alert("comet fetching");
+			$.ajax(this);
+		    }
+		},
+
+		success: function(xhr, status) {
 		    this.fetching = false;
-		    //alert("success");
+		    //alert("success: '" + xhr + "'");
 		    this.fetch();	// got result - refetch
 		},
 		
 		error: function (xhr, status, error) {
 		    this.fetching = false;
 		    if (status == 'timeout') {
-			//alert("timeout");
+			alert("timeout");
 			this.fetch();	// on timeout - refetch
 		    } else if (status == 'timeout') {
-			//alert("notmodified");
+			alert("notmodified");
 			this.fetch();	// on timeout - refetch
 		    } else {
 			if (this.onError != null) {
 			    this.onError(xhr, status, error);
 			}
 			// on error, wait then refetch
-			//alert("ajax fail:"+status);
+			alert("ajax fail:"+status);
 			setTimeout(this.fetch, this.wait);
-		    }
-		},
-		
-		fetch: function() {
-		    if (!this.fetching) {
-			this.fetching = true;
-			$.ajax(this);
 		    }
 		}
 	    };
@@ -1028,6 +1073,7 @@ namespace eval ::jQ {
 	set mount /[string trim $mount /]/
 
 	if {[info commands ::jQ::fs] eq ""} {
+	    Debug.jq {jQ File create ::jQ::fs {*}$args root $root mount $mount expires $expires}
 	    File create ::jQ::fs {*}$args root $root mount $mount expires $expires
 	}
 	return jQ
