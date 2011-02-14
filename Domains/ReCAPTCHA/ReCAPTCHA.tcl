@@ -56,7 +56,7 @@ class create ::ReCAPTCHA {
 		eval $fail_script
 	    }
 	    return [Httpd Resume $r]
-	} $r $args $pass $fail] post [list /verify $entity content-type application/x-www-form-urlencoded] close] close
+	} $r $args $pass $fail] post [list /verify $entity content-type application/x-www-form-urlencoded] close]
 
 	return [Httpd Suspend $r 100000]
     }
