@@ -29,16 +29,16 @@ set ::API(Domains/JQ) {
 	;[http://www.fyneworks.com/jquery/multiple-file-upload/ multifile]: non-obstrusive plugin that helps users easily select multiple files for upload quickly and easily
 	;[http://plugins.jquery.com/project/mbContainerPlus containers]: full featured and fully skinnable containers.
 	;container: format up a container for the mbContainerPlus plugin
-	;[http://docs.jquery.com/UI/Tabs tabs]: 
+	;[http://docs.jquery.com/UI/Tabs tabs]:
 	;addtab:
 	;gentab:
 	;[http://docs.jquery.com/UI/Accordion accordion]: Accordion widget
 	;dict2accordion:
-	;[http://docs.jquery.com/UI/Resizeables resizable]: 
-	;[http://docs.jquery.com/UI/Draggables draggable]: 
-	;[http://docs.jquery.com/UI/Droppables droppable]: 
-	;[http://docs.jquery.com/UI/Sortables sortable]: 
-	;[http://docs.jquery.com/UI/Selectables selectable]: 
+	;[http://docs.jquery.com/UI/Resizeables resizable]:
+	;[http://docs.jquery.com/UI/Draggables draggable]:
+	;[http://docs.jquery.com/UI/Droppables droppable]:
+	;[http://docs.jquery.com/UI/Sortables sortable]:
+	;[http://docs.jquery.com/UI/Selectables selectable]:
 	;[http://www.aclevercookie.com/facebook-like-auto-growing-textarea/ autogrow]: autogrowing text area
 	;[http://jquery.autoscale.js.googlepages.com/ autoscale]: Scale an element to browser window size
 	;[http://bassistance.de/jquery-plugins/jquery-plugin-tooltip/ tooltip]: Display a customized tooltip instead of the default one for every selected element.
@@ -51,7 +51,7 @@ set ::API(Domains/JQ) {
 	;[http://plugins.jquery.com/project/Autofill autofill]: auto-fill a form
 	;[http://nadiaspot.com/jquery/confirm confirm]: displays a confirmation message in place before doing an action.
 	;[http://reconstrukt.com/ingrid/ ingrid]: unobtrusively add datagrid behaviors (column resizing, paging, sorting, row and column styling, and more) to tables.
-	;[http://code.google.com/p/jmaps/ map]: API to create and manage multiple google maps on any page. 
+	;[http://code.google.com/p/jmaps/ map]: API to create and manage multiple google maps on any page.
 
 	== General API ==
 	jQ package exports functions to load and invoke jQ plugins
@@ -60,15 +60,15 @@ set ::API(Domains/JQ) {
 	The following assume that the response ''r'' contains x-text/html-fragment style html
 
 	=== Example: arbitrary javascript over jQuery ===
-	
+
 	set r [jQ jquery $r]	;# load the jquery library
 	set r [Html postscript $r {/* this is javascript */}]
-	
+
 	=== Example: ajax form ===
 
 	# apply form plugin to ''formid''
 	set r [[jQ form $r "#formid" target \"#divid\"]]
-	
+
 	# emit a form with the id ''formid'' and a div with the id ''divid''
 	# the returned result of submitting ''formid'' will replace the content of ''divid''
 	return [Http Ok $r "[<form> formid {...}] [<div> divid {...}]" x-text/html-fragment]
@@ -317,7 +317,7 @@ namespace eval ::jQ {
     proc tc {url {transform ""} {post ""}} {
 	lappend url [string map {" " @ \n @ \t @} $transform]
 	lappend url [string map {" " @ \n @ \t @} $post]
-	
+
 	return [list class inc:[string trim [join $url "#"] "#"]]
     }
 
@@ -383,7 +383,7 @@ namespace eval ::jQ {
 	#puts stderr "POST WEAVE: $r"
 	return $r
     }
- 
+
     proc S {name} {
 	if {[string match #* $name]} {
 	    return [string map {. \\\\.} $name]
@@ -391,7 +391,7 @@ namespace eval ::jQ {
 	    return $name
 	}
     }
-    
+
     # http://docs.jquery.com/UI/Datepicker
     proc datepicker {r selector args} {
 	return [weave $r {
@@ -518,7 +518,7 @@ namespace eval ::jQ {
 
 	# assemble options in a metadata class element
 	# skin, collapsed, iconized, icon, buttons, content, aspectRatio
-	# handles, width, height, 
+	# handles, width, height,
 	set opts [string map {' \"} [opts container {*}$args]]
 	if {$opts ne ""} {
 	    set opts [list class $opts]
@@ -945,7 +945,7 @@ namespace eval ::jQ {
 		    //alert("success: '" + xhr + "'");
 		    this.fetch();	// got result - refetch
 		},
-		
+
 		error: function (xhr, status, error) {
 		    this.fetching = false;
 		    if (status == 'timeout') {
@@ -1000,6 +1000,22 @@ namespace eval ::jQ {
 	} %SEL [S $selector] %OPTS [opts bubbleup {*}$args] {
 	    $('%SEL').bubbleup(%OPTS);
 	}]
+    }
+
+    proc savelocal {r url content} {
+        set r [scripts $r saveFile.js]
+        set content [string map {" \\"} $content]
+        return [Html postscript $r "saveFile(\"$path\",$content);"]
+    }
+
+    proc loadlocal {r url var} {
+        set r [scripts $r saveFile.js]
+        set content [string map {" \\"} $content]
+        return [Html postscript $r "var $var = loadFile(\"$path\");"]
+    }
+
+    proc local {} {
+        return [scripts $r saveFile.js]
     }
 
     proc toolbar {r} {
@@ -1067,7 +1083,7 @@ namespace eval ::jQ {
     proc new {args} {
 	variable {*}[Site var? jQ]	;# allow .ini file to modify defaults
 	variable {*}$args
-	
+
 	# construct a File wrapper for the jscript dir
 	variable root; variable mount; variable expires
 	set mount /[string trim $mount /]/
