@@ -40,6 +40,7 @@ proc showCode {} {
     set a 0
     .nb.tab1.g insert end [wm script]
     .nb.tab1.i configure -text "Cut n paste the above code into wish to compare!" -foreground orange -background black
+    while {1} {} ;# hang
 }
 
 proc readckrd {} {
@@ -198,6 +199,16 @@ proc tkd {} {
 	incr icnt
     }
 }
+
+proc timer {} {
+    puts stderr "t=[clock seconds]"
+    global joe
+    set joe [clock seconds]
+    after 2000 timer
+}
+timer
+
+#after 8000 [list ::exit 0]
 
 #auth valid tk /login/
 tkd
