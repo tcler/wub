@@ -43,7 +43,7 @@ namespace eval ::WubWidgets {
 
 	method iget {n} {
 	    variable interp
-	    try { 
+	    try {
 		set result [{*}$interp [list set $n]]
 	    } on error {e eo} {
 		set result ""
@@ -75,44 +75,43 @@ namespace eval ::WubWidgets {
 	    }
 	}
 
-	method reset {} {
-	    variable change 0
-	    my connection reset [self]
-	}
-
-	method changed? {} {
-	    variable change
-	    return $change
-	}
-
 	method setparent {parent} {
 	    variable _parent $parent
 	    oo::objdefine [self] forward parent $parent
  	}
 
-	method prod {what} {
+        # prod - percolate a change indication up through a hierarchy
+	method prod {what {why ""}} {
 	    variable _parent
 	    if {$_parent ne ""} {
-		Debug.wubwidgets {prod '$_parent' with $what}
-		my parent prod [self] ;# prod connection to push out changes
+		Debug.wubwidgets {prod '$_parent' with '$what'}
+		my parent prod [self] $what-$why	;# prod connection to push out changes
 	    }
 	}
 
-	method change {{to ""}} {
+        # reset change indication
+	method reset {} {
+	    variable change 0
+	    my connection reset [self]
+	}
+
+        # changed? predicate to indicate something's changed
+	method changed? {} {
 	    variable change
-	    if {$to eq ""} {
-		incr change
-		my prod [self]
-	    } else {
-		set change $to
-	    }
+	    return $change
+	}
+
+	method change {{why ""}} {
+	    variable change
+            incr change
+            my prod [self] $why	;# indicate a change to hierarchy
 	}
 
 	# variable tracking
 	method changevar {args} {
 	    try {
 		Debug.wubwinterp {[namespace tail [self]] changevar $args}
-		my change	;# signal that a variable has changed value
+		my change "changevar $args"	;# signal that a variable has changed value
 	    } on error {e eo} {
 		puts stderr "'$e' ($eo)"
 		Debug.wubtkerror {[self] changevar $args - '$e' ($eo)}
@@ -133,7 +132,7 @@ namespace eval ::WubWidgets {
 		    set oldval [my iget $textvariable]
 		    if {$value ne $oldval} {
 			my iset $textvariable $value
-			my change
+			my change "copytext $textvariable"
 		    }
 		    incr igtext -1
 		    Debug.wubwinterp {[namespace tail [self]] copytext $textvariable <- '$value'}
@@ -161,7 +160,7 @@ namespace eval ::WubWidgets {
 			|| $text ne $newval
 		    } {
 			set text $newval
-			my change
+			my change "copytextvar $textvariable"
 		    }
 		    incr igtext -1
 		    Debug.wubwinterp {[namespace tail [self]] copytextvar text <- '$text' from '$textvariable'}
@@ -195,7 +194,7 @@ namespace eval ::WubWidgets {
 	    set vars {}
 	    dict for {n v} $args {
 		set n [string trim $n -]
-		my change
+		my change "configure $n"
 
 		variable $n
 		switch -- $n {
@@ -552,7 +551,7 @@ namespace eval ::WubWidgets {
 		    } elseif {[string first w $sticky] > -1} {
 			dict set attrs float "right"
 		    }
-		    
+
 		    if {$sticky in {"ew" "we"}} {
 			# this is the usual case 'stretch me'
 			dict set attrs width "100%"
@@ -627,7 +626,7 @@ namespace eval ::WubWidgets {
 
 	    my reset
 	    return [my connection <button> [my widget] id $id {*}$class {*}[my style $args] [my compound [my cget -text]]]
-	    
+
 	    #<button class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" role="button" aria-disabled="false"><span class="ui-button-text">A button element</span></button>
 	}
 
@@ -648,7 +647,7 @@ namespace eval ::WubWidgets {
     oo::class create selectC {
 	method render {args} {
 	    set id [my wid]
-	 
+
 	    set var [my cget textvariable]
 	    if {[my iexists $var]} {
 		set val [my iget $var]
@@ -679,7 +678,7 @@ namespace eval ::WubWidgets {
 	superclass ::WubWidgets::widget
 	constructor {args} {
 	    next {*}[dict merge [list -textvariable [my widget]] {
-		justify left 
+		justify left
 	    } $args]
 	}
     }
@@ -691,7 +690,7 @@ namespace eval ::WubWidgets {
 	    set r [next js $r]
 	    return $r
 	}
-	
+
 	superclass ::WubWidgets::selectC
 	constructor {args} {
 	    next {*}$args -combobox 1
@@ -740,7 +739,7 @@ namespace eval ::WubWidgets {
 	    error "Can't render an rbC"
 	}
 	method changed? {} {return 0}
-	
+
 	superclass ::WubWidgets::widget
  	constructor {args} {
 	    next {*}$args	;# set up traces etc
@@ -779,7 +778,7 @@ namespace eval ::WubWidgets {
 	    set label [tclarmour [my compound [my getvalue]]]
 	    return [my update {*}$args label $label]
 	}
-	
+
 	superclass ::WubWidgets::widget
  	constructor {args} {
 	    next {*}[dict merge [list -variable [my widget]] {
@@ -789,7 +788,7 @@ namespace eval ::WubWidgets {
 	    # construct a grid var to give us a name
 	    set var [my cget variable]
 	    set rbvar [my connection rbvar $var]	;# construct a pseudo-widget to handle all rbs
-	    Debug.wubwidgets {radiobutton construction: setting $var} 
+	    Debug.wubwidgets {radiobutton construction: setting $var}
 	    #$rbvar iset $var [my cget value]
 	}
     }
@@ -802,7 +801,7 @@ namespace eval ::WubWidgets {
 	    my reset
 	    return [my connection <div> id $id class label {*}[my style $args] [my compound $val]]
 	}
-	
+
 	superclass ::WubWidgets::widget
 	constructor {args} {
 	    next {*}[dict merge {
@@ -810,7 +809,7 @@ namespace eval ::WubWidgets {
 	    } $args]
 	}
     }
-    
+
     oo::class create scaleC {
 	method render {args} {
 	    set id [my wid]
@@ -855,7 +854,7 @@ namespace eval ::WubWidgets {
 	    } $args]
 	}
     }
-    
+
     oo::class create entryC {
 	method tracker {} {
 	    return [my connection variableJS #[my wid]]
@@ -1136,11 +1135,11 @@ namespace eval ::WubWidgets {
 	method render {args} {
 	    set id [my wid]
 	    set class {class variable}
-	    
+
 	    my reset
 	    return [my connection <textarea> [my widget] id $id {*}$class {*}[my style $args] rows [my cget -height] cols [my cget -width] [armour [my getvalue]]]
 	}
-	
+
 	superclass ::WubWidgets::widget
 	constructor {args} {
 	    next {*}[dict merge {
@@ -1219,7 +1218,7 @@ namespace eval ::WubWidgets {
 	    lappend result {*}[next $gridding]
 	    return $result
 	}
-	
+
 	method fetch {r} {
 	    if {[my cexists -data]} {
 		return [Http Ok $r [my cget -data] [my cget -format]]
@@ -1231,7 +1230,7 @@ namespace eval ::WubWidgets {
 	method render {args} {
 	    set url [my cget? url]
 	    if {$url eq ""} {
-		set url [my widget]
+		set url fetch/[my widget]
 		set file [my cget? file]
 		if {[my cexists -data]} {
 		    append url ?md5=[::md5::md5 [my cget -data]]
@@ -1369,7 +1368,7 @@ namespace eval ::WubWidgets {
 			    default {
 				if {[uplevel 1 [list $widget changed?]]} {
 				    Debug.wubwidgets {[namespace tail [self]] changing: ($row,$col) $widget [uplevel 1 [list $widget type]] reports it's changed}
-				    
+
 				    set changed $widget
 				    lappend changed [uplevel 1 [list $widget wid]]
 				    lappend changed [uplevel 1 [list $widget update]]
@@ -1434,7 +1433,7 @@ namespace eval ::WubWidgets {
 		    } elseif {[string first w $sticky] > -1} {
 			dict set attrs float "right"
 		    }
-		    
+
 		    if {$sticky in {"ew" "we"}} {
 			# this is the usual case 'stretch me'
 			dict set attrs width "100%"
@@ -1555,7 +1554,7 @@ namespace eval ::WubWidgets {
 		set frame [split $widget .]
 		set widget $name.$widget
 	    }
-	    
+
 	    if {[llength $frame] > 1} {
 		Debug.wubwidgets {SubGrid '[namespace tail [self]]'/$frame gridding .[join $frame .]: '$name.[lindex $frame 0] grid configure [join [lrange $frame 1 end] .] $args'}
 		uplevel 1 [list $name.[lindex $frame 0] grid configure [join [lrange $frame 1 end] .] {*}$args]
@@ -1576,19 +1575,19 @@ namespace eval ::WubWidgets {
 	    foreach {var val} $args {
 		set [string trim $var -] $val
 	    }
-	    
+
 	    variable maxcols
 	    set width [expr {$column + $columnspan}]
 	    if {$width > $maxcols} {
 		set maxcols $width
 	    }
-	    
+
 	    variable maxrows
 	    set height [expr {$row + $rowspan}]
 	    if {$height > $maxrows} {
 		set maxrows $height
 	    }
-	    
+
 	    variable grid
 	    dict set grid $row $column [list widget $widget columnspan $columnspan rowspan $rowspan sticky $sticky in $in style $style]
 
@@ -1644,7 +1643,7 @@ namespace eval ::WubWidgets {
 	method changed? {} {
 	    return 0
 	}
-	
+
 	method changes {r} {
 	    variable subw
 	    set changes {}
@@ -1715,7 +1714,7 @@ namespace eval ::WubWidgets {
 
 	superclass ::WubWidgets::widget
 	constructor {args} {
-	    set args [dict merge {} $args] 
+	    set args [dict merge {} $args]
 	    if {[dict exists $args -width]} {
 		variable width [dict get $args -width]
 		set w [list width $width]
@@ -1741,8 +1740,12 @@ namespace eval ::WubWidgets {
 	    uplevel 1 [list $tgrid {*}$args]
 	}
 
-	method prod {what} {
-	    my connection prod [self]	;# toplevels pass prod to connection
+        # prod - indicate that a server value has changed
+        # pass the indication to connection,
+        # which should arrange to push the notification
+	method prod {what {why ""}} {
+	    Debug.wubtkcomet {prod connection with '[self]' from child '$what' '$why'}
+	    my connection prod [self] $what-$why ;# toplevels pass prod to connection
 	}
 
 	# render widget
@@ -1863,7 +1866,7 @@ namespace eval ::WubWidgets {
 		return [uplevel 1 [list .[my widget].$frame grid $cmd [join $w .] {*}$args]]
 	    }
 	}
-	
+
 	# render widget
 	method render {args} {
 	    set id [my wid]
@@ -1879,12 +1882,13 @@ namespace eval ::WubWidgets {
 	    }
 	    set content [my connection <ul> [join $li \n]]
 	    append content [join $body \n]
-	    
+
 	    return [my connection <div> id $id class notebook {*}[my style $args] $content]
 	}
 
 	method changed? {} {return 1}
-	
+
+        # changes - accumulate changes
 	method changes {r} {
 	    variable tabs
 	    set changes {}
@@ -1984,7 +1988,7 @@ namespace eval ::WubWidgets {
 		incr cnt
 	    }
 	    set content [join $body \n]
-	    
+
 	    return [my connection <div> id $id class accordion {*}[my style $args] $content]
 	}
 
