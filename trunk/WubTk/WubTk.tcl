@@ -808,11 +808,7 @@ class create ::WubTkI {
     method / {r args} {
         # nothing else to be done ... repaint display by default
         Debug.wubtk {fetch and render toplevel $widget}
-        try {
-            set r [.$widget fetch $r]
-        } on error {e eo} {
-            set r [Http ServerError $r $e $eo]
-        }
+	return [my render $r]	;# traverse widget tree to HTML/JS
     }
 
     # do - main entry point for per-user coro
