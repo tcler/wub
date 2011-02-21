@@ -26,7 +26,9 @@
 
 package require Debug
 Debug define wubtk 10
-Debug on wubtkerr 10
+Debug on wubtkerror 10
+Debug define wubtkcomet 10
+
 package require Http
 package require md5
 package require Image	;# force rasterization
@@ -119,19 +121,35 @@ class create ::WubTkI {
     }
 
     # record change indication from widgets
-    method prod {what} {
+    method prod {what {why ""}} {
+        Debug.wubtkcomet {PROD: [info level -2]}
+        variable started
+        if {!$started} {
+            Debug.wubtkcomet {connection prodded before start}
+            return
+        }
+        Debug.wubtkcomet {connection prodded by $what $why}
 	variable changes
-	dict set changes $what 1	;# record changed widgets
+	dict set changes $what 1	;# record changed toplevel widgets
 
 	variable lastupdate; variable maxlag
 	set now [clock milliseconds]
+
+        # cancel any pending updates
+        variable updater
+        catch {after cancel $updater}
+
+	variable coro
 	if {$now - $lastupdate > $maxlag} {
-	    after 0 [list [info coroutine] prod]	;# we've waited long enough prod now
+	    # we've waited long enough - prod the supervisor now
+            Debug.wubtkcomet {prodding supervisor now}
+	    after 0 [list $coro prod]
 	} else {
-	    variable updater
-	    catch {after cancel $updater}
+	    # we should wait to accumulate more changes
+	    # re-establish a timed supervisor prodder
 	    variable frequency
-	    set updater [after $frequency [list [info coroutine] prod]]
+            Debug.wubtkcomet {deferring supervisor prod for $frequency}
+	    set updater [after $frequency [list $coro prod]]
 	}
     }
 
@@ -189,7 +207,7 @@ class create ::WubTkI {
 	set name [$caller widget]
 	set opts {path domain port expires secure max-age}
 	foreach n $opts {
-	    set val [$caller cget? -$n] 
+	    set val [$caller cget? -$n]
 	    if {$val ne ""} {
 		set $n $val
 	    }
@@ -295,16 +313,15 @@ class create ::WubTkI {
 		$.pnotify({pnotify_title: "Ajax "+status, pnotify_type: 'error', pnotify_text: error.description});
 	    }
 
-	    function buttonJS () { 
+	    function buttonJS () {
 		//alert($(this).attr("name")+" button pressed");
 		$("#Spinner_").show();
 		$.ajax({
 		    context: this,
 		    type: "GET",
-		    url: ".",
+		    url: "button",
 		    data: {
-			id: $(this).attr("name"),
-			_op_: "command"
+			id: $(this).attr("name")
 		    },
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
@@ -317,7 +334,7 @@ class create ::WubTkI {
 		});
 	    }
 
-	    function rbuttonJS () { 
+	    function rbuttonJS () {
 		$("#Spinner_").show();
 
 		var name = $(this).attr("name");
@@ -329,12 +346,11 @@ class create ::WubTkI {
 		$.ajax({
 		    context: this,
 		    type: "GET",
-		    url: ".",
+		    url: "rbutton",
 		    data: {
 			id: name,
 			val: val,
-			widget: widget,
-			_op_: "rbutton"
+			widget: widget
 		    },
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
@@ -348,10 +364,10 @@ class create ::WubTkI {
 		});
 	    }
 
-	    function cbuttonJS () { 
+	    function cbuttonJS () {
 		//alert($(this).attr("name")+" cbutton pressed");
 		$("#Spinner_").show();
-		var data = {id: $(this).attr("name"), val: 0, _op_: "cbutton"};
+		var data = {id: $(this).attr("name"), val: 0};
 		var val = this.value;
 		if($(this).is(":checked")) {
 		    data['val'] = val;
@@ -360,7 +376,7 @@ class create ::WubTkI {
 		$.ajax({
 		    context: this,
 		    type: "GET",
-		    url: ".",
+		    url: "cbutton",
 		    data: data,
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
@@ -385,10 +401,10 @@ class create ::WubTkI {
 		$("#Spinner_").show();
 		$.ajax({
 		    type: "GET",
-		    url: ".",
-		    data: {id: id,
-			val: ui.value,
-			_op_: "slider"
+		    url: "slider",
+		    data: {
+                        id: id,
+			val: ui.value
 		    },
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
@@ -396,7 +412,7 @@ class create ::WubTkI {
 			// alert("slider: "+data);
 		    },
 		    error: function (xhr, status, error) {
-			alert("ajax fail:"+status);
+			alert("ajax fail:"+error);
 		    }
 		});
 	    }
@@ -414,11 +430,10 @@ class create ::WubTkI {
 		$.ajax({
 		    context: $(entry),
 		    type: "GET",
-		    url: ".",
+		    url: "autocomplete",
 		    data: {
 			id: $(entry).attr("name"),
-			val: encodeURIComponent($(entry).val()),
-			_op_: "var"
+			val: encodeURIComponent($(entry).val())
 		    },
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
@@ -437,11 +452,11 @@ class create ::WubTkI {
 		$.ajax({
 		    context: this,
 		    type: "GET",
-		    url: ".",
+		    url: "var",
 		    data: {
 			id: $(this).attr("name"),
-			val: encodeURIComponent($(this).val()),
-			_op_: "var"},
+			val: encodeURIComponent($(this).val())
+                    },
 		    dataType: "script",
 		    success: function (data, textStatus, XMLHttpRequest) {
 			//alert("variable: "+data + encodeURIComponent($(this).val()));
@@ -471,11 +486,12 @@ class create ::WubTkI {
 	}
 
 	set r [my prep $r]
-	variable timeout
 
-	if {$timeout > 0} {
-	    Debug.wubtk {Comet push $timeout}
-	    set r [jQ comet $r ./?_op_=refresh]
+        # send the comet library
+	variable comet
+	if {$comet > 0} {
+	    Debug.wubtkcomet {Comet push $comet}
+	    set r [jQ comet $r . dataType 'script' data 'comet=1']
 	} else {
 	    Debug.wubtk {Comet no push}
 	}
@@ -513,7 +529,7 @@ class create ::WubTkI {
 		border: 1px solid;
 		padding: 0px;
 	    }
-	    
+
 	    ul.toolbar li {
 		padding: 0px;
 		float: left;
@@ -595,7 +611,7 @@ class create ::WubTkI {
 
 	    dict set r -title [wm title .]
 	    dict lappend r -headers [wm header .]
-	    
+
 	    set r [Http Ok $r $content x-text/html-fragment]
 	} on error {e eo} {
 	    set r [Http ServerError $r $e $eo]
@@ -604,27 +620,46 @@ class create ::WubTkI {
 	return $r
     }
 
-    method do_comet {r} {
+    # do_comet: process new comet request
+    method /comet {r} {
 	# client has asked us to push changes
-	Debug.wubtk {[self] client has asked us to push changes}
+	Debug.wubtkcomet {[self] client has asked us to push changes}
+
+        # we may have pending _comet indicating prior interest
+        # deal with it (although clients should not send multiple.)
+        variable _comet
+        if {[info exists _comet]} {
+            # we have a pending _comet
+            # send out something empty to satisfy it
+            Debug.wubtkcomet {WubTk [info coroutine] - double refresh}
+            set _comet [Http Ok $_comet {} application/javascript]
+            if {[catch {Httpd Resume $_comet} e eo]} {
+                Debug.error {WubTk [info coroutine] - comet double refresh err '$e' ($eo)}
+            }
+            unset _comet	;# forget the pending request
+        }
+
+	# accumulate asynchronous widget state changes
 	set changes [lassign [grid changes $r] r]
+
+	# accumulate HTML and JS to reflect changes
 	set update [my update $changes]
 	append update [my stripjs $r]
 
 	if {$update eq ""} {
-	    # no updates to send
-	    if {[info exists _comet]} {
-		# we already have a pending _comet
-		# just send out something to satisfy it
-		Debug.wubtk {WubTk [info coroutine] - double refresh}
-		set _comet [Http Ok $_comet {} application/javascript]
-		Httpd Resume $_comet
-	    }
-	    set _comet $r	;# remember request
-	    set r [Httpd Suspend $r]	;# suspend until changes
-	    grid prod 1	;# register interest
+	    # no updates to send at the moment
+
+            # as we have nothing for the client right now we
+            # remember this client request and process it
+            # later, when something changes
+            Debug.wubtkcomet {No updates - suspend request}
+	    set _comet $r	;# remember comet request
+	    set r [Httpd Suspend $r]	;# suspend until changes occur
+	    #grid prod 1	;# register interest
 	} else {
 	    # send out what updates we have
+            Debug.wubtkcomet {updating - [llength $changes] changes}
+            set update "alert('MOOP');\n$update"
 	    append update \n "<!-- do_comet -->" \n
 	    set r [Http Ok $r $update application/javascript]
 	}
@@ -632,33 +667,25 @@ class create ::WubTkI {
     }
 
     # process a browser event
-    method event {r} {
-	# clear out any old refresh - this response will satisfy it
-	if {[info exists _comet]} {
-	    Debug.wubtk {satisfy old refresh}
-	    set re [Http Ok $_comet {} application/javascript]
-	    unset _comet
-	    Httpd Resume $re
-	} else {
-	}
-	
+    method event {r op id args} {
 	# client event has been received
-	set Q [Query flatten [Query parse $r]]
-	set widget .[dict Q.id]
+	set widget .$id
+        my limit	;# enforce the command limit on our Interp
 
 	if {[llength [info commands [namespace current]::$widget]]} {
 	    # the widget addressed exists - process the requested operation
-	    Debug.wubtk {event $widget ($Q)}
-	    set content "<!-- changes due to event '$widget [dict r.-op] [string range [dict Q.val?] 0 10]...' -->\n"
+	    Debug.wubtk {event $widget op:$op id:$id ($args)}
+	    set content "<!-- changes due to event '$widget $op' -->\n"
 	    try {
 		# run the $widget operation specified by $op
-		$widget [dict r.-op] [dict Q.val?] {*}[dict Q.widget?]
+		$widget $op {*}$args
 	    } on error {e eo} {
 		# widget operation caused an error - report on it
 		set errpopup [jQ popup type error title "Script Error" [armour $e]]
-		Debug.wubtkerr {event error on $widget: '$e' ($eo)}
+		Debug.wubtkerror {event error on $widget: '$e' ($eo)}
 		append content $errpopup
 	    } finally {
+                my unlimit
 		# widget operation completed, or error noted
 		variable redirect
 		if {[llength $redirect]} {
@@ -679,40 +706,111 @@ class create ::WubTkI {
 		# normal result - respond with changes caused by event processing
 		append content \n [my update $changes]
 		append content \n [my stripjs $r]
-
+                my unlimit
 		tailcall Http Ok $r $content application/javascript
 	    }
 	} else {
 	    # widget doesn't exist - report that
 	    Debug.wubtk {not found [namespace current]::$widget}
 	    set content [jQ popup type error "Widget '$widget' does not exist."]
+            my unlimit
 	    return [Http Ok $r $content application/javascript]
 	}
     }
 
-    method do_image {r} {
-	set cmd .$widget
-	if {[llength [info commands [namespace current]::$cmd]]} {
-	    Debug.wubtk {image $cmd}
-	    set r [$cmd fetch $r]
-	} else {
-	    Debug.wubtk {not found image [namespace current]::$cmd}
-	    set r [Http NotFound $r]
-	}
-	return $r
+    method /button {r id} {
+        # process browser event as a widget operation
+        return [my event $r command $id]
+    }
+
+    method /cbutton {r id val} {
+        # process browser event as a widget operation
+        return [my event $r cbutton $id $val]
+    }
+
+    method /slider {r id val} {
+        # process browser event as a widget operation
+        return [my event $r slider $id $val]
+    }
+
+    method /rbutton {r id val widget} {
+        # process browser event as a widget operation
+        return [my event $r rbutton $id $val $widget]
+    }
+
+    method /var {r id val} {
+        # process browser event as a widget operation
+        return [my event $r var $id $val]
+    }
+
+    method /fetch {r id} {
+        # client fetch has been received
+        return [.$id fetch $r]
+    }
+
+    method /autocomplete {r id val term} {
+        # this is autocomplete - we get to call the
+        # -command with one argument passed in client event
+        set result [.$id command $term]
+
+        # we should have a list in reply, convert it to JSON
+        set json {}
+        foreach v $result {
+            lappend json '[string map {' \'} $v]'
+        }
+        set json \[[join $json ,]\]
+        Debug.wubtk {autocomplete: $result -> ($json)}
+        set r [Http Ok [Http NoCache $r] $json application/json]
+    }
+
+    method /upload {r id val} {
+        # client event has been received for upload file
+        if {[llength [info commands [namespace current]::.$id]]} {
+            Debug.wubtk {event $widget $val}
+            try {
+                .$id upload $val
+            } on error {e eo} {
+                # what to do on an upload error?
+            } finally {
+                set r [my render $r]
+            }
+        } else {
+            # widget doesn't exist - report that
+            Debug.wubtk {not found [namespace current]::$widget}
+            set content [jQ popup type error "Widget '$widget' not found"]
+            set r [Http Ok $r $content application/javascript]
+        }
+    }
+
+    method / {r args} {
+        # nothing else to be done ... repaint display by default
+        Debug.log {wubtk got ($r)}
+        set widget [dict r.-widget]
+        if {$widget eq ""} {
+            Debug.wubtk {render .}
+            set r [my render $r]
+        } else {
+            Debug.wubtk {fetch and render toplevel $widget}
+            try {
+                set r [.$widget fetch $r]
+            } on error {e eo} {
+                set r [Http ServerError $r $e $eo]
+            } finally {
+            }
+        }
     }
 
     # do - main entry point for per-user coro
     # at this point we're running a read-eval-print loop in that coro
     # this code yields at appropriate points with HTTP response dicts filled with
     # responses to (usually) client events (usually per-widget)
-    method do {req lambda} {
+    method coro {req lambda} {
 	Debug.wubtk {[info coroutine] PROCESS in namespace:[namespace current]}
 
 	variable r $req	;# keep our current request around
 	variable script $lambda	;# record original script for app to fetch if it wants it
 	variable coro [info coroutine]	;# remember this coro for [after] code
-
+        variable lastupdate
 	# run user code - return result
 	variable cdict [dict get? $r -cookies]
 
@@ -723,27 +821,35 @@ class create ::WubTkI {
 	set r [my render $r]	;# traverse widget tree to HTML/JS
 	Debug.wubtk {COOKIES: $cdict}
 	dict set r -cookies $cdict	;# reflect cookies back to client
+        variable started
 
 	# initial client direct request
 	variable exit 0
 	while {!$exit} {
-	    lassign [::yieldm [Http NoCache $r]] what r
-	    Debug.wubtk {[info coroutine] processing '$what'}
+	    lassign [::yieldm [Http NoCache $r]] what
+            incr started
 	    switch -- $what {
 		prod {
-		    # our grid has prodded us - there are changes
+		    # a toplevel has prodded us - there are changes
 		    # to be pushed to the client
+                    Debug.wubtkcomet {supervisor prodded}
+		    variable _comet
 		    if {[info exists _comet]} {
-			Debug.wubtk {prodded with suspended refresh}
 			# we've been prodded by grid with a pending refresh
+			Debug.wubtkcomet {prodded with suspended refresh}
+
+			# accumulate asynchronous widget state changes
 			set changes [lassign [grid changes $_comet] _comet]
+
+			# accumulate HTML and JS to reflect changes
 			set content [my update $changes]
 			append content [my stripjs $_comet]
 			set re [Http Ok $_comet $content application/javascript]
-			unset _comet
+			unset _comet	;# it's sent, so forget about it
 			Httpd Resume $re
 		    } else {
-			Debug.wubtk {prodded without suspended refresh}
+			# we've been prodded, but there's nothing listening
+			Debug.wubtkcomet {prodded without suspended refresh}
 		    }
 		}
 
@@ -752,112 +858,11 @@ class create ::WubTkI {
 		    Debug.wubtk {requested termination}
 		    break	;# we've been asked to terminate
 		}
-
-		client {
-		    # process a client request
-		    set cdict [dict get? $r -cookies]
-
-		    # unpack query response
-		    Debug.wubtk {[info coroutine] Event: [dict r.-op?]}
-		    my limit	;# enforce the command limit on our Interp
-		    switch -- [dict r.-op?] {
-			command -
-			cbutton -
-			slider -
-			rbutton -
-			var {
-			    # process browser event as a widget operation
-			    set r [my event $r]
-			}
-
-			fetch {
-			    # client fetch has been received
-			    set widget .[dict r.-widget]
-			    set r [$widget fetch $r]
-			}
-
-			autocomplete {
-			    # this is autocomplete - we get to call the -command with
-			    # one argument passed in
-
-			    # client event has been received
-			    set Q [Query flatten [Query parse $r]]
-			    set widget .[dict r.-widget]
-			    set term [dict Q.term]
-			    set result [$widget command $term]
-
-			    # we should have a list in reply, convert it to JSON
-			    set json {}
-			    foreach v $result {
-				lappend json '[string map {' \'} $v]'
-			    }
-			    set json \[[join $json ,]\]
-			    Debug.wubtk {autocomplete: $result -> ($json)}
-			    set r [Http Ok [Http NoCache $r] $json application/json]
-			}
-
-			upload {
-			    # client event has been received for upload file
-			    set Q [Query flatten [Query parse $r]]
-			    set widget .[dict Q.id]
-
-			    if {[llength [info commands [namespace current]::$widget]]} {
-				Debug.wubtk {event $widget ($Q)}
-				try {
-				    $widget [dict r.-op] [dict Q.val?]
-				} on error {e eo} {
-				    # what to do on an upload error?
-				} finally {
-				    set r [my render $r]
-				}
-			    } else {
-				# widget doesn't exist - report that
-				Debug.wubtk {not found [namespace current]::$widget}
-				set content [jQ popup type error "Widget '$widget' not found"]
-				set r [Http Ok $r $content application/javascript]
-			    }
-			}
-
-			comet {
-			    # process refresh event
-			    set r [my do_comet $r]
-			}
-
-			default {
-			    # nothing else to be done ... repaint display by default
-			    set widget [dict r.-widget]
-			    if {$widget eq ""} {
-				Debug.wubtk {render .}
-				set r [my render $r]
-			    } else {
-				Debug.wubtk {fetch and render toplevel $widget}
-				try {
-				    set r [.$widget fetch $r]
-				} on error {e eo} {
-				    set r [Http ServerError $r $e $eo]
-				} finally {
-				}
-			    }
-			}
-		    }
-		    my unlimit
-		    dict set r -cookies $cdict	;# reflect cookies back to client
-		    Debug.wubtk {[info coroutine] Event Complete: [dict r.-op?]}
-		}
 	    }
-
-	    Debug.wubtk {[info coroutine] processed '$what'}
 
 	    # each time through this loop we have interacted with the client
 	    # record the time of last interaction for comet.
-	    variable changes
-	    if {[dict size $changes]} {
-		variable lastupdate [clock milliseconds]
-		variable updater
-		catch {after cancel $updater}
-		variable frequency
-		set updater [after $frequency [list [info coroutine] prod]]
-	    }
+            set lastupdate [clock milliseconds]
 	}
 
 	# fallen out of loop - time to go
@@ -895,7 +900,7 @@ class create ::WubTkI {
 	puts stderr "BGERROR: $args"
     }
 
-    superclass FormClass
+    superclass FormClass Direct
     constructor {args} {
 	variable interp {}
 	variable {*}$args
@@ -909,7 +914,7 @@ class create ::WubTkI {
 
 	next? {*}$args		;# construct Form
 	Debug.wubtk {constructed WubTkI self-[self]  - ns-[namespace current] ($args)}
-
+        variable started 0	;# hasn't started yet
 	variable toplevels {}	;# track toplevels
 	variable rbvars {}	;# track radiobutton vars
 	variable changes {}	;# track changes per widget
@@ -924,7 +929,7 @@ class create ::WubTkI {
 	    my setdefault button class {ui-button ui-widget ui-state-default ui-corner-all}
 	    my setdefault fieldset class {ui-widget ui-corner-all}
 	    my setdefault table class ui-widget
-	    #my setdefault table style {width:80%} 
+	    #my setdefault table style {width:80%}
 	    my setdefault tbody class ui-widget
 	    my setdefault legend class {legend ui-widget-header ui-corner-all}
 	    my setdefault label class {label ui-corner-all}
@@ -1094,28 +1099,38 @@ class create ::WubTk {
 	} else {
 	    set expiresC {}
 	}
-	
+
 	# add the cookie
 	variable cookie; variable mount
 	set cdict [Cookies add $cdict -path $mount -name $cookie -value $cmd {*}$expiresC]
 	Debug.wubtk {created wubapp cookie $cdict}
-	
+
 	dict set r -cookies $cdict
 	dict set r -wubapp $cmd
 	return $r
     }
 
-    method call {r cmd suffix extra} {
-	# this is an existing coroutine - call it and return result
-	Debug.wubtk {calling coroutine '$cmd' with extra '$extra'}
-	if {[catch {
-	    [namespace current]::Coros::$cmd client $r
-	} result eo]} {
-	    Debug.error {'$cmd' error: $result ($eo)}
-	    return [Http ServerError $r $result $eo]
-	}
-	Debug.wubtk {'$cmd' yielded: ($result)}
-	return $result
+    method new_wubapp {r wubapp} {
+        # collect options to pass to coro
+        set options {}
+        foreach v {comet icons theme spinner_style spinner_size css stylesheet cookiepath theme_switcher fontsize limit} {
+            variable $v
+            if {[info exists $v]} {
+                lappend options $v [set $v]
+            }
+        }
+
+        # create the coroutine to service this WubTk session
+        set req $r
+        my reload
+        variable lambda
+        set o [::WubTkI create [namespace current]::Coros::O_$wubapp {*}$options]
+        set r [::Coroutine [namespace current]::Coros::$wubapp $o coro $r $lambda]
+        if {[llength [info command [namespace current]::Coros::$wubapp]]} {
+            # when the coro dies, clean up the related object too
+            trace add command [namespace current]::Coros::$wubapp delete [list $o destroyme]
+        }
+        return $r
     }
 
     # process request helper
@@ -1127,76 +1142,43 @@ class create ::WubTk {
 	    return [Httpd NotFound $r]	;# the URL isn't in our domain
 	}
 
-	# decode stuff to the right of the mount URL
-	set widget ""
-	dict set r -extra [join [set extra [lassign [split $suffix /] widget]] /]
-	dict set r -widget $widget
-
-	# get op from query
-	set Q [Query parse $r]; dict set r -Query $Q; set Q [Query flatten $Q]
-	dict set r -op [set op [dict Q._op_?]]
-	if {$op eq ""} {
-	    set op [dict Q.term?]
-	    if {$op ne ""} {
-		dict set r -op autocomplete
-		set op autocomplete
-	    }
-	}
-
 	set wubapp [my getcookie $r]	;# get the wubapp cookie
-	Debug.wubtk {process cookie: '$wubapp' widget:'$widget' op:'$op' extra:'$extra' suffix:'$suffix' over '$mount'}
-	
-	if {$wubapp ne ""
-	    && [namespace which -command [namespace current]::Coros::$wubapp] ne ""
-	} {
-	    dict set r -wubapp $wubapp
-	    return [my call $r $wubapp $suffix $extra]
-	} else {
-	    Debug.wubtk {coroutine gone: $wubapp -> $mount$widget}
-	    if {$wubapp ne ""} {
-		# they handed us a cookie relating to a defunct coro,
-		# doesn't matter, the value is purely nominal,
-		# go with it.
-		if {$op ne ""} {
-		    # this is an old invocation trying to get javascript
-		    # make it redirect
-		    set app "$mount/$widget/"
-		    return [Http Ok $r "window.location='$app';" application/javascript]
-		}
-	    } else {
-		set r [my newcookie $r]	;# brand new webapp
-		set wubapp [dict get $r -wubapp]
-	    }
+	Debug.wubtk {process cookie: '$wubapp' over '$mount'}
 
-	    # collect options to pass to coro
-	    set options {}
-	    foreach v {timeout icons theme spinner_style spinner_size css stylesheet cookiepath theme_switcher fontsize limit} {
-		variable $v
-		if {[info exists $v]} {
-		    lappend options $v [set $v]
-		}
-	    }
+	if {$wubapp eq ""} {
+            # brand new webapp - start it up
+            set r [my newcookie $r]	;# brand new webapp
+            set wubapp [my getcookie $r]	;# get the wubapp cookie
+            try {
+                set r [my new_wubapp $r $wubapp]
+            } on error {e eo} {
+                Debug.wubtk {[info coroutine] error '$e' ($eo)}
+                catch {$o destroy}
+                catch {rename [namespace current]::Coros::$wubapp {}}
+                return [Http ServerError $r $e $eo]
+            }
+            return $r
+        } elseif {[namespace which -command [namespace current]::Coros::$wubapp] eq ""} {
+            # they handed us a cookie relating to a defunct coro,
+            # create a new one with that name
+            try {
+                set r [my new_wubapp $r $wubapp]
+            } on error {e eo} {
+                Debug.wubtk {[info coroutine] error '$e' ($eo)}
+                catch {$o destroy}
+                catch {rename [namespace current]::Coros::$wubapp {}}
+                return [Http ServerError $r $e $eo]
+            }
+            return $r
+            # force client to reload to get the new cookie
+            #return [Http Ok $r "window.location='$mount';" application/javascript]
+        }
 
-	    # create the coroutine to service this WubTk session
-	    try {
-		set req $r
-		my reload
-		variable lambda
-		set o [::WubTkI create [namespace current]::Coros::O_$wubapp {*}$options]
-		set r [::Coroutine [namespace current]::Coros::$wubapp $o do $r $lambda]
-		if {[llength [info command [namespace current]::Coros::$wubapp]]} {
-		    # when the coro dies, clean up the related object too
-		    trace add command [namespace current]::Coros::$wubapp delete [list $o destroyme]
-		}
-	    } on error {e eo} {
-		Debug.wubtk {[info coroutine] error '$e' ($eo)}
-		catch {$o destroy}
-		catch {rename [namespace current]::Coros::$wubapp {}}
-		set r [Http ServerError $req $e $eo]
-	    }
+        # this is an existing wubapp - call the object and return result
+        # decode stuff to the right of the mount URL
 
-	    return $r
-	}
+        dict set r -wubapp $wubapp
+        return [[namespace current]::Coros::O_$wubapp do $r]
     }
 
     method reload {} {
@@ -1217,7 +1199,7 @@ class create ::WubTk {
 	variable css {}
 	variable theme start
 	variable theme_switcher 0
-	variable timeout 0
+	variable comet 0
 	variable icons /icons/
 	variable fontsize 12
 	variable spinner_size 20
@@ -1225,7 +1207,7 @@ class create ::WubTk {
 
 	variable {*}[Site var? WubTk]	;# allow .ini file to modify defaults
 	variable {*}$args
-	set timeout 0
+        variable started 0
 
 	set fontsize [string trimright $fontsize "px"]
 
