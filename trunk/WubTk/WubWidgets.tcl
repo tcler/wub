@@ -1368,7 +1368,7 @@ namespace eval ::WubWidgets {
 			    default {
 				if {[uplevel 1 [list $widget changed?]]} {
 				    Debug.wubwidgets {[namespace tail [self]] changing: ($row,$col) $widget [uplevel 1 [list $widget type]] reports it's changed}
-
+                                    uplevel 1 [list $widget reset]
 				    set changed $widget
 				    lappend changed [uplevel 1 [list $widget wid]]
 				    lappend changed [uplevel 1 [list $widget update]]
