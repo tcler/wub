@@ -491,7 +491,31 @@ class create ::WubTkI {
 	variable comet
 	if {$comet > 0} {
 	    Debug.wubtkcomet {Comet push $comet}
-	    set r [jQ comet $r . dataType 'script' data 'comet=1']
+	    #set r [jQ comet $r comet dataType 'script']
+            set r [Html postscript $r {
+                function comet(last_modified, etag) {
+                    $.ajax({
+                        url: 'comet',
+                        dataType: 'script',
+                        type: 'post',
+                        cache: 'false',
+                        success: function(data, textStatus, xhr) {
+                            /* Start the next long poll. */
+                            comet();
+                        },
+                        error: function(xhr, textStatus, errorThrown) {
+                            alert('Comet Fail: ' + errorThrown);
+                            comet();
+                        }
+                    });
+                };
+                try {
+                    comet();
+                } catch (err) {
+                    alert('Comet Fail: ' + err.message);
+                }
+
+            }]
 	} else {
 	    Debug.wubtk {Comet no push}
 	}
@@ -641,12 +665,9 @@ class create ::WubTkI {
 
 	# accumulate asynchronous widget state changes
 	set changes [lassign [grid changes $r] r]
+        set update [my update $changes]
 
-	# accumulate HTML and JS to reflect changes
-	set update [my update $changes]
-	append update [my stripjs $r]
-
-	if {$update eq ""} {
+	if {![llength $update]} {
 	    # no updates to send at the moment
 
             # as we have nothing for the client right now we
@@ -658,8 +679,10 @@ class create ::WubTkI {
 	    #grid prod 1	;# register interest
 	} else {
 	    # send out what updates we have
+            # accumulate HTML and JS to reflect changes
+            append update [my stripjs $r]
+
             Debug.wubtkcomet {updating - [llength $changes] changes}
-            set update "alert('MOOP');\n$update"
 	    append update \n "<!-- do_comet -->" \n
 	    set r [Http Ok $r $update application/javascript]
 	}
@@ -784,19 +807,11 @@ class create ::WubTkI {
 
     method / {r args} {
         # nothing else to be done ... repaint display by default
-        Debug.log {wubtk got ($r)}
-        set widget [dict r.-widget]
-        if {$widget eq ""} {
-            Debug.wubtk {render .}
-            set r [my render $r]
-        } else {
-            Debug.wubtk {fetch and render toplevel $widget}
-            try {
-                set r [.$widget fetch $r]
-            } on error {e eo} {
-                set r [Http ServerError $r $e $eo]
-            } finally {
-            }
+        Debug.wubtk {fetch and render toplevel $widget}
+        try {
+            set r [.$widget fetch $r]
+        } on error {e eo} {
+            set r [Http ServerError $r $e $eo]
         }
     }
 
@@ -829,6 +844,9 @@ class create ::WubTkI {
 	    lassign [::yieldm [Http NoCache $r]] what
             incr started
 	    switch -- $what {
+                started {
+                    # important this be called to kick us off
+                }
 		prod {
 		    # a toplevel has prodded us - there are changes
 		    # to be pushed to the client
@@ -1125,7 +1143,10 @@ class create ::WubTk {
         my reload
         variable lambda
         set o [::WubTkI create [namespace current]::Coros::O_$wubapp {*}$options]
-        set r [::Coroutine [namespace current]::Coros::$wubapp $o coro $r $lambda]
+        set coron [namespace current]::Coros::$wubapp
+        set r [::Coroutine $coron $o coro $r $lambda]
+        $coron started
+
         if {[llength [info command [namespace current]::Coros::$wubapp]]} {
             # when the coro dies, clean up the related object too
             trace add command [namespace current]::Coros::$wubapp delete [list $o destroyme]
