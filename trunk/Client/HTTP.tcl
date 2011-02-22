@@ -219,6 +219,22 @@ know {[string match http://* [lindex $args 0]]} {
     HTTP run [Url uri $urld] [lindex $args 1] $path	;# close close
 }
 
+know {[string match https://* [lindex $args 0]]} {
+    # parse the URL
+    set urld [Url parse [lindex $args 0]]
+    Debug.HTTPdetail {parsed URL: $urld}
+    set host [Url host $urld]
+    set path [Url http $urld]
+    if {[dict exists $urld -fragment]} {
+	dict unset urld -fragment	;# we don't pass fragments
+    }
+    if {$path ne ""} {
+	set path [list get $path]	;# make a 'get' op for path remainder
+    }
+
+    HTTP run [Url uri $urld] [lindex $args 1] $path
+}
+
 package provide HTTP 2.0
 
 
@@ -613,6 +629,9 @@ oo::class create HTTP {
 
     destructor {
 	variable socket; variable reason; variable urld
+	if {![info exists socket]} {
+	    set socket "NO SOCKET"
+	}
 	Debug.HTTP {[self]: $socket ($urld) closed because: '$reason'}
 
 	# notify consumer that we've closed
@@ -671,7 +690,7 @@ oo::class create HTTP {
 
 	# parse url into host,port
 	variable urld [Url parse $url]
-	Debug.HTTPdetail {[self] url dict: $urld}
+	Debug.HTTPdetail {[self] url dict: $urld ops: ($ops)}
 	if {![dict exist $urld -host]} {
 	    error "'$url' is not a properly formed URL"
 	}
@@ -706,16 +725,18 @@ oo::class create HTTP {
 	    } else {
 		Debug.HTTPdetail {[self] connect TLS: $host $port}
 		set state tls_connect
+		package require tls
 		::tls::socket -async {*}$sockopts $host $port  ;# create SSL socket
 	    }
 	} socket eo] || [catch {
 	    # condition the socket
 	    Debug.HTTPdetail {[self] condition: $socket}
 	    set state condition
-	    chan configure $socket -blocking 0 -buffering none -encoding binary -translation {crlf binary}
+	    chan configure $socket -blocking 1 -buffering none -encoding binary -translation {crlf binary}
 	}]} {
 	    set reason $socket
 	    Debug.HTTP {[self] $state failed: $reason ($eo)}
+	    variable justcontent
 	    if {!$justcontent} {
 		{*}$consumer [list X-type FAILED X-state $state X-reason $reason X-url $url X-object [self]]
 	    }
@@ -726,9 +747,10 @@ oo::class create HTTP {
     # HTTP class method to create and run an HTTP pipeline
     # returns an object to manage the pipeline, or "" if it's closed
     self method run {url consumer args} {
+	Debug.HTTP {run url:$url consumer:$consumer args:($args)}
 	set object [my new $url $consumer {*}$args]
 
-	$object connect	;# tcp connect to server
+	$object connect		;# tcp connect to server
 	$object start_reader	;# prepare to read responses
 
 	# generate HTTP transactions
@@ -741,6 +763,7 @@ oo::class create HTTP {
 
     # HTTP class method to create and run a named HTTP pipeline
     self method runas {name url consumer args} {
+	Debug.HTTP {runas name:$name url:$url consumer:$consumer args:($args)}
 	set object [my create $name $url $consumer {*}$args]
 
 	$object connect	;# tcp connect to server
@@ -784,7 +807,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     } else {
 	http://wub.googlecode.com/svn/trunk/Client/HTTP.tcl {set ::source} justcontent 1	;# fetch the latest HTTP.tcl
 
-	vwait ::source
+1	vwait ::source
 	set source [subst -nocommands -novariables $source]
 	puts stderr "Fetched [string length $source] bytes of source for HTTP.tcl"
 	if {![catch {::zlib adler32 $source} crc2]} {
