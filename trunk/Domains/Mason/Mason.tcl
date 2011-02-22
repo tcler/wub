@@ -21,7 +21,7 @@ set ::API(Domains/Mason) {
 	Where docroot is the path of your file directory.  The directory can contain .tml files which will be [[subst]]ed under tcl, index files, .before and .after files.
 
 	Now any reference to /mason/path will return the content of the file at $docroot/path.  You can restrict access to the file using the .before facility, transform the file contents using the .after facility, and guard against non-existent files using the .notfound facility.
-	
+
 	== Operation ==
 	The target URL is interpreted relative to the Mason object's ''root'' directory, and its value returned.  A literal match is preferred, but if one can't be made, a templated file with the same file rootname will be evaluated and returned in its stead (allowing generated content to match a requested file-extension.)
 
@@ -175,7 +175,7 @@ class create ::Mason {
 	if {[file exists $file]} {
 	    return $file
 	}
-	
+
 	# no such file - may be a functional?
 	set fpath [file rootname $file]$functional
 	Debug.mason {candidate $fpath - [file exists $fpath]}
@@ -259,18 +259,18 @@ class create ::Mason {
 
     method mason {req} {
 	Debug.mason {Mason: [dumpMsg $req]}
-	
+
 	dict set req -mason [self]
 	dict set req -urlroot $mount
 
 	set http [dict get? $req -http]
 	set suffix [string trimleft [dict get $req -suffix] /]
-	
+
 	set ext [file extension $suffix]	;# file extent
 	set path [file join [dict get $req -root] $suffix] ;# complete path to file
 	set tail [file tail $suffix]	;# last component of path
 	set url [dict get $req -url]	;# full URL
-	
+
 	Debug.mason {Mason: -url:$url - suffix:$suffix - path:$path - tail:$tail - ext:$ext}
 	if {(($tail eq $ext) && ($ext ne "")
 	     && ![dict exists $req -extonly])
@@ -282,7 +282,7 @@ class create ::Mason {
 		[<p> "'$path' has illegal name.</p>"]
 	    }]]
 	}
-	
+
 	# .notfound processing
 	set fpath [my candidate $path]
 	if {$fpath eq ""} {
@@ -344,7 +344,7 @@ class create ::Mason {
 	    file {
 		return [my sendfile $req $path]
 	    }
-	    
+
 	    directory {
 		# URL maps to a directory.
 		if {![string match */ $url]} {
@@ -366,7 +366,7 @@ class create ::Mason {
 		} elseif {$indexfile ne ""} {
 		    # we are instructed to use index.html (or similar)
 		    # as the contents of a directory.
-		    
+
 		    # if there is an existing index file re-try this request
 		    # after modifying the URL/path etc.
 		    set fpath [my candidate [file join $path $indexfile]]
@@ -405,7 +405,7 @@ class create ::Mason {
 		dict set req -dynamic 1	;# functionals are dynamic by default
 		return [my functional $req $fpath]	;# invoke the functional
 	    }
-	    
+
 	    default {
 		dict lappend req -depends [file normalize $path]	;# cache notfound
 		Debug.mason {Mason illegal type [file type $path]}
@@ -415,13 +415,13 @@ class create ::Mason {
 	    }
 	}
     }
-    
+
     method auth {req} {
 	# run authentication and return any codes
 	set fpath [my findUp $req $auth]
 	if {$fpath ne ""} {
 	    Debug.mason {Mason got auth: $fpath}
-	    
+
 	    set req [my template $req $fpath]
 
 	    if {[dict get $req -code] != 200} {
@@ -548,7 +548,7 @@ class create ::Mason {
 	    foreach {x y} [file attributes $root] {
 		dict set oth $x $y
 	    }
- 
+
 	    set i 0
 	    set index -1
 	    set hd {}
