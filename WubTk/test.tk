@@ -201,7 +201,7 @@ proc tkd {} {
 }
 
 proc timer {} {
-    puts stderr "t=[clock seconds]"
+#    puts stderr "t=[clock seconds]"
     global joe
     set joe [clock seconds]
     after 2000 timer
