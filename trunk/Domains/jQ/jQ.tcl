@@ -910,65 +910,6 @@ namespace eval ::jQ {
 	}]
     }
 
-    # comet - server side push
-    proc comet {r url args} {
-	set url '[string trim $url ']'
-	set opts [opts comet {*}$args]
-	if {$opts eq ""} {
-	    set opts "{}"
-	}
-	return [weave $r {
-	    jquery.js
-	} %URL $url %OPTS $opts {
-	    jQuery.comet = {
-		fetching: false,
-		url: %URL,
-		timeout: 60000,
-		wait: 10000,
-		onError: null,
-		type: 'GET',
-		dataType: "html",
-		async: true,
-		cache: false,
-		ifModified: false,
-
-		fetch: function() {
-		    if (!this.fetching) {
-			this.fetching = true;
-			//alert("comet fetching");
-			$.ajax(this);
-		    }
-		},
-
-		success: function(xhr, status) {
-		    this.fetching = false;
-		    //alert("success: '" + xhr + "'");
-		    this.fetch();	// got result - refetch
-		},
-
-		error: function (xhr, status, error) {
-		    this.fetching = false;
-		    if (status == 'timeout') {
-			alert("timeout");
-			this.fetch();	// on timeout - refetch
-		    } else if (status == 'timeout') {
-			alert("notmodified");
-			this.fetch();	// on timeout - refetch
-		    } else {
-			if (this.onError != null) {
-			    this.onError(xhr, status, error);
-			}
-			// on error, wait then refetch
-			alert("ajax fail:"+status);
-			setTimeout(this.fetch, this.wait);
-		    }
-		}
-	    };
-	    jQuery.comet = jQuery.extend(jQuery.comet, %OPTS);
-	    $.comet.fetch();	// start fetching
-	}]
-    }
-
     proc slider {r selector args} {
 	return [weave $r {
 	    jquery.js jquery.ui.js
