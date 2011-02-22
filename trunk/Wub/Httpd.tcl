@@ -63,7 +63,6 @@ namespace eval ::Dispatcher {
     proc /clients {r} {
 	foreach client [info class instances ::HttpdClient] {
 	    set connections [$client connections]
-	    
 	    foreach connection $connections {
 	    }
 	}
@@ -260,7 +259,7 @@ oo::class create ::Httpd {
 		if {[dict exists $rr $f]} {
 		    dict set rr $f "<ELIDED [string length [dict get? $rr $f]]>"
 		}
-	    }	    
+	    }
 	}
 
 	return $rr
@@ -583,7 +582,7 @@ oo::class create ::Httpd {
 
 	# ensure the method is valid
 	switch -- [dict get $r -method] {
-	    GET - PUT - POST - HEAD {
+	    GET - PUT - POST - HEAD - OPTIONS {
 		# these are acceptable headers - pass through
 	    }
 
@@ -683,7 +682,7 @@ oo::class create ::Httpd {
 	variable socket
 
 	Debug.httpd {[info coroutine] fcopy: $fd $bytes $written '$error'}
-	
+
 	::watchdog stroke [self]
 
 	catch {close $fd}	;# remove file descriptor
@@ -1242,7 +1241,7 @@ oo::class create ::Httpd {
 	    # a duplicate response has been sent - discard this
 	    # this could happen if a dispatcher sends a response,
 	    # then gets an error.
-	    Debug.error {Send discarded: duplicate ([Httpd dump $r]) - sent:([Httpd dump [dict get $satisfied $trx]])}
+	    Debug.error {Send discarded: duplicate ([Httpd dump $r]) - sent:([Httpd dump [dict get? $satisfied $trx]])}
 	    return	;# duplicate response - just ignore
 	} elseif {![dict exists $unsatisfied $trx]} {
 	    # only send for unsatisfied requests
@@ -1672,8 +1671,20 @@ oo::class create ::Httpd {
     }
 
     method process {r} {
-	# check Cache for match
 	variable istate PROCESS
+        variable unsatisfied
+        variable satisfied
+
+        if {[dict get? $r -method] eq "OPTIONS"
+            && [dict exists $r access-control-request-method]} {
+            # simplistic CORS
+            Debug.httpd {CORS [dict get $r -transaction] / satisfied: ([dict keys $satisfied]) unsatisfied: ([dict keys $unsatisfied])}
+            my send [Http CORS $r] 0
+            Debug.httpd {CORS POST satisfied: ([dict keys $satisfied]) unsatisfied: ([dict keys $unsatisfied])}
+            return
+        }
+
+	# check Cache for match
 	if {[dict size [set cached [Cache check $r]]] > 0} {
 	    # reply directly from cache
 	    dict set unsatisfied [dict get $cached -transaction] $r
@@ -2029,11 +2040,14 @@ namespace eval ::Httpd::coros {}
 oo::objdefine ::Httpd {
     # dump - return a stripped request for printing
     method dump {req} {
-	foreach f {-content -entity -gzip -headers} {
+        if {[string length [dict get? $req -content]] > 80} {
+            dict set req -content [string range [dict get $req -content] 0 80]<ELIDED>
+        }
+	foreach f {-entity -gzip -headers} {
 	    if {[dict exists $req $f]} {
 		dict set req $f "<ELIDED [string length [dict get $req $f]]>"
 	    }
-	}	    
+	}
 
 	return [regsub {([^[:print:]])} $req .]
     }
