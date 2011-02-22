@@ -134,7 +134,7 @@ oo::class create ::CacheClass {
     method clear {} {
 	variable keys
 	foreach key [array get keys http:*] {
-	    delete $key
+	    my delete $key
 	}
     }
 
