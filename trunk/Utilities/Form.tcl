@@ -904,6 +904,7 @@ class create ::FormClass {
 	if {$args ne {}} {
 	    variable {*}$args
 	}
+        next? {*}$args
 
 	if {$scripting} {
 	    variable coreA {id class style title}
