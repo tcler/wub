@@ -144,6 +144,7 @@ namespace eval ::Http {
 	if-unmodified-since max-forwards proxy-authorization referer te
 	user-agent keep-alive cookie via range
 	origin sec-websocket-key1 sec-websocket-key2
+        access-control-request-method
     }
     foreach n $rq_headers {
 	set headers($n) rq
@@ -153,6 +154,8 @@ namespace eval ::Http {
     variable rs_headers {
 	accept-ranges age etag location proxy-authenticate retry-after
 	server vary www-authenticate content-disposition content-range
+        access-control-allow-origin access-control-allow-methods
+        access-control-max-age
     }
     foreach n $rs_headers {
 	set headers($n) rs
@@ -283,6 +286,17 @@ namespace eval ::Http {
 	dict set r accept $mime	;# we coerce the acceptable types
 	return $r
     }
+
+    # Cross Origin Resource Sharing - OPTION reply
+    # https://developer.mozilla.org/En/HTTP_access_control
+    # http://www.w3.org/TR/cors/
+    proc CORS {r {content "OK"}} {
+        dict set r access-control-allow-origin *
+        dict set r access-control-allow-methods "POST, GET, OPTIONS"
+        dict set r access-control-max-age 1000
+        dict set r -code 200
+        return [Http Ok $r $content]
+   }
 
     proc Continue {r} {
 	dict set r -code 100
