@@ -509,12 +509,13 @@ class create ::WubTkI {
                         }
                     });
                 };
-                try {
-                    comet();
-                } catch (err) {
-                    alert('Comet Fail: ' + err.message);
-                }
-
+                $(function() {
+                    try {
+                        comet();
+                    } catch (err) {
+                        alert('Comet Fail: ' + err.message);
+                    }
+                });
             }]
 	} else {
 	    Debug.wubtk {Comet no push}
