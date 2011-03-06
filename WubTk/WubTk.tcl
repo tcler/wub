@@ -504,8 +504,8 @@ class create ::WubTkI {
                             comet();
                         },
                         error: function(xhr, textStatus, errorThrown) {
-                            alert('Comet Fail: ' + errorThrown);
-                            comet();
+                            //alert('Comet Fail: ' + errorThrown);
+                            window.setTimeout(comet,1000);
                         }
                     });
                 };
