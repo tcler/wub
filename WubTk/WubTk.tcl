@@ -501,7 +501,7 @@ class create ::WubTkI {
                         cache: 'false',
                         success: function(data, textStatus, xhr) {
                             /* Start the next long poll. */
-                            comet();
+                            window.setTimeout(comet,1);
                         },
                         error: function(xhr, textStatus, errorThrown) {
                             //alert('Comet Fail: ' + errorThrown);
