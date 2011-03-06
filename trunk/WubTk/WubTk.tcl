@@ -511,7 +511,7 @@ class create ::WubTkI {
                 };
                 $(function() {
                     try {
-                        comet();
+                        window.setTimeout(comet,1000);
                     } catch (err) {
                         alert('Comet Fail: ' + err.message);
                     }
