@@ -50,10 +50,12 @@ class create ::ReCAPTCHA {
 	    
 	    if {$pass} {
 		Debug.recaptcha {ReCAPTCHA passed}
-		eval $pass_script
+		lappend pass_script $r $a
+		set r [uplevel #0 $pass_script]
 	    } else {
 		Debug.recaptcha {ReCAPTCHA failed}
-		eval $fail_script
+		lappend fail_script $r $a
+		set r [uplevel #0 $fail_script]
 	    }
 	    return [Httpd Resume $r]
 	} $r $args $pass $fail] post [list /verify $entity content-type application/x-www-form-urlencoded] close]
@@ -61,17 +63,21 @@ class create ::ReCAPTCHA {
 	return [Httpd Suspend $r 100000]
     }
 
+    method default_pass { req params } {
+	return [Http Ok $req "Passed ReCAPTCHA" text/plain]
+    }
+
+    method default_fail { req params } {
+	return [Http Ok $req "Failed ReCAPTCHA" text/plain]
+    }
+
     method form {args} {
 	set theme white
 	set class {}
 	set before {}	;# pre-recaptcha form content
 	set after {}	;# post-recaptcha form content
-	set pass {
-	    set r [Http Ok $r "Passed ReCAPTCHA" text/plain]
-	}
-	set fail {
-	    set r [Http Ok $r "Failed ReCAPTCHA" text/plain]
-	}
+	set pass [namespace code {my default_pass}]
+	set fail [namespace code {my default_fail}] 
 	dict for {n v} $args {
 	    set $n $v
 	}
@@ -144,15 +150,17 @@ if {0} {
 	}]
     }
 
+    proc my_recaptcha_pass {req params} {
+	return [Http Ok $req "Passed ReCAPTCHA ($params)" text/plain]
+    }
+
     Nub code /recap1/ {
 	set r [jQ form $r .autoform target '#result']
 	set r [Http NoCache $r]
 
 	# everything from here is content:
 	<div> [subst {
-	    [[lindex [info class instances ::ReCAPTCHA] 0] form class autoform before [<text> field default] after [<submit> ok] pass {
-		set r [Http Ok $r "Passed ReCAPTCHA ($args)" text/plain]
-	    }]
+	    [[lindex [info class instances ::ReCAPTCHA] 0] form class autoform before [<text> field default] after [<submit> ok] pass my_recaptcha_pass]
 	    [<div> id result {}]
 	}]
     }
