@@ -1017,7 +1017,7 @@ oo::class create ::Httpd {
 			set file ""	;# this is not a file
 
 			# ensure content-length is correct
-			dict set reply content-length [string length $content]
+			dict set reply content-length [string length $content]http://paste.debian.net/110953/
 			#Debug.httpdlow {post-CE content length [string length $content]}
 		    } elseif {[dict exists $reply -file]} {
 			# the app has returned the pathname of a file instead of content
@@ -1059,9 +1059,9 @@ oo::class create ::Httpd {
 			    # send appropriate content range and length fields
 			    set code 206	;# partial content
 			    dict set reply content-range "bytes $from-$to/$size"
-			    dict set reply content-length [expr {$from-$to+1}]
+			    dict set reply content-length [expr {$to-$from+1}]
 
-			    Debug.httpd {range: [dict get $reply content-range]}
+			    Debug.httpd {range: [dict get $reply content-range] of length [dict get $reply content-length]}
 			}
 		    }
 		}
@@ -1120,8 +1120,10 @@ oo::class create ::Httpd {
 	    }
 
 	    # now attend to caching generated content.
-	    if {$empty || [dict get $reply content-length] == 0} {
-		set cache 0	;# don't cache no content
+	    if {$empty
+                || [dict exists $reply content-range]
+                || [dict get $reply content-length] == 0} {
+		set cache 0	;# don't cache no content or range
 	    } elseif {$cache} {
 		# use -dynamic flag to avoid caching even if it was requested
 		set cache [expr {![dict exists $reply -dynamic]
@@ -1296,7 +1298,7 @@ oo::class create ::Httpd {
 		my readable
 	    }
 	} elseif {![my close? $r]} {
-	    # special case 100-continue ... 
+	    # special case 100-continue ...
 	    dict set replies $trx [my Format $r $cache]
 	    Debug.httpd {[info coroutine] ADD CONTINUATION: ([dict keys $replies])}
 	    # this is a continuation - we expect more
