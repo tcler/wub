@@ -406,10 +406,12 @@ namespace eval ::Site {
 	    }
 	    dict unset section domain
 
-	    if {![string match {[A-Z]*} $domain]
-		|| [string map {" " ""} $domain] ne $domain} {
-		error "Nub '$sect' domain arg '$domain' is badly formed."
-	    }
+	    if {0} {
+                if {![string match {[A-Z]*} $domain]
+                    || [string map {" " ""} $domain] ne $domain} {
+                    error "Nub '$sect' domain arg '$domain' is badly formed."
+                }
+            }
 
 	    if {[dict exists $section -loaddir]} {
 		set dir [dict get $section -loaddir]
@@ -422,6 +424,11 @@ namespace eval ::Site {
 		dict unset section -loadfile
 	    }
 
+            lassign [split $domain] domain instname
+            if {$instname eq ""} {
+                set instname $sect
+            }
+
 	    set a {}
 	    foreach {n v} $section {
 		lappend a $n $v
@@ -431,12 +438,12 @@ namespace eval ::Site {
 		# this is a threaded domain
 		set targs [dict get $a -threaded]
 		dict unset a -threaded
-		Debug.nubsite {Nub domain $url [list Threaded ::Domains::$sect] {*}$targs $domain $a}
-		Nub domain $url [list Threaded ::Domains::$sect] {*}$targs $domain {*}$a
+		Debug.nubsite {Nub domain $url [list Threaded ::Domains::$instname] {*}$targs $domain $a}
+		Nub domain $url [list Threaded ::Domains::$instname] {*}$targs $domain {*}$a
 	    } else {
 		# this is a non-threaded domain
-		Debug.nubsite {Nub domain $url [list $domain ::Domains::$sect] $a}
-		Nub domain $url [list $domain ::Domains::$sect] {*}$a
+		Debug.nubsite {Nub domain $url [list $domain ::Domains::$instname] $a}
+		Nub domain $url [list $domain ::Domains::$instname] {*}$a
 	    }
 	} elseif {[dict exists $section block]} {
 	    # Block Nub section
