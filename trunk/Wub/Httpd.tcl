@@ -722,7 +722,7 @@ oo::class create ::Httpd {
 	my writable
     }
 
-    # respond - to client with as many consecutive responses as he can consume
+    # respond - to client with as many consecutive responses as it can consume
     method respond {} {
 	variable sequence
 	variable satisfied
@@ -842,6 +842,7 @@ oo::class create ::Httpd {
 		    ::watchdog grace [self] -1	;# stop the watchdog resetting the link
 
 		    if {[llength $range]} {
+                        # process file content as a range
 			lassign $range from to
 			chan seek $fd $from
 			set bytes [expr {$to-$from+1}]
@@ -1017,7 +1018,7 @@ oo::class create ::Httpd {
 			set file ""	;# this is not a file
 
 			# ensure content-length is correct
-			dict set reply content-length [string length $content]http://paste.debian.net/110953/
+			dict set reply content-length [string length $content]
 			#Debug.httpdlow {post-CE content length [string length $content]}
 		    } elseif {[dict exists $reply -file]} {
 			# the app has returned the pathname of a file instead of content
