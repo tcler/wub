@@ -270,6 +270,8 @@ class create ::Direct {
     method do {r} {
         variable mount
         variable ctype
+        variable object
+        variable namespace
 
 	# get query dict
 	set qd [Query parse $r]
