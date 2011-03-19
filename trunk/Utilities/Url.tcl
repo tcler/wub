@@ -40,7 +40,7 @@ namespace eval ::Url {
     #
     # Results:
     #	The decoded value
-    
+
     proc decode {str} {
 	Debug.url {decode '$str'} 10
 	variable dmap
@@ -73,7 +73,7 @@ namespace eval ::Url {
 	}
     }
 
-    # normalize -- 
+    # normalize --
     #
     #	collapse and normalize //, ../ and . components to avoid tricks
     #	like //cgi-bin that fail to match the /cgi-bin prefix
@@ -182,7 +182,7 @@ namespace eval ::Url {
 	return [list 1 $r $suffix $path]
     }
 
-    # parse -- 
+    # parse --
     #
     #	parse a url into its constituent parts
     #
@@ -214,7 +214,16 @@ namespace eval ::Url {
 	    }
 	}
 
-	Debug.url {Url parse post regexp: [array get x]}	
+        if {[info exists x(-host)]} {
+            # clean up host - check its validity?
+            set x(-host) [string tolower $x(-host)]
+        }
+        if {[info exists x(-scheme)]} {
+            # clean up scheme - check its validity?
+            set x(-scheme) [string tolower $x(-scheme)]
+        }
+
+	Debug.url {Url parse post regexp: [array get x]}
 
 	if {[info exists x(-scheme)]} {
 	    set x(-url) [url [array get x]]
@@ -404,7 +413,7 @@ namespace eval ::Url {
 	Debug.url {Url range: '$url' -> '[join [lrange [split $url /] $from $to] /]'}
 	return [join [lrange [split $url /] $from $to] /]
     }
-    
+
     proc tail {url} {
 	Debug.url {Url tail: '$url' -> '[lindex [split $url /] end]'}
 	return [lindex [split $url /] end]
@@ -415,7 +424,7 @@ namespace eval ::Url {
 }
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
-    # test normalization 
+    # test normalization
     foreach {i o exp} {
 	example.com http://example.com/ "A URI with a missing scheme is normalized to a http URI"
 	http://example.com http://example.com/ "An empty path component is normalized to a slash"
