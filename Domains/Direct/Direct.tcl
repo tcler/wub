@@ -47,9 +47,11 @@ set ::API(Domains/Direct) {
 	This concept is an extension of TclHttpd's domain of the same name.
     }
     namespace {namespace in which to invoke commands}
+    object {object in which to invoke commands}
     ctype {default content-type of returned values}
     wildcard {process to be used if a request doesn't match any proc in $namespace (default /)}
     correct {insist that the top level domain is referenced with a trailing / (default: yes)}
+    package {load named package when constructing this object}
 }
 
 class create ::Direct {
@@ -326,15 +328,14 @@ class create ::Direct {
             package require $package
         }
 
+	set wildcard /[string trim $wildcard /]
+
 	# one or the other of namespace or object must exist
 	if {![info exists namespace] && ![info exists object]} {
 	    # no namespace or object - must be a mixin
-	    next? {*}$args mount $mount
 	    set object [self]
 	    Debug.direct {mixin Direct [self] class: '[info object class [self]]', mixins: '[info class mixins [info object class $object]]' methods: '[info class methods [info object class $object] -private -all]'}
 	}
-
-	set wildcard /[string trim $wildcard /]
 
 	if {[info exists object]} {
 	    if {[info exists namespace]} {
