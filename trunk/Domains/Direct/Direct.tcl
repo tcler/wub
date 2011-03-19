@@ -359,7 +359,7 @@ class create ::Direct {
 
 	    # construct a dict from method name to the formal parameters of the method
 	    set class [info object class $object]
-	    set methods {}
+	    variable methods {}
 	    set superclass [info class superclasses $class]
 	    set mixins [info class mixins $class]
 	    foreach m [lreverse [lsort -dictionary [info class methods $class -private -all]]] {
