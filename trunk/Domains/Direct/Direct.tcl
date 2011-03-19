@@ -3,7 +3,7 @@
 # Provides wildcard dispatch, /photo/1234 handled by photo::/default
 #
 # Examples:
-#  1) Create a Direct domain handler (fred) which will interpret URLs 
+#  1) Create a Direct domain handler (fred) which will interpret URLs
 #  with a prefix /fred/ as proc calls within a namespace ::Fred
 #
 #   Direct fred namespace ::Fred prefix /fred/
@@ -57,7 +57,7 @@ class create ::Direct {
 
     method do_ns {rsp} {
 	Debug.direct {direct ns:$namespace mount:$mount ctype:$ctype suffix:'[dict get $rsp -suffix]'}
-	
+
 	# search for a matching command prefix
 	set fn [dict get $rsp -suffix]; if {$fn eq ""} {set fn /}
 
@@ -72,7 +72,7 @@ class create ::Direct {
 
 	set extra {}
 	set cmd ""
-	while {$cmd eq "" && [llength $cprefix]} { 
+	while {$cmd eq "" && [llength $cprefix]} {
 	    set probe [info commands ${namespace}::/[string trim [join $cprefix /] /]]
 	    Debug.direct {direct probe: ($probe) - ${namespace}::/[string trim [join $cprefix /] /]}
 	    if {[llength $probe] == 1} {
@@ -160,7 +160,7 @@ class create ::Direct {
     # locate a matching direct method in an object
     method do_obj {rsp} {
 	Debug.direct {do direct $object $mount $ctype}
-	
+
 	# search for a matching command prefix
 	set fn [dict get $rsp -suffix]
 	# strip extensions from each component
@@ -173,7 +173,7 @@ class create ::Direct {
 	#set cprefix [split [armour $fn] /]
 	set extra {}
 	set cmd ""
-	while {$cmd eq "" && [llength $cprefix]} { 
+	while {$cmd eq "" && [llength $cprefix]} {
 	    Debug.direct {searching for ($cprefix) in '$object' ($methods)}
 	    set probe [dict keys $methods /[join $cprefix /]]
 	    # this strict match can only have 1 or 0 results
@@ -253,7 +253,7 @@ class create ::Direct {
 	}
     }
 
-    # called as "do $request" causes procs defined within 
+    # called as "do $request" causes procs defined within
     # the specified namespace to be invoked, with the request as an argument,
     # expecting a response result.
     method do {r} {
@@ -306,10 +306,14 @@ class create ::Direct {
 	variable correct 1	;# insist on trailing /
 
 	foreach {n v} $args {
-	    set [string trimleft $n -] $v
+	    variable [string trimleft $n -] $v
 	    Debug.direct {variable: $n $v}
 	}
 	variable {*}[Site var? Direct]	;# allow .ini file to modify defaults
+
+        if {[info exists package]} {
+            package require $package
+        }
 
 	# one or the other of namespace or object must exist
 	if {![info exist namespace] && ![info exists object]} {
@@ -367,7 +371,7 @@ class create ::Direct {
 			set needargs 0
 			set params [lrange $def 1 end]	;# remove 'r' from params
 		    }
-		    
+
 		    Debug.direct {[lindex $object 0] method $m record definition: [list $needargs $params]}
 		    dict set methods $m [list $needargs $params]
 		}
