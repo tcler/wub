@@ -33,7 +33,7 @@ set ::API(Domains/Nub) {
 
 	== Synthetic Nubs ==
 	The following synthetic nubs are available to pre-filter or manipulate the URL request, or to provide immediate content:
-	
+
 	;[http:../Server/Block Block]: instructs the server to place an IP address which attempts to access a matching URL onto a block list, preventing it from accessing the server in future.
 	;<url> redirect <to> : Sends the client a redirect which causes it to attempt to load the specified 'to' URL.
 	;<url> code <script> ?<content-type>?: Returns the result of evaluating the supplied tcl script in the Nub namespace.
@@ -54,7 +54,7 @@ oo::class create ::NubClass {
 	set about [string trim $about "\n"]
 	set about [::textutil::untabify $about]
 	set about [::textutil::undent $about]
-	
+
 	if {[catch {
 	    stx2html::translate $about
 	} result eo]} {
@@ -110,18 +110,23 @@ oo::class create ::NubClass {
 	    }
 
 	    lassign $domain domain name
-	    
+
 	    switch -- [string tolower $domain] {
 		redirect {
 		    set extra [Form <text> to_$count class autogrow size 40 label "To:" [tclarmour $body]]
 		    set preamble [<p> "Redirect $section URL to the $body URL"]
-		} 
+		}
 
 		rewrite {
 		    set extra [Form <textarea> to_$count class autogrow cols 60 label "To:" [tclarmour $body]]
 		    set preamble [<p> "Rewrite $section URL to $body"]
 		}
-		
+
+		regsub {
+		    set extra [Form <textarea> to_$count class autogrow cols 60 label "To:" [tclarmour $body]]
+		    set preamble [<p> "Regsub $section URL to $body"]
+		}
+
 		block {
 		    set extra [Form <checkbox> block_$count label "Block?" checked 1 value 1]
 		    set preamble [<p> "Block any client which accesses $section from this server."]
@@ -216,7 +221,7 @@ oo::class create ::NubClass {
 	foreach n [array names API Domains/*] {
 	    lappend domnames [file tail $n]
 	}
-	set selection [lsort -dictionary [list Rewrite Block Redirect {*}$domnames Literal Code]]
+	set selection [lsort -dictionary [list Rewrite Regsub Block Redirect {*}$domnames Literal Code]]
 	append content [<form> new action add style {width:99%;float:left;} {
 	    [<fieldset> {
 		[<legend> "New Nub"]
@@ -234,7 +239,7 @@ oo::class create ::NubClass {
 		[<submit> submit style {float:right} value apply Apply]
 		[<p> "Compile nubs and attempt to reconfigure the server."]
 	    }]
-	}]	
+	}]
 
 	# construct Load Nubs section
 	variable nubdirSys; variable nubdir
@@ -291,14 +296,14 @@ oo::class create ::NubClass {
 	set nubs {}
 	set acc {}
 
-	foreach style {Rewrite Block Redirect} {
+	foreach style {Rewrite Regsub Block Redirect} {
 	    foreach {h s f} [my donubStyle $ordered $style] {
 		lappend acc [<h3> [<a> href # "$h $s"]] $f
 	    }
 	}
 
 	foreach key $ordered {
-	    if {[dict get $urls $key domain] in {Block Rewrite Redirect}} continue
+	    if {[dict get $urls $key domain] in {Block Rewrite Regsub Redirect}} continue
 	    set keymap([incr count]) $key
 	    lassign [my donub $urls $key $count] h s f
 	    lappend acc [<h3> [<a> href # "$h $s"]] $f
@@ -328,7 +333,7 @@ oo::class create ::NubClass {
 		lappend key {*}$path
 		return $key
 	    }
-	    
+
 	    /* {
 		# relative URL - across all hosts
 		set key *
@@ -397,32 +402,33 @@ oo::class create ::NubClass {
 	    set keymap($el) $nkey
 	    set section [my non_auth $url]
 	}
-	
+
 	set domain [dict get $args domain_$el]; dict unset args domain_$el
 	switch -- $domain {
 	    Redirect -
+            Regsub -
 	    Rewrite {
 		dict set urls $keymap($el) body [dict get $args to_$el]
 	    }
-	    
+
 	    Block {
 		if {![dict get $args block_$el]} {
 		    dict unset urls $keymap($el)
 		}
 	    }
-	    
+
 	    Literal -
 	    Code {
 		dict set urls $keymap($el) body content [dict get $args content_$el]
 		dict set urls $keymap($el) body ctype [dict get $args ctype_$el]
 	    }
-	    
+
 	    default {
 		# this is a proper domain
 		global API
 		if {[info exists API(Domains/$domain)]} {
 		    set opts [lassign $API(Domains/$domain) about]
-		    
+
 		    foreach {opt text} $opts {
 			if {[dict exists $args ${opt}_$el]} {
 			    dict set urls $keymap($el) body $opt [dict get $args ${opt}_$el]
@@ -506,6 +512,7 @@ oo::class create ::NubClass {
 			    }
 			}
 			Redirect -
+                        Regsub -
 			Rewrite {
 			    set line "[string tolower $domain] $section $body"
 			}
@@ -521,7 +528,7 @@ oo::class create ::NubClass {
 	    }
 	    variable nubdir
 	    set file [file rootname [file join $nubdir [file tail [dict get $args save_file]]]].nub
-	    
+
 	    if {[file exists $file]} {
 		file rename -force $file $file.[clock seconds]
 	    }
@@ -604,12 +611,137 @@ oo::class create ::NubClass {
 	return [string map [list %N $domain %EM [::Nub armr $e] %EO $eo] [lambda {do r} {Http ServerError $r "Nub failed to construct domain '%N' because '%EM' upon construction" [list %EO]}]]
     }
 
+    # generate definition of each regsub
+    method gen_regsubdefs {regsubs} {
+	upvar 1 defs defs	;# for accumulating definitions
+
+	set definitions ""
+	dict for {n d} $regsubs {
+	    Debug.nub {DEFINING REGSUB: $n $d}
+            set map [list %N $n %URL% [dict get $d body regexp] %SS% [dict get $d body subspec] %AURL% [tclarmour $url] %ASS% [tclarmour $subspec]]
+            set rw [string map $map {
+                if {[catch {
+                    set defs(%N) {
+                        ::apply {r {
+                            return [regsub -- {%URL%} //[dict get $r -host]/[dict get $r -path] %SS%]
+                        }}
+                    }
+                } e eo]} {
+                    Debug.error {Nub Definition Error: '$e' in rewrite "-regsub %AURL% -> %ASS%".  ($eo)}
+                    set defs(%N) [::Nub failed "%N -regsub %URL%->%SS%" $e $eo]
+                }
+            }]
+            append definitions [string trim $rw \n] \n
+        }
+        Debug.nub {DEFINED REGSUBS: $definitions}
+        return $definitions
+    }
+
+    # generate regsub code
+    method gen_regsubs {regsubs} {
+	variable defs
+	set rewriting ""
+	foreach {url name} $regsubs {
+	    if {[string match ^* $url]
+                && ![string match ^http* [string tolower $url]]
+            } {
+		set url "^http:[string range $url 1 end]"	;# rewrite to contain http prefix
+	    }
+	    Debug.nub {gen_regsubs url:'$url' name:'$name'}
+	    append rewriting [string map [list %URL% $url %N% $name %AURL% [tclarmour $url]] {{%URL%} {
+		set url [{*}$defs(%N%) $r]
+		Debug.nub {rewrite: '%AURL%' -> '$url' ($defs(%N%))}
+		lappend rw_transforms {%URL%} $url
+	    }}] \n
+	}
+	return $rewriting
+    }
+
+    # generate definitions for rewrites
+    method gen_rewritedefs {rewrites} {
+	upvar 1 defs defs	;# for accumulating definitions
+
+	set definitions ""
+	dict for {n d} $rewrites {
+	    Debug.nub {DEFINING REWRITE: $n $d}
+            set script [dict get $d body rewrite]
+            set map [list %N $n %L% $script %AL% [tclarmour $script]]
+            set rw [string map $map {
+                if {[catch {
+                    set defs(%N) {
+                        ::apply {r {
+                            return "%L%"
+                        }}
+                    }
+                } e eo]} {
+                    Debug.error {Nub Definition Error: '$e' in rewrite "lambda r {%AL%}".  ($eo)}
+                    set defs(%N) [::Nub failed %N $e $eo]
+                }
+            }]
+            append definitions [string trim $rw \n] \n
+        }
+
+	Debug.nub {DEFINED REWRITES: $definitions}
+	return $definitions
+    }
+
+    # generate rewritingcode
+    method gen_rewrites {rewrites} {
+	variable defs
+	set rewriting ""
+	foreach {url name} $rewrites {
+	    if {[string match ^* $url] && ![string match ^http* [string tolower $url]]} {
+		set url "^http:[string range $url 1 end]"	;# rewrite to contain http prefix
+	    }
+	    Debug.nub {gen_rewrites url:'$url' name:'$name'}
+	    append rewriting [string map [list %URL% $url %N% $name %AURL% [tclarmour $url]] {{%URL%} {
+		set url [{*}$defs(%N%) $r]
+		Debug.nub {rewrite: '%AURL%' -> '$url' ($defs(%N%))}
+		lappend rw_transforms {%URL%} $url
+	    }}] \n
+	}
+	return $rewriting
+    }
+
+
+    # generate code for rewriting
+    # TODO: this code doesn't include port in comparison - it likely should.
+    method code_rewrites {rewriting} {
+	Debug.nub {code_rewrites: $rewriting}
+	if {$rewriting eq ""} {
+	    return ""
+	}
+
+        return [string map [list %RW% $rewriting] {
+	    # Rewrites
+	    set count 0
+	    set done 0
+	    set rw_transforms {}
+	    set r [dict merge $r [Url parse [dict get $r -url]]]
+	    while {!$done && [incr count] < 30} {
+		set prior [Url url $r]
+		Debug.nub {pre-RW '$prior'}
+		switch -regexp -- $prior {
+		    %RW%
+		    default {
+			set url [dict get $r -url]
+			set done 1
+		    }
+		}
+		Debug.nub {post-RW [Url parse $url] transforms:($rw_transforms)}
+		set r [dict merge $r [Url parse $url]]
+		set post [Url url $r]
+		if {$prior eq $post} break
+		dict set r -url [Url url $r]
+	    }
+	}]
+    }
 
     # generate constructors for each domain
     # each definition is a named sub-dictionary
     # we generate catch-wrapped code for each domain definition
     # to set a runtime defs() with the value of the constructor
-    # rewrites are a special case.
+    # rewrites and regsubs are a special case.
     # the result of this code is emitted into "definitions"
     method gen_definitions {domains} {
 	upvar 1 defs defs	;# for accumulating definitions
@@ -618,35 +750,10 @@ oo::class create ::NubClass {
 	dict for {n d} $domains {
 	    Debug.nub {DEFINING: $n $d}
 	    set body [dict get $d body]; dict unset d body
-	    
-	    if {[string match _rewrite* $n]} {
-		# this is a rewrite definition - generate code to do the rewrite
-		if {[lindex $body 0] eq "-regsub"} {
-		    lassign $body -> subspec
-		    set url [dict get $d url]
 
-		    set rwtemplate {
-			if {[catch {set defs(%N) {::apply {r {return [regsub -- {%URL%} //[dict get $r -host]/[dict get $r -path] %SS%]}}}} e eo]} {
-			    Debug.error {Nub Definition Error: '$e' in rewrite "-regsub %AURL% -> %ASS%".  ($eo)}
-			    set defs(%N) [::Nub failed "%N -regsub %URL%->%SS%" $e $eo]
-			}
-		    }
-		    append definitions [string trim [string map [list %N $n %URL% $url %SS% $subspec %AURL% [tclarmour $url] %ASS% [tclarmour $subspec]] $rwtemplate] \n] \n
-		} else {
-		    set script [lindex $body 0]
-		    set rwtemplate {
-			if {[catch {set defs(%N) {::apply {r {return "%L%"}}}} e eo]} {
-			    Debug.error {Nub Definition Error: '$e' in rewrite "lambda r {%AL%}".  ($eo)}
-			    set defs(%N) [::Nub failed %N $e $eo]
-			}
-		    }
-		    append definitions [string trim [string map [list %N $n %L% $script %AL% [tclarmour $script]] $rwtemplate] \n] \n
-		}
-		continue
-	    }
-	    
 	    # handle domain package require
 	    set domain [dict get $d domain]; dict unset d domain
+            variable defined
 	    if {![info exists defined($domain)]} {
 		# emit a single "package require" per domain.
 		incr defined($domain)
@@ -684,35 +791,67 @@ oo::class create ::NubClass {
 	Debug.nub {DEFINED: $definitions}
 	return $definitions
     }
-    
-    # generate rewritingcode
-    method gen_rewrites {rewrites} {
-	variable defs
-	set rewriting ""
-	foreach {url name} $rewrites {
-	    if {[string match ^* $url] && ![string match ^http* [string tolower $url]]} {
-		set url "^http:[string range $url 1 end]"	;# rewrite to contain http prefix
-	    }
-	    Debug.nub {gen_rewrites url:'$url' name:'$name'}
-	    append rewriting [string map [list %URL% $url %N% $name %AURL% [tclarmour $url]] {{%URL%} {
-		set url [{*}$defs(%N%) $r]
-		Debug.nub {rewrite: '%AURL%' -> '$url' ($defs(%N%))}
-		lappend rw_transforms {%URL%} $url
-	    }}] \n
-	}
-	return $rewriting
-    }
-    
+
     # generate redirect code
     method gen_redirects {redirects} {
 	set redirecting ""
-	foreach {from to} $redirects {
-	    set url [join [lassign $from host] /]
-	    Debug.nub {gen_redirects host:'$host' url:'$url' to:'$to'}
-	    append redirecting [string map [list %H% $host %U% $url %T% $to] {
-		"%H%,%U%" { Debug.nub {REDIR %U% -> %T%}; return [Http Redir $r %T%] }
-	    }] \n
-	}
+	foreach {from body} $redirects {
+            # $path is the from path
+            # $host is the from host
+	    set path [join [lassign $from host] /]
+
+            # allow the caller to specify which redirect Http method to use.
+            if {[dict exists $body method]} {
+                set method [dict exists $body method]
+            } else {
+                set method Redir
+            }
+
+            if {![dict exists $body host]
+                && ![dict exists $body port]
+                && ![dict exists $body path]
+            } {
+                # this is a simple literal redirection
+                set to [dict get? $body redirect]
+                Debug.nub {gen_redirects simple host:'$host' path:'$path' to:'$to'}
+                append redirecting [string map [list %H% $host %P% $path %T% $to  %M% $method] {
+                    "%H%,%P%" {
+                        Debug.nub {REDIR %P% -> %T%}
+                        return [Http %M% $r %T%]
+                    }
+                }] \n
+            } else {
+                # this is a redirection which substitutes url parts
+                if {[dict exists $body host]} {
+                    # want to substitute the host part
+                    set HOST [list dict set r -host [dict get $body host]];
+                } else {
+                    set HOST ""
+                }
+                if {[dict exists $body port]} {
+                    # want to substitute the port part
+                    set PORT [list dict set r -port [dict get $body port]];
+                } else {
+                    set PORT ""
+                }
+                if {[dict exists $body path]} {
+                    # want to substitute the path part
+                    set PATH [list dict set r -path [dict get $body path]];
+                } else {
+                    set PATH ""
+                }
+
+                Debug.nub {gen_redirects compound host:'$host' path:'$path'}
+                append redirecting [string map [list %H% $host %P% $path %M% $method %HOST% $HOST %PORT% $PORT %PATH% $PATH] {
+                    "%H%,%P%" {
+                        Debug.nub {REDIR //%H%%P%}
+                        %HOST%%PORT%%PATH%
+                        return [Http %M% $r [Url uri $r]]
+                    }
+                }] \n
+            }
+        }
+
 	return [string map [list %RD% $redirecting] {
 	    # Redirects
 	    switch -glob -- [dict get $r -host],[dict get $r -path] {
@@ -782,7 +921,7 @@ oo::class create ::NubClass {
 	} else {
 	    # Domain definition e.g. [/moop/] domain File fred ..
 	    Debug.nub {defining domain: $name}
-	    
+
 	    # determine or construct a name for the domain
 	    if {$name eq ""} {
 		# the Domain constructor doesn't specify a name
@@ -790,7 +929,7 @@ oo::class create ::NubClass {
 		variable uniq
 		set name _anonymous[incr uniq]	;# so make up a name
 	    }
-	    
+
 	    # see if we're defining or merely referencing domain
 	    if {[dict exists $domains $domain]} {
 		# this named domain already exists
@@ -801,10 +940,10 @@ oo::class create ::NubClass {
 		}
 	    } else {
 		# Finally: defining a new domain with this element
-		
+
 		# add 'mount' parameter to constructor
 		append body " mount [join [lrange $key 1 end] /]"
-		
+
 		# generate dict-/ redirects
 		if {$redirect_dirs && [string match */ $section]} {
 		    # if the key is a directory, we redirect anything
@@ -812,10 +951,10 @@ oo::class create ::NubClass {
 		    set rkey [my parseurl [string trimright $section /]]
 		    dict set redirects $rkey $section
 		}
-		
+
 		# record this domain for possible later reference
 		dict set domains $name [list domain $domain body $body]
-		
+
 		# we have now reprocessed the domain definition
 		dict set processed $key [list domain $domain name $name section $section auth $auth]
 		Debug.nub {accum_domain: $name domain $domain ($body)}
@@ -934,40 +1073,7 @@ oo::class create ::NubClass {
 	}
 	return $switch
     }
-
-    # generate code for rewriting
-    # TODO: this code doesn't include port in comparison - it likely should.
-    method code_rewrites {rewriting} {
-	Debug.nub {code_rewrites: $rewriting}
-	if {$rewriting eq ""} {
-	    return ""
-	}
-
-	set rw {
-	    # Rewrites
-	    set count 0
-	    set done 0
-	    set rw_transforms {}
-	    set r [dict merge $r [Url parse [dict get $r -url]]]
-	    while {!$done && [incr count] < 30} {
-		set prior [Url url $r]
-		Debug.nub {pre-RW '$prior'}
-		switch -regexp -- $prior {
-		    %RW%
-		    default {
-			set url [dict get $r -url]
-			set done 1
-		    }
-		}
-		Debug.nub {post-RW [Url parse $url] transforms:($rw_transforms)}
-		set r [dict merge $r [Url parse $url]]
-		set post [Url url $r]
-		if {$prior eq $post} break
-		dict set r -url [Url url $r]
-	    }
-	}
-	return [string map [list %RW% $rewriting] $rw]
-    }
+		    variable uniq
 
     method generate {urls {domains {}} {defaults {}}} {
 	upvar error error
@@ -981,9 +1087,13 @@ oo::class create ::NubClass {
 	Debug.nub {URLs: $urls}
 
 	# ordered set of nubs is sorted into one of these categories
-	foreach cat {processed rewrites redirects blocking auths definitions} {
+	foreach cat {processed rewrites regsubs
+            rewritedefs regsubdefs
+            redirects blocking auths definitions
+        } {
 	    set $cat {}
 	}
+        variable uniq
 
 	foreach key $ordered {
 	    set section [dict get $urls $key section]	;# original URL
@@ -999,15 +1109,23 @@ oo::class create ::NubClass {
 
 		rewrite {
 		    # sort rewrites into rewrite category
-		    variable uniq
 		    set name _rewrite[incr uniq]	;# make up a name for rewrite
 		    dict set rewrites $key $name
 
-		    # record this rewrite as a domain so we can generate the code
-		    # defining the rewrite operation
-		    dict set domains $name [list domain $domain body [dict get $urls $key body] url $section]
-		    continue
+		    # also record this rewrite as a domain so we can generate
+                    # the code defining the rewrite operation
+		    dict set rewritedefs $name [list domain $domain body [dict get $urls $key body] url $section]
 		}
+
+                regsub {
+		    # sort rewrites into rewrite category
+		    set name _regsub[incr uniq]	;# make up a name for rewrite
+		    dict set regsubs $key $name
+
+		    # also record this rewrite as a domain so we can generate
+                    # the code defining the rewrite operation
+		    dict set regsubdefs $name [list domain $domain body [dict get $urls $key body] url $section]
+                }
 
 		block {
 		    # accumulate blocks into a list of patterns to block
@@ -1032,7 +1150,7 @@ oo::class create ::NubClass {
 		}
 	    }
 	}
-	
+
 	Debug.nub {DOMAINS: $domains}
 	Debug.nub {PROCESSED: $processed}
 	#Debug.nub {REDIRECTS: $redirects}
@@ -1043,12 +1161,18 @@ oo::class create ::NubClass {
 	# generate code for each of the categories
 	# order is important
 	set blocking [my gen_blocking $blocking]
-	set definitions [my gen_definitions $domains]	;# mods defs()
+	append definitions [my gen_definitions $domains] \n	;# mods defs()
+
 	set rewriting [my gen_rewrites $rewrites]
+        append definitions [my gen_rewritedefs $rewritedefs] \n
+
+	set regsubbing [my gen_regsubs $regsubs]
+        append definitions [my gen_regsubdefs $regsubdefs] \n
+
 	set redirecting [my gen_redirects $redirects]
 	set switch [my code_domains $processed]
 	my code_trailing $processed	;# handle trailing/ problem
-	set rw [my code_rewrites $rewriting]
+	set rw [my code_rewrites [dict merge $rewriting $regsubbing]]
 	set au [my code_auths $auths]
 
 	# ASSEMBLE generated code
@@ -1080,15 +1204,15 @@ oo::class create ::NubClass {
 	    proc ::%NS%::do {op r} {
 		Debug.nub {RX: [dict get? $r -uri] - [dict get? $r -url] - ([Url parse [dict get? $r -url]]) }
 		variable defs	;# functional definitions
-		
+
 		# get URL components to be used in URL switches
 		set r [dict merge $r [Url parse [dict get $r -url]]]
-		
-		%RW%	;# apply rewrite rules
-		
+
+		%RW%	;# apply rewrites
+
 		# apply Blocks
 		%B%
-		
+
 		# apply Redirects
 		%RD%
 
@@ -1117,7 +1241,7 @@ oo::class create ::NubClass {
 	Debug.nub {GEN: $p}
 	return $p
     }
-    
+
     method sect2dict {sect} {
 	set result {}
 	foreach {n v} $sect {
@@ -1129,10 +1253,41 @@ oo::class create ::NubClass {
 	return $result
     }
 
-    method rewrite {url body} {
-	#puts stderr "RW: '$url' '$body'"
+    # rewriter - alternate constructor for rewrite
+    method rewriter {url args} {
+        if {[llength $args] == 1} {
+            set args [lindex $args 0]
+        }
 	variable urls
-	dict set urls $url [list domain Rewrite body [list $body] section $url]
+	dict set urls $url [list domain Rewrite body $args section $url]
+    }
+
+    method rewrite {url body args} {
+	#puts stderr "RW: '$url' '$body'"
+        if {[llength $args] == 1} {
+            set args [lindex $args 0]
+        }
+	variable urls
+	dict set urls $url [list domain Rewrite body [list rewrite $body {*}$args] section $url]
+    }
+
+    # regsubber - alternate constructor for regsub
+    method regsubber {url args} {
+	#puts stderr "REGSUB: '$url' '$body'"
+        if {[llength $args] == 1} {
+            set args [lindex $args 0]
+        }
+	variable urls
+	dict set urls $url [list domain Regsub body $args section $url]
+    }
+
+    method regsub {url regsub args} {
+	#puts stderr "REGSUB: '$url' '$body'"
+        if {[llength $args] == 1} {
+            set args [lindex $args 0]
+        }
+	variable urls
+	dict set urls $url [list domain Regsub body [list regsub $regsub {*}$args] section $url]
     }
 
     method block {url} {
@@ -1140,9 +1295,21 @@ oo::class create ::NubClass {
 	dict set urls [my parseurl $url] [list domain Block section $url]
     }
 
-    method redirect {url to} {
+    # redirector - alternate constructor for redirect,
+    method redirector {url args} {
+        if {[llength $args] == 1} {
+            set args [lindex $args 0]
+        }
 	variable urls
-	dict set urls [my parseurl $url] [list domain Redirect body $to section $url]
+	dict set urls [my parseurl $url] [list domain Redirect body $args section $url]
+    }
+
+    method redirect {url to args} {
+        if {[llength $args] == 1} {
+            set args [lindex $args 0]
+        }
+	variable urls
+	dict set urls [my parseurl $url] [list domain Redirect body [list url $to {*}$args] section $url]
     }
 
     method literal {url content {ctype x-text/html-fragment}} {
@@ -1258,7 +1425,7 @@ oo::class create ::NubClass {
 	variable loaded {}
 	variable theme start
 	variable keymap
-
+        variable defined; array set defined {}
 	variable docurl /wub/docs/Domains/	;# this interfaces to the Mason domain /wub, if it's there
 	variable password ""
 	variable mount ""
@@ -1271,10 +1438,10 @@ oo::class create ::NubClass {
 	    Nub itself is a Domain which allows you to change the URLs the server responds to, and to create new nubs, edit or delete existing nubs, and apply them to the currently running server.
 
 	    A nub is a mapping from a URL glob to content.  The content may be provided by domain handlers, listed below.
-	    
+
 	    == Synthetic Nubs ==
 	    The following synthetic nubs are available to pre-filter or manipulate the URL request, or to provide immediate content:
-	    
+
 	    ;Block: Blocks an IP address which attempts to access the URL.
 	    ;Redirect: Sends the client a redirect.
 	    ;Code: Returns the result of evaluating tcl code.
@@ -1309,6 +1476,6 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     namespace eval Site {
 	variable docroot DOCROOT
     }
-    
+
     NubClass create Nub
 }
