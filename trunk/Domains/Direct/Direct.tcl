@@ -321,11 +321,7 @@ class create ::Direct {
 	variable wildcard /
 	variable correct 1	;# insist on trailing /
 
-	foreach {n v} $args {
-	    variable [string trimleft $n -] $v
-	    Debug.direct {variable: $n $v}
-	}
-	variable {*}[Site var? Direct]	;# allow .ini file to modify defaults
+	variable {*}[Site var? Direct] {*}$args	;# allow .ini file to modify defaults
 
         if {[info exists package]} {
             package require $package
