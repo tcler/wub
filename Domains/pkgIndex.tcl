@@ -51,6 +51,8 @@ package ifneeded Scgi 1.0 [list source [file join $dir Scgi Scgi.tcl]]
 
 package ifneeded WebSocket 1.0 [list source [file join $dir WebSocket WebSocket.tcl]]
 
+package ifneeded OAuth 1.0 [list source [file join $dir OAuth OAuth.tcl]]
+
 package ifneeded ExtLogin 1.0 [list source [file join $dir ExtLogin ExtLogin.tcl]]
 package ifneeded ExtLogin::OpenStreetMap 1.0 [list source [file join $dir ExtLogin OpenStreetMap.tcl]]
 package ifneeded ExtLogin::LastFM 1.0 [list source [file join $dir ExtLogin LastFM.tcl]]
