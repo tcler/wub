@@ -477,16 +477,16 @@ namespace eval ::Site {
 	    }
 	} elseif {[dict exists $section redirect]} {
 	    # Redirect Nub section
-	    dict with section {
-		Debug.nubsite {Nub redirect $url $redirect}
-		Nub redirect $url $redirect
-	    }
+            Debug.nubsite {Nub redirect $section}
+            Nub redirector [dict get $section url] {*}$section
 	} elseif {[dict exists $section rewrite]} {
 	    # Rewrite Nub section
-	    dict with section {
-		Debug.nubsite {Nub rewrite [lindex $url 0] $rewrite}
-		Nub rewrite [lindex $url 0] $rewrite
-	    }
+            Debug.nubsite {Nub rewrite [lindex $url 0] $rewrite}
+            Nub rewriter [dict get $section url] {*}$section
+	} elseif {[dict exists $section regsub]} {
+	    # Regsub Nub section
+            Debug.nubsite {Nub regsub $section}
+            Nub regsubber [dict get $section url] {*}$section
 	} elseif {[dict exists $section auth]} {
 	    # Auth Nub section
 	    dict with section {
