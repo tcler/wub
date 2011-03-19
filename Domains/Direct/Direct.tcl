@@ -269,6 +269,7 @@ class create ::Direct {
     # expecting a response result.
     method do {r} {
         variable mount
+        variable ctype
 
 	# get query dict
 	set qd [Query parse $r]
