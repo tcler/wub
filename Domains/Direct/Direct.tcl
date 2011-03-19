@@ -300,9 +300,9 @@ class create ::Direct {
     # parameters of matching proc, procs are matched from the -path or -suffix
     # components of the passed request
     constructor {args} {
-	set ctype "x-text/html-fragment"
-	set mount "/"
-	set wildcard /
+	variable ctype "x-text/html-fragment"
+	variable mount "/"
+	variable wildcard /
 	variable correct 1	;# insist on trailing /
 
 	foreach {n v} $args {
