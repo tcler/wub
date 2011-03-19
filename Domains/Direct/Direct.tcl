@@ -53,9 +53,12 @@ set ::API(Domains/Direct) {
 }
 
 class create ::Direct {
-    variable namespace object class ctype mount wildcard methods
-
     method do_ns {rsp} {
+        variable namespace
+        variable mount
+        variable ctype
+        variable wildcard
+
 	Debug.direct {direct ns:$namespace mount:$mount ctype:$ctype suffix:'[dict get $rsp -suffix]'}
 
 	# search for a matching command prefix
@@ -159,6 +162,12 @@ class create ::Direct {
 
     # locate a matching direct method in an object
     method do_obj {rsp} {
+        variable object
+        variable mount
+        variable ctype
+        variable wildcard
+        variable methods
+
 	Debug.direct {do direct $object $mount $ctype}
 
 	# search for a matching command prefix
@@ -257,6 +266,8 @@ class create ::Direct {
     # the specified namespace to be invoked, with the request as an argument,
     # expecting a response result.
     method do {r} {
+        variable mount
+
 	# get query dict
 	set qd [Query parse $r]
 	dict set r -Query $qd
@@ -316,7 +327,7 @@ class create ::Direct {
         }
 
 	# one or the other of namespace or object must exist
-	if {![info exist namespace] && ![info exists object]} {
+	if {![info exists namespace] && ![info exists object]} {
 	    # no namespace or object - must be a mixin
 	    next? {*}$args mount $mount
 	    set object [self]
