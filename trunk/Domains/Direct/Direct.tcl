@@ -393,12 +393,14 @@ class create ::Direct {
 	    if {![dict exists $methods $wildcard]} {
 		error "Wildcard method $wildcard must exist in object. ([dict keys $methods])"
 	    }
-	} else {
+	} elseif {[info exists namespace]} {
 	    # namespace must be fully qualified
 	    if {![string match "::*" $namespace]} {
 		set namespace ::$namespace
 	    }
-	}
+	} else {
+            error "neither namespace nor object were defined."
+        }
 	catch {next {*}$args}
     }
 }
