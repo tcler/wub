@@ -58,3 +58,5 @@ package ifneeded ExtLogin::OpenStreetMap 1.0 [list source [file join $dir ExtLog
 package ifneeded ExtLogin::LastFM 1.0 [list source [file join $dir ExtLogin LastFM.tcl]]
 
 package ifneeded ErrLog 1.0 [list source [file join $dir ErrLog ErrLog.tcl]]
+
+package ifneeded OSBTiny 1.0 [list source [file join $dir OSBTiny OSBTiny.tcl]]
