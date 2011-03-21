@@ -11,7 +11,7 @@ DESC="Wub Web Server"
 TCLSH=/usr/bin/tclsh
 STARTER="daemon"
 HOME=/var/www/wub/Wub/
-LOGS=/var/log/wub/
+LOGDIR=/var/log/wub/
 USER=www-data
 
 # load defaults by service
