@@ -6,6 +6,7 @@ set -x
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 DAEMON=/usr/lib/Wub/Wub/Site.tcl
 DAEMON_OPTS=""
+DAEMON_VERBOSE=1
 DESC="Wub Web Server"
 TCLSH=/usr/bin/tclsh
 STARTER="daemon"
@@ -38,7 +39,7 @@ case "$1" in
   start)
 	echo -n "Starting $DESC with $STARTER: "
 	if [ $STARTER = "daemon" ]; then
-	    /usr/bin/daemon --name=$NAME --chdir=$HOME --dbglog=$LOGDIR/wub.daemon --user=$USER.$USER --umask=005 --respawn --inherit --core --verbose=1 --debug=1 --errlog=$LOGDIR/wub.err --output=$LOGDIR/wub.out --command="$TCLSH $DAEMON $DAEMON_OPTS"
+	    /usr/bin/daemon --name=$NAME --chdir=$HOME --dbglog=$LOGDIR/wub.daemon --user=$USER.$USER --umask=005 --respawn --inherit --core --verbose=$DAEMON_VERBOSE --debug=1 --errlog=$LOGDIR/wub.err --output=$LOGDIR/wub.out --command="$TCLSH $DAEMON $DAEMON_OPTS"
 	else
 	    start-stop-daemon --start --quiet --background \
 		--chuid $USER:$USER \
