@@ -4,13 +4,13 @@
 #
 set -x
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-DAEMON=/usr/lib/Wub/Wub/Site.tcl
 DAEMON_OPTS=""
 DAEMON_VERBOSE=1
 DESC="Wub Web Server"
 TCLSH=/usr/bin/tclsh
 STARTER="daemon"
 HOME=/var/www/wub/Wub/
+DAEMON=$HOME/Site.tcl
 LOGDIR=/var/log/wub/
 USER=www-data
 
