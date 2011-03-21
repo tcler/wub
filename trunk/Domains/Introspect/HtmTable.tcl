@@ -152,12 +152,7 @@ oo::class create ::HtmTable {
         my variable rows
 		my variable attrs
 
-		if { ${attrs} ne "" } {
-			set attrs {*}${attrs}
-			set html "<table ${attrs}>"
-		} else {
-			set html "<table>"
-		}
+                set html "<table $attrs>"
 		for {set row 0} {${row}<=${rows}} {incr row} {
 			set ctok td
 			if { [array names tbl "${row},attrs"] ne "" } {
