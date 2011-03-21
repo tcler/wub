@@ -229,7 +229,7 @@ class create ::CGI {
 		# read the rest of the content
 		set c [read $pipe]
 		dict append r -content $c
-		fileevent $pipe entity [list [self] entity $r $pipe]
+		fileevent $pipe readable [list [self] entity $r $pipe]
 		Debug.cgi {read body [string length $c]'}
 	    }
 	} e eo]} {
