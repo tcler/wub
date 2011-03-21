@@ -192,6 +192,12 @@ oo::class create ::NubClass {
 	return [list $domain $section $form]
     }
 
+    # urls - accessor for urls var
+    method urls {} {
+        variable urls
+        return $urls
+    }
+
     method donubStyle {ordered style} {
 	variable urls
 	upvar count count
@@ -1477,5 +1483,5 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	variable docroot DOCROOT
     }
 
-    NubClass create Nub
+    NubClass create ::Nub
 }
