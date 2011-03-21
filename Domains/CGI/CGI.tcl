@@ -159,7 +159,7 @@ class create ::CGI {
 	    catch {fileevent $pipe readable {}}
 
 	    set status [catch {close $pipe} result]
-	    if { $status == 0 } {
+	    if {$status == 0} {
 		# The command succeeded, and wrote nothing to stderr.
 		# $result contains what it wrote to stdout, unless you
 		# redirected it
@@ -187,7 +187,7 @@ class create ::CGI {
 			# A child process, whose process ID was $pid,
 			# exited with a non-zero exit status, $code.
 		    }
-		    
+
 		    CHILDSUSP {
 			lassign $::errorCode - pid sigName msg
 			Debug.cgi {CHILDSUSP: $pid $sigName '$msg'}
@@ -197,7 +197,7 @@ class create ::CGI {
 			# $sigName.  A human-readable description of the
 			# signal appears in $msg.
 		    }
-		    
+
 		    POSIX {
 			lassign $::errorCode - errName msg
 			Debug.cgi {POSIX: $errName '$msg'}
@@ -211,6 +211,7 @@ class create ::CGI {
 	} e eo]} {
 	    Debug.error {cgi closed: $e ($eo)}
 	}
+
 	Httpd Resume $r
     }
 
@@ -219,6 +220,7 @@ class create ::CGI {
 	    fconfigure $pipe -translation {binary binary} -encoding binary
 	    set gone [catch {chan eof $pipe} eof]
 	    if {$gone || $eof} {
+                # pipe has gone
 		set c [read $pipe]
 		dict append r -content $c
 		Debug.cgi {done body [string length $c]'}
@@ -227,7 +229,7 @@ class create ::CGI {
 		# read the rest of the content
 		set c [read $pipe]
 		dict append r -content $c
-		fileevent $pipe readable [list [self] entity $r $pipe]
+		fileevent $pipe entity [list [self] entity $r $pipe]
 		Debug.cgi {read body [string length $c]'}
 	    }
 	} e eo]} {
@@ -240,14 +242,17 @@ class create ::CGI {
 	    # get headers from CGI process
 	    set gone [catch {chan eof $pipe} eof]
 	    if {$gone || $eof} {
+                # pipe's closed or disappeared
 		my closed $r $pipe
 	    } else {
 		set n [gets $pipe line]
 		if {$n == -1} {
+                    # pipe has no input for us
 		    Debug.cgi {end of input}
 		    my closed $r $pipe
 		    # cgi dead
 		} elseif {$n == 0} {
+                    # pipe has entity for us
 		    Debug.cgi {end of headers ($r)}
 		    fconfigure $pipe -translation {binary binary} -encoding binary
 		    fileevent $pipe readable [list [self] entity $r $pipe]
@@ -338,12 +343,12 @@ class create ::CGI {
 	    dict set req -script $script
 	}
 
-	my env $r	;# construct the environment per CGI 1.1
-
 	# limit the number of CGIs running
 	if {[incr cgi] > $maxcgi} {
 	    return [Http GatewayTimeout $r "Maximum CGI count exceeded"]
 	}
+
+	my env $r	;# construct the environment per CGI 1.1
 
 	# collect arguments for GET methods
 	dict set r -Query [Query parse $r]
@@ -388,6 +393,7 @@ class create ::CGI {
 	{*}[dict get $r -cid] associate $pipe
 
 	# collect input from the proc
+        dict set r -dynamic 1	;# prevent default caching of output
 	fileevent $pipe readable [list [self] headers $r $pipe]
 
 	# suspend this response
