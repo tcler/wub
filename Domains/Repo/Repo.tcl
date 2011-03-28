@@ -45,7 +45,7 @@ set ::API(Domains/Repo) {
     icons {icon domain to use for icons (default: /icons/)}
     jQ {use jQuery (default: yes)}
 }
-    
+
 # TODO - handle dangling softlinks in dirlist
 # TODO - some kind of permissions system
 
@@ -206,7 +206,7 @@ namespace eval ::Repo {
 	set ext [file extension $suffix]
 	set path [file normalize [file join $root [string trimleft $suffix /]]]
 	#dict set r -path $path
-	
+
 	# unpack query response
 	set Q [Query parse $r]
 	dict set r -Query $Q
@@ -216,6 +216,10 @@ namespace eval ::Repo {
 
 	switch -- [dict get? $Q op] {
 	    del {
+                if {[dict get $r -method] ne "POST"} {
+                    return [Http Bad $r "Must use POST method"]
+                }
+
 		# move this file out of the way
 		set dir [file dirname $path]
 		set fn [file tail $path]
@@ -226,6 +230,10 @@ namespace eval ::Repo {
 	    }
 
 	    create {
+                if {[dict get $r -method] ne "POST"} {
+                    return [Http Bad $r "Must use POST method"]
+                }
+
 		# create a subdirectory
 		set subdir [::fileutil::jail $path [dict get $Q subdir]]
 		set relpath [join [lrange [split [::fileutil::relativeUrl $path $subdir] /] 1 end] /]/
@@ -235,11 +243,21 @@ namespace eval ::Repo {
 	    }
 
 	    upload {
+                if {[dict get $r -method] ne "POST"} {
+                    return [Http Bad $r "Must use POST method"]
+                }
+
 		# upload some files
 		return [upload $r $Q path $path {*}$inst]
 	    }
+            "" {
+                # fall through
+            }
+            default {
+                return [Http Bad $r "Unknown op [dict get $Q op]"]
+            }
 	}
-	
+
 	if {$ext ne "" && [file tail $suffix] eq $ext} {
 	    # this is a file name like '.tml'
 	    return [Http NotFound $r [<p> "File '$suffix' has illegal name."]]
@@ -261,9 +279,9 @@ namespace eval ::Repo {
 		return [Http NotModified $r]
 	    }
 	}
-	
+
 	Debug.repo {dispatch '$path' $r}
-	
+
 	Debug.repo {Found file '$path' of type [file type $path]}
 	dict lappend r -depends $path	;# remember cache dependency on dir
 	switch -- [file type $path] {
@@ -278,7 +296,7 @@ namespace eval ::Repo {
 		}
 		return [Http Ok [Http NoCache $r] [::fileutil::cat -encoding binary -translation binary -- $path] $mime]
 	    }
-	    
+
 	    directory {
 		# if a directory reference doesn't end in /, redirect.
 		set rpath [dict get $r -path]
@@ -317,7 +335,7 @@ namespace eval ::Repo {
 		dict set r -raw 1	;# no transformations
 		return [Http Ok [Http NoCache $r] [::fileutil::cat -encoding binary -translation binary -- $index] [Mime type $path]]
 	    }
-	    
+
 	    default {
 		dict lappend r -depends $path	;# cache notfound
 		return [Http NotFound $r [<p> "File '$suffix' is of illegal type [file type $path]"]]
