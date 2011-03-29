@@ -1460,7 +1460,7 @@ oo::class create ::NubClass {
 	variable redirect_dirs 1	;# do we emit redirection for non-/ dir refs?
 
 	Debug.nub {construct $args}
-	variable NS ::Httpd
+	variable NS ::Dispatcher	;# namespace target for nub compilation
 
 	variable {*}[Site var? Nub]	;# allow .ini file to modify defaults
 	variable {*}$args
