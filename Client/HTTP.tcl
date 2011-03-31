@@ -465,7 +465,7 @@ oo::class create HTTP {
 			    error "Unknown transfer encoding"
 			}
 		    }
-		} elseif {[string toupper $version] eq "HTTP/1.0"} {
+		} elseif {[string toupper [dict get $r -version]] eq "HTTP/1.0"} {
 		    dict set r -content [my read]	;# read to EOF
 		}
 	    }
