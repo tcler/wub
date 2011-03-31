@@ -818,7 +818,7 @@ oo::class create ::Httpd {
 	    }
 
 	    # send headers with terminating nl
-	    chan puts -nonewline $socket "$head\r\n"
+	    chan puts -nonewline $socket $head
 	    Debug.httpd {[info coroutine] SENT HEADER: $socket '[lindex [split $head \r] 0]' [string length $head] bytes} 4
 	    chan flush $socket	;# try to flush as early as possible
 	    Debug.httpdlow {[info coroutine] flushed $socket} 4
@@ -855,11 +855,12 @@ oo::class create ::Httpd {
 		    set ostate "FCOPY $response"
 		    break	;# no more i/o on $socket until fcopy completion
 		} elseif {[llength $range]} {
-		    # send literal content
+		    # send literal content range
 		    lassign $range from to
 		    chan puts -nonewline $socket [string range $content $from $to]
 		    Debug.httpd {[info coroutine] SENT RANGE: bytes $from-$to/[string length $content] bytes} 8
 		} else {
+                    # send literal content
 		    chan puts -nonewline $socket $content	;# send the content
 		    Debug.httpd {[info coroutine] SENT ENTITY: [string length $content] bytes} 8
 		}
@@ -1184,7 +1185,7 @@ oo::class create ::Httpd {
 	    Debug.httpdlow {Format: ($header)}
 	}
 
-	return [list $reply $cache $header $content $file [my close? $reply] $empty $range]
+	return [list $reply $cache "$header\r\n" $content $file [my close? $reply] $empty $range]
 	# response ready for [response] to blast it out the socket:
 	# reply - reply modified by Format
 	# cache - cache the response?
