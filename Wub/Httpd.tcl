@@ -817,11 +817,13 @@ oo::class create ::Httpd {
 		# Once this header's been sent, we're committed to closing
 	    }
 
-	    # send headers with terminating nl
-	    chan puts -nonewline $socket $head
-	    Debug.httpd {[info coroutine] SENT HEADER: $socket '[lindex [split $head \r] 0]' [string length $head] bytes} 4
-	    chan flush $socket	;# try to flush as early as possible
-	    Debug.httpdlow {[info coroutine] flushed $socket} 4
+	    # send headers - can be empty if proxying
+            if {[string length $head]} {
+                chan puts -nonewline $socket $head
+                Debug.httpd {[info coroutine] SENT HEADER: $socket '[lindex [split $head \r] 0]' [string length $head] bytes} 4
+                chan flush $socket	;# try to flush as early as possible
+                Debug.httpdlow {[info coroutine] flushed $socket} 4
+            }
 
 	    # send the content/entity (if any)
 	    # note: we must *not* send a trailing newline, as this
@@ -1269,6 +1271,7 @@ oo::class create ::Httpd {
 	if {[dict get $r -code] != 100} {
 	    set response [my Format $r $cache]
 	    dict set replies $trx $response
+	    dict set satisfied $trx 1	;# record satisfaction of transaction
 	    Debug.httpd {[info coroutine] ADD TRANS: ([dict keys $replies])}
 
 	    # global consequences - caching
@@ -1289,7 +1292,6 @@ oo::class create ::Httpd {
 		Debug.error {log error: $le ($leo)}
 	    }
 
-	    variable satisfied; dict set satisfied $trx 1	;# record satisfaction of transaction
 	    variable outbuffer
 	    if {[chan pending output $socket] > $outbuffer} {
 		# the client hasn't consumed our output yet
@@ -1308,6 +1310,35 @@ oo::class create ::Httpd {
 	}
 
 	my writable
+    }
+
+    # proxy - send content as an undifferentiated blob
+    method proxy {r content} {
+        variable satisfied
+        variable unsatisfied
+
+	set trx [dict get? $r -transaction]
+	if {$trx eq ""} {
+	    # can't Send reply: no -transaction associated with request
+	    Debug.error {Send discarded: no transaction ($r)}
+	    my terminate "no transaction"
+	    return
+	} elseif {[dict exists $satisfied $trx]} {
+	    # a duplicate response has been sent - discard this
+	    # this could happen if a dispatcher sends a response,
+	    # then gets an error.
+	    Debug.error {Send discarded: duplicate ([Httpd dump $r]) - sent:([Httpd dump [dict get? $satisfied $trx]])}
+	    return	;# duplicate response - just ignore
+	} elseif {![dict exists $unsatisfied $trx]} {
+	    # only send for unsatisfied requests
+	    Debug.error {Send discarded: satisfied duplicate ([Httpd dump $r])}
+	    return	;# duplicate response - just ignore
+	}
+
+        # make up a reply with the minimum to get it sent
+        variable replies
+        dict set replies $trx [list $r 0 "" $content "" 0 0 {}]
+        dict set satisfied $trx 1	;# record satisfaction of transaction
     }
 
     # parse - convert a complete header to a request dict
