@@ -62,7 +62,7 @@ namespace eval ::Query {
     #
     # Results:
     #	The decoded value
-    
+
     proc decode {str} {
 	Debug.query {decode '$str'} 10
 	variable dmap
@@ -128,7 +128,7 @@ namespace eval ::Query {
     # qparse -- internal parser support
     #
     #	decodes a query string
-    #	
+    #
     # Arguments:
     #	qstring	a string containing a query
     #	ct	the content type
@@ -165,7 +165,7 @@ namespace eval ::Query {
 			set val [decode [join [lrange $z 1 end] =]]
 			set meta [list -count [incr count]]
 		    }
-		    
+
 		    dict lappend query $var $val $meta
 		    # todo - not quite right - this doesn't allow duplicate
 		    # var=val, but should
@@ -176,7 +176,7 @@ namespace eval ::Query {
 		error "Unknown Content-Type: $ct"
 	    }
 	}
-	
+
 	set query [charset $query]
 	return [list $query $count]
     }
@@ -233,7 +233,7 @@ namespace eval ::Query {
 	}
 	set query [cconvert $query [value $query _charset_]]
 	dict unset query _charset_
-	
+
 	return $query
     }
 
@@ -267,21 +267,21 @@ namespace eval ::Query {
 	    }
 	}
 	Debug.query {Components Full $token: ($components)}
-	
+
 	return $components
     }
 
     # parse -- parse an http dict's queries
     #
     #	decodes the -query and -entity elements of an httpd dict
-    #	
+    #
     # Arguments:
     #	http	dict containing an HTTP request
     #
     # Results:
-    #	A dictionary of names associated with a list of 
+    #	A dictionary of names associated with a list of
     #	values from the request's query part and entity body
-    
+
     proc parse {r} {
 	if {[dict exists $r -Query]} {
 	    return [dict get $r -Query]
@@ -295,7 +295,7 @@ namespace eval ::Query {
 	    set query {}
 	    set count 0
 	}
-    
+
 	if {[dict exists $r content-length]
 	    && ![dict get $r content-length]
 	} {
@@ -309,7 +309,7 @@ namespace eval ::Query {
 	    # there is an entity body
 	    set ct [dict get $r content-type]
 	    Debug.query {parsing entity part of type '$ct'}
-		    
+
 	    switch -glob -- [dict exists $r -entitypath],[dict exists $r -entity],[lindex [split $ct \;] 0] {
 		0,1,multipart/* {
 		    lassign [multipart $ct [dict get $r -entity] $count] query count
@@ -346,7 +346,7 @@ namespace eval ::Query {
     #
     # Results:
     #	number of values associated with query
-    
+
     proc numvalues {query el} {
 	return [expr {[llength [dict get $query $el]] / 2}]
     }
@@ -360,7 +360,7 @@ namespace eval ::Query {
     #
     # Results:
     #	num'th value associated with el by query
-    
+
     proc value {query el {num 0}} {
 	return [lindex [dict get $query $el] [expr {$num * 2}]]
     }
@@ -391,7 +391,7 @@ namespace eval ::Query {
     #
     # Results:
     #	num'th metadata associated with el by query
-    
+
     proc metadata {query el {num 0}} {
 	return [lindex [dict get $query $el] [expr {$num * 2 + 1}]]
     }
@@ -455,7 +455,7 @@ namespace eval ::Query {
     #
     # Results:
     #	true if el is in query
-    
+
     proc exists {query el {num 0}} {
 	if {$num == 0} {
 	    return [dict exists $query $el]
@@ -477,7 +477,7 @@ namespace eval ::Query {
 	}
 	return $result
     }
-    
+
     # values -- return the list of values associated with a name in a query
     #
     # Arguments:
@@ -486,13 +486,27 @@ namespace eval ::Query {
     #
     # Results:
     #	list of values associated with el by query
-    
+
     proc values {query el} {
 	set result {}
 	foreach {v m} [dict get $query $el] {
 	    lappend result $v
 	}
 	return $result
+    }
+
+    proc query_encode {query} {
+        set q {}
+	foreach n [Query vars $query] {
+            foreach v [Query values $query $n] {
+                if {$v ne ""} {
+                    lappend q "$n=[Query encode $v]"
+                } else {
+                    lappend q $n
+                }
+            }
+        }
+        return [join $q &]
     }
 
     # vars -- the list of names in the query
@@ -502,7 +516,7 @@ namespace eval ::Query {
     #
     # Results:
     #	list of values associated with el by query
-    
+
     proc vars {query} {
 	return [dict keys $query]
     }
@@ -517,7 +531,7 @@ namespace eval ::Query {
     # Results:
     #	list of values associated with el by query
     #	multiple values are stored with ,$index as a name suffix
-    
+
     proc flatten {query} {
 	set result {}
 	dict for {n v} $query {
@@ -570,17 +584,17 @@ namespace eval ::Query {
     #		value
     #		{param value param2 value param3 value3}
     #	}
-    
+
     proc parseMimeValue {value} {
 	set parts [split $value \;]
 	set results [list [string trim [lindex $parts 0]]]
-	
+
 	set paramList {}
 	foreach sub [lrange $parts 1 end] {
 	    if {[regexp -- {([^=]+)=(.+)} $sub match key val]} {
 		set key [string trim [string tolower $key]]
 		set val [string trim $val]
-		
+
 		# Allow single as well as double quotes
 		if {[regexp -- {^[\"']} $val quote]} {
 		    # need a quote for balance
@@ -593,11 +607,11 @@ namespace eval ::Query {
 		Debug.query {parseMimeValue $key: '[string range $val 0 80]...'}
 	    }
 	}
-	
+
 	if {[llength $paramList]} {
 	    lappend results $paramList
 	}
-	
+
 	return $results
     }
 
@@ -613,7 +627,7 @@ namespace eval ::Query {
 	    Debug.error {Query pconvert doesn't know how to convert '$charset'}
 	    return $content
 	}
-    
+
 	# tcl knows of this encoding - so make the conversion
 	variable utf8
 	if {$utf8 && $charset eq "utf-8"} {
@@ -657,7 +671,7 @@ namespace eval ::Query {
     #
     #	Content-Disposition: form-data; name="Foo"; filename="/a/b/C.txt"
     #	Content-Type: text/html; charset="iso-8859-1"; mumble='extra'
-    #	
+    #
     #	Then the header list will have this structure:
     #	{
     #		content-disposition form-data
@@ -671,7 +685,7 @@ namespace eval ::Query {
     #	to account for values that have parameters, like the content-type
     #	example above.  Finally, not that if the value has a second element,
     #	which are the parameters, you can "array set" that as well.
-    
+
     proc multipart {type query {count -1}} {
 	set parsedType [parseMimeValue $type]
 	if {![string match multipart/* [lindex $parsedType 0]]} {
@@ -687,11 +701,11 @@ namespace eval ::Query {
 	set boundary $options(boundary)
 
 	Debug.query {multipart options $type '[array get options]'}
-	
+
 	# The query data is typically read in binary mode, which preserves
 	# the \r\n sequence from a Windows-based browser.
 	# Also, binary data may contain \r\n sequences.
-	
+
 	if {[string match "*$boundary\r\n*" $query]} {
 	    set lineDelim "\r\n"
 	    # puts "DELIM"
@@ -699,9 +713,9 @@ namespace eval ::Query {
 	    set lineDelim "\n"
 	    # puts "NO"
 	}
-	
+
 	# Iterate over the boundary string and chop into parts
-	
+
 	set len [string length $query]
 
 	# [string length $lineDelim]+2 is for "$lineDelim--"
@@ -714,7 +728,7 @@ namespace eval ::Query {
 	if {[string first $lineDelim $query 0] != 0} {
 	    set query $lineDelim$query
 	}
-	
+
 	set offset 0
 	set charset ""	;# charset encoding of part
 	set te ""	;# transfer encoding of part
@@ -722,7 +736,7 @@ namespace eval ::Query {
 	while {[set offset [string first "$lineDelim--$boundary" $query $offset]] >= 0} {
 	    # offset is the position of the next boundary string
 	    # in $query after $offset
-	    
+
 	    Debug.query {multipart found offset:$offset/[string length $query]}
 	    if {$first} {
 		set first 0	;# this was the opening delimiter
@@ -754,7 +768,7 @@ namespace eval ::Query {
 		dict lappend results $formName $content $headers
 	    }
 	    incr offset $blen	;# skip boundary in stream
-	    
+
 	    # Check for the terminating entity boundary,
 	    # which is signaled by --$boundary--
 	    if {[string range $query $offset [expr {$offset + 1}]] eq "--"} {
@@ -762,16 +776,16 @@ namespace eval ::Query {
 		Debug.query {multipart endparse offset:$offset/[string length $query]}
 		break
 	    }
-	    
+
 	    # We have a new element. Split headers out from content.
 	    # The headers become a nested dict structure in result:
 	    # {header-name { value { paramname paramvalue ... } } }
-	    
+
 	    # find off2, the offset of the delimiter which terminates
 	    # the current element
 	    set off2 [string first "$lineDelim$lineDelim" $query $offset]
 	    Debug.query {multipart parsed between:$offset...$off2 /[string length $query]}
-	    
+
 	    # generate a dict called headers with element's headers and values
 	    set headers [dict create -count [incr count]]
 	    set formName ""	;# any header 'name' becomes the element name
@@ -833,7 +847,7 @@ namespace eval ::Query {
 		    Debug.query {multipart headers last line}
 		}
 	    }
-	    
+
 	    # we have now ingested the part's headers
 	    if {$off2 > 0} {
 		# +[string length "$lineDelim$lineDelim"] for the
@@ -844,7 +858,7 @@ namespace eval ::Query {
 		break
 	    }
 	}
-	
+
 	Debug.query {headers: $results}
 	return [list $results $count]
     }
@@ -877,7 +891,7 @@ namespace eval ::Query {
 	}
 	# compensate for 'terminating boundary' extra leading --
 	lappend result [expr {[chan tell $fd]-[string length $pattern]-2}]
-	
+
 	return $result
     }
 
@@ -1006,7 +1020,7 @@ if {[info exists argv0] && ([info script] eq $argv0)} {
 	lassign [Query qparse $test 0] query count
 	puts stderr "'$test' -> ($query)"
 	puts stderr "find error '[Query value $query error]'"
-	
+
 	set query [Query parse [dict create -query $test]]
 	puts stderr "'$test' -> ($query)"
 	puts stderr "find error '[Query value $query error]'"
