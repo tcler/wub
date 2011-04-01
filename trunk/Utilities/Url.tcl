@@ -337,6 +337,38 @@ namespace eval ::Url {
 	return $req
     }
 
+    # d2url - given a dict URL and some query args,
+    # return a URL
+    proc d2url {dict args} {
+	Debug.url {d2url dict:$dict args:$args}
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+
+	if {[dict exists $dict -query]} {
+            # get a dict var {{val meta} ...}
+	    set query [Query parse $dict]
+	} else {
+	    set query {}
+	}
+
+	# parse args as additional -query elements
+        # replacing elements with the same name
+	foreach {name val} $args {
+	    set query [Query replace $query $name $val]
+	}
+
+        # generate an encoded URL query fragment
+        set q [Query query_encode $query]
+	if {$q ne ""} {
+	    dict set dict -query $q
+	}
+
+        set to [uri $dict]
+	Debug.url {d2url to: $to}
+	return $to
+    }
+
     # process a possibly local URI for redirection
     # provides a limited ability to add query $args
     # limits: overwrites existing args, ignores and removes duplicates
