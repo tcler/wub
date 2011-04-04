@@ -152,3 +152,5 @@ application/vnd.wap.wmlc        wmlc
 application/vnd.wap.wmscriptc   wmlsc
 image/vnd.wap.wbmp              wbmp
 audio/mpeg	mp3
+
+application/x-nacl .nmf
