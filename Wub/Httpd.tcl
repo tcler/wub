@@ -1945,7 +1945,7 @@ oo::class create ::Httpd {
     # an Http response, and resume it.
     method thread_response {r thread private code rs eo} {
 	Debug.httpdthread {thread_response: $code ($eo) ([Httpd dump $r]) -> ([Httpd dump $rs])}
-	
+
 	if {!$private} {
 	    # put thread back on available queue
 	    set cns [info object namespace ::Httpd]
@@ -2036,13 +2036,13 @@ oo::class create ::Httpd {
 	variable todisk 0	;# don't save entities to disk
 
 	variable {*}[Site var? Httpd]	;# allow .config file to modify defaults
+	variable ce_encodings {gzip}	;# support these char encodings
 	variable {*}$args
 
 	variable istate INITIALIZING	;# input state
 	variable ostate INITIALIZING	;# output state
 	variable request {}		;# last request received
 
-	variable ce_encodings {gzip}	;# support these char encodings
 	variable te_encodings {chunked}
 
 	variable replies {}	;# dict of replies pending
