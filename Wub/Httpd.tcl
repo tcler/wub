@@ -819,7 +819,7 @@ oo::class create ::Httpd {
 
 	    # send headers - can be empty if proxying
             if {[string length $head]} {
-                chan puts -nonewline $socket $head
+                chan puts -nonewline $socket $head\r\n
                 Debug.httpd {[info coroutine] SENT HEADER: $socket '[lindex [split $head \r] 0]' [string length $head] bytes} 4
                 chan flush $socket	;# try to flush as early as possible
                 Debug.httpdlow {[info coroutine] flushed $socket} 4
@@ -1187,7 +1187,7 @@ oo::class create ::Httpd {
 	    Debug.httpdlow {Format: ($header)}
 	}
 
-	return [list $reply $cache "$header\r\n" $content $file [my close? $reply] $empty $range]
+	return [list $reply $cache $header $content $file [my close? $reply] $empty $range]
 	# response ready for [response] to blast it out the socket:
 	# reply - reply modified by Format
 	# cache - cache the response?
