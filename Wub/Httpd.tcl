@@ -2034,9 +2034,9 @@ oo::class create ::Httpd {
 	variable websockets 0	;# want to support websockets?
 	variable log ""		;# log off by default
 	variable todisk 0	;# don't save entities to disk
+	variable ce_encodings {gzip}	;# support these char encodings
 
 	variable {*}[Site var? Httpd]	;# allow .config file to modify defaults
-	variable ce_encodings {gzip}	;# support these char encodings
 	variable {*}$args
 
 	variable istate INITIALIZING	;# input state
