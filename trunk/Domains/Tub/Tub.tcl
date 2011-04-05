@@ -145,10 +145,10 @@ class create ::Tub {
     }
 
     method /loginbox {r} {
-	set r [Cookies 4server $r]
-	lassign [Cookie fetch [dict get $r -cookies]] userid pass
+	set r [Cookies 4Server $r]
+	lassign [Cookies Fetch? $r -name $cookie] userid pass
 	if {[catch {$view find $key $userid} index]} {
-	    return [Http NotFound $r "There is no such user as '$userid'"]
+	    return [Http NotFound $r [<p> "There is no such user as '$userid'"]]
 	}
 
 	return [my get $r $userid]
@@ -157,10 +157,10 @@ class create ::Tub {
     method /login {r userid {password ""} {url ""}} {
 	# prelim check on args
 	if {$userid eq ""} {
-	    return [Http NotFound $r "Blank username not permitted."]
+	    return [Http NotFound $r [<p> "Blank username not permitted."]]
 	}
 	if {!$emptypass && $password eq ""} {
-	    return [Http NotFound $r "Blank password not permitted."]
+	    return [Http NotFound $r [<p> "Blank password not permitted."]]
 	}
 
 	# find matching userid in view
@@ -169,19 +169,19 @@ class create ::Tub {
 		# permissive - create a new user
 		set index [$view append $key $userid password $password]
 	    } else {
-		return [Http NotFound $r "There is no such user as '$userid'"]
+		return [Http NotFound $r [<p> "There is no such user as '$userid'"]]
 	    }
 	}
 
 	if {password in $properties} {
 	    # we're storing passwords in this view, so match them
 	    if {[$view get $index password] ne $password} {
-		return [Http NotFound $r "Passwords don't match for '$userid'"]
+		return [Http NotFound $r [<p> "Passwords don't match for '$userid'"]]
 	    }
 	}
 	
 	# got a password match. set up cookie with the appropriate value
-	set r [Cookies 4server $r]
+	set r [Cookies 4Server $r]
 
 	if {[dict exists $r -cookies]} {
 	    set cdict [dict get $r -cookies]
@@ -212,8 +212,8 @@ class create ::Tub {
 
     method /logout {r {url ""}} {
 	# clear out the cookie
-	set r [Cookies 4server $r]
-	dict set r -cookies [Cookie clear [dict get $r -cookies] -name $cookie]
+	set r [Cookies 4Server $r]
+	dict set r -cookies [Cookies clear [dict get $r -cookies] -name $cookie]
 
 	if {$url eq ""} {
 	    set url [Http Referer $r]
@@ -227,23 +227,27 @@ class create ::Tub {
 
     # get store with cookie
     method /getCookie {r} {
-	set r [Cookies 4server $r]
-	lassign [Cookie fetch [dict get $r -cookies]] userid pass
+	set r [Cookies 4Server $r]
+	lassign [Cookies Fetch? $r -name $cookie] userid pass
 	if {[catch {$view find $key $userid} index]} {
-	    return [Http NotFound $r "There is no such user as '$userid'"]
+	    return [Http NotFound $r [<p> "There is no such user as '$userid'"]]
 	}
 
 	return [my get $r $userid]
     }
 
     method /setCookie {r args} {
-	set r [Cookies 4server $r]
-	lassign [Cookie fetch [dict get $r -cookies]] userid pass
+	set r [Cookies 4Server $r]
+	lassign [Cookies Fetch? $r -name $cookie] userid pass
 	if {[catch {$view find $key $userid} index]} {
-	    return [Http NotFound $r "There is no such user as '$userid'"]
+	    return [Http NotFound $r [<p> "There is no such user as '$userid'"]]
 	}
 	catch {dict unset args $key}	;# can't change key
 	return [my set $r $userid {*}$args]
+    }
+
+    method / {r args} {
+        return [Http Ok+ $r Okay.]
     }
 
     superclass Direct
