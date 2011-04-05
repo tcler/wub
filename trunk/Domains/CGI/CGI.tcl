@@ -101,6 +101,7 @@ class create ::CGI {
 	    if {$name ni $whitelist} { unset ::env($name) }
 	}
 	array set ::env $env
+        Debug.cgi {env: $env}
 	return
     }
 
