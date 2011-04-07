@@ -837,7 +837,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     set auto_path [list [pwd] {*}$auto_path]
 
     # Initialize Site
-    Site init home [file normalize [file dirname [info script]]] config site.config debug 10
+    Site init home [file normalize [file dirname [info script]]] config site.config debug 10 {*}$argv
 
     # Start Site Server(s)
     Site start 
