@@ -463,9 +463,9 @@ oo::class create ::Httpd {
 	}
 
 	# read a chunksize
-	chan configure $socket -translation {crlf binary}
+	chan configure $socket -translation {crlf binary} -encoding [encoding system]
 	set chunksize 0x[get $socket FCHUNK]	;# we have this many bytes to read
-	chan configure $socket -translation {binary binary}
+	chan configure $socket -translation {binary binary} -encoding [dict get $r -encoding]
 
 	if {$chunksize ne "0x0"} {
 	    Debug.entity {[info coroutine] fchunking along}
@@ -943,7 +943,7 @@ oo::class create ::Httpd {
 	return [list $reply $content]
     }
 
-    # Charset - ensure correctly encoded content
+    # Charset - ensure correctly encoded content in response
     method Charset {reply} {
 	if {[dict exists $reply -chconverted]} {
 	    return $reply	;# don't re-encode by charset
@@ -955,9 +955,11 @@ oo::class create ::Httpd {
 	    if {[dict exists $reply -charset]} {
 		set charset [dict get $reply -charset]
 	    } else {
-		set charset utf-8	;# default charset
+		set charset [encoding system]	;# default charset (utf-8)
+                dict set reply -charset $charset
 	    }
-	    dict set reply -charset $charset
+            # ensure content is converted to correct charset,
+            # flag conversion in response, to avoid double conversion
 	    dict set reply -chconverted $charset
 	    dict set reply content-type "$ct; charset=$charset"
 	    dict set reply -content [encoding convertto $charset [dict get $reply -content]]
@@ -1537,6 +1539,7 @@ oo::class create ::Httpd {
 	}
     }
 
+    # Entity - read entity from the wire
     method Entity {{code continue}} {
 	variable istate ENTITY
 	upvar 1 r r
@@ -1591,6 +1594,32 @@ oo::class create ::Httpd {
 	    return -code $code
 	}
 
+        # determine the charset of any content
+        set charset [join [lassign [split [dict get? $r content-type] \;] ctype] \;]
+        set charset [string tolower $charset]
+        switch -glob -- $ctype\;$charset {
+            "application/*;" {
+                set charset binary
+            }
+            "text/*;" {
+                variable def_charset
+                set charset $def_charset
+            }
+            "*/*;*" {
+                # both ctype and charset specified
+                if {$charset ni [encoding names]} {
+                    # send NotAcceptable?  But how?
+                    my send [Http NotAcceptable $r]
+                    return -code $code
+                }
+            }
+            "*;" {
+                # no charset specified
+                set charset binary
+            }
+        }
+        dict set r -encoding $charset	;# record the encoding we've selected
+
 	# fetch the entity (if any)
 	if {"chunked" in [dict get? $r -te]} {
 	    # write chunked entity to disk
@@ -1618,7 +1647,7 @@ oo::class create ::Httpd {
 
 		# start the entity fcopy
 		set istate FCHUNK
-		chan configure $socket -translation binary
+		chan configure $socket -translation binary -encoding $charset
 		chan copy $socket $entity -size $chunksize -command [list [info coroutine] fchunk $r $raw $entity 0 $chunksize]
 	    } else {
 		# we had a 0-length chunk ... may as well let it fall through
@@ -1627,6 +1656,7 @@ oo::class create ::Httpd {
 	    return -code $code	;# we loop around until there are more requests
 	} elseif {[dict exists $r content-length]
 		  && [dict get $r content-length]} {
+            # straight 'entity follows header' with explicit length
 	    set left [dict get $r content-length]
 	    Debug.entity {content-length: $left}
 
@@ -1639,6 +1669,7 @@ oo::class create ::Httpd {
 		return -code break
 	    }
 
+            # decide whether to read to RAM or disk
 	    variable todisk
 	    if {$todisk > 0 && $left > $todisk} {
 		# this entity is too large to be handled in memory,
@@ -1646,7 +1677,8 @@ oo::class create ::Httpd {
 		set istate ENTITY_TO_DISK
 		Debug.entity {[info coroutine] FCIN: '$left' bytes} 8
 
-		# create a temp file to contain entity, remember it in $r and files
+		# create a temp file to contain entity,
+                # remember it in $r and files
 		set entity [file tempfile entitypath]
 		dict set r -entity $entity
 		variable files; dict set files $entity $entitypath
@@ -1666,7 +1698,7 @@ oo::class create ::Httpd {
 		Debug.entity {[info coroutine] FCIN: starting with $left writing to '$entitypath'} 8
 
 		# start the fcopy
-		chan configure $socket -translation binary
+		chan configure $socket -translation binary -encoding $charset
 		chan copy $socket $entity -size $left -command [list [info coroutine] fcin $r $entity $left]
 		return -code $code	;# we loop around until there are more requests
 	    }
@@ -1679,7 +1711,7 @@ oo::class create ::Httpd {
 		# or equal to zero is a valid value.
 	    } else {
 		set entity ""
-		chan configure $socket -translation {binary binary}
+		chan configure $socket -translation {binary binary} -encoding $charset
 		Debug.httpdlow {[info coroutine] getting entity of length ($left)}
 		set chunk ""
 		while {[string length $chunk] < $left
@@ -2035,7 +2067,7 @@ oo::class create ::Httpd {
 	variable log ""		;# log off by default
 	variable todisk 0	;# don't save entities to disk
 	variable ce_encodings {gzip}	;# support these char encodings
-
+        variable def_charset [encoding system]
 	variable {*}[Site var? Httpd]	;# allow .config file to modify defaults
 	variable {*}$args
 
