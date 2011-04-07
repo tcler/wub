@@ -1685,7 +1685,7 @@ oo::class create ::Httpd {
 		variable files; dict set files $entity $entitypath
 
 		# prepare entity file for receiving chunks
-		chan configure $entity -translation {binary binary}
+		chan configure $entity -translation {binary binary} -encoding binary
 		if {"gzip" in [dict get? $r -te]} {
 		    Debug.entity {[info coroutine] FCIN is gzipped} 8
 		    ::zlib push inflate $entity	;# inflate it on the run
@@ -1720,6 +1720,7 @@ oo::class create ::Httpd {
 		       && ![chan eof $socket]
 		   } {
 		    my Yield	;# wait for READ event
+                    Debug.httpdlow {reading $socket [fconfigure $socket]}
 		    append chunk [chan read $socket $left]
 		}
 
