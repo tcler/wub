@@ -60,3 +60,5 @@ package ifneeded ExtLogin::LastFM 1.0 [list source [file join $dir ExtLogin Last
 package ifneeded ErrLog 1.0 [list source [file join $dir ErrLog ErrLog.tcl]]
 
 package ifneeded OSBTiny 1.0 [list source [file join $dir OSBTiny OSBTiny.tcl]]
+
+package ifneeded FossilProxy 1.0 [list source [file join $dir FossilProxy FossilProxy.tcl]]
