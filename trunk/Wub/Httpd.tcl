@@ -1652,7 +1652,7 @@ oo::class create ::Httpd {
 		variable files; dict set files $entity $entitypath
 
 		# prepare entity file for receiving chunks
-		chan configure $entity -translation binary
+		chan configure $entity -translation {binary binary}
 		if {"gzip" in [dict get? $r -te]} {
 		    Debug.entity {[info coroutine] FCIN is gzipped} 8
 		    ::zlib push inflate $entity	;# inflate it on the run
