@@ -11,6 +11,7 @@ set ::API(Domains/FossilProxy) {
     fossil_dir {Directory where fossil repositories are located. The proxy will work for all repositories in this directory which are named *.fossil, where the basename of the repository is part of the URL. Mandatory.}
     fossil_command {Path to fossil command. Default is 'fossil'}
     prefix {Path where fossil repositories are mounted in the URL. Mounted in root is the default.}
+    repositories_list_body {HTML body used to show list of available repositories. %REPOS% is replace by an unordered list of repositories. Default is empty.}
 }
 
 oo::class create FossilProxy {
@@ -26,13 +27,13 @@ oo::class create FossilProxy {
     method list_repositories {r} {
 	variable prefix
 	variable fossil_dir
-	set C [<h1> "Known repositories:\n"]
-	append C "<ul>\n"
+	variable repositories_list_body
+	set C "<ul>\n"
 	foreach fnm [lsort -dictionary [glob -nocomplain -tails -dir $fossil_dir *.fossil]] {
 	    append C [<li> [<a> href $prefix/[file rootname $fnm] [file rootname $fnm]]]\n
 	}
 	append C "</ul>\n"
-	return [Http NoCache [Http Ok $r $C]]
+	return [Http NoCache [Http Ok $r [regsub {%REPOS%} $repositories_list_body $C]]]
     }
 
     method do { r } { 
@@ -49,7 +50,7 @@ oo::class create FossilProxy {
 	} else {
 	    lassign [dict get $r -header] meth url ver
 	    set url [my strip_prefix $url]
-	    if {$url eq "" && [file isdirectory $fossil_dir]} {
+	    if {$url in {{} {/}} && [file isdirectory $fossil_dir]} {
 		return [my list_repositories $r]
 	    }
 	    set fr "$meth $url $ver\n"
@@ -168,7 +169,10 @@ oo::class create FossilProxy {
 	variable fnmid 0
 	variable prefix ""
 	variable fossil_command "fossil"
+	variable repositories_list_body "<h1>Available repositories:</h1>\n%REPOS%"
+
 	variable {*}[Site var? FossilProxy] {*}$args ;# allow .ini file to modify defaults
+
 	if {![info exists fossil_dir]} {
 	    error "fossil_dir not set"
 	}
