@@ -1619,6 +1619,7 @@ oo::class create ::Httpd {
             }
         }
         dict set r -encoding $charset	;# record the encoding we've selected
+        Debug.http {Char Encoding: $charset}
 
 	# fetch the entity (if any)
 	if {"chunked" in [dict get? $r -te]} {
