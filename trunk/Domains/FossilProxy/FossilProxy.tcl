@@ -1,6 +1,7 @@
 package require OO
 package require Cookies
 package require Query
+package require jQ
 
 package provide FossilProxy 1.0
 
@@ -43,7 +44,7 @@ oo::class create FossilProxy {
 	set uidl {}
 	set C ""
 	foreach fnm [lsort -dictionary [glob -nocomplain -tails -dir $fossil_dir *.fossil]] {
-	    append C [<h2> $fnm]
+	    append C [<h3> href \# $fnm]
 	    set rnm [file join $fossil_dir $fnm]
 	    if {[catch {exec $fossil_command user list -R $rnm} R]} {
 		error $R
@@ -64,27 +65,23 @@ oo::class create FossilProxy {
 		    set privs($uid,$p) 1
 		}
 	    }
-	    append C "<table>\n"
-	    append C "  <tr>\n"
-	    append C "    <th>UID</th>\n"
-	    append C "    <th>Contact</th>\n"
-	    foreach p [lsort -dictionary [array names kprivs]] {
-		append C "    <th>$p</th>\n"
-	    }
-	    append C "  </tr>\n"
+	    set data {}
 	    foreach l $uidl {
 		lassign $l uid contact
-		append C "  <tr>\n"
-		append C "    <td>$uid</th>\n"
-		append C "    <td>$contact</th>\n"
+		set l [list uid $uid contact $contact]
 		foreach p [lsort -dictionary [array names kprivs]] {
-		    append C "    <td>[expr {[info exists privs($uid,$p)]?"X":""}]</th>\n"
+		    lappend l $p [expr {[info exists privs($uid,$p)]?"X":""}]
 		}
+		lappend data [incr i] $l
 		append C "  </tr>\n"
 	    }
-	    append C "</table>\n"
+	    append C [Report html $data headers [list uid contact {*}[lsort -dictionary [array names kprivs]]] class tablesorter sortable 1 evenodd 1 htitle ""]
 	}
-	return [Http NoCache [Http Ok $r $C]]
+	set r [jQ tablesorter $r table]
+	dict set r -content $C
+	dict set r content-type x-text/html-fragment
+	dict set r -title "Repository privileges"
+	return [Http NoCache [Http Ok $r]]
     }
 
     method do { r } { 
@@ -101,7 +98,6 @@ oo::class create FossilProxy {
 	} else {
 	    lassign [dict get $r -header] meth url ver
 	    set url [my strip_prefix $url]
-	    puts "URL = $url"
 	    if {$url in {{} {/}} && [file isdirectory $fossil_dir]} {
 		return [my list_repositories $r]
 	    } elseif {[string match "/privs*" $url] && [file isdirectory $fossil_dir]} {
