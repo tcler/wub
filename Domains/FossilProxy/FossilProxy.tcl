@@ -43,8 +43,10 @@ oo::class create FossilProxy {
 	variable fossil_command
 	set uidl {}
 	set C ""
-	foreach fnm [lsort -dictionary [glob -nocomplain -tails -dir $fossil_dir *.fossil]] {
-	    append C [<h3> href \# $fnm]
+	set repoid 0
+	set fnml [lsort -dictionary [glob -nocomplain -tails -dir $fossil_dir *.fossil]]
+	foreach fnm $fnml {
+	    append C [<a> name repo$repoid [<h2> $fnm]]
 	    set rnm [file join $fossil_dir $fnm]
 	    if {[catch {exec $fossil_command user list -R $rnm} R]} {
 		error $R
@@ -76,9 +78,19 @@ oo::class create FossilProxy {
 		append C "  </tr>\n"
 	    }
 	    append C [Report html $data headers [list uid contact {*}[lsort -dictionary [array names kprivs]]] class tablesorter sortable 1 evenodd 0 htitle ""]
+	    incr repoid
 	}
+	set T [<h1> "Repository privileges"]\n
+	append T <ul>\n
+	set repoid 0
+	foreach fnm $fnml {
+	    append T [<li> [<a> href #repo$repoid $fnm]]\n
+	    incr repoid
+	}
+	append T </ul>\n
+	append T $C
 	set r [jQ tablesorter $r table]
-	dict set r -content $C
+	dict set r -content $T
 	dict set r content-type x-text/html-fragment
 	dict set r -title "Repository privileges"
 	return [Http NoCache [Http Ok $r]]
