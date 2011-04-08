@@ -46,7 +46,7 @@ oo::class create FossilProxy {
 	set repoid 0
 	set fnml [lsort -dictionary [glob -nocomplain -tails -dir $fossil_dir *.fossil]]
 	foreach fnm $fnml {
-	    append C [<a> name repo$repoid [<h2> $fnm]]
+	    append C [<a> name repo$repoid [<h2> [file rootname $fnm]]]
 	    set rnm [file join $fossil_dir $fnm]
 	    if {[catch {exec $fossil_command user list -R $rnm} R]} {
 		error $R
@@ -84,7 +84,7 @@ oo::class create FossilProxy {
 	append T <ul>\n
 	set repoid 0
 	foreach fnm $fnml {
-	    append T [<li> [<a> href #repo$repoid $fnm]]\n
+	    append T [<li> [<a> href #repo$repoid [file rootname $fnm]]]\n
 	    incr repoid
 	}
 	append T </ul>\n
