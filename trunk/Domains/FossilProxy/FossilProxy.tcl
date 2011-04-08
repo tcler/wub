@@ -36,6 +36,57 @@ oo::class create FossilProxy {
 	return [Http NoCache [Http Ok $r [regsub {%REPOS%} $repositories_list_body $C]]]
     }
 
+    method list_repositories_privs {r} {
+	variable prefix
+	variable fossil_dir
+	variable fossil_command
+	set uidl {}
+	set C ""
+	foreach fnm [lsort -dictionary [glob -nocomplain -tails -dir $fossil_dir *.fossil]] {
+	    append C [<h2> $fnm]
+	    set rnm [file join $fossil_dir $fnm]
+	    if {[catch {exec $fossil_command user list -R $rnm} R]} {
+		error $R
+	    }
+	    unset -nocomplain kprivs
+	    unset -nocomplain privs
+	    unset -nocomplain uidl
+	    foreach l [split $R \n] {
+		set idx [string first " " $l]
+		set uid [string trim [string range $l 0 $idx]]
+		set contact [string trim [string range $l $idx end]]
+		lappend uidl [list $uid $contact]
+		if {[catch {exec $fossil_command user capabilities -R $rnm $uid} P]} {
+		    error $P
+		}
+		foreach p [split $P {}] {
+		    set kprivs($p) 1
+		    set privs($uid,$p) 1
+		}
+	    }
+	    append C "<table>\n"
+	    append C "  <tr>\n"
+	    append C "    <th>UID</th>\n"
+	    append C "    <th>Contact</th>\n"
+	    foreach p [lsort -dictionary [array names kprivs]] {
+		append C "    <th>$p</th>\n"
+	    }
+	    append C "  </tr>\n"
+	    foreach l $uidl {
+		lassign $l uid contact
+		append C "  <tr>\n"
+		append C "    <td>$uid</th>\n"
+		append C "    <td>$contact</th>\n"
+		foreach p [lsort -dictionary [array names kprivs]] {
+		    append C "    <td>[expr {[info exists privs($uid,$p)]?"X":""}]</th>\n"
+		}
+		append C "  </tr>\n"
+	    }
+	    append C "</table>\n"
+	}
+	return [Http NoCache [Http Ok $r $C]]
+    }
+
     method do { r } { 
 
 	variable fnmid
@@ -50,8 +101,11 @@ oo::class create FossilProxy {
 	} else {
 	    lassign [dict get $r -header] meth url ver
 	    set url [my strip_prefix $url]
+	    puts "URL = $url"
 	    if {$url in {{} {/}} && [file isdirectory $fossil_dir]} {
 		return [my list_repositories $r]
+	    } elseif {[string match "/privs*" $url] && [file isdirectory $fossil_dir]} {
+		return [my list_repositories_privs $r]
 	    }
 	    set fr "$meth $url $ver\n"
 	}
