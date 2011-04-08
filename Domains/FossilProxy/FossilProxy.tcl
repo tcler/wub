@@ -75,7 +75,7 @@ oo::class create FossilProxy {
 		lappend data [incr i] $l
 		append C "  </tr>\n"
 	    }
-	    append C [Report html $data headers [list uid contact {*}[lsort -dictionary [array names kprivs]]] class tablesorter sortable 1 evenodd 1 htitle ""]
+	    append C [Report html $data headers [list uid contact {*}[lsort -dictionary [array names kprivs]]] class tablesorter sortable 1 evenodd 0 htitle ""]
 	}
 	set r [jQ tablesorter $r table]
 	dict set r -content $C
