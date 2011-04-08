@@ -12,7 +12,6 @@ set ::API(Domains/FossilProxy) {
     fossil_dir {Directory where fossil repositories are located. The proxy will work for all repositories in this directory which are named *.fossil, where the basename of the repository is part of the URL. Mandatory.}
     fossil_command {Path to fossil command. Default is 'fossil'}
     prefix {Path where fossil repositories are mounted in the URL. Mounted in root is the default.}
-    repositories_list_body {HTML body used to show list of available repositories. %REPOS% is replace by an unordered list of repositories. Default is empty.}
 }
 
 oo::class create FossilProxy {
@@ -23,77 +22,6 @@ oo::class create FossilProxy {
  	    set path [string range $path [string length $prefix] end]
  	}
 	return $path
-    }
-
-    method list_repositories {r} {
-	variable prefix
-	variable fossil_dir
-	variable repositories_list_body
-	set C "<ul>\n"
-	foreach fnm [lsort -dictionary [glob -nocomplain -tails -dir $fossil_dir *.fossil]] {
-	    append C [<li> [<a> href $prefix/[file rootname $fnm] [file rootname $fnm]]]\n
-	}
-	append C "</ul>\n"
-	return [Http NoCache [Http Ok $r [regsub {%REPOS%} $repositories_list_body $C]]]
-    }
-
-    method list_repositories_privs {r} {
-	variable prefix
-	variable fossil_dir
-	variable fossil_command
-	set uidl {}
-	set C ""
-	set repoid 0
-	set fnml [lsort -dictionary [glob -nocomplain -tails -dir $fossil_dir *.fossil]]
-	foreach fnm $fnml {
-	    append C [<a> name repo$repoid [<h2> [file rootname $fnm]]]
-	    set rnm [file join $fossil_dir $fnm]
-	    if {[catch {exec $fossil_command user list -R $rnm} R]} {
-		error $R
-	    }
-	    unset -nocomplain kprivs
-	    unset -nocomplain privs
-	    unset -nocomplain uidl
-	    foreach l [split $R \n] {
-		set idx [string first " " $l]
-		set uid [string trim [string range $l 0 $idx]]
-		set contact [string trim [string range $l $idx end]]
-		lappend uidl [list $uid $contact]
-		if {[catch {exec $fossil_command user capabilities -R $rnm $uid} P]} {
-		    error $P
-		}
-		foreach p [split $P {}] {
-		    set kprivs($p) 1
-		    set privs($uid,$p) 1
-		}
-	    }
-	    set data {}
-	    foreach l $uidl {
-		lassign $l uid contact
-		set l [list uid $uid contact $contact]
-		foreach p [lsort -dictionary [array names kprivs]] {
-		    lappend l $p [expr {[info exists privs($uid,$p)]?"X":""}]
-		}
-		lappend data [incr i] $l
-		append C "  </tr>\n"
-	    }
-	    append C [Report html $data headers [list uid contact {*}[lsort -dictionary [array names kprivs]]] class tablesorter sortable 1 evenodd 0 htitle ""]
-	    incr repoid
-	}
-	set T [<h1> "Repository privileges"]\n
-	append T <ul>\n
-	set repoid 0
-	foreach fnm $fnml {
-	    append T [<li> [<a> href #repo$repoid [file rootname $fnm]]]\n
-	    incr repoid
-	}
-	append T </ul>\n
-	append T $C
-	set r [jQ tablesorter $r table]
-	dict set r -content $T
-	dict set r content-type x-text/html-fragment
-	dict set r -title "Repository privileges"
-	return [Http NoCache [Http Ok $r]]
     }
 
     method do { r } { 
@@ -110,11 +38,6 @@ oo::class create FossilProxy {
 	} else {
 	    lassign [dict get $r -header] meth url ver
 	    set url [my strip_prefix $url]
-	    if {$url in {{} {/}} && [file isdirectory $fossil_dir]} {
-		return [my list_repositories $r]
-	    } elseif {[string match "/privs*" $url] && [file isdirectory $fossil_dir]} {
-		return [my list_repositories_privs $r]
-	    }
 	    set fr "$meth $url $ver\n"
 	}
 
@@ -231,13 +154,13 @@ oo::class create FossilProxy {
 	variable fnmid 0
 	variable prefix ""
 	variable fossil_command "fossil"
-	variable repositories_list_body "<h1>Available repositories:</h1>\n%REPOS%"
 
 	variable {*}[Site var? FossilProxy] {*}$args ;# allow .ini file to modify defaults
 
 	if {![info exists fossil_dir]} {
 	    error "fossil_dir not set"
 	}
+
 	catch {next {*}$args}
     }
 }
