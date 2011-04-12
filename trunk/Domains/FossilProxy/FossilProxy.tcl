@@ -139,19 +139,6 @@ oo::class create FossilProxy {
 	return [Http NoCache [Http Ok $r [regsub {%REPOS%} $repositories_list_body $C]]]
     }
 
-    method do {r} {
-	variable prefix
-	switch -glob --[dict get $r -path] {
-	    "$prefix/direct/privs*" -
-	    "$prefix/direct/user*" {
-		return [next $r]
-	    }
-	    default {
-		return [my fossil_http $r]
-	    }
-	}
-    }
-
     method fossil_http { r } { 
 
 	variable fnmid
@@ -279,6 +266,17 @@ oo::class create FossilProxy {
 	    }
 
 	} r $r fr $fr fossil_dir $fossil_dir fossil_command $fossil_command prefix $prefix fnmid [incr fnmid]]
+    }
+
+    method do {r} {
+	variable prefix
+	set path [dict get $r -path]
+	if {[string match "$prefix/direct/privs*" $path] || 
+	    [string match "$prefix/direct/user*" $path]} {
+	    return [next $r]
+	} else {
+	    return [my fossil_http $r]
+	}
     }
 
     constructor {args} {
