@@ -904,7 +904,7 @@ oo::class create ::Httpd {
 	# default to identity encoding
 	set content [dict get $reply -content]
 	variable ce_encodings	;# what encodings do we support?
-	Debug.http {CE -encoding: $ce_encodings}
+	Debug.httpd {CE -encoding: $ce_encodings}
 	if {![dict exists $reply -gzip]
 	    && ("gzip" in $ce_encodings)
 	    && ![string match image/* [dict get? $reply content-type]]
@@ -917,6 +917,7 @@ oo::class create ::Httpd {
 	    set gzip [::zlib gzip $content -header [list crc 0 time [clock seconds] type $gztype]]
 
 	    dict set reply -gzip $gzip
+            Debug.httpd {gzipping: [string length $gzip]/[string length $content]}
 	}
 
 	# choose content encoding - but not for MSIE
@@ -930,6 +931,7 @@ oo::class create ::Httpd {
 		    switch $en {
 			"gzip" { # substitute the gzipped form
 			    if {[dict exists $reply -gzip]} {
+                                Debug.httpd {gzip acceptable}
 				set content [dict get $reply -gzip]
 				dict set reply content-encoding gzip
 				#set reply [Http Vary $reply Accept-Encoding User-Agent]
@@ -1596,7 +1598,7 @@ oo::class create ::Httpd {
 
         # determine the charset of any content
         set charset [join [lassign [split [dict get? $r content-type] \;] ctype] \;]
-        set charset [string tolower $charset]
+        set charset [lindex [split [string tolower $charset] =] 1]
         switch -glob -- $ctype\;$charset {
             "application/*;" {
                 set charset binary
