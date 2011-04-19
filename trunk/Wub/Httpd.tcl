@@ -1598,7 +1598,7 @@ oo::class create ::Httpd {
 
         # determine the charset of any content
         set charset [join [lassign [split [dict get? $r content-type] \;] ctype] \;]
-        set charset [lindex [split [string tolower $charset] =] 1]
+        set charset [string trim [lindex [split [string tolower $charset] =] 1]]
         switch -glob -- $ctype\;$charset {
             "application/*;" {
                 set charset binary
