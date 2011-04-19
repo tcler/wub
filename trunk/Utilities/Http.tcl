@@ -29,7 +29,7 @@ proc Trace {{skip 1}} {
     return $result
 }
 
-# translation -- 
+# translation --
 #
 #	fconfigure the connected socket into a given mode
 #
@@ -155,7 +155,8 @@ namespace eval ::Http {
 	accept-ranges age etag location proxy-authenticate retry-after
 	server vary www-authenticate content-disposition content-range
         access-control-allow-origin access-control-allow-methods
-        access-control-max-age
+        access-control-max-age access-control-allow-headers
+
     }
     foreach n $rs_headers {
 	set headers($n) rs
@@ -163,7 +164,7 @@ namespace eval ::Http {
 
     # set of entity-only headers
     variable e_headers {
-	allow content-encoding content-language content-length 
+	allow content-encoding content-language content-length
 	content-location content-md5 content-range content-type
 	expires last-modified cache-control connection date pragma
 	trailer transfer-encoding upgrade warning
@@ -294,6 +295,7 @@ namespace eval ::Http {
         dict set r access-control-allow-origin *
         dict set r access-control-allow-methods "POST, GET, OPTIONS"
         dict set r access-control-max-age 1000
+        dict set r access-control-allow-headers *
         dict set r -code 200
         return [Http Ok $r $content]
    }
@@ -605,11 +607,11 @@ namespace eval ::Http {
 	  h2 { margin-bottom:.8em; }
 	  h2 span { font-size:80%; color:#666; font-weight:normal; }
 	  h3 { margin:1em 0 .5em 0; }
-	  table { 
+	  table {
 		  border:1px solid #ccc; border-collapse: collapse; background:white; }
 	  tbody td, tbody th { vertical-align:top; padding:2px 3px; }
-	  thead th { 
-		  padding:1px 6px 1px 3px; background:#fefefe; text-align:left; 
+	  thead th {
+		  padding:1px 6px 1px 3px; background:#fefefe; text-align:left;
 		  font-weight:normal; font-size:11px; border:1px solid #ddd; }
 	  tbody th { text-align:right; color:#666; padding-right:.5em; }
 	  table.errorinfo { margin:5px 0 2px 40px; }
@@ -631,7 +633,7 @@ namespace eval ::Http {
 	    if {$eo ne ""} {
 		append content [<h2> "Error Code '[dict get? $eo -errorcode]'"]
 		catch {dict unset eo -errorcode}
-		
+
 		append content [<pre> [armour [dict get? $eo -errorinfo]]]
 		catch {dict unset eo -errorinfo}
 
@@ -650,7 +652,7 @@ namespace eval ::Http {
 		append table </tbody>
 		append content [<table> class errorinfo $table] \n
 	    }
-	    
+
 	    catch {append content [<p> "Caller: [<code> [armour [info level -1]]]"]}
 	    set message [armour $message]
 	    catch {dict unset rsp expires}
@@ -688,7 +690,7 @@ namespace eval ::Http {
 	    [<div> id errorinfo $content]
 	    [tclarmour [dump $rsp]]
 	}]]
-	
+
 	# Errors are completely dynamic - no caching!
 	return [NoCache $rsp]
     }
@@ -738,6 +740,13 @@ namespace eval ::Http {
 	dict set rsp -code $code
 	dict set rsp -rtype Bad
 	dict set rsp -error $message
+
+	return $rsp
+    }
+
+    proc NotAcceptable {rsp args} {
+	dict set rsp -code 406
+	dict set rsp -rtype NotAcceptable
 
 	return $rsp
     }
@@ -950,7 +959,7 @@ namespace eval ::Http {
     proc Relocated {rsp to {content ""} {ctype "text/html"} args} {
 	return [Http genRedirect Relocated 307 $rsp $to $content $ctype {*}$args]
     }
-    
+
     # construct an HTTP SeeOther response
     proc SeeOther {rsp to {content ""} {ctype "text/html"} args} {
 	return [Http genRedirect SeeOther 303 $rsp $to $content $ctype {*}$args]
@@ -960,8 +969,8 @@ namespace eval ::Http {
     proc Moved {rsp to {content ""} {ctype "text/html"} args} {
 	return [Http genRedirect Moved 301 $rsp $to $content $ctype {*}$args]
     }
-    
-    # loadContent -- load a response's file content 
+
+    # loadContent -- load a response's file content
     #	used when the content must be transformed
     #
     # Arguments:
@@ -983,7 +992,7 @@ namespace eval ::Http {
 		} content eo]} {
 		    # content couldn't be read - serious error
 		    set rsp [Http ServerError $rsp $content $eo]
-		} else {   
+		} else {
 		    dict set rsp -content $content
 		}
 
@@ -1014,7 +1023,7 @@ namespace eval ::Http {
 		append table </tbody>
 	    append c [<h3> Metadata] \n
 	    append c [<table> class dict $table] \n
-	    
+
 	    set table [<thead> [<tr> "[<th> Variable] [<th> Value]"]]\n
 		append table <tbody>
 	    foreach n [lsort [dict keys $req {[a-zA-Z]*}]] {
