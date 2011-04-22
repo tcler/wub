@@ -1598,7 +1598,11 @@ oo::class create ::Httpd {
 
         # determine the charset of any content
         set charset [join [lassign [split [dict get? $r content-type] \;] ctype] \;]
-        set charset [string trim [lindex [split [string tolower $charset] =] 1]]
+	if {[string match "charset=*" $charset]} {
+	    set charset [string trim [lindex [split [string tolower $charset] =] 1]]
+	} else {
+	    set charset ""
+	}
         switch -glob -- $ctype\;$charset {
             "application/*;" {
                 set charset binary
@@ -1606,6 +1610,10 @@ oo::class create ::Httpd {
             "text/*;" {
                 variable def_charset
                 set charset $def_charset
+            }
+            "*;" {
+                # no charset specified
+                set charset binary
             }
             "*/*;*" {
                 # both ctype and charset specified
@@ -1615,11 +1623,8 @@ oo::class create ::Httpd {
                     return -code $code
                 }
             }
-            "*;" {
-                # no charset specified
-                set charset binary
-            }
         }
+
         dict set r -encoding $charset	;# record the encoding we've selected
         Debug.httpd {Char Encoding: $charset}
 
