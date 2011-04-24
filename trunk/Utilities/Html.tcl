@@ -127,6 +127,7 @@ interp alias {} demoronizer {} string map [demoronizer]
 
 namespace eval ::Html {
     variable XHTML 0
+    variable tagmods 
 
     # convert a dict to a JSON object
     proc dict2json {d} {
@@ -517,29 +518,6 @@ proc <message> {args} {
     return [<p> class message [join $args "</p><p class='message'>"]]
 }
 
-proc <div> {args} {
-    if {[llength $args]%2} {
-	set content [lindex $args end]
-	set args [lrange $args 0 end-1]
-    } else {
-	set content {}
-    }
-
-    set class {}
-    set result div
-    foreach {n v} $args {
-	if {$n eq "class"} {
-	    lappend class $v	;# aggregate class args
-	} else {
-	    lappend result "[string trim $n]='[armour [string trim $v]]'"
-	}
-    }
-    if {$class ne {}} {
-	lappend result "class='[join $class]'"
-    }
-    return "<[join ${result}]>$content</div>"
-}
-
 proc <inc> {what} {
     return [<div> {*}[jQ tc $what] {}]
 }
@@ -559,15 +537,25 @@ proc divs {ids {content ""}} {
 # HTML <> commands per http://wiki.tcl.tk/2776
 know {[string match <*> [lindex $args 0]]} {
     set tag [string trim [lindex $args 0] "<>"]
-    ::proc ::<$tag> {args} [string map [list @T $tag] {
-	set content [lindex $args end]
-	if {[llength $args] > 1} {
-	    set args [lrange $args 0 end-1]
-	} else {
-	    set args {}
-	}
+    set mod [string index $tag end]
+    set mod [dict get? {! {[uplevel 1 $content]} + {[uplevel 1 [list subst $content]]}} $mod]
+    if {$mod ne ""} {
+        set mod [dict get $::Html::tagmods $mod]
+        set htag [string trimright [dict keys $::Html::tagmods]]
+    } else {
+        set mod {$content}	;# default just returns content
+        set htag $tag
+    }
+
+    ::proc ::<$tag> {args} [string map [list @T@ $htag @M@ $mod] {
+        if {[llength $args]%2} {
+            set content [lindex $args end]
+            set args [lrange $args 0 end-1]
+        } else {
+            set content {}
+        }
 	set class {}
-	set result "@T"
+	set result "@T@"
 	foreach {n v} $args {
 	    if {$n eq "class"} {
 		lappend class $v	;# aggregate class args
@@ -578,9 +566,9 @@ know {[string match <*> [lindex $args 0]]} {
 	if {$class ne {}} {
 	    lappend result "class='[join $class]'"
 	}
-	return "<[join ${result}]>$content</@T>"
+	return "<[join ${result}]>@M@</@T@>"
     }]
-    return [eval $args]
+    return [{*}$args]
 }
 
 # Some command equivalents which use subst instead of eval
