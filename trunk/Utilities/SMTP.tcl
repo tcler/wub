@@ -4,7 +4,8 @@
 
 if {[info exists argv0] && ([info script] eq $argv0)} {
     lappend ::auto_path [file dirname [file normalize [info script]]]
-    lappend ::auto_path ../Wub/Utilities
+    namespace eval tcl::unsupported namespace export yieldm
+    namespace import tcl::unsupported::yieldm
 }
 
 package require Dict
@@ -13,6 +14,7 @@ package require mime
 
 package require Debug
 Debug define smtp 10
+Debug define smtplow 10
 
 package provide SMTP 3.0
 
@@ -71,19 +73,11 @@ class create ::SMTP {
 	return $result
     }
 
-    # expect a response
+    # response - collect response from server
     method response {socket} {
 	set code ""; set response {}
 	while {1} {
 	    set line [my get $socket]
-	    if {0 && [catch {my get $socket} line eo]} {
-		# we have an error
-		if {[dict exists $eo -timeout]} {
-		    return [list TIMEOUT [dict get $eo -timeout]]
-		} else {
-		    return [list ERROR [list $line $eo]]
-		}
-	    }
 
 	    Debug.smtp {S: $line} 20
 	
@@ -94,10 +88,10 @@ class create ::SMTP {
 	    # decode the response code
 	    if {[scan [string range $line 0 2] %d lcode] != 1} {
 		error "SMTP unrecognizable code: '$line'"
-	    } elseif {$code ne "" && $code ne $lcode} {
-		error "SMTP code changed from $code to $lcode"
-	    } else {
+	    } elseif {$code eq ""} {
 		set code $lcode
+	    } elseif {$code ne $lcode} {
+		error "SMTP code changed from $code to $lcode"
 	    }
 
 	    # accumulate response
@@ -143,7 +137,8 @@ class create ::SMTP {
 	return $result
     }
 
-    method smtp_protocol {socket msg smtp} {
+    # protocol - handle the SMTP protocol in detail
+    method protocol {socket msg smtp} {
 	dict set status success 0
 
 	# get initial HELO
@@ -252,22 +247,24 @@ class create ::SMTP {
 			}
 		    }
 		    
-		    if {![dict size $good] || ([dict size $bad] && !$atleastone)} {
+		    if {![dict size $good]
+			|| [dict size $bad] && !$atleastone
+		    } {
 			# no recipients - reset the connection
 			lassign [my send $socket 300 RSET] code response
 			dict set status RSET [list $code $response]
 			return $status
 		    }
 
-		    # recipients were acceptable - send text
+		    # recipients were acceptable to server - send text
 		    lassign [my send $socket 300 DATA] code response
 		    dict set status DATA [list $code $response]
 		    switch -glob -- $code {
 			3* {
 			    lassign [my senddata $socket 3000 $msg] code response
-			    puts stderr "sent data: $code"
+			    Debug.smtplow {sent data: $code}
 			    dict set status data [list $code $response]
-			    
+ 
 			    switch -glob -- $code {
 				2* {
 				    lassign [my send $socket 300 QUIT] code response
@@ -310,6 +307,7 @@ class create ::SMTP {
 	}
     }
 
+    # smtp - initiate an SMTP interaction with one of a list of servers
     method smtp {msg smtp} {
 	dict set smtp sender [::mime::getheader $msg sender]
 	set message [mime::buildmessage $msg]
@@ -319,14 +317,14 @@ class create ::SMTP {
 	foreach server [dict get? $smtp servers] {
 	    set done 0
 	    if {[catch {
-		# try connecting to server
+		# try connecting to next server
 		set socket [socket -async {*}[lrange [list {*}$server 25] 0 1]]
 		fconfigure $socket -buffering line -translation {auto crlf}
 
-		set result [my smtp_protocol $socket $message $smtp]
+		set result [my protocol $socket $message $smtp]
 		set done [dict get $result success]
-		Debug.smtp {$server status: ($result)}
 
+		Debug.smtp {$server status: ($result)}
 		dict set status [lindex $server 0] $result
 	    } e eo]} {
 		dict set status [lindex $server 0] error [list $e $eo]
@@ -334,7 +332,7 @@ class create ::SMTP {
 	    }
 	    catch {close $socket}
 
-	    if {$done} break
+	    if {$done} break	;# we have successfully connected
 	}
 
 	# clean up and indicate completion
@@ -481,11 +479,13 @@ class create ::SMTP {
 	    ::mime::setheader $msg message-id text/plain -mode write
 	}
 
-	set tmp [::mime::getheader $msg]
-	Debug.smtp {sendmessage headers:($tmp) smtp:($smtp)}
+	Debug.smtp {sendmessage headers:([::mime::getheader $msg]) smtp:($smtp)}
 
 	# start smtp coroutine - use msg token as its name
-	return [sender [incr id] $msg $smtp]
+	dict set smtp id [incr id]
+	set ns [info object namespace [self]]
+	coroutine ${ns}::C$id my smtp $msg $smtp
+	return ${ns}::C$id
     }
     
     # send a mime-encoded message
@@ -518,7 +518,7 @@ class create ::SMTP {
     }
 
     variable defaults id
-    mixin Coroonet
+    superclass Coroonet
 
     constructor {args} {
 	dict set defaults client [info hostname] ;# our identity - announced in HELO
@@ -570,17 +570,11 @@ class create ::SMTP {
 	dict set defaults password ""
 
 	set defaults [dict merge $defaults $args]
-	proc sender {id msg smtp} {
-	    dict set smtp id $id
-	    dict with smtp {
-		coroutine C$id my smtp $msg $smtp
-	    }
-	    return C$id
-	}
     }
 }
 
 if {[info exists argv0] && ([info script] eq $argv0)} {
+    Debug on smtp 10
     set client [SMTP new]
     set status [$client simple {*}{
 	servers {puretcl.com localhost}
