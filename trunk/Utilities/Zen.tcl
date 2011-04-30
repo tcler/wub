@@ -42,7 +42,7 @@ oo::class create ::ZenGen {
 	    switch -- [lindex $arg 0] {
 		term {
 		    if {[dict exists [lrange $arg 2 end] -variable]} {
-			lappend vars [dict get [lrange $arg 2 end] -variable] 
+			lappend vars [dict get [lrange $arg 2 end] -variable]
 		    }
 		}
 		mult {
@@ -66,7 +66,7 @@ oo::class create ::ZenGen {
 	    switch -- [lindex $arg 0] {
 		term {
 		    if {[dict exists [lrange $arg 2 end] -command]} {
-			lappend cmds [dict get [lrange $arg 2 end] -command] 
+			lappend cmds [dict get [lrange $arg 2 end] -command]
 		    }
 		}
 		mult {
@@ -208,7 +208,7 @@ oo::class create ::ZenGen {
 	return [join $result \n]
 
     }
-    
+
     constructor {args} {
 	variable multiplying 0
 	variable context {}
@@ -503,7 +503,7 @@ oo::class create Zen {
 		}
 	    }
 	}
-	
+
 	Debug.zenparse {split_attr result: ($result)}
 	return $result
     }
@@ -586,7 +586,7 @@ oo::class create Zen {
 		    error "attribute: no close to match $punct parsing '$rest'"
 		}
 	    }
-	    
+
 	    | -
 	    > -
 	    + {
@@ -594,7 +594,7 @@ oo::class create Zen {
 		set rest ${punct}$rest
 		return ""
 	    }
-	    
+
 	    \( {
 		error "misplaced '(' in $rest"
 	    }
@@ -741,7 +741,7 @@ oo::class create Zen {
 	}
 
 	Debug.zenparse {parser $nesting over: '$rest'}
-	
+
 	# get lhs term
 	set result [list [my term rest $nesting]]
 	Debug.zenparse {parse lhs: '$result', rest: '$rest'}
@@ -964,6 +964,8 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	{ul>li#id\$_*$list} "<ul>\n<li id='id0'>\na\n</li>\n<li id='id1'>\nlist\n</li>\n<li id='id2'>\nof\n</li>\n<li id='id3'>\nwords\n</li>\n</ul>"
 	{ul>li#id\$_*[upto 5 $_]} "<ul>\n<li id='id0'>\n5\n</li>\n<li id='id1'>\n4\n</li>\n<li id='id2'>\n3\n</li>\n<li id='id3'>\n2\n</li>\n<li id='id4'>\n1\n</li>\n<li id='id5'>\n0\n</li>\n</ul>"
 	{ul>li#"id[upto 5 $_]"*[upto 5 $_]} "<ul>\n<li id='id5'>\n5\n</li>\n<li id='id4'>\n4\n</li>\n<li id='id3'>\n3\n</li>\n<li id='id2'>\n2\n</li>\n<li id='id1'>\n1\n</li>\n<li id='id0'>\n0\n</li>\n</ul>"
+	{span{style "background:\ url(1)\ no-repeat\;"}} .
+	{span{style {background: url(1) no-repeat;}}} .
     } {
 	incr count
 	test html-$count {} -setup $SETUP -body [list zen generate HTML $from line "this is a line" list {a list of words} simple simple] -cleanup $CLEANUP -result $to
