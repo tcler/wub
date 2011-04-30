@@ -995,9 +995,11 @@ oo::class create ::NubClass {
     method code_trailing {processed} {
         if {![dict size $processed]} {
             variable NS
-            namespace eval $NS [list proc trailing {r} {
-                return [NotFound $r]
-            }]
+            namespace eval $NS {
+                proc trailing {r} {
+                    return [NotFound $r]
+                }
+            }
         }
 	set switch ""
 	foreach {u d} $processed {
