@@ -54,7 +54,9 @@ proc dumpMsg {req {short 1}} {
     catch {
 	if {$short} {
 	    if {[dict exists $req -content]} {
-		dict set req -content <ELIDED>
+                if {[string length [dict get $req -content]] > 80} {
+                    dict set req -content [string range [dict get $req -content] 0 80]<ELIDED>
+                }
 	    }
 	    if {[dict exists $req -gzip]} {
 		dict set req -gzip <ELIDED>
