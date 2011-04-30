@@ -568,6 +568,7 @@ know {[string match <*> [lindex $args 0]]} {
 	}
 	return "<[join ${result}]>@M@</@T@>"
     }]
+
     return [{*}$args]
 }
 
