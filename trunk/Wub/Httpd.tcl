@@ -180,7 +180,8 @@ namespace eval ::watchdog {
 	} elseif {$rc == [catch continue]} {
 	    # Ignore - just consume the return code
 	    set rc 0
-	} elseif {$rc == [catch error ""]} {
+	} elseif {$rc == 1} {
+            # the script errored
 	    Debug.error {every: $interval ($script) - ERROR: $result ($eo)}
 	}
 
