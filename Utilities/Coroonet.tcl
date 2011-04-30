@@ -14,7 +14,7 @@ class create Coroonet {
     }
 
     method _yield {socket args} {
-	set result [lassign [::yield] command]
+	set result [lassign [::yieldm] command]
 
 	if {$command ni $args} {
 	    catch {catch {fileevent $socket readable {}}}
