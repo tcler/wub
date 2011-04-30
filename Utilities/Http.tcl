@@ -767,8 +767,9 @@ namespace eval ::Http {
         # Some browsers apparently don't like 404 pages
         # which are too small ... what bizarre behaviour!
         # http://code.google.com/p/wub/issues/detail?id=34
-        if {[string length [dict get $rsp -content]] < 512} {
-            dict append rsp -content "\n<!--[string repeat " " [expr {512 - $content_length}]] \n-->"
+        set length [string length [dict get $rsp -content]]
+        if {$length < 512} {
+            dict append rsp -content "\n<!--[string repeat " " [expr {512 - $length}]] \n-->"
         }
 
 	return $rsp
