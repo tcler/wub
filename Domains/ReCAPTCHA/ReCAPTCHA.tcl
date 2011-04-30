@@ -28,7 +28,8 @@ set ::API(Domains/ReCAPTCHA) {
 }
 
 class create ::ReCAPTCHA {
-    
+
+
     method /validate {r id recaptcha_challenge_field recaptcha_response_field args} {
 	if {![dict exists $resumption $id]} {
 	    return [Http Ok $r "ReCAPTCHA is stale." text/plain]
@@ -42,12 +43,14 @@ class create ::ReCAPTCHA {
 	    set args $a
 	    set result [split [dict get $v -content] \n]
 	    Debug.recaptcha {ReCAPTCHA validation: $result}
-	    
+
+
 	    set pass [lindex $result 0]
 	    if {![string is boolean -strict $pass]} {
 		return [Http ServerError $r "ReCAPTCHA Failed to Reply Sensibly."]
 	    }
-	    
+
+
 	    if {$pass} {
 		Debug.recaptcha {ReCAPTCHA passed}
 		lappend pass_script $r $a
@@ -124,7 +127,7 @@ class create ::ReCAPTCHA {
 	set id 0
 	set mount ""
 	variable {*}[Site var? ReCAPTCHA]	;# allow .ini file to modify defaults
-	
+
 	foreach {n v} $args {
 	    set $n $v
 	}
