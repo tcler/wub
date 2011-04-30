@@ -101,7 +101,7 @@ oo::class create Config {
 		foreach md $meta {
 		    dict set metadata $section "" [parsetcl unparse $md]
 		}
-		
+
 		# parse raw body of section
 		my parse_section $section [lindex [parsetcl unparse $right] 0]
 	    } else {
@@ -135,23 +135,20 @@ oo::class create Config {
 	my parse [::fileutil::cat -- $file]
     }
 
+    # assign - assign config dict from args
     method assign {args} {
 	variable raw; dict set raw {*}$args
-	variable clean 0	
+	variable clean 0
     }
+
+    # assign? - assign configs from args
     method assign? {args} {
-	variable raw; 
+	variable raw;
 	if {![dict exists $raw {*}[lrange $args 0 end-1]]} {
 	    dict set raw {*}$args
 	    Debug.config {assign? $args -> [dict get $raw {*}[lrange $args 0 end-1]]}
 	}
-	variable clean 0	
-    }
-
-    method get {args} {
-	my eval
-	variable extracted
-	return [dict get $extracted {*}$args]
+	variable clean 0
     }
 
     # substitute section-relative names into value scripts
@@ -227,6 +224,7 @@ oo::class create Config {
 	return $result
     }
 
+    # exists does the given secion and element exist?
     method exists {args} {
 	variable raw
 	return [dict exists $raw {*}$args]
@@ -254,20 +252,16 @@ oo::class create Config {
 	return $extracted
     }
 
+    # get element from extracted dict
+    method get {args} {
+	my eval
+	variable extracted
+	return [dict get $extracted {*}$args]
+    }
+
     # bind - bind all values to their evaluated value
     method bind {} {
 	variable raw [my extract]
-    }
-
-    method todict {} {
-	dict set result raw [my raw]
-	dict set result comments [my comments]
-	dict set result metadata [my metadata]
-	return $result
-    }
-
-    method tolist {} {
-	return [list [my raw] [my comments] [my metadata]]
     }
 
     # raw - access raw values
@@ -298,6 +292,19 @@ oo::class create Config {
 	} else {
 	    return [dict get? $metadata $section]
 	}
+    }
+
+    # todict - extract elements from config as dict
+    method todict {} {
+	dict set result raw [my raw]
+	dict set result comments [my comments]
+	dict set result metadata [my metadata]
+	return $result
+    }
+
+    # todict - extract elements from config as list
+    method tolist {} {
+	return [list [my raw] [my comments] [my metadata]]
     }
 
     # aggregate a list of Config objects
@@ -352,7 +359,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 	    v1 2
 	    v2 [expr {$v1 ** 2}]
 	}
-	# another section 
+	# another section
 	sect1 {
 	    v1 [expr {$section::v1 ^ 10}]
 	    ap -moop moopy [list moop {*}$::auto_path]
