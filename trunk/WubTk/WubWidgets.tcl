@@ -474,7 +474,7 @@ namespace eval ::WubWidgets {
 		set result $text
 	    } else {
 		Debug.wubwidgets {[self] getvalue default to ""}
-		setresult ""
+		set result ""
 	    }
 	    return $result
 	}
