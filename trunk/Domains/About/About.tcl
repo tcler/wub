@@ -26,7 +26,7 @@ namespace eval ::About {
 	    if {!$result} {
 		return $r	;# the URL isn't in our domain
 	    }
-	    
+
 	    global API
 	    if {![info exists API($suffix)]} {
 		Debug.about {$suffix domain not known}
@@ -54,15 +54,15 @@ namespace eval ::About {
 	    }
 
 	    set result ""
-	    set n $suffix 
+	    set n $suffix
 	    set v $API($n)
-	    
+
 	    set opts [lassign $v v]
 	    if {[string index $v 0] eq "\n"} {
 		set v [string trim $v "\n"]
 		set v [::textutil::untabify $v]
 		set v [::textutil::undent $v]
-		
+
 		set optlist {}
 
 		set doc $v
