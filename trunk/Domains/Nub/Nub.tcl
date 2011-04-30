@@ -993,7 +993,12 @@ oo::class create ::NubClass {
     }
 
     method code_trailing {processed} {
-	upvar 1 domains domains
+        if {![dict size $processed]} {
+            variable NS
+            namespace eval $NS [list proc trailing {r} {
+                return [NotFound $r]
+            }]
+        }
 	set switch ""
 	foreach {u d} $processed {
 	    set url [join [lassign $u host] /]
