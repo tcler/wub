@@ -383,7 +383,7 @@ class create ::FormClass {
 	    }
 	    dict unset config compact
 	}
-	
+
 	set title {}
 	if {[dict exists $config title]
 	    && ([dict exists $config label]
@@ -431,7 +431,7 @@ class create ::FormClass {
 		    set content ""
 		}
 		set config [my defaults %T% alt %T% {*}$args name $name type %T%]
-		
+
 		if {![dict exists $config tabindex]} {
 		    variable tabindex
 		    dict config.tabindex [incr tabindex]
@@ -472,7 +472,7 @@ class create ::FormClass {
 	variable buttonA
 	return "<[my attr button {*}[dict in $config $buttonA] {*}[dict filter $config key data-*]]>$content</button>"
     }
-    
+
     foreach {itype attrs field} {
 	password text value
 	text text value
@@ -488,9 +488,9 @@ class create ::FormClass {
 		} else {
 		    set value ""
 		}
-		
+
 		set config [my defaults %T% readonly 0 {*}$args name $name type %T% %F% [uplevel 1 [list subst $value]]]
-		
+
 		if {![dict exists $config tabindex]} {
 		    variable tabindex
 		    dict config.tabindex [incr tabindex]
@@ -548,7 +548,7 @@ class create ::FormClass {
 	}
 	return [uplevel 1 [list <select> $name {*}[lrange $args 0 end-1] $result]]
     }
-    
+
     method <selectset> {args} {
 	return [uplevel 1 [list <selectlist> {*}$args]]
     }
@@ -560,7 +560,7 @@ class create ::FormClass {
 		set args [lassign $args boxes]
 		set rsconfig [my defaults %T% {*}$args name $name type %T%]
 		set result {}
- 
+
 		set accum ""
 		foreach {content value} $boxes {
 		    set config [my defaults %T%%S% {*}$rsconfig]
@@ -581,7 +581,7 @@ class create ::FormClass {
 		} else {
 		    set joiner \n
 		}
-		
+
 		my metadata $name $config	;# remember config for field
 
 		if {[dict exists $rsconfig legend]} {
@@ -605,7 +605,7 @@ class create ::FormClass {
 		}
 	    }
 	}]
-	
+
 	eval [string map [list %T% $type$sub] {
 	    method <%T%> {name args} {
 		if {[llength $args] % 2} {
@@ -729,14 +729,14 @@ class create ::FormClass {
 			    if {[dict exists $known $name]} {
 				error "redeclaration of '$name' in '[parsetcl unparse $line]'"
 			    }
-			    
+
 			    set content [lindex $cargs end]
 			    set fsargs {}
 			    foreach ca [lrange $cargs 1 end-1] {
 				lappend fsargs [parsetcl unparse $ca]
 			    }
 			    set name [string trim [lindex $name 2] .]
-			    
+
 			    # a fieldset's content is itself a form - recursively parse
 			    set content [lindex $content 2]
 			    set fs [lindex [uplevel 1 [list [self] layout_parser $name {*}$control \n$content\n]] 1]
@@ -744,13 +744,13 @@ class create ::FormClass {
 			    Debug.form {fieldset: name:'$name' content:'$content' -> ($fs)}
 			    dict known.$name \n$fs
 			}
-			
+
 			select {
 			    set name [lindex $cargs 0]
 			    if {[dict exists $known $name]} {
 				error "redeclaration of '$name' in '[parsetcl unparse $line]'"
 			    }
-			    
+
 			    set content [lindex $cargs end]
 			    set fsargs {}
 			    foreach ca [lrange $cargs 1 end-1] {
@@ -758,7 +758,7 @@ class create ::FormClass {
 			    }
 			    set fsargs [join $fsargs]
 			    set name [string trim [lindex $name 2] .]
-			    
+
 			    # a select's content is itself a form - recursively parse
 			    set content [lindex $content 2]
 			    set fs [lindex [uplevel 1 [list [self] layout_parser $name \n$content\n]] 1]
@@ -766,7 +766,7 @@ class create ::FormClass {
 			    Debug.form {select: $name: '$content' -> ($fs)}
 			    dict known.$name \n$fs
 			}
-			
+
 			legend {
 			    lset parse {*}$index 3 2 <legend>	;# make it a form command
 			    set allargs {}
@@ -790,7 +790,7 @@ class create ::FormClass {
 			    }
 			    dict known.[incr frag] "\[[self] <$fc> [join $allargs]\]"
 			}
-			
+
 			default {
 			    lset parse {*}$index 3 2 <$fc>	;# make it a form command
 			    set name [lindex $parse {*}$index 4 2]
@@ -1013,7 +1013,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 		It's fairly cool.  Note how it's left aligned.
 	    }]
 	    <br>[<submit> submit "Create New Account"]
-	    
+
 	    [<br>]
 	    [<fieldset> permissions -legend Permissions {
 		[<fieldset> gpermF style "float:left" title "Group Permissions." {
@@ -1035,11 +1035,11 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 		[<submit> class positive {
 		    [<img> src /images/icons/tick.png alt ""] Save
 		}]
-		
+
 		[<a> href /password/reset/ [subst {
 		    [<img> src /images/icons/textfield_key.png alt ""] Change Password
 		}]]
-		
+
 		[<a> href "#" class negative [subst {
 		    [<img> src /images/icons/cross.png alt ""] Cancel
 		}]]
