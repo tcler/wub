@@ -273,7 +273,7 @@ namespace eval ::Url {
 		append result "${pre}[dict get $args $part]${post}"
 	    }
 	}
-	#puts stderr "Url url $args -> $result"
+	Debug.url {Url url $args -> $result}
 	return $result
     }
 
