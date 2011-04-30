@@ -132,7 +132,7 @@ namespace eval ::Site {
 	dict for {name value} $args {
 	    ::variable $name
 	    if {[info exists $name]} {
-		Debug.site {($phase) overriding variable $name: $value - was ([set $name])}
+		Debug.site {($phase) overriding variable $name: now:'$value' - was:'[set $name]'}
 	    } else {
 		Debug.site {($phase) define variable $name: $value}
 	    }
