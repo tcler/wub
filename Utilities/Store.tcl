@@ -1,7 +1,7 @@
 # Store - a simple wrapper around TDBC providing a store
 #
 # A 'store' is considered to be a database with fairly simple
-# access/update requirements: 
+# access/update requirements:
 #
 # Store presumes we're primarily interested in one table of a db, and that
 # all tables can meaningfully be accessed by row number / oid.
@@ -107,17 +107,17 @@ oo::class create Store {
 		    * {
 			set op GLOB
 		    }
-		    
+
 		    % {
 			set op LIKE
 		    }
-		    
+
 		    ? {
 			set op IS
 		    }
 		    >= - <= - > - < -
 		    == - != - = {}
-		    
+
 		    default {
 			set op =
 		    }
@@ -131,8 +131,8 @@ oo::class create Store {
 		    lappend sel "$n IS NULL"
 		}
 	    } else {
-		lappend sel "$n $op :_${n}_$count"
-		dict set selargs _${n}_$count $v
+		lappend sel "$n $op :${n}_$count"
+		dict set selargs ${n}_$count $v
 		incr count
 	    }
 	}
@@ -283,6 +283,20 @@ oo::class create Store {
 	return [my stmt "SELECT * FROM $table WHERE $sel$orderby;" {*}$selargs]
     }
 
+    method all {{table ""}} {
+	if {$table eq ""} {
+	    variable primary; set table $primary
+	}
+	set orderby [join [lassign [split $table ,] table] ,]
+	if {$table eq ""} {
+	    variable primary; set table $primary
+	}
+	if {$orderby ne ""} {
+	    set orderby " ORDER BY $orderby"
+	}
+	return [my stmt "SELECT * FROM $table $orderby;"]
+    }
+
     # find rowid of first match
     method find {args} {
 	if {[llength $args] == 1} {
@@ -422,7 +436,11 @@ oo::class create Store {
 	Debug.store {get id:$id from table:$table}
 	set result [lindex [my stmt "SELECT * FROM $table WHERE id=:id;" id $id] 0]
 	Debug.store {get id:$id from table:$table -> ($result) after $args}
-	return [dict get $result {*}$args]
+        if {[llength $args]} {
+            return [dict get $result {*}$args]
+        } else {
+            return $result
+        }
     }
 
     # set a row's values to those given in args dict
@@ -517,7 +535,7 @@ oo::class create Store {
 	# load the tdbc drivers
 	package require $tdbc
 	package require tdbc::$tdbc
-	
+
 	if {$db eq ""} {
 	    if {$file eq ""} {
 		error "Must provide a db file"
@@ -549,6 +567,7 @@ oo::class create Store {
 		my db allrows -- $schema
 	    }
 	}
+	catch {next? {*}$args}
     }
 }
 
