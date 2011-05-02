@@ -105,6 +105,7 @@ audio/x-wav                    wav
 
 image/vnd.microsoft.icon       ico
 image/png                      png
+image/svg+xml                  svg
 image/gif                      gif GIF
 image/ief                      ief
 image/jpeg                     jpeg jpg jpe
