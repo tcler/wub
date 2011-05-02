@@ -1543,7 +1543,7 @@ oo::class create ::Httpd {
     }
 
     # Entity - read entity from the wire
-    method Entity {{code continue}} {
+    method Entity {} {
 	variable istate ENTITY
 	upvar 1 r r
 	variable start; dict set r -time entitystart [expr {[clock microseconds] - $start}]
@@ -1572,7 +1572,7 @@ oo::class create ::Httpd {
 		    # queue up error response (no caching)
 		    Debug.log {Got a $tel transfer-encoding which we can't handle}
 		    my send [Http NotImplemented $r "$tel transfer encoding"] 0
-		    return -code $code	;# listen for new request
+		    return	;# listen for new request
 
 		    # see 3.6 - 14.41 for transfer-encoding
 		    # 4.4.2 If a message is received with both
@@ -1594,7 +1594,7 @@ oo::class create ::Httpd {
 	    # this is a content-length driven entity transfer
 	    # 411 Length Required
 	    my send [Http Bad $r "Length Required" 411]
-	    return -code $code
+	    return
 	}
 
         # determine the charset of any content
@@ -1621,7 +1621,7 @@ oo::class create ::Httpd {
                 if {$charset ni [encoding names]} {
                     # send NotAcceptable?  But how?
                     my send [Http NotAcceptable $r]
-                    return -code $code
+                    return
                 }
             }
         }
@@ -1662,7 +1662,7 @@ oo::class create ::Httpd {
 		# we had a 0-length chunk ... may as well let it fall through
 		dict set r -entity ""
 	    }
-	    return -code $code	;# we loop around until there are more requests
+	    return	;# we loop around until there are more requests
 	} elseif {[dict exists $r content-length]
 		  && [dict get $r content-length]} {
             # straight 'entity follows header' with explicit length
@@ -1709,7 +1709,7 @@ oo::class create ::Httpd {
 		# start the fcopy
 		chan configure $socket -translation binary -encoding $charset
 		chan copy $socket $entity -size $left -command [list [info coroutine] fcin $r $entity $left]
-		return -code $code	;# we loop around until there are more requests
+		return	;# we loop around until there are more requests
 	    }
 
 	    # load entity into memory
@@ -1884,8 +1884,8 @@ oo::class create ::Httpd {
 	}
     }
 
-    method entity {r {code continue}} {
-	my Entity $code		;# process entity
+    method entity {r} {
+	my Entity		;# process entity
 	tailcall my process $r	;# now process the request
     }
 
