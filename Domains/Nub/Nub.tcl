@@ -1223,14 +1223,14 @@ oo::class create ::NubClass {
 
 		%RW%	;# apply rewrites
 
-		# apply Blocks
-		%B%
-
 		# apply Redirects
 		%RD%
 
 		# apply Auth rules
 		%AUTH%
+
+		# apply Blocks
+		%B%
 
 		Debug.nub {PX: [dict get $r -host],[dict get $r -path]}
 		Debug.dispatch {[dict get $r -url]}
