@@ -21,7 +21,7 @@ alias tclarmour string map {\[ "&#x5B;" \] "&#x5D;" \{ "&#x7B;" \} "&#x7D;" $ "&
 
 #interp alias {} armour {} string map [list &\# &\# & &amp\; < &lt\; > &gt\; \" &quot\; ' &\#39\;]
 interp alias {} armour {} string map {
-    &\# &\#
+    &\# &\# ' &\#39;
     \xa0 &nbsp; \xa1 &iexcl; \xa2 &cent; \xa3 &pound; \xa4 &curren;
     \xa5 &yen; \xa6 &brvbar; \xa7 &sect; \xa8 &uml; \xa9 &copy;
     \xaa &ordf; \xab &laquo; \xac &not; \xad &shy; \xae &reg;
