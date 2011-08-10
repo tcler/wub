@@ -464,8 +464,10 @@ oo::class create ::Httpd {
 	}
 
 	# read a chunksize
+	puts "ENCODING1 [encoding system]"
 	chan configure $socket -translation {crlf binary} -encoding [encoding system]
 	set chunksize 0x[get $socket FCHUNK]	;# we have this many bytes to read
+	puts "ENCODING2 [dict get $r -encoding]"
 	chan configure $socket -translation {binary binary} -encoding [dict get $r -encoding]
 
 	if {$chunksize ne "0x0"} {
@@ -957,13 +959,16 @@ oo::class create ::Httpd {
 	if {[string match text/* $ct] || [string match */*xml $ct]} {
 	    if {[dict exists $reply -charset]} {
 		set charset [dict get $reply -charset]
+		puts "CT from reply: $reply"
 	    } else {
 		set charset [encoding system]	;# default charset (utf-8)
                 dict set reply -charset $charset
+		puts "CT from system: $charset"
 	    }
             # ensure content is converted to correct charset,
             # flag conversion in response, to avoid double conversion
 	    dict set reply -chconverted $charset
+	    puts "CT = $ct; charset=$charset"
 	    dict set reply content-type "$ct; charset=$charset"
 	    dict set reply -content [encoding convertto $charset [dict get $reply -content]]
 	}
@@ -1656,6 +1661,7 @@ oo::class create ::Httpd {
 
 		# start the entity fcopy
 		set istate FCHUNK
+		puts "ENCODING3 $charset"
 		chan configure $socket -translation binary -encoding $charset
 		chan copy $socket $entity -size $chunksize -command [list [info coroutine] fchunk $r $raw $entity 0 $chunksize]
 	    } else {
@@ -1707,6 +1713,7 @@ oo::class create ::Httpd {
 		Debug.entity {[info coroutine] FCIN: starting with $left writing to '$entitypath'} 8
 
 		# start the fcopy
+		puts "ENCODING4 $charset"
 		chan configure $socket -translation binary -encoding $charset
 		chan copy $socket $entity -size $left -command [list [info coroutine] fcin $r $entity $left]
 		return	;# we loop around until there are more requests
@@ -1720,6 +1727,7 @@ oo::class create ::Httpd {
 		# or equal to zero is a valid value.
 	    } else {
 		set entity ""
+		puts "ENCODING5 $charset"
 		chan configure $socket -translation {binary binary} -encoding $charset
 		Debug.httpdlow {[info coroutine] getting entity of length ($left)}
 		set chunk ""
