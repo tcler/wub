@@ -190,9 +190,9 @@ class create ::Listener {
 	} {
 	    lappend cmd -myaddr [dict get $args -myaddr]
 	}
-	
+
 	lappend cmd [dict get $args -port]
-	
+
 	Debug.listener {server: $cmd}
 	variable listener
 	if {[catch $cmd listener eo]} {
