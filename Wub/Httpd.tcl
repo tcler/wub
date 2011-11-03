@@ -1402,7 +1402,7 @@ oo::class create ::Httpd {
 	# A server SHOULD return 414 (Requestuest-URI Too Long) status
 	# if a URI is longer than the server can handle
 	# (see section 10.4.15).)
-	dict set r -uri [Url decode [join [lrange [dict get $r -header] 1 end-1]]]
+        set url [join [lrange [dict get $r -header] 1 end-1]]
 
 	variable maxurilen
 	if {$maxurilen && [string length [dict get $r -uri]] > $maxurilen} {
@@ -1415,7 +1415,8 @@ oo::class create ::Httpd {
 	Debug.httpd {[info coroutine] reader got request: ($r)}
 
 	# parse the URL
-	set r [dict merge $r [Url parse [dict get $r -uri] 1]]
+	set r [dict merge $r [Url parse $url 1]]
+	dict set r -uri [Url uri $r]
 
 	# ua - analyse user-agent strings.
 	variable ua
