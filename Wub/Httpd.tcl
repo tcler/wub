@@ -1402,10 +1402,10 @@ oo::class create ::Httpd {
 	# A server SHOULD return 414 (Requestuest-URI Too Long) status
 	# if a URI is longer than the server can handle
 	# (see section 10.4.15).)
-        set url [join [lrange [dict get $r -header] 1 end-1]]
+        set url http://[join [lrange [dict get $r -header] 1 end-1]]
 
 	variable maxurilen
-	if {$maxurilen && [string length [dict get $r -uri]] > $maxurilen} {
+	if {$maxurilen && [string length $uri] > $maxurilen} {
 	    # send a 414 back
 	    set istate LONGURI
 	    my handle [Http Bad $r "URI too long '[dict get $r -uri]'" 414] "URI too long"
