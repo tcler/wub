@@ -1405,10 +1405,10 @@ oo::class create ::Httpd {
         set url http://[join [lrange [dict get $r -header] 1 end-1]]
 
 	variable maxurilen
-	if {$maxurilen && [string length $uri] > $maxurilen} {
+	if {$maxurilen && [string length $url] > $maxurilen} {
 	    # send a 414 back
 	    set istate LONGURI
-	    my handle [Http Bad $r "URI too long '[dict get $r -uri]'" 414] "URI too long"
+	    my handle [Http Bad $r "URI too long '$uri'" 414] "URI too long"
 	    return -code break
 	}
 
