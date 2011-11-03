@@ -182,6 +182,43 @@ namespace eval ::Url {
 	return [list 1 $r $suffix $path]
     }
 
+    # parsePath --
+    #
+    #	parse a url path+fragment+query into its constituent parts
+    #
+    # Arguments:
+    #	args	url to parse
+    #
+    # Results:
+    #	array form of parsed URL elements
+    #
+    # Side Effects:
+    #	none
+
+    proc parsePath {url {normalize 1}} {
+	Debug.url {Url parsePath $url - norm? $normalize}
+	array set x {}
+	regexp {^([^?\#]*)([?]([^\#]*))?(\#(.*))?$} $url \
+	    -> x(-path) . x(-query) . x(-fragment)
+
+	Debug.url {Url parsePath 1: $url -> [array get x]}
+
+	if {$normalize} {
+	    set x(-path) [normalize [decode $x(-path)]]	;# fix up oddities in URLs
+	    set x(-normalized) 1
+	}
+
+	foreach n [array names x] {
+	    if {$x($n) eq ""} {
+		unset x($n)
+	    }
+	}
+
+	Debug.url {Url parsePath: $url -> [array get x]}
+
+	return [array get x]
+    }
+
     # parse --
     #
     #	parse a url into its constituent parts
@@ -216,12 +253,8 @@ namespace eval ::Url {
 	}
 
         if {[info exists x(-host)]} {
-            if {$x(-host) eq ""} {
-                unset x(-host)
-            } else {
-                # clean up host - check its validity?
-                set x(-host) [string tolower $x(-host)]
-            }
+            # clean up host - check its validity?
+            set x(-host) [string tolower $x(-host)]
         }
 
         if {[info exists x(-scheme)]} {
@@ -239,7 +272,7 @@ namespace eval ::Url {
 	    #set x(-scheme) http
 	}
 
-	Debug.url {Url parse: $url -> [array get x]} 30
+	Debug.url {Url parse: $url -> [array get x]}
 
 	return [array get x]
     }
@@ -257,6 +290,9 @@ namespace eval ::Url {
 	    set args [lindex $args 0]
 	}
 	Debug.url {Url url $args}
+        if {![dict exists $args -scheme]} {
+            dict set args -scheme http	;# need a default.
+        }
 
 	# minimize -port
 	if {[dict exists $args -port]} {
@@ -281,6 +317,7 @@ namespace eval ::Url {
 		append result "${pre}[dict get $args $part]${post}"
 	    }
 	}
+
 	Debug.url {Url url $args -> $result}
 	return $result
     }
