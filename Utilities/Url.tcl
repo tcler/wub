@@ -205,7 +205,7 @@ namespace eval ::Url {
 
 	if {$normalize} {
 	    set x(-path) [normalize [decode $x(-path)]]	;# fix up oddities in URLs
-            set x(-query) [decode $x(-query)]
+            #set x(-query) [decode $x(-query)]
 	    set x(-normalized) 1
 	}
 
