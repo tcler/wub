@@ -216,12 +216,19 @@ namespace eval ::Url {
 	}
 
         if {[info exists x(-host)]} {
-            # clean up host - check its validity?
-            set x(-host) [string tolower $x(-host)]
+            if {$x(-host) eq ""} {
+                unset x(-host)
+            } else {
+                # clean up host - check its validity?
+                set x(-host) [string tolower $x(-host)]
+            }
         }
+
         if {[info exists x(-scheme)]} {
             # clean up scheme - check its validity?
             set x(-scheme) [string tolower $x(-scheme)]
+        } else {
+            set x(-scheme) http
         }
 
 	Debug.url {Url parse post regexp: [array get x]}
