@@ -1397,27 +1397,6 @@ oo::class create ::Httpd {
 	    return -code break
 	}
 
-	# get request URL
-	# check URI length (per rfc2616 3.2.1
-	# A server SHOULD return 414 (Requestuest-URI Too Long) status
-	# if a URI is longer than the server can handle
-	# (see section 10.4.15).)
-        set uri [join [lrange [dict get $r -header] 1 end-1]]
-
-	variable maxurilen
-	if {$maxurilen && [string length $uri] > $maxurilen} {
-	    # send a 414 back
-	    set istate LONGURI
-	    my handle [Http Bad $r "URI too long '$uri'" 414] "URI too long"
-	    return -code break
-	}
-
-	Debug.httpd {[info coroutine] reader got request: ($r)}
-
-	# parse the URL
-	set r [dict merge $r [Url parse $uri 1]]
-	dict set r -uri [Url uri $r]
-
 	# ua - analyse user-agent strings.
 	variable ua
 	if {$ua} {
@@ -1456,22 +1435,39 @@ oo::class create ::Httpd {
 	    }
 	}
 
-	# ensure that the client sent a Host: if protocol requires it
+	Debug.httpd {[info coroutine] reader got request: ($r)}
+
+	# get request URL
+	# check URI length (per rfc2616 3.2.1
+	# A server SHOULD return 414 (Requestuest-URI Too Long) status
+	# if a URI is longer than the server can handle
+	# (see section 10.4.15).)
+        set uri [join [lrange [dict get $r -header] 1 end-1]]
+
+	variable maxurilen
+	if {$maxurilen && [string length $uri] > $maxurilen} {
+	    # send a 414 back
+	    set istate LONGURI
+	    my handle [Http Bad $r "URI too long '$uri'" 414] "URI too long"
+	    return -code break
+	}
+
+	# parse the URL - deal with the client's Host: if protocol requires it
 	if {[dict exists $r host]} {
 	    # client sent Host: field
-	    if {[string match http*:* [dict get $r -uri]]} {
+	    if {[string match http*:* $uri]} {
+                # absolute Host: field
 		# rfc 5.2 1 - a host header field must be ignored
 		# if request-line specified an absolute URL host/port
-		set r [dict merge $r [Url parse [dict get $r -uri]]]
-		dict set r host [Url host $r]
+		set r [dict merge $r [Url parse $uri 1]]
 	    } else {
-		# no absolute URL was specified by the request-line
+		# no absolute URL was specified on the request-line
 		# use the Host field to determine the host
-		foreach c [split [dict get $r host] :] f {host port} {
-		    dict set r -$f $c
-		}
-		dict set r host [Url host $r]
-		set r [dict merge $r [Url parse http://[dict get $r host][dict get $r -uri]]]
+                set port [dict get $r -port]	;# default port sent in by Listener
+		lassign [split [dict get $r host] :] host port
+                dict set r -host $host
+                dict set r -port $port
+		set r [dict merge $r [Url parsePath $uri 1]]
 	    }
 	} elseif {[dict get $r -version] > 1.0} {
 	    set istate BADPROTOCOL
@@ -1479,16 +1475,12 @@ oo::class create ::Httpd {
 	    return -code break
 	} else {
 	    # HTTP 1.0 isn't required to send a Host field
-	    # but we still need it
-	    if {![dict exists $r -host]} {
-		# make sure the request has some idea of our host&port
-		dict set r -host $host
-		dict set r -port $port
-		dict set r host [Url host $r]
-	    }
-	    set r [dict merge $r [Url parse http://[Url host $r]/[dict get $r -uri]]]
+	    # but we still need host info as provided by Listener
+            set r [dict merge $r [Url parsePath $uri 1]]
+            dict set r host [Url host $r]
 	}
 	dict set r -url [Url url $r]	;# normalize URL
+        dict set r -uri [Url uri $r]
 
 	# rfc2616 14.10:
 	# A system receiving an HTTP/1.0 (or lower-version) message that
