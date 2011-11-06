@@ -277,6 +277,7 @@ namespace eval ::Url {
 	return [array get x]
     }
 
+    # Parse - parse without silly leading -* on names
     proc Parse {url} {
 	set result {}
 	dict for {k v} [parse $url] {
@@ -337,6 +338,111 @@ namespace eval ::Url {
 	    }
 	}
 	return $result
+    }
+
+    # localuri - return a local uri, no host scheme or port
+    proc localuri {x args} {
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+	set result [dict get $x -path]
+
+	foreach {part pre post} {
+	    -query ? ""
+	    -fragment \# ""
+	} {
+	    if {[dict exists $x $part]} {
+		append result "${pre}[dict get $x $part]${post}"
+	    }
+	}
+	return $result
+    }
+
+    # freeparse - parse a free form url-ish string
+    proc freeparse {urlish args} {
+        if {[llength $args] == 1} {
+            set args [lindex $args 0]
+        }
+
+        # set defaults in url dict from args
+        set result {scheme http}
+        foreach {f def} {scheme host port} {
+            if {[dict exists $args -$f]} {
+                dict set result -$f [dict get $args -$f]
+            }
+        }
+
+        switch -nocase -glob -- $urlish {
+            http* {
+                # full URL
+                set result [parse $urlish]
+            }
+            //* {
+                # host-absolute path-absolute - parse+normalize
+                set urlish /[join [lassign [split $urlish /] -> host] /]
+                set result [dict merge $result [list -host $host] [parsePath $urlish]]
+            }
+            /* {
+                # host-relative path-absolute - parse+normalize
+                set result [dict merge $result [parsePath $urlish]]
+            }
+            default {
+                # host-relative path-relative - parse but don't normalize
+                set result [dict merge $result [parsePath $urlish 0]]
+            }
+        }
+        return $result
+    }
+
+    # process a possibly local URI for redirection
+    # provides a limited ability to add query $args
+    # limits: overwrites existing args, ignores and removes duplicates
+    proc redir {defaults to args} {
+	Debug.url {redir defaults:$defaults to:$to args:$args}
+	#puts stderr "redir defaults:($defaults) to:$to args:$args"
+	if {[llength $args] == 1} {
+	    set args [lindex $args 0]
+	}
+
+	set todict [freeparse $to $defaults]	;# parse the destination URL
+
+	if {[dict exists $todict -query]} {
+	    foreach {n v} [Query flatten [Query parse $todict]] {
+		dict set query $n $v
+	    }
+	} else {
+	    set query {}
+	}
+
+	# parse args as additional -query elements
+	foreach {name val} $args {
+	    dict set query $name $val
+	}
+
+	set q ""
+	dict for {n v} $query {
+	    if {$v ne ""} {
+		lappend q "$n=[Query encode $v]"
+	    } else {
+		lappend q $n
+	    }
+	}
+	if {$q ne {}} {
+	    dict set todict -query [join $q &]
+	}
+
+	if {([dict get? $todict -host] ne [dict get? $defaults -host])
+	    || ([dict get? $todict -port] ne [dict get? $defaults -port])
+	} {
+	    # this is a remote URL
+	    set to [uri $todict]
+	} else {
+	    # local URL - no scheme, host, port, etc.
+	    set to [localuri $todict]
+	}
+
+	Debug.url {redir to: $to}
+	return $to
     }
 
     # construct the host part of a URL dict
@@ -411,69 +517,6 @@ namespace eval ::Url {
 
         set to [uri $dict]
 	Debug.url {d2url to: $to}
-	return $to
-    }
-
-    # process a possibly local URI for redirection
-    # provides a limited ability to add query $args
-    # limits: overwrites existing args, ignores and removes duplicates
-    proc redir {dict to args} {
-	Debug.url {redir dict:$dict to:$to args:$args}
-	#puts stderr "redir dict:($dict) to:$to args:$args"
-	if {[llength $args] == 1} {
-	    set args [lindex $args 0]
-	}
-
-	set todict [parse $to 0]	;# parse the destination URL
-
-	if {[dict exists $todict -query]} {
-	    foreach {n v} [Query flatten [Query parse $todict]] {
-		dict set query $n $v
-	    }
-	} else {
-	    set query {}
-	}
-
-	# parse args as additional -query elements
-	foreach {name val} $args {
-	    dict set query $name $val
-	}
-
-	set q ""
-	dict for {n v} $query {
-	    if {$v ne ""} {
-		lappend q "$n=[Query encode $v]"
-	    } else {
-		lappend q $n
-	    }
-	}
-	if {$q ne {}} {
-	    dict set todict -query [join $q &]
-	}
-
-	if {([dict get? $todict -host] ne [dict get? $dict -host])
-	    || ([dict get? $todict -port] ne [dict get? $dict -port])
-	} {
-	    # this is a remote URL
-	    set to [uri $todict]
-	} else {
-	    # local URL
-	    set npath [dict get $todict -path]
-	    if {![string match /* $npath]
-		&& ![dict exists $dict -normalized]
-	    } {
-		set npath [normalize [join [list {*}[dict get $dict -path] {*}$npath] /]]
-	    }
-
-	    set host [dict get $dict -host]
-	    set port [dict get $dict -port]
-	    set to [uri [dict replace $todict \
-			     -normalized 1 \
-			     -path $npath \
-			     -host $host \
-			     -port $port]]
-	}
-	Debug.url {redir to: $to}
 	return $to
     }
 
