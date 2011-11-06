@@ -909,15 +909,6 @@ namespace eval ::Http {
 	    dict set rsp content-type "text/html"
 	}
 
-	if {0} {
-	    if {![string match {http:*} $to]} {
-		# do some munging to get a URL
-		dict set rsp location $rsp [Url redir $rsp $to]
-	    } else {
-		dict set rsp location $to
-	    }
-	}
-
 	dict set rsp location $to
 	dict set rsp -code $code
 	dict set rsp -rtype $title
