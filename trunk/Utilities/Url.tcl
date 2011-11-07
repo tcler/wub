@@ -431,8 +431,8 @@ namespace eval ::Url {
 	    dict set todict -query [join $q &]
 	}
 
-	if {([dict get? $todict -host] ne [dict get? $defaults -host])
-	    || ([dict get? $todict -port] ne [dict get? $defaults -port])
+	if {([dict get? $todict -host] ni [list "" [dict get? $defaults -host]])
+	    || ([dict get? $todict -port] ni [list "" [dict get? $defaults -port]])
 	} {
 	    # this is a remote URL
 	    set to [uri $todict]
