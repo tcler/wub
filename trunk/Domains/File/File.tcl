@@ -22,6 +22,7 @@ set ::API(Domains/File) {
     indexfile {name of the file which stands for a directory, such as index.html}
     hide {a regexp to hide temp and other uninteresting files (default hides .* *~ and #*)}
     redirdir {flag: should references to directories be required to have a trailing /?}
+    redirindex {flag: should references to directory indices be resolved or they can be left with just a trailing /?}
     expires {a tcl clock expression indicating when contents expire from caches.}
     dateformat {a tcl clock format for displaying dates in directory listings}
     nodir {don't allow the browsing of directories (default: 0 - browsing allowed.)}
@@ -141,7 +142,20 @@ class create ::File {
 			set indices [glob -nocomplain -tails -directory $path $indexfile]
 			if {[llength $indices]} {
 			    dict set r -path [file join [dict get $r -path] [lindex $indices 0]]
-			    return [Http Redirect $r [Url uri $r]]
+                            if {$redirindex} {
+                                return [Http Redirect $r [Url uri $r]]
+                            } else {
+                                set path [file join $path [lindex $indices 0]]
+                                # allow client caching
+                                set r [Http Cache $r $expires $crealm]
+                                if {[file size $path] > $stream} {
+                                    # this is a large file - stream it using fcopy
+                                    return [Http File $r $path]
+                                } else {
+                                    # this is a small file - load then send
+                                    return [Http CacheableFile $r $path]
+                                }
+                            }
 			}
 		    }
 		    if {$nodir} {
@@ -163,7 +177,7 @@ class create ::File {
 	return [Http NotFound $r "<p>File '$suffix' doesn't resolve to a file.</p>"]
     }
 
-    variable root indexfile mount hide redirdir expires dateformat dirparams nodir stream followextlinks sortparam crealm
+    variable root indexfile mount hide redirdir redirindex expires dateformat dirparams nodir stream followextlinks sortparam crealm
 
     constructor {args} {
 	set indexfile "index.*"
@@ -171,6 +185,7 @@ class create ::File {
 	set mount /
 	set hide {^([.].*)|(.*~)|(\#.*)$}
 	set redirdir 1	;# redirect dir to dir/
+	set redirindex 1	;# redirect dir/ to dir/index.html
 	set expires 0	;# add an expiry to each response
 	set crealm ""	;# optionally make files 'public'
 	set dateformat "%Y %b %d %T"
