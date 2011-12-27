@@ -1779,6 +1779,10 @@ oo::class create ::Httpd {
 	    dict set cached -caching retrieved
 	    dict set cached -sent [clock microseconds]
 
+	    # clean up timestamp
+	    dict set cached -time [dict get $r -time]
+	    set cached [my timestamp $cached fromcache]
+
 	    Debug.httpd {[info coroutine] sending cached [dict get $r -uri] ([Httpd dump $cached])}
 	    set fail [catch {
 		my send [dict merge $r $cached] 0
