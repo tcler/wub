@@ -815,7 +815,7 @@ oo::class create CA {
 	    file mkdir [file join $dir signed]	;# signed certificate directory
 	    file mkdir [file join $dir spkac]		;# spkac request directory
 	    file mkdir [file join $dir trusted]		;# trusted CAs
-	    
+
 	    ::fileutil::writeFile [file join $dir crlnumber] 0	;# crlnumber file
 
 	    ::fileutil::writeFile [file join $dir index.txt] ""	;# empty index file
