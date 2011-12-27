@@ -5,6 +5,7 @@ Debug define httpdclient 10
 Debug define httpdthread 10
 Debug define watchdog 10
 Debug define reaper 10
+Debug define stamp 0
 
 Debug define entity 10
 
@@ -233,11 +234,27 @@ namespace eval ::watchdog {
 oo::class create ::Httpd {
     # timestamp - record a uS timestamp in the r-dict
     method timestamp {r which {when 0}} {
+	if {![Debug level? stamp]} {return $r}	;# only accumulate this stuff if Debug.stamp is on
 	if {$when == 0} {
 	    set when [clock microseconds]
 	}
 	dict set r -time $which [expr {$when - [dict get $r -time connected]}]
 	return $r
+    }
+
+    # timing - make a nice little table of uS times of state transitions for request dict
+    method timing {r} {
+	set timings [dict get $r -time]
+	dict set timings connected 0
+	set result {}
+	set running 1
+	set index 1
+	foreach {state time} $timings {
+	    if {$state eq "connected"} continue
+	    lappend result $state [expr {$time - [lindex $timings $index]}]
+	    incr index 2
+	}
+	return "remote:[dict get $r -ipaddr] tx:[dict get $r -transaction] ([dict get $r -url]) - [join $result]"
     }
 
     # state - report on connection state
@@ -415,6 +432,7 @@ oo::class create ::Httpd {
 	# reset socket to header config, having read the entity or failed
 	chan configure $socket -encoding binary -translation {crlf binary}
 
+	set r [my timestamp $r fcindone]
 	if {[set gone [catch {chan eof $socket} eof]] || $eof} {
 	    # detect socket closure ASAP in sending
 	    Debug.entity {[info coroutine] Lost connection on fcin}
@@ -692,11 +710,13 @@ oo::class create ::Httpd {
     }
 
     # fcopy: our outbound fcopy has completed
-    method fcopy {fd bytes next written {error ""}} {
+    method fcopy {fd bytes next r written {error ""}} {
 	variable replies
 	variable socket
 
 	Debug.httpd {[info coroutine] fcopy: $fd $bytes $written '$error'}
+	set r [my timestamp $r fcopydone]
+	Debug.stamp {[info coroutine] [my timing $r]}
 
 	::watchdog stroke [self]
 
@@ -821,6 +841,7 @@ oo::class create ::Httpd {
 	    # remove this response from the pending response structure
 	    lassign [dict get $replies $next] req cache head content file close empty range
 	    dict unset replies $next		;# consume next response
+	    set req [my timestamp $req txstart]
 
 	    # connection close after transmission required?
 	    # NB: we only consider closing if all pending requests
@@ -839,6 +860,8 @@ oo::class create ::Httpd {
                 chan flush $socket	;# try to flush as early as possible
                 Debug.httpdlow {[info coroutine] flushed $socket} 4
             }
+
+	    set req [my timestamp $req txcontent]
 
 	    # send the content/entity (if any)
 	    # note: we must *not* send a trailing newline, as this
@@ -864,10 +887,10 @@ oo::class create ::Httpd {
 			chan seek $fd $from
 			set bytes [expr {$to-$from+1}]
 			Debug.httpd {[info coroutine] FCOPY RANGE: '$file' bytes $from-$to/$bytes} 8
-			chan copy $fd $socket -command [list [info coroutine] fcopy $fd $bytes $next]
+			chan copy $fd $socket -command [list [info coroutine] fcopy $fd $bytes $next $req]
 		    } else {
 			Debug.httpd {[info coroutine] FCOPY ENTITY: '$file'/$fd $bytes bytes} 8
-			chan copy $fd $socket -command [list [info coroutine] fcopy $fd $bytes $next]
+			chan copy $fd $socket -command [list [info coroutine] fcopy $fd $bytes $next $req]
 		    }
 		    set ostate "FCOPY $response"
 		    break	;# no more i/o on $socket until fcopy completion
@@ -875,10 +898,14 @@ oo::class create ::Httpd {
 		    # send literal content range
 		    lassign $range from to
 		    chan puts -nonewline $socket [string range $content $from $to]
+		    set req [my timestamp $req txrangesent]
+		    Debug.stamp {[info coroutine] [my timing $req]}
 		    Debug.httpd {[info coroutine] SENT RANGE: bytes $from-$to/[string length $content] bytes} 8
 		} else {
                     # send literal content
 		    chan puts -nonewline $socket $content	;# send the content
+		    set req [my timestamp $req txsent]
+		    Debug.stamp {[info coroutine] [my timing $req]}
 		    Debug.httpd {[info coroutine] SENT ENTITY: [string length $content] bytes} 8
 		}
 	    }
@@ -1750,6 +1777,7 @@ oo::class create ::Httpd {
 
 	# reset socket to header config, having read the entity
 	chan configure $socket -encoding binary -translation {crlf binary}
+	set r [my timestamp $r entityend]
 
 	# now we postprocess/decode the entity
 	Debug.entity {entity read complete - '[dict get? $r -te]'}
