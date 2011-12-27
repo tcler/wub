@@ -1,5 +1,11 @@
 # Server - a domain to provide Server introspection
 
+# add the following to site.config to install this:
+# /server {
+#	domain Server
+#	url /server
+# }
+
 package require Debug
 
 package require Report
