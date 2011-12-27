@@ -254,7 +254,12 @@ oo::class create ::Httpd {
 	    lappend result $state [expr {$time - [lindex $timings $index]}]
 	    incr index 2
 	}
-	return "remote:[dict get $r -ipaddr] tx:[dict get $r -transaction] ([dict get $r -url]) - [join $result]"
+
+	if {[info exists ::Httpd::timers]} {
+	    dict set ::Httpd::timers [dict get $r -pipeline] [dict get $r -transaction] [list [dict get $r -ipaddr] [dict get $r -url] {*}$result]
+	}
+
+	return "remote:[dict get $r -ipaddr] pipeline: [dict get $r -pipeline] tx:[dict get $r -transaction] ([dict get $r -url]) - [join $result]"
     }
 
     # state - report on connection state
@@ -2152,7 +2157,9 @@ oo::class create ::Httpd {
 	::Httpd addSock $sock [self]
 
 	#variable coro [info object namespace [self]]::coro
-	variable coro ::Httpd::coros::coro[incr ::Httpd::coros::count]
+	set corocnt [incr ::Httpd::coros::count]
+	dict set proto -pipeline $corocnt	;# keep track of pipelines
+	variable coro ::Httpd::coros::coro$corocnt
 	::coroutine $coro [self] reader
     }
 }
