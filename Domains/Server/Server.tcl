@@ -20,6 +20,7 @@ oo::class create ::Server {
 	if {![info exists ::Httpd::timers]} {
 	    if {$on} {
 		set ::Httpd::timers {}
+		return [Http Ok $r [<p> "Turn Timestamping [<a> href ./timing?on=0 Off]"]]
 	    } else {
 		return [Http Ok $r [<p> "Turn Timestamping [<a> href ./timing?on=1 On]"]]
 	    }
@@ -29,6 +30,8 @@ oo::class create ::Server {
 	    catch {unset ::Httpd::timers}
 	    return [Http Ok $r [<p> "Turn Timestamping [<a> href ./timing?on=1 On]"]]
 	}
+
+	set ext [file extension [dict get $r -path]]
 
 	# collect headers
 	set h {pipeline transaction ipaddr url}
@@ -50,11 +53,26 @@ oo::class create ::Server {
 		}
 	    }
 	}
+
+	if {$ext eq ".csv"} {
+	    package require csv
+	    set result [::csv::join [dict keys $headers]]\n
+	    dict for {n v} $rdict {
+		set line {}
+		foreach key [dict keys $headers] {
+		    lappend line [dict get $v $key]
+		}
+		append result [::csv::join $line] \n
+	    }
+	    return [Http Ok $r $result text/csv]
+	}
+
 	set result [Report html $rdict headers [dict keys $headers] {*}{
 	    sortable 1
 	    evenodd 1
 	}]
 	append result [<p> "Turn Timestamping [<a> href ./timing?on=0 Off]"]
+	append result [<p> "Deliver Content in [<a> href ./timing.csv "CSV Format"]"]
 	return [Http Ok $r $result]
     }
 
