@@ -1,3 +1,5 @@
+# copy this to your site.config file to enable the CA
+
 # Https module defines the HTTPS network listener
 # relies upon ca to supply certificates, etc
 Https {
