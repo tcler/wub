@@ -10,12 +10,18 @@ package provide Server 1.0
 oo::class create ::Server {
 
     method /timing {r {on 1}} {
+	set r [Http NoCache $r]
 	if {![info exists ::Httpd::timers]} {
 	    if {$on} {
 		set ::Httpd::timers {}
 	    } else {
 		return [Http Ok $r [<p> "Turn Timestamping [<a> href ./timing?on=1 On]"]]
 	    }
+	}
+
+	if {!$on} {
+	    catch {unset ::Httpd::timers}
+	    return [Http Ok $r [<p> "Turn Timestamping [<a> href ./timing?on=1 On]"]]
 	}
 
 	# collect headers
@@ -38,11 +44,12 @@ oo::class create ::Server {
 		}
 	    }
 	}
-	set result [Report html [dict values $rdict] headers [dict keys $headers] {*}{
+	set result [Report html $rdict headers [dict keys $headers] {*}{
 	    sortable 1
 	    evenodd 1
 	}]
-	return [Http Ok [Http NoCache $r] $result]
+	append result [<p> "Turn Timestamping [<a> href ./timing?on=0 Off]"]
+	return [Http Ok $r $result]
     }
 
     method / {r} {
