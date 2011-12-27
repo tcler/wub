@@ -116,6 +116,15 @@ namespace eval ::Debug {
 	return $result
     }
 
+    # level? - return debug level
+    proc level? {tag} {
+	variable detail
+	if {![info exists detail($tag)]} {
+	    return 0
+	}
+	return $detail($tag)
+    }
+
     # level - set level and fd for tag
     proc level {tag {level ""} {fd stderr}} {
 	variable detail
