@@ -775,7 +775,9 @@ oo::class create ::NubClass {
 	    if {[string match _anonymous* $n]} {
 		# anonymous domain definition
 		append definitions [string trim [string map [list %N% $n %D% $domain %A% $body %AA% [tclarmour $body]] {
-		    if {[catch {set defs(%N%) [%D% new %A%]} e eo]} {
+		    if {[catch {
+			set defs(%N%) [%D% new %A%]
+		    } e eo]} {
 			Debug.error {Nub Definition Error: '$e' in anonymous "%D% new %AA%".  ($eo)}
 			dict lappend def_errors %N% [list $e $eo]
 			set defs(%N%) [::Nub failed %N% $e $eo]
@@ -973,9 +975,11 @@ oo::class create ::NubClass {
 	}
     }
 
+    # code_auths - generate code to perform auth for domain
     method code_auths {auths} {
 	if {![dict size $auths]} {return ""}
 
+	# generate auths - should these be sorted in reverse length order, as for domains?
 	dict for {k a} $auths {
 	    set url [join [lassign $k host] /]
 	    append code [string map [list %H% $host %U% $url %A% $a] {
@@ -1078,6 +1082,7 @@ oo::class create ::NubClass {
 			append switch [string map [list %H $host %U $url %N $name] {
 			    "%H,%U*" {
 				Debug.nub {Dispatch [dict get $r -url] via %H,%U* to cmd '$defs(%N)'}
+				set r [Http timestamp $r do]
 				{*}$defs(%N) do $r
 			    }}]
 		    }
@@ -1235,6 +1240,7 @@ oo::class create ::NubClass {
 		Debug.nub {PX: [dict get $r -host],[dict get $r -path]}
 		Debug.dispatch {[dict get $r -url]}
 		# Processing rules
+		set r [Http timestamp $r process]
 		switch -glob -- [dict get $r -host],[dict get $r -path] {
 		    %S%
 		    default {
