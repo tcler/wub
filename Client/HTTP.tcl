@@ -27,7 +27,7 @@ set MODULE(HTTP) {
 	Entities, if any, can be sent as follows: [[$object post $url $entity]].  If you wish to indicate other information about the entity, it can be included thus: [[$object post $url $entity content-type text/html]] for example.
 
 	The request will be formatted and sent to the host server, and its response indicated to the consumer.
-	
+
 	== HTTP Connection Termination ==
 	If the configuration variable ''notify'' is true, then termination of the connection calls that script with a response dict containing the X-type CLOSED indication and an X-reason containing the reason for closure, otherwise the consumer receives that dict.   A consumer managing multiple connections may use the X-object element to associate responses with connections.
 
@@ -96,7 +96,7 @@ if {[catch {package require Url}]} {
 		&& ([dict get $args -port] eq "" || [dict get $args -port] eq "80")} {
 		dict unset args -port
 	    }
-	    
+
 	    foreach {part pre post} {
 		-scheme "" :
 		-host // ""
@@ -138,7 +138,7 @@ if {[catch {package require Url}]} {
 	    if {$normalize} {
 		set x(-path) [normalize $x(-path)]	;# fix up oddities in URLs
 	    }
-	    
+
 	    foreach n [array names x] {
 		if {$x($n) eq ""} {
 		    unset x($n)
@@ -149,7 +149,7 @@ if {[catch {package require Url}]} {
 	    }
 	    return [array get x]
 	}
-	
+
 	# construct the host part of a URL dict
 	proc host {x} {
 	    if {[dict exists $x -port]
@@ -174,7 +174,7 @@ if {[catch {package require Url}]} {
 	    }
 	    return $result
 	}
-	
+
 	namespace export -clear *
 	namespace ensemble create -subcommands {}
     }
@@ -283,19 +283,31 @@ oo::class create HTTP {
 	    append request "$n: $v\r\n"
 	}
 	append request "\r\n"	;# signal end of header
-	chan puts -nonewline $socket $request
-	Debug.HTTPdetail {[self] Sent header: [string map {\r \\r \n \\n} $request]}
+	if {[catch {chan puts -nonewline $socket $request} e eo]} {
+            Debug.HTTP {error on sending header - '$e' ($eo)}
+        } else {
+            Debug.HTTPdetail {[self] [chan eof $socket] Sent header: [string map {\r \\r \n \\n} $request]}
+        }
 
 	if {[info exists entity]} {
 	    # send the entity
-	    chan puts -nonewline $socket $entity
+	    if {[catch {
+                chan puts -nonewline $socket $entity
+            } e eo]} {
+                Debug.HTTP {error on sending entity - '$e' ($eo)}
+            }
 	}
 
 	variable outstanding; incr outstanding
 	variable reader
-	chan event $socket readable [list $reader READ]
+	if {[catch {
+            chan event $socket readable [list $reader READ $socket]
+        } e eo]} {
+                Debug.HTTP {error on readable - '$e' ($eo)}
+        }
 
 	Debug.HTTP {[self] sent $method $url - $outstanding outstanding}
+        return $txcount	;# return the transaction to sender
     }
 
     method reason {} {
@@ -317,8 +329,28 @@ oo::class create HTTP {
 
 	if {$gone || $eof} {
 	    variable reason "EOF reading HEADER"
-	    Debug.HTTPdetail {[self] gets: EOF reading HEADER}
-	    [self] destroy
+	    Debug.HTTPdetail {[self] gets: EOF reading HEADER on $socket (gone:$gone, eof:$eof)}
+            variable persist
+            if {!$persist} {
+                [self] destroy
+            } else {
+                # in version 1.0, we just wait until we're connected
+                # to a new socket. This only works in header state!
+                # have to work out what to do when connection EOFs
+                # in chunk getting, etc.
+                Debug.HTTP {[self] client is persistent - WAIT [chan names]}
+                catch {chan event $socket readable {}}
+                catch {close $socket}	;# forget about that socket
+                catch {unset socket}
+                set next ""
+
+                while {[lindex $next 0] ne "READ"} {
+                    set next [::yieldm]		;# await input from next socket
+                    Debug.HTTPdetail {[self] reader got '$next' while WAITing}
+                }
+                set socket [lindex $next 1]
+                tailcall my gets	;# continue with gets
+            }
 	} else {
 	    Debug.HTTPdetail {[self] gets: '$line' [chan blocked $socket] [chan eof $socket]}
 	    return $line
@@ -337,11 +369,15 @@ oo::class create HTTP {
 	    append chunk $chunklet			;# remember it
 	    incr size -[string length $chunklet]	;# how much left?
 	    set gone [catch {chan eof $socket} eof]
-	    Debug.HTTPdetail {[self] Read chunk ($size left)}
+	    Debug.HTTPdetail {[self] Read chunk ($size left) $gone - $eof}
 	}
 
 	if {$gone || $eof} {
 	    variable reason "EOF reading ENTITY"
+            if {!$gone} {
+                append chunk [chan read $socket]
+            }
+            Debug.fritz {EOF reading ENTITY $socket ([string length $chunk]) - gone:$gone - eof:$eof}
 	    return $chunk	;# can just EOF in entity
 	} else {
 	    # we have successfully read our chunk of $size
@@ -354,11 +390,13 @@ oo::class create HTTP {
     method parse {lines} {
 	set r {}
 	set lines [lassign $lines header]
-	Debug.HTTP {[self] reader header: $header ($r)}
+	Debug.HTTP {[self] reader header: $header ($lines)}
 
 	# split out some interesting parts of the first header line
+        variable version
 	dict set r -message [join [lassign [split $header] version code]]
 	dict set r -version $version
+        set version [lindex [split $version /] end]
 	dict set r -code $code
 
 	set key ""
@@ -369,7 +407,7 @@ oo::class create HTTP {
 	    } else {
 		set value [join [lassign [split $line ":"] key] ":"]
 		set key [string tolower [string trim $key "- \t"]]
-		
+
 		if {[dict exists $r $key]} {
 		    dict append r $key ",$value"
 		} else {
@@ -380,6 +418,19 @@ oo::class create HTTP {
 	return $r
     }
 
+    # consume - hand consumer the result
+    # (can be overridden)
+    method consume {r} {
+        variable consumer
+        variable justcontent
+        if {$justcontent} {
+            after 1 {*}$consumer [list [dict get $r -content]]
+        } else {
+            Debug.HTTPdetail {[self] formatting up consumer message}
+            after 1 {*}$consumer [list $r]
+        }
+    }
+
     # reader proc - the functional base of the read coroutine
     method reader {} {
 	# unpack all the passed-in args
@@ -387,20 +438,25 @@ oo::class create HTTP {
 
 	# keep receiving input resulting from our requests
 	variable socket
+        variable persist
+        variable version
 	set gone [catch {chan eof $socket} eof]
-	while {!$gone && !$eof} {
+	while {$persist || (!$gone && !$eof)} {
 	    # get whole header
 	    # keep a count of the number of packets received
 	    variable rqcount; incr rqcount
 
 	    variable requrl
-	    set r [list X-type RESPONSE X-object [self] X-count $rqcount X-url $requrl($rqcount)]
+	    set r [list X-type RESPONSE X-object [self] X-count $rqcount]
+            if {[info exists requrl($rqcount)]} {
+                lappend r X-url $requrl($rqcount)
+            }
 
 	    set headering 1; set bogus 0
 	    set lines {}
 	    while {$headering} {
 		set line [my gets]
-		Debug.HTTP {[self] reader got line: ($line)}
+		Debug.HTTPdetail {[self] reader got line: ($line)}
 		if {[string trim $line] eq ""} {
 		    if {[llength $lines]} {
 			set headering 0
@@ -424,7 +480,8 @@ oo::class create HTTP {
 	    } else {
 		# got the header
 		set r [dict merge $r [my parse $lines]]	;# parse the header
-		
+                Debug.HTTP {[self] got headers ($r)}
+
 		# now we have to fetch the entity (if any)
 		if {[dict exists $r content-length]} {
 		    set left [dict get $r content-length]
@@ -465,7 +522,8 @@ oo::class create HTTP {
 			    error "Unknown transfer encoding"
 			}
 		    }
-		} elseif {[string toupper [dict get $r -version]] eq "HTTP/1.0"} {
+		} elseif {$persist} {
+                    # HTTP/1.0 - read content until EOF
 		    dict set r -content [my read]	;# read to EOF
 		}
 	    }
@@ -473,7 +531,9 @@ oo::class create HTTP {
 	    # reset to header config
 	    if {![chan eof $socket]} {
 		chan configure $socket -encoding [encoding system] -translation {crlf binary}
-	    }
+	    } else {
+                catch {close $socket}
+            }
 
 	    # check content-encoding and gunzip content if necessary
 	    if {[dict exists $r content-encoding]} {
@@ -486,20 +546,12 @@ oo::class create HTTP {
 		}
 	    }
 
-	    # hand consumer the result
-	    variable consumer
-	    variable justcontent
-	    if {$justcontent} {
-		after 1 [list {*}$consumer [list [dict get $r -content]]]
-	    } else {
-		Debug.HTTPdetail {[self] formatting up consumer message $rqcount}
-		after 1 [list {*}$consumer $r]
-	    }
-
 	    # count the outstanding responses left
 	    # close if there are none
 	    variable outstanding; incr outstanding -1
 	    Debug.HTTP {[self] outstanding: $outstanding}
+
+            my consume $r
 
 	    variable closing
 	    if {[dict exists $r connection]
@@ -512,17 +564,26 @@ oo::class create HTTP {
 	    if {$closing && !$outstanding} {
 		variable reason "requested by WRITER"
 		my destroy
-	    } elseif {!$outstanding} {
+	    } elseif {!$outstanding && ($persist || $version != 1.0)} {
 		# nothing to read
 		variable reader
-		chan event $socket readable [list $reader EOF]
+                set gone [catch {chan eof $socket} eof]
+                if {!$gone} {
+                    chan event $socket readable [list $reader EOF $socket]
+                }
 	    }
 
-	    Debug.HTTP {[self] reader: sent response, waiting for next}
-	    if {[::yieldm] eq "EOF"} break
+	    Debug.HTTP {[self] reader: consumed response, waiting for next}
+            set next [::yieldm]
+	    if {[lindex $next 0] eq "EOF" && !$persist} {
+                Debug.HTTP {[self] reader - non persistent - clean up}
+                break
+            }
 	    set gone [catch {chan eof $socket} eof]
+            Debug.HTTP {[self] reader got '$next' / gone:$gone - eof:$eof}
 	}
 
+        Debug.HTTP {[self] suicide - server connection's gone}
 	my destroy	;# reader's gone, that's all she wrote
     }
 
@@ -540,6 +601,7 @@ oo::class create HTTP {
 	# send all ops we have queued
 	variable ops
 	variable reason
+        set tx -1
 	if {[info exists ops]} {
 	    Debug.HTTP {[self] initial ops: $ops}
 	    foreach {op val} $ops {
@@ -549,19 +611,21 @@ oo::class create HTTP {
 		    set reason "Requested by Consumer"
 		    set closing 1
 		} else {
-		    my send $op {*}$val	;# send init ops
+		    set tx [my send $op {*}$val]	;# send init ops
 		}
 	    }
 	}
-	
+
 	# we've closed per request - error on any more requests
 	if {$closing} {
-	    ::yieldm $closing; error "writer is closed: '$reason'"
+	    ::yieldm [list $closing $tx]
+            Debug.HTTP {[self] error - got write requests while closing}
+            error "writer is closed: '$reason'"
 	}
 
 	# after initial ops are sent, sit in loop awaiting new op requests
 	# get next event
-	set args [lassign [::yieldm $closing] op url]
+	set args [lassign [::yieldm [list $closing $tx]] op url]
 	set op [string tolower $op]
 	while {!$closing} {
 	    Debug.HTTP {[self] writer op:$op url:$url args:$args}
@@ -570,9 +634,14 @@ oo::class create HTTP {
 		    set reason "Requested by Consumer"
 		    break	;# terminate peacefully per request
 		}
-		get - put - post - head - delete {
+                post {
+		    # got a post from consumer - fill in some defaults
+                    set args [lassign $args entity]
+		    set tx [my send $op $url $entity content-type application/x-www-form-urlencoded content-length [string length $entity] {*}$args]
+                }
+		get - put - head - delete {
 		    # got a protocol operator from consumer
-		    my send $op $url {*}$args
+		    set tx [my send $op $url {*}$args]
 		}
 		default {
 		    error "Unknown op: $op $url $args"
@@ -580,7 +649,7 @@ oo::class create HTTP {
 	    }
 
 	    # get next event
-	    set args [lassign [::yieldm $closing] op url]
+	    set args [lassign [::yieldm [list $closing $tx]] op url]
 	    set op [string tolower $op]
 	}
 
@@ -594,7 +663,17 @@ oo::class create HTTP {
 	if {$closing} {
 	    error "HTTP [self] has closed: '$reason'"
 	}
-	variable writer; $writer $op $url {*}$args
+
+        variable socket
+	set gone [catch {chan eof $socket} eof]
+        if {$gone || $eof} {
+            # we've lost the connection, reopen it.
+            Debug.HTTP {[self] reconnecting}
+            my connect
+        }
+
+	variable writer
+        return [$writer $op $url {*}$args]
     }
 
     # start reader coroutine
@@ -604,7 +683,7 @@ oo::class create HTTP {
 	set ns [info object namespace [self]]
 
 	# create reader coroutine
-	variable reader ${ns}::${socket}R
+	variable reader ${ns}[self]R
 	coroutine $reader [self] reader
 	trace add command $reader delete [list [self] destroy]
     }
@@ -615,8 +694,8 @@ oo::class create HTTP {
 	variable socket
 	set ns [info object namespace [self]]
 
-	variable writer ${ns}::${socket}W 
-	set result [coroutine $writer [self] writer]
+	variable writer ${ns}[self]W
+	lassign [coroutine $writer [self] writer] result tx
 
 	if {!$result} {
 	    # writer reports that it's open and ready to go
@@ -639,16 +718,16 @@ oo::class create HTTP {
 	set close [list X-type CLOSED X-count [incr rqcount] X-reason $reason]
 
 	variable notify
-	if {$notify ne ""} {
+	if {$notify ne "" && $notify ne ";#"} {
 	    # consumer wants special close notification
 	    catch {
-		after 1 {*}$notify $close	;# notify completion
+		after 1 {*}$notify [list $close]	;# notify completion
 	    }
 	} else {
 	    # consumer wants close in normal event stream
 	    variable consumer
 	    catch {
-		after 1 {*}$consumer $close	;# send close event
+		after 1 {*}$consumer [list $close]	;# send close event
 	    }
 	}
 
@@ -673,11 +752,13 @@ oo::class create HTTP {
 	variable notify ";#"		;# notify close to consumer?
 	variable justcontent 0		;# consumer only wants content
 	variable sockopts {}		;# default socket options
+        variable version 1.1		;# version 1.0 doesn't die on EOF
+        variable persist 0		;# reuse object between connections
 
 	if {[llength $args] == 1} {
 	    set args [lindex $args 0]
 	}
- 
+
 	# differentiate variable decls and HTTP operations
 	variable ops {}
 	foreach {n v} $args {
@@ -716,6 +797,8 @@ oo::class create HTTP {
 	variable urld
 	variable socket ""
 	variable sockopts; variable host; variable port
+        Debug.HTTP {[self] connect to $host:$port}
+
 	set state init
 	if {[catch {
 	    if {[dict get $urld -scheme] ne "https"} {
@@ -742,6 +825,7 @@ oo::class create HTTP {
 	    }
 	    return [list $socket $eo]
 	}
+        Debug.HTTPdetail {[self] connected socket $socket}
     }
 
     # HTTP class method to create and run an HTTP pipeline
