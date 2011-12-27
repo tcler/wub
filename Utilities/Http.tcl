@@ -1140,6 +1140,15 @@ namespace eval ::Http {
 	return $result
     }
 
+    # timestamp - record a timestamp in uS from connection in the r dict
+    proc timestamp {r which {when 0}} {
+	if {$when == 0} {
+	    set when [clock microseconds]
+	}
+	dict set r -time $which [expr {$when - [dict get $r -time connected]}]
+	return $r
+    }
+
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
