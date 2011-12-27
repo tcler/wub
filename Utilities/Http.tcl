@@ -1142,6 +1142,7 @@ namespace eval ::Http {
 
     # timestamp - record a timestamp in uS from connection in the r dict
     proc timestamp {r which {when 0}} {
+	if {![Debug level? stamp]} {return $r}	;# only accumulate this stuff if Debug.stamp is on
 	if {$when == 0} {
 	    set when [clock microseconds]
 	}
