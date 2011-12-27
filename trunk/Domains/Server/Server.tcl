@@ -42,7 +42,7 @@ oo::class create ::Server {
 	    sortable 1
 	    evenodd 1
 	}]
-	return [Http Ok $r $result]
+	return [Http Ok [Http NoCache $r] $result]
     }
 
     method / {r} {
