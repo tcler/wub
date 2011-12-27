@@ -46,6 +46,7 @@ namespace eval ::Dispatcher {
     }
 
     proc post {r} {
+	set r [Http timestamp $r post]
 	# do per-connection postprocess (if any)
 	foreach c [dict get? $r -postprocess] {
 	    set r [{*}$c $r]
@@ -57,7 +58,10 @@ namespace eval ::Dispatcher {
 	}
 
 	# do default conversions
-	return [::convert convert $r]
+	set r [Http timestamp $r convert]
+	set r [::convert convert $r]
+	set r [Http timestamp $r postpost]
+	return $r
     }
 
     proc /clients {r} {
@@ -227,6 +231,15 @@ namespace eval ::watchdog {
 
 # Httpd - an object for each Httpd connection
 oo::class create ::Httpd {
+    # timestamp - record a uS timestamp in the r-dict
+    method timestamp {r which {when 0}} {
+	if {$when == 0} {
+	    set when [clock microseconds]
+	}
+	dict set r -time $which [expr {$when - [dict get $r -time connected]}]
+	return $r
+    }
+
     # state - report on connection state
     method state {} {
 	variable istate
@@ -572,8 +585,9 @@ oo::class create ::Httpd {
 	}
 
 	# record some timings
-	variable start; dict set r -time headerstart [expr {$hstart - $start}]
-	dict set r -time headerdone [expr {[clock microseconds] - $start}]
+	variable start;
+	set r [my timestamp $r headerstart $hstart]
+	set r [my timestamp $r headerdone]
 
 	# record the header
 	set lines [lassign $lines header]
@@ -1192,6 +1206,7 @@ oo::class create ::Httpd {
 	    Debug.httpdlow {Format: ($header)}
 	}
 
+	set reply [my timestamp $reply replied]
 	return [list $reply $cache $header $content $file [my close? $reply] $empty $range]
 	# response ready for [response] to blast it out the socket:
 	# reply - reply modified by Format
@@ -1216,10 +1231,10 @@ oo::class create ::Httpd {
     method send {r {cache 1}} {
 	Debug.httpd {[info coroutine] send: ([Httpd dump $r]) $cache [expr {[dict get? $r -ua_class] ni {browser unknown}}]}
 	variable socket
-	variable start; dict set r -time sent [expr {[clock microseconds] - $start}]
 
 	# process suspension at lowest level
 	if {[dict exists $r -suspend]} {
+	    set r [my timestamp $r suspended]
 	    return	;# this reply has been suspended - we haven't got it yet
 	    # so we simply return.  The lack of a response for the corresponding
 	    # pipelined request has the effect of suspending the pipeline until
@@ -1227,6 +1242,7 @@ oo::class create ::Httpd {
 	    # requests will still be processed while the pipeline's suspended,
 	    # but their responses will only be returned in strict and close order.
 	}
+	set r [my timestamp $r sent]
 
 	# if this isn't a browser - do not cache!
 	variable ua
@@ -1284,23 +1300,16 @@ oo::class create ::Httpd {
 	    if {$cache} {
 		# handle caching (under no circumstances cache bot replies)
 		set r [Cache put $r]	;# cache it before it's sent
+		set r [my timestamp $r cached]
 	    } else {
 		Debug.httpd {Do Not Cache put: ([Httpd dump $r]) cache:$cache}
-	    }
-
-	    # generate a log line
-	    variable log
-	    if {$log ne "" && [catch {
-		puts $log [Http clf $r]	;# generate a log line
-		chan flush $log
-	    } le leo]} {
-		Debug.error {log error: $le ($leo)}
 	    }
 
 	    variable outbuffer
 	    if {[chan pending output $socket] > $outbuffer} {
 		# the client hasn't consumed our output yet
 		# stop reading input until he does
+		set r [my timestamp $r unreadable]
 		my unreadable
 	    } else {
 		# there's space for more output, so accept more input
@@ -1312,6 +1321,15 @@ oo::class create ::Httpd {
 	    Debug.httpd {[info coroutine] ADD CONTINUATION: ([dict keys $replies])}
 	    # this is a continuation - we expect more
 	    my readable
+	}
+
+	# generate a log line
+	variable log
+	if {$log ne "" && [catch {
+	    puts $log [Http clf $r]	;# generate a log line
+	    chan flush $log
+	} le leo]} {
+	    Debug.error {log error: $le ($leo)}
 	}
 
 	my writable
@@ -1539,7 +1557,7 @@ oo::class create ::Httpd {
     method Entity {} {
 	variable istate ENTITY
 	upvar 1 r r
-	variable start; dict set r -time entitystart [expr {[clock microseconds] - $start}]
+	set r [my timestamp $r entitystart]
 	variable socket
 
 	# rfc2616 4.3
@@ -1792,9 +1810,12 @@ oo::class create ::Httpd {
 	dict set r -received [clock microseconds]
 	variable istate DISPATCH
 	catch {
-	    ::Dispatcher do REQUEST [::Dispatcher pre $r]
+	    set r1 [::Dispatcher pre $r]
+	    set r1 [my timestamp $r1 dispatch]
+	    ::Dispatcher do REQUEST $r1
 	} rsp eo	;# process the request
 	set istate POSTPROCESS
+	set rsp [my timestamp $rsp postprocess]
 
 	# handle response code from processing request
 	set done 0
@@ -1919,7 +1940,7 @@ oo::class create ::Httpd {
 	while {[chan pending input $socket] >= 0} {
 	    set r $proto	;# start with blank request
 	    dict set r -transaction [incr transaction]
-	    dict set r -time connected $start	;# when we got connected
+	    dict set r -time connected $start	;# when we got connected - for timestamping
 
 	    # read the header and unpack the header line
 	    # parse and merge header lines into request dict
