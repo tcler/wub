@@ -2236,7 +2236,7 @@ oo::objdefine ::Httpd {
 	# inject the SEND event into the coro so Resume may be called from any
 	# event, thread or coroutine
 	catch {dict remove r -suspend}
-	set r [my timestamp $r resumed]
+	set r [Http timestamp $r resumed]
 	set r [::Dispatcher post $r]
 	set code [catch {{*}[dict get $r -send] send $r} e eo]
 	if {$code != 0} {
