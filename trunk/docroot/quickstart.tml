@@ -23,20 +23,15 @@ return ""
       <p><bold>svn checkout http://wub.googlecode.com/svn/trunk/ wub</bold><p>
     </dd>
     
-    <dt>Step 2</dt> <dd>Change into the wub/Wub directory:
-      <p><bold>cd wub/Wub/</bold></p>
+    <dt>Step 2</dt> <dd>Change into the wub directory:
+      <p><bold>cd wub</bold></p>
     </dd>
     
-    <dt>Step 3</dt> <dd>configure the site.config (optional, the defaults are sensible)
-      <p>cp example.config site.config</p>
-    </dd>
-    
-    <dt>Step 3.1</dt> <dd>(option) edit site.config to your taste
-      <p></p>
+    <dt>Step 3</dt> <dd>Edit the site.config (optional, the defaults are sensible)
     </dd>
     
     <dt>Step 4</dt> <dd>Start the server:
-      <p>tclsh8.6 Site.tcl</p>
+      <p>tclsh8.6 Wub.tcl</p>
     </dd>
     
     </dd>
