@@ -1,5 +1,4 @@
 #! /usr/bin/env tclsh
-lappend ::auto_path /usr/lib/tcltk/ /usr/share/tcltk/tcllib1.12/
 
 # Site - simple configuration for single-threaded Wub Server.
 package require Tcl 8.6	;# minimum version of tcl required
@@ -60,7 +59,7 @@ if {[lindex [split [platform::generic] -] 0] ni {macosx}} {
 	    set f [file normalize $fn]
 	    dict set ::Site::sourced [list source $f] $args
 	    lappend ::__source_log ${f}
-	    puts stderr "source $f"
+	    #puts stderr "source $f"
 	}
 	return [uplevel source_org $args]
     }
@@ -71,7 +70,7 @@ if {[lindex [split [platform::generic] -] 0] ni {macosx}} {
 	set f [file normalize [lindex $args 0]]
 	dict set ::Site::sourced [list load $f] $args
 	lappend ::__load_log ${args}
-	puts stderr "load $f"
+	#puts stderr "load $f"
 	return [uplevel load_org $args]
     }
 }
@@ -195,7 +194,7 @@ namespace eval ::Site {
 	set vars {}
 	foreach var [info vars ::Site::*] {
 	    if {[info exists $var]} {
-		set svar [namespace tail $var] 
+		set svar [namespace tail $var]
 		catch {lappend vars $svar [set $var]}
 	    }
 	}
@@ -529,7 +528,7 @@ namespace eval ::Site {
 		    puts stderr "Debug config error '$n $val $v'"
 		}
 	    }
-	    puts stderr "DEBUG: [Debug 2array]"
+	    #puts stderr "DEBUG: [Debug 2array]"
 	}
 
 	#### Load Convert module - content negotiation
@@ -657,7 +656,7 @@ namespace eval ::Site {
 	    && [config get Cache load]
 	} {
 	    #### in-RAM Cache
-	    package require Cache 
+	    package require Cache
 	    CacheClass create ::Cache {*}[config section Cache]
 	    Debug.site {Module Cache: YES}
 	} else {
@@ -745,7 +744,7 @@ namespace eval ::Site {
 		#### Simplistic Certificate Authority
 		#package require CA
 		#CA init dir $home/CA host $host port [dict get $https -port]
-		#dict lappend https -tls -cafile [CA cafile] -certfile [CA certificate $host] 
+		#dict lappend https -tls -cafile [CA cafile] -certfile [CA certificate $host]
 		Listener new {*}[config section Https] -tls 1
 	    }
 	} else {
@@ -759,7 +758,7 @@ namespace eval ::Site {
 	    package require Sscgi
 	    Listener new sscgi {*}[config section Sscgi] -httpd Sscgi
 	}
-	puts stderr "DEBUG2: [Debug 2array]"
+	#puts stderr "DEBUG2: [Debug 2array]"
     }
 
     # this will shut down the whole system
@@ -783,7 +782,7 @@ namespace eval ::Site {
 	    set application [dict get? $args application]
 	    if {$application ne ""} {
 		package require $application
-		
+
 		# install variables defined by local, argv, etc
 		set app [string tolower $application]
 		if {[info exists modules([string tolower $app])]} {
@@ -840,7 +839,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
     Site init home [file normalize [file dirname [info script]]] config site.config debug 10 {*}$argv
 
     # Start Site Server(s)
-    Site start 
+    Site start
 }
 
 # vim: ts=8:sw=4:noet
