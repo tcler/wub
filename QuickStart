@@ -11,15 +11,13 @@ Step 1:  Download the code (which you've probably done already)
      Alternatively: download and run http://wub.googlecode.com/svn/trunk/Install.tcl in a clean directory which will become your Wub home directory.  Install.tcl will download the latest version of Wub, and install it in the directory from which it is run.
 
 Step 2: Change into the Wub directory:
-     cd wub/Wub/
+     cd wub
 
-Step 3: configure the site.config
-     cp example.config site.config
-     # edit to your taste, or just leave it as is
+Step 3: edit site.config to your taste
 
 Step 4: Run the demo application:
 
-     tclsh8.6 Application.tcl
+     tclsh8.6 Wub.tcl
 
 Step 5: For later
 
