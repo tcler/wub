@@ -1,4 +1,5 @@
 #! /usr/bin/env tclsh
+lappend auto_path [file dirname [info script]]
 package require Site
 package provide Wub 5.0
 
