@@ -24,12 +24,12 @@ class create ::OSBTiny {
 	    set r [Http title $r "OpenStreetBugs redirector"]
 	    return [Http Ok $r "This is OpenStreetBugs redirector. Usage: [string trim [dict get $r -url] /]/bug-id"]
 	}
-	set V [HTTP run $apiurl [lambda {r v} {
+	set V [HTTP run $apiurl [lambda {r id v} {
 	    set result [dict get $v -content]
 	    regexp {tion><link>([^<]*)</link>} $result -> link
-	    set link [string map {&amp; &} $link]
+	    set link [string map {&amp; & openstreetbugs.schokokeks.org osmbugs.org} $link]&bugid=$id
 	    return [Httpd Resume [Http Redirect $r $link Redirect text/plain]]
-	} $r] get /api/0.1/rssitem?id=$suffix close]
+	} $r $suffix] get /api/0.1/rssitem?id=$suffix close]
 
 	return [Httpd Suspend $r 100000]
     }
