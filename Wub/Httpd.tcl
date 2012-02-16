@@ -604,6 +604,10 @@ oo::class create ::Httpd {
 		}
 	    } else {
 		lappend lines $line	;# append all lines in header
+		if {[llength $lines] > $maxheaders} {
+		    my handle [Http Bad $r "Too many headers (over $maxheaders)"] "Too many headers (over $maxheaders)"
+		    return -code break	;# signal error to caller
+		}
 	    }
 	}
 
@@ -2121,6 +2125,7 @@ oo::class create ::Httpd {
 	variable maxfield 0	;# maximum field size
 	variable maxentity 0	;# maximum entity size
 	variable maxline 4096	;# maximum line length
+	variable maxheaders 200	;# maximum number of headers in request
 	variable ua 1		;# perform UA analysis
 	variable server_id "Wub [package present Httpd]"
 	variable maxurilen 0	;# maximum length of URI
