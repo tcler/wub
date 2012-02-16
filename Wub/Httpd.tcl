@@ -567,7 +567,7 @@ oo::class create ::Httpd {
 	# keep receiving input requests
 	set headering 1
 	set lines {}
-	variable maxline
+	variable maxline; variable maxheaders
 	variable socket
 	set hstart 0
 
