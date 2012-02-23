@@ -302,7 +302,7 @@ class create ::Threaded {
 	variable {*}[Site var? Threaded]	;# allow .ini file to modify defaults
 
 	# search for -domain element
-	set where [lsearch -exact -- $args -domain]
+	set where [lsearch -exact $args -domain]
 	if {$where < 0} {
 	    error "Threaded construction must have a -domain element, followed by domain name and its args"
 	}
