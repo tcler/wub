@@ -5,7 +5,7 @@ package require Debug
 Debug define threaded 10
 if {[catch {
     package require Thread
-} e eo] {
+} e eo]} {
     Debug.error {Thread package unavailable - no Threaded domains possible. ($e ($eo))}
     return
 }
