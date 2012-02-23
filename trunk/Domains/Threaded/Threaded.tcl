@@ -333,7 +333,7 @@ class create ::Threaded {
 	variable last 0		;# uS of last thread allocation
 
 	# set up result trace - this collects our threads responses
-	variable tr; array set tr
+	variable tr; array set tr {}
 	trace add variable tr write [list [self] result]
     }
 }
