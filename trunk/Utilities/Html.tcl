@@ -537,14 +537,17 @@ proc divs {ids {content ""}} {
 # HTML <> commands per http://wiki.tcl.tk/2776
 know {[string match <*> [lindex $args 0]]} {
     set tag [string trim [lindex $args 0] "<>"]
-    set mod [string index $tag end]
-    set mod [dict get? {! {[uplevel 1 $content]} + {[uplevel 1 [list subst $content]]}} $mod]
-    if {$mod ne ""} {
-        set mod [dict get $::Html::tagmods $mod]
-        set htag [string trimright [dict keys $::Html::tagmods]]
-    } else {
-        set mod {$content}	;# default just returns content
-        set htag $tag
+    set htag [string trimright $tag !+]
+    switch -- [string index $tag end] {
+	! {
+	    set mod {[uplevel 1 $content]}
+	}
+	+ {
+	    set mod {[uplevel 1 [list subst $content]]}
+	}
+	default {
+	    set mod {$content}	;# default just returns content
+	}
     }
 
     ::proc ::<$tag> {args} [string map [list @T@ $htag @M@ $mod] {
