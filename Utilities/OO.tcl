@@ -78,3 +78,166 @@ proc oo::define::Var {args} {
     uplevel 1 [list Variable -append {*}[dict keys $args]]
     # now have to arrange to have these values assigned at constructor time.
 }
+
+# varOf - make a var in the class given
+proc ::oo::Helpers::varOf {class name args} {
+    set self [uplevel 1 self]
+    set ns [info object namespace $class]
+    foreach v [list $name {*}$args] {
+	uplevel 1 [list namespace upvar $ns $v $v]
+    }
+}
+
+if {[info commands Debug] eq ""} {
+    proc Debug.hierarchy {args} {}
+    proc Debug.refcount {args} {}
+    Debug define hierarchy
+    Debug define refcount
+}
+
+# ::oo::Hierarchy - parents and children
+class create ::oo::Hierarchy {
+    method parent {} {
+	variable parents;
+	return [lindex [dict keys $parents] 0]
+    }
+
+    method parents {args} {
+	if {[llength $args]} {
+	    return [dict filter $parents {*}$args]
+	} else {
+	    return [dict keys $parents]
+	}
+    }
+
+    method add_parent {parent args} {
+	variable parents;
+	dict set parents $parent $args
+    }
+    
+    method del_parent {parent} {
+	variable parents;
+	dict unset parents $parent
+    }
+    
+    method children {args} {
+	variable children
+	if {[llength $args]} {
+	    return [dict filter $children {*}$args]
+	} else {
+	    return [dict keys $children]
+	}
+    }
+
+    method child {name} {
+	variable children
+	if {[dict exists $children $name]} {
+	    return [dict get $children $name]
+	} else {
+	    return ""
+	}
+    }
+
+    method child? {child} {
+	variable children
+	return [dict exists $children $child]
+    }
+    
+    method add_child {child args} {
+	variable children
+	dict set children $child $args
+    }
+    
+    method del_child {child} {
+	variable children
+	[dict get $children $child] del_parent [self]
+	dict unset children $child
+    }
+    
+    method descendants {{flat 1}} {
+	set descendants {}
+	if {$flat} {
+	    foreach child [my children] {
+		lappend descendants $child {*}[$child descendants $flat]
+	    }
+	} else {
+	    foreach child [my children] {
+		lappend descendants $child [$child descendants $flat]
+	    }
+	}
+	Debug.hierarchy {[self] descendants: $descendants}
+	return $descendants
+    }
+    
+    method ancestors {{flat 1}} {
+	set ancestors {}
+	if {$flat} {
+	    foreach p [my parents] {
+		lappend ancestors $p {*}[$p ancestors $flat]
+	    }
+	} else {
+	    foreach p [my parents] {
+		lappend ancestors $p [$p ancestors $flat]
+	    }
+	}
+	return $ancestors
+    }
+    
+    method create {name args} {
+	set child [[info object class [self]] create $name {*}$args]
+	my add_child $child; $child add_parent [self]
+	return $child
+    }
+    
+    destructor {
+	foreach parent [my parents] {
+	    $parent del_child [self]
+	}
+	foreach child [my children] {
+	    $child del_parent [self]
+	}
+	next?
+    }
+    
+    constructor {args} {
+	Debug.hierarchy {[self] constructing Hierarchy $args}
+	variable children {}
+	variable parents {}
+
+	if {[dict exists $args parents]} {
+	    foreach p [dict get $args parents] {
+		my add_parent $p
+	    }
+	    dict unset args parents
+	}
+	if {[dict exists $args parent]} {
+	    my add_parent [dict get $args parent]
+	    dict unset args parent
+	}
+
+	foreach parent [dict keys $parents] {
+	    $parent add_child [self]
+	}
+
+	next? {*}$args
+    }
+}
+
+class create ::oo::RefCount {
+    method protect {} {
+	variable refcount
+	incr refcount
+    }
+    method release {} {
+	variable refcount
+	if {[incr refcount -1] <= 0} {
+	    [self] destroy
+	}
+    }
+
+    constructor {args} {
+	Debug.refcount {[self] RefCount constructed $args}
+	variable refcount 0
+	next? {*}$args
+    }
+}
