@@ -101,6 +101,11 @@ class create ::File {
 	    }
 	}
 
+	# allow client caching
+	if {![dict exists $r -expiry]} {
+	    dict set r -expiry $expires
+	}
+
 	Debug.file {FILE DISPATCH '$path' $r}
 	Debug.file {Found file '$path' of type [file type $path]}
 	set count 20
@@ -115,8 +120,7 @@ class create ::File {
 		}
 
 		file {
-		    # allow client caching
-		    set r [Http Cache $r $expires $crealm]
+		    set r [Http Cache $r [dict get $r -expiry] $crealm]
 		    if {[file size $path] > $stream} {
 			# this is a large file - stream it using fcopy
 			return [Http File $r $path]
@@ -147,7 +151,7 @@ class create ::File {
                             } else {
                                 set path [file join $path [lindex $indices 0]]
                                 # allow client caching
-                                set r [Http Cache $r $expires $crealm]
+                                set r [Http Cache $r [dict get $r -expiry] $crealm]
                                 if {[file size $path] > $stream} {
                                     # this is a large file - stream it using fcopy
                                     return [Http File $r $path]
@@ -163,12 +167,12 @@ class create ::File {
 		    } else {
 			# no index file - generate a directory listing
 			set r [my dir $r $path]
-			return [Http CacheableContent [Http Cache $r $expires $crealm] [clock seconds]]
+			return [Http CacheableContent [Http Cache $r [dict get $r -expiry] $crealm] [clock seconds]]
 		    }
 		}
 
 		default {
-		    set r [Http Cache $r $expires $crealm]
+		    set r [Http Cache $r [dict get $r -expiry] $crealm]
 		    return [Http NotFound $r "<p>File '$suffix' is of illegal type [file type $path]</p>"]
 		}
 	    }
