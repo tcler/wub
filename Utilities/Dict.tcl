@@ -251,6 +251,17 @@ namespace eval ::tcl::dict {
         return $dict
     }
 
+    # map - generates a new dict whose values are the result of applying script
+    proc map {d vars script {ns ""}} {
+	if {$ns eq ""} {
+	    set ns [uplevel 1 namespace current]
+	}
+	set result {}
+	dict for $d {n v} {
+	    lappend result $n [::apply [list $vars $script $ns] $n $v]
+	}
+	return $result
+    }
 
     if {0} {
 	# [dict_project $keys $dict] extracts the specified keys in $args from the $dict
@@ -269,7 +280,7 @@ namespace eval ::tcl::dict {
 	}
     }
 
-    foreach x {get? set? unset? witharray equal apply capture nlappend in ni list diff switch transmute} {
+    foreach x {get? set? unset? witharray equal apply capture nlappend in ni map list diff switch transmute} {
 	namespace ensemble configure dict -map [linsert [namespace ensemble configure dict -map] end $x ::tcl::dict::$x] -unknown {::apply {{dict cmd args} {
 	    if {[string first . $cmd] > -1} {
 		if {[string index $cmd end] eq "?"} {
