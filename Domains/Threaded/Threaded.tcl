@@ -43,53 +43,69 @@ class create ::Threaded {
 
     # construct a new thread
     method newthread {} {
-	set thread [::thread::create -preserved [string map [list %S% [self] %T% [::thread::id]] {
-	    proc ::ERROR {args} {
-		::thread::send -async %T% [list %S% caught [::thread::id] $args]
-	    }
-	    ::thread::errorproc ::ERROR	;# this catches our uncaught errors
-
-	    # process parent call, returning tid + result dict
-	    proc ::CALL {args} {
-		set code [catch {
-		    uplevel #0 $args
-		} e eo]
-		return [list [::thread::id] $code $e $eo]	;# package up entire result dict
-	    }
-
-	    # we need a shim for Httpd to provide Suspend/Resume
-	    package provide Httpd 1.0
-	    namespace eval ::Httpd {
-		# format something to suspend this proxied packet
-		# this is a NOOP here, but handled by the Threaded domain
-		proc Suspend {r {grace -1}} {
-		    Debug.Httpd {Thread Suspending [rdump $r]}
-		    dict set r -suspend $grace	;# Threaded controls the suspension
-		    return $r
+	Debug.threaded {[self] new thread}
+	set body [string map [list %S% [self] %T% [::thread::id] %A% $::auto_path] {
+	    puts stderr "Started [::thread::id]"
+	    lappend ::auto_path %A%
+	    package require Debug
+	    puts stderr "auto_path $::auto_path"
+	    if {[catch {
+		package require Thread
+		
+		proc ::ERROR {args} {
+		    ::thread::send -async %T% [list %S% caught [::thread::id] $args]
 		}
+		::thread::errorproc ::ERROR	;# this catches our uncaught errors
 
-		# resume this request via the Threaded domain
-		proc Resume {r {cache 1}} {
-		    Debug.Httpd {Thread Resuming [rdump $r]}
-		    # ask socket coro to send the response for us
-		    # we inject the SEND event into the coro so Resume may be called from any
-		    # event, thread or coroutine
-		    ::thread::send -async %T% [list %S% resume [::thread::id] $r]
-		    return {}
+		# process parent call, returning tid + result dict
+		proc ::CALL {args} {
+		    set code [catch {
+			uplevel #0 $args
+		    } e eo]
+		    return [list [::thread::id] $code $e $eo]	;# package up entire result dict
 		}
+		
+		# we need a shim for Httpd to provide Suspend/Resume
+		package provide Httpd 1.0
+		namespace eval ::Httpd {
+		    # format something to suspend this proxied packet
+		    # this is a NOOP here, but handled by the Threaded domain
+		    proc Suspend {r {grace -1}} {
+			Debug.Httpd {Thread Suspending [rdump $r]}
+			dict set r -suspend $grace	;# Threaded controls the suspension
+			return $r
+		    }
+		    
+		    # resume this request via the Threaded domain
+		    proc Resume {r {cache 1}} {
+			Debug.Httpd {Thread Resuming [rdump $r]}
+			# ask socket coro to send the response for us
+			# we inject the SEND event into the coro so Resume may be called from any
+			# event, thread or coroutine
+			::thread::send -async %T% [list %S% resume [::thread::id] $r]
+			return {}
+		    }
+		}
+	    } e eo]} {
+		puts stderr "THREAD init: $e ($eo)"
 	    }
-	}]]
+	    ::thread::wait
+	}]
 
-	Debug.threaded {[self] new thread $thread}
+	set thread [::thread::create -preserved $body]
+
+	Debug.threaded {[self] new thread: $thread}
 
 	# construct the necessary Domain handler in $thread, recording its invocation
 	variable domain; variable dargs
-	set cmd [thread::send $thread [list $domain {*}$dargs]]
+	thread::send $thread [list package require $domain]
+	set cmd [thread::send $thread [list $domain new {*}$dargs]]
 
 	# record the thread in our generic pool
 	variable pool
 	dict set pool $thread $cmd
 
+	Debug.threaded {[self] new thread $thread incorporated}
 	return $thread
     }
 
@@ -211,6 +227,7 @@ class create ::Threaded {
     # expecting a response result.
     method do {r} {
 	# calculate the suffix of the URL relative to $mount
+	variable mount
 	lassign [Url urlsuffix $r $mount] result r suffix path
 	if {!$result} {
 	    return $r	;# the URL isn't in our domain
@@ -226,12 +243,13 @@ class create ::Threaded {
 	variable newfirst	;# we prefer new threads to greater occupancy
 	variable occupancy	;# maximum occupancy of each thread
 	variable unavailable	;# return 'Unavailable' or make 'em wait?
+	variable pool
 
 	if {[dict size $idle]} {
 	    # there's an idle thread to use
 	    set thread [lindex [dict keys $idle] 0]	;# grab next idle thread
 	    dict unset idle $thread	;# remove from idle thread collection
-	} elseif ($newfirst && [dict size $pool] < $maxthreads) {
+	} elseif {$newfirst && [dict size $pool] < $maxthreads} {
 	    # initialize a new thread - we prefer maximum number of threads
 	    set thread [my newthread]
 	} elseif {[dict size $running]} {
@@ -239,7 +257,7 @@ class create ::Threaded {
 	    set runners [dict keys $running]	;# grab next idle thread
 	    set select [expr {$now % [dict size $running]}] ;# select a thread
 	    set thread [lindex $runners $select]
-	} elseif (!$newfirst && [dict size $pool] < $maxthreads) {
+	} elseif {!$newfirst && [dict size $pool] < $maxthreads} {
 	    # initialize a thread - we prefer maximum thread occupancy
 	    set thread [my newthread]
 	} elseif {$unavailable > 0} {
@@ -253,6 +271,8 @@ class create ::Threaded {
 	    lappend waiting $r	;# record this waiting request
 	    return [Http Suspend $r $waitfor]
 	}
+
+	Debug.threaded {[self] selected thread $thread}
 
 	# we are ready to proxy this request $r to $thread
 	dict set running $thread $now $r	;# record new $thread occupant
