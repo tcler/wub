@@ -162,30 +162,21 @@ class create ::Direct {
 	}
     }
 
-    # locate a matching direct method in an object
-    method do_obj {rsp} {
-        variable object
-        variable mount
-        variable ctype
-        variable wildcard
-        variable methods
-
-	Debug.direct {do direct $object $mount $ctype}
-
-	# search for a matching command prefix
-	set fn [dict get $rsp -suffix]
+    method match {suffix {wild ""}} {
 	# strip extensions from each component
+	set fn $suffix
 	set cprefix {}
 	set fprefix {}
 	foreach el [split [armour $fn] /] {
 	    lappend cprefix [file rootname $el]
 	    lappend fprefix $el
 	}
-	#set cprefix [split [armour $fn] /]
+
 	set extra {}
 	set cmd ""
+	variable methods
 	while {$cmd eq "" && [llength $cprefix]} {
-	    Debug.direct {searching for ($cprefix) in '$object' ($methods)}
+	    Debug.direct {searching for ($cprefix) in ($methods)}
 	    set probe [dict keys $methods /[join $cprefix /]]
 	    # this strict match can only have 1 or 0 results
 	    if {[llength $probe] == 1} {
@@ -201,19 +192,35 @@ class create ::Direct {
 
 	# no match - use wildcard method
 	if {$cmd eq ""} {
-	    Debug.direct {'$cmd' not found looking for '$fn' in '$object' ($methods)}
-	    set cmd $wildcard
-	    dict set rsp -extra [dict get $rsp -suffix]
-	    dict set rsp -fprefix /
-	    dict set rsp -cprefix /
-	    if {![dict exists $methods $cmd] eq {}} {
-		Debug.direct {default not found looking for $cmd in ($methods)}
-		return [Http NotFound $rsp]
+	    Debug.direct {'$cmd' not found looking for '$fn' in ($methods)}
+	    if {$wild ne ""} {
+		return [list $wild $suffix / /]
+	    } else {
+		variable wildcard
+		return [list $wildcard $suffix / /]
 	    }
 	} else {
-	    dict set rsp -extra [join [lreverse $extra]	/] ;# record the extra parts of the domain
-	    dict set rsp -fprefix [join $fprefix /]
-	    dict set rsp -cprefix [join $cprefix /]
+	    return [list $cmd [join [lreverse $extra] /] [join $fprefix /] [join $cprefix /]]
+	}
+    }
+
+    # locate a matching direct method in an object
+    method do_obj {rsp} {
+        variable object
+        variable mount
+        variable ctype
+        variable methods
+
+	Debug.direct {do direct $object $mount $ctype}
+
+	# search for a matching command prefix
+	foreach f {extra fprefix cprefix} v [lassign [my match [dict get $rsp -suffix]] cmd] {
+	    dict set rsp -$f $v
+	}
+
+	if {![dict exists $methods $cmd] eq {}} {
+	    Debug.direct {default not found looking for $cmd in ($methods)}
+	    return [Http NotFound $rsp]
 	}
 
 	# get the formal parameters and args-status of the method
