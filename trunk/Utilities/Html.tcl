@@ -569,7 +569,15 @@ know {[string match <*> [lindex $args 0]]} {
 	if {$class ne {}} {
 	    lappend result "class='[join $class]'"
 	}
-	return "<[join ${result}]>@M@</@T@>"
+	if {"@T@" eq "input"} {
+	    if {$::Html::XHTML} {
+		return "<[join ${result}]>@M@</@T@/>"
+	    } else {
+		return "<[join ${result}]>@M@</@T@>"
+	    }
+	} else {
+	    return "<[join ${result}]>@M@</@T@>"
+	}
     }]
 
     return [{*}$args]

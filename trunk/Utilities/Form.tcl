@@ -496,10 +496,10 @@ class create ::FormClass {
 		    dict config.tabindex [incr tabindex]
 		}
 
-		if {![dict exists $config id]} {
-		    dict config.id $name
-		}
-		set id [dict config.id]
+		# if {![dict exists $config id]} {
+		#     dict config.id $name
+		# }
+		# set id [dict config.id]
 
 		# get sub-attributes of form "{subel attr} value"
 		set sattr {label {} legend {}}
@@ -523,12 +523,15 @@ class create ::FormClass {
 		    || [dict get? $config type] == "hidden"
 		} {
 		} elseif {$label ne ""} {
-		    set result "[my <label> for $id $label] $result"
+		    if {[dict exists $config id]} {
+			set result "[my <label> for $id $label] $result"
+		    }
 		} elseif {[set legend [dict config.legend?]] ne ""} {
 		    set result "[my <span> {*}[dict sattr.legend] $legend] $result"
 		}
 
 		Debug.form {[self] emit %T%: $result}
+		puts "result %T% = $result"
 		return $result
 	    }
 	}]
