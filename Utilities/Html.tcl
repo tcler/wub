@@ -571,9 +571,9 @@ know {[string match <*> [lindex $args 0]]} {
 	}
 	if {"@T@" eq "input"} {
 	    if {$::Html::XHTML} {
-		return "<[join ${result}]>@M@</@T@/>"
+		return "<[join ${result}]/>@M@"
 	    } else {
-		return "<[join ${result}]>@M@</@T@>"
+		return "<[join ${result}]>@M@"
 	    }
 	} else {
 	    return "<[join ${result}]>@M@</@T@>"
