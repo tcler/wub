@@ -477,7 +477,7 @@ class create ::FormClass {
 	password text value
 	text text value
 	hidden text value
-	file file value
+	file file multiple
 	image image src
     } {
 	eval [string map [list %T% $itype %A% $attrs %F% $field] {
@@ -531,7 +531,6 @@ class create ::FormClass {
 		}
 
 		Debug.form {[self] emit %T%: $result}
-		puts "result %T% = $result"
 		return $result
 	    }
 	}]
