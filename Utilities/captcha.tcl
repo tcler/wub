@@ -13,7 +13,7 @@ proc captcha {captcha args} {
 	}
 	set ::captcha_lines [join $x]
     }
-    catch {file delete $opts(file)}
+    catch {file delete -- $opts(file)}
     exec convert -background lightblue -fill blue -font Bookman-DemiItalic -size $opts(size) -gravity center label:$captcha -trim -fill yellow -draw [list path '$::captcha_lines'] -wave $opts(wave) -swirl $opts(swirl) $opts(file)
 }
 #exec convert -size 200x120 xc:lightblue -font Bookman-DemiItalic -pointsize 32 -fill blue -draw [list text 10,20 '$text'] -fill yellow -draw [list path 'M 5,5 L 140,5 M 5,10 L 140,10 M 5,15 L 140,15'] -trim -wave 6x70 -swirl 30 captcha.jpg
