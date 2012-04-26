@@ -45,12 +45,16 @@ set ::API(Utilities/Cookies) {
     }
 }
 
+package require Debug
+Debug define cookies
+
 package provide Cookies 1.0
 
 namespace eval ::Cookies {
 
     # filter all expired cookies from a cookie dict
     proc expire {cookies {now ""}} {
+	Debug.cookies {expire ($cookies) $now}
 	# get a time value as a base for expiry calculations
 	if {$now eq ""} {
 	    set now [clock seconds]
@@ -73,8 +77,8 @@ namespace eval ::Cookies {
 	if {[string is integer -strict $date]} {
 	    return $date
 	} elseif {[catch {clock scan $date \
-			-format {%a, %d %b %Y %T GMT} \
-			-gmt true} result eo]} {
+			      -format {%a, %d %b %Y %T GMT} \
+			      -gmt true} result eo]} {
 	    error "DateInSeconds '$date', ($result)"
 	} else {
 	    return $result
@@ -101,15 +105,15 @@ namespace eval ::Cookies {
 	    return 1
 	}
 
-	# they're not identical
-	for v {a b} {
+	# they're not identical - FIXME - this is garbage
+	foreach v {a b} {
 	    if {[regexp {[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+} $a]} {
 		return 0
 	    }
 	}
 
 	# try a prefix match:
-	return [string match "*.[string trimleft $b .]" $a]
+	return [string match *.[string trimleft $b .] $a]
     }
 
     # filter a cookie dict according to rfc2109
@@ -124,20 +128,21 @@ namespace eval ::Cookies {
 	    # decide which cookies are in and out according to rfc2109
 	    if {[dict exists $args -domain]
 		&& [dict exists $cookie -domain]
-		&& ![domain-match [dict get $args -domain] [dict get $cookie -domain]]} {
+		&& ![domain_match [dict get $args -domain] [dict get $cookie -domain]]} {
 		dict unset cookies $n
 		continue
 	    }
 	    if {[dict exists $args -path]
 		&& [dict exists $cookie -path]
-		&& ![string match "[string trimright [dict get $cookie -path] /]/*" [dict get $args -path]] {
-		    dict unset cookies $n
-		    continue
-		}
+		&& ![string match [string trimright [dict get $cookie -path] /]/* [dict get $args -path]]
+	    } {
+		dict unset cookies $n
+		continue
 	    }
-	    # TODO: ordering multiple cookies with same name by -path specificity
 	}
-	return $cookie_dict
+
+	# TODO: ordering multiple cookies with same name by -path specificity
+	return $cookies
     }
 
     # format a cookie dict into a list of 'cookie:' values
@@ -257,8 +262,8 @@ namespace eval ::Cookies {
 	catch {unset quoted}
 	set re {"([^\"]+?)"}	;# quoted string
 	set cnt 0
-	while {[regexp $re $cookies -> quoted(\x84$cnt\x85)]} {
-	    regsub $re $cookies "\x84$cnt\x85" cookies
+	while {[regexp -- $re $cookies -> quoted(\x84$cnt\x85)]} {
+	    regsub -- $re $cookies "\x84$cnt\x85" cookies
 	    incr cnt
 	}
 
@@ -268,8 +273,8 @@ namespace eval ::Cookies {
 	catch {unset expires}
 	set re {((Mon|Tue|Wed|Thu|Fri|Sat|Sun)[^,]*, +[0-9]+-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]+ [0-9]+:[0-9]+:[0-9]+ GMT)}
 	set cnt 0
-	while {[regexp $re $cookies expires(\x81$cnt\x82)]} {
-	    regsub $re $cookies "\x81$cnt\x82" cookies
+	while {[regexp -- $re $cookies expires(\x81$cnt\x82)]} {
+	    regsub -- $re $cookies "\x81$cnt\x82" cookies
 	    incr cnt
 	}
 
@@ -436,8 +441,8 @@ namespace eval ::Cookies {
 	catch {unset quoted}
 	set re {"([^\"]+?)"}	;# quoted string
 	set cnt 0
-	while {[regexp $re $cookies -> quoted(\x84$cnt\x85)]} {
-	    regsub $re $cookies "\x84$cnt\x85" cookies
+	while {[regexp -- $re $cookies -> quoted(\x84$cnt\x85)]} {
+	    regsub -- $re $cookies "\x84$cnt\x85" cookies
 	    incr cnt
 	}
 
@@ -517,6 +522,7 @@ namespace eval ::Cookies {
 	if {[dict get? $args -path] eq "/"} {
 	    dict unset args -path	;# a path of / is no path at all
 	}
+
 	foreach v {name path domain} {
 	    if {[dict exists $args -$v]} {
 		set $v [dict get $args -$v]
