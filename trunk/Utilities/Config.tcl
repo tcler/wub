@@ -6,7 +6,7 @@ if {[info exists argv0] && ($argv0 eq [info script])} {
 
 if {[catch {package require Debug}]} {
     #proc Debug.config {args} {}
-    proc Debug.config {args} {puts stderr HTTP@[uplevel subst $args]}
+    proc Debug.config {args} {puts stderr HTTP@[uplevel 1 subst $args]}
 } else {
     Debug define config 10
 }
