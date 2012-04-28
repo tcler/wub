@@ -965,6 +965,7 @@ class create ::WubTkI {
 
 	Debug.wubtk {[info coroutine] INTERP $interp}
 	Interp eval [list set ::auto_path $::auto_path]
+	Interp eval [list set ::suffix $suffix]
 
 	# create per-coro namespace commands
 	namespace eval [namespace current] {
@@ -1125,7 +1126,7 @@ class create ::WubTk {
 	return $r
     }
 
-    method new_wubapp {r wubapp} {
+    method new_wubapp {r wubapp suffix} {
         # collect options to pass to coro
         set options {}
         foreach v {comet icons theme spinner_style spinner_size css stylesheet cookiepath theme_switcher fontsize limit} {
@@ -1134,6 +1135,7 @@ class create ::WubTk {
                 lappend options $v [set $v]
             }
         }
+	lappend options suffix [string trimleft $suffix /]
 
         # create the coroutine to service this WubTk session
         set req $r
@@ -1168,7 +1170,7 @@ class create ::WubTk {
             set r [my newcookie $r]	;# brand new webapp
             set wubapp [my getcookie $r]	;# get the wubapp cookie
             try {
-                set r [my new_wubapp $r $wubapp]
+                set r [my new_wubapp $r $wubapp $suffix]
             } on error {e eo} {
                 Debug.wubtk {[info coroutine] error '$e' ($eo)}
                 catch {$o destroy}
@@ -1180,7 +1182,7 @@ class create ::WubTk {
             # they handed us a cookie relating to a defunct coro,
             # create a new one with that name
             try {
-                set r [my new_wubapp $r $wubapp]
+                set r [my new_wubapp $r $wubapp $suffix]
             } on error {e eo} {
                 Debug.wubtk {[info coroutine] error '$e' ($eo)}
                 catch {$o destroy}
