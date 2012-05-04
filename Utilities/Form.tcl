@@ -559,7 +559,9 @@ class create ::FormClass {
     foreach type {radio check} sub {"" box} {
 	eval [string map [list %T% $type %S% $sub] {
 	    method <%T%set> {name args} {
-		set args [lassign $args boxes]
+		set boxes [lindex $args end]
+		set args [lrange $args 0 end-1]
+		#set args [lassign $args boxes]
 		set rsconfig [my defaults %T% {*}$args name $name type %T%]
 		set result {}
 
