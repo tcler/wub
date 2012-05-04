@@ -525,6 +525,8 @@ class create ::FormClass {
 		} elseif {$label ne ""} {
 		    if {[dict exists $config id]} {
 			set result "[my <label> for [dict get $config id] $label] $result"
+		    } else {
+			set result "[my <label> $label] $result"
 		    }
 		} elseif {[set legend [dict config.legend?]] ne ""} {
 		    set result "[my <span> {*}[dict sattr.legend] $legend] $result"
