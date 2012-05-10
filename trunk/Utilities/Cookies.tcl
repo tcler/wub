@@ -51,6 +51,58 @@ Debug define cookies
 package provide Cookies 1.0
 
 namespace eval ::Cookies {
+    # get - try to find an application's cookie from its request
+    proc get {r cookie} {
+	set cl [Match $r -name $cookie]
+	if {[llength $cl]} {
+	    # we know they're human - they return cookies (?)
+	    return [dict get [Fetch $r -name $cookie] -value]
+	} else {
+	    return ""
+	}
+    }
+
+    # new - add a new cookie to a response
+    proc new {r cookie mount {value ""} {expires ""}} {
+	if {$value eq ""} {
+	    # create a new random value
+	    variable uniq
+	    set value [::md5::md5 -hex [incr uniq][clock clicks]]
+	}
+	
+	# add a cookie to reply
+	if {[dict exists $r -cookies]} {
+	    set cdict [dict get $r -cookies]
+	} else {
+	    set cdict [dict create]
+	}
+	
+	# include an optional expiry age
+	if {$expires ne ""} {
+	    if {[string is integer -strict $expires]} {
+		# it's an age
+		if {$expires != 0} {
+		    set expiresC [Http Date [expr {[clock seconds] + $expires}]]
+		    set expiresC [list -expires $expires]
+		} else {
+		    set expiresC {}
+		}
+	    } else {
+		set expiresC [Http Date [clock scan $expires]]
+		set expiresC [list -expires $expires]
+	    }
+	} else {
+	    set expiresC {}
+	}
+	
+	# add the cookie
+	set cdict [add $cdict -path $mount -name $cookie -value $value {*}$expiresC]
+	Debug.wapp {created wapp cookie ($cdict) from cookie:$cookie path:$mount}
+	
+	dict set r -cookies $cdict
+
+	return $r
+    }
 
     # filter all expired cookies from a cookie dict
     proc expire {cookies {now ""}} {
@@ -244,7 +296,9 @@ namespace eval ::Cookies {
 	if {![dict exists $cookie -path]} {
 	    dict set cookie -path ""
 	}
-	return [list [dict get $cookie -domain] [dict get $cookie -path] [dict get $cookie -name]]
+	set result [list [dict get $cookie -domain] [dict get $cookie -path] [dict get $cookie -name]]
+	Debug.cookies {unique ($cookie) -> $result}
+	return $result
     }
 
     # decode a cookie header received from a server into a dict
@@ -567,15 +621,18 @@ namespace eval ::Cookies {
 	}
 
 	set cn [unique $args]
+	Debug.cookies {Cookie adding ($cookies) $cn}
 	if {[dict exists $cookies $cn]} {
 	    # modify the cookie instead of adding it.
 	    return [modify $cookies {*}$args]
 	    error "Duplicate cookie $args"
 	}
+
 	if {0 && ![string is alnum -strict [dict get $args -name]]} {
 	    # not strictly true - can include _
 	    error "name must be alphanumeric, '[dict get $args -name]'"
 	}
+
 	if {[dict exists $args -expires]} {
 	    set expires [dict get $args -expires]
 	    if {![string is integer -strict $expires]} {
@@ -583,11 +640,12 @@ namespace eval ::Cookies {
 	    }
 	    dict set args -expires [clock format $expires -format "%a, %d-%b-%Y %H:%M:%S GMT" -gmt 1]
 	}
+
 	foreach {attr val} $args {
 	    dict set cookies $cn [string tolower $attr] $val
 	}
 	dict set cookies $cn -changed 1
-
+	Debug.cookies {added cookie '$cn' -> [dict get $cookies $cn]}
 	return $cookies
     }
 
@@ -639,7 +697,7 @@ namespace eval ::Cookies {
 	if {[llength $matches] == 0} {
 	    error "No matches: '$args'"
 	}
-	if {[llength $matches] != 1} {
+	if {0 && [llength $matches] != 1} {
 	    error "Multiple matches: '$matches'"
 	}
 
