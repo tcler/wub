@@ -150,7 +150,7 @@ class create ::FormClass {
 	}
 	set content "<[my attr fieldset {*}[dict in $config $fieldsetA] {*}[dict filter $config key data-*]]>\n"
 	if {[dict exists $config legend]} {
-	    append content [my <legend> [dict config.legend]] \n
+	    append content [my <legend> [dict config.legend]]
 	}
 	return $content
     }
@@ -169,7 +169,7 @@ class create ::FormClass {
 	}
 	set content "<[my attr form {*}[dict in $config $formA] {*}[dict filter $config key data-*]]>\n"
 	if {[dict exists $config legend]} {
-	    append content [my <legend> [dict config.legend]] \n
+	    append content [my <legend> [dict config.legend]]
 	}
 	return $content
     }
@@ -226,9 +226,12 @@ class create ::FormClass {
 
 		set content ""
 		if {[dict exists $config legend]} {
-		    append content [my <legend> [dict config.legend]] \n
+		    append content [my <legend> [dict config.legend]]
 		}
 		append content $body
+
+		Debug.form {[self] body of %T%: ($body)}
+
 		set vertical [dict config.vertical?]
 		if {$vertical ne "" && $vertical} {
 		    set content [string map {\n <br>\n} $content]
@@ -412,8 +415,7 @@ class create ::FormClass {
 	    }
 
 	    return [my <fieldset> "" {*}[dict sattr.fieldset] {*}$title {
-		[my <legend> {*}[dict sattr.legend] $legend]
-		$result
+		[my <legend> {*}[dict sattr.legend] $legend] $result
 	    }]
 	} else {
 	    return $result
@@ -454,7 +456,7 @@ class create ::FormClass {
 	}]
     }
 
-    method <button> {name args} {
+    method <fbutton> {name args} {
 	if {[llength $args]%2} {
 	    set content [lindex $args end]
 	    set args [lrange $args 0 end-1]
