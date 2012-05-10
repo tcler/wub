@@ -25,12 +25,23 @@ proc ::oo::Helpers::next? {args} {
 }
 
 proc ::oo::define::classmethod {name {args {}} {body {}}} {
-    set class [lindex [info level -1] 1]
-    set classmy [info object namespace $class]::my
-    if {[llength [info level 0]] == 4} {
+    # Create the method on the class if
+    # the caller gave arguments and body
+    set argc [llength [info level 0]]
+    if {$argc == 4} {
         uplevel 1 [list self method $name $args $body]
+    } elseif {$argc == 3} {
+        return -code error "wrong # args: should be \"[lindex [info level 0] 0] name ?args body?\""
     }
-    uplevel 1 [list forward $name $classmy $name]
+    
+    # Get the name of the current class
+    set cls [lindex [info level -1] 1]
+    
+    # Get its private “my” command
+    set my [info object namespace $cls]::my
+    
+    # Make the connection by forwarding
+    tailcall forward $name  $my $name
 }
 
 proc oo::define::Variable args {
