@@ -334,30 +334,7 @@ namespace eval ::Http {
     proc File {rsp path {ctype ""}} {
 	set path [file normalize $path]
 	dict set rsp -file $path
-
-	if {$ctype eq ""} {
-	    dict set rsp content-type [Mime magic path $path]
-	} else {
-	    dict set rsp content-type $ctype
-	}
-
-	dict set rsp -code 200
-	dict set rsp -rtype File
-	return $rsp
-    }
-
-    # modify response so it will not be returned to client
-    proc Suspend {rsp} {
-	Debug.log {Suspend [dict merge $rsp {-content <elided>}]}
-	dict set rsp -suspend 1
-	return $rsp
-    }
-
-    # content is a cacheable file
-    proc CacheableFile {rsp path {ctype ""}} {
-	set path [file normalize $path]
-	dict set rsp -file $path
-
+	
 	# set the file mod time
 	set mtime [file mtime $path]
 	dict set rsp -modified $mtime
@@ -373,7 +350,45 @@ namespace eval ::Http {
 	} else {
 	    dict set rsp content-type $ctype
 	}
+	
+	dict set rsp -code 200
+	dict set rsp -rtype File
+	return $rsp
+    }
 
+    # modify response so it will not be returned to client
+    proc Suspend {rsp} {
+	Debug.log {Suspend [dict merge $rsp {-content <elided>}]}
+	dict set rsp -suspend 1
+	return $rsp
+    }
+
+    # content is a cacheable file - read it and 
+    proc CacheableFile {rsp path {ctype ""}} {
+	set path [file normalize $path]
+
+	#dict set rsp -file $path
+	set fd [open $path r]
+	chan configure $fd -translation binary
+	dict set rsp -content [read $fd]
+	close $fd
+	
+	# set the file mod time
+	set mtime [file mtime $path]
+	dict set rsp -modified $mtime
+	dict set rsp last-modified [Date $mtime]
+	dict set rsp -dynamic 0	;# signal that we can cache this
+
+	# ensure the response has a mime-type
+	if {$ctype eq ""} {
+	    # calculate content-type using mime guessing
+	    if {[dict get? $rsp content-type] eq ""} {
+		dict set rsp content-type [Mime magic path $path]
+	    }
+	} else {
+	    dict set rsp content-type $ctype
+	}
+	
 	dict set rsp -code 200
 	dict set rsp -rtype CacheableFile
 
