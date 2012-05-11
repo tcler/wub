@@ -64,13 +64,8 @@ class create ::File {
 	return $req
     }
 
-    method do {r} {
-	# calculate the suffix of the URL relative to $mount
-	lassign [Url urlsuffix $r $mount] result r suffix
-	if {!$result} {
-	    return $r	;# the URL isn't in our domain
-	}
-
+    # get - given a request and suffix, construct a response
+    method get {r suffix} {
 	set ext [file extension $suffix]
 	set path [file join $root [string trimleft $suffix /]]
 
@@ -123,10 +118,10 @@ class create ::File {
 		    set r [Http Cache $r [dict get $r -expiry] $crealm]
 		    if {[file size $path] > $stream} {
 			# this is a large file - stream it using fcopy
-			return [Http File $r $path]
+			tailcall Http File $r $path
 		    } else {
 			# this is a small file - load then send
-			return [Http CacheableFile $r $path]
+			tailcall Http CacheableFile $r $path
 		    }
 		}
 
@@ -136,7 +131,7 @@ class create ::File {
 		    set rpath [dict get $r -path]
 		    if {$redirdir && ([string index $rpath end] ne "/")} {
 			dict set r -path "$rpath/"
-			return [Http Redirect $r [Url uri $r]]
+			tailcall Http Redirect $r [Url uri $r]
 		    } else {
 			# TODO do something to return the whole dir in one hit
 		    }
@@ -147,38 +142,47 @@ class create ::File {
 			if {[llength $indices]} {
 			    dict set r -path [file join [dict get $r -path] [lindex $indices 0]]
                             if {$redirindex} {
-                                return [Http Redirect $r [Url uri $r]]
+                                tailcall Http Redirect $r [Url uri $r]
                             } else {
                                 set path [file join $path [lindex $indices 0]]
                                 # allow client caching
                                 set r [Http Cache $r [dict get $r -expiry] $crealm]
                                 if {[file size $path] > $stream} {
                                     # this is a large file - stream it using fcopy
-                                    return [Http File $r $path]
+                                    tailcall Http File $r $path
                                 } else {
                                     # this is a small file - load then send
-                                    return [Http CacheableFile $r $path]
+                                    tailcall Http CacheableFile $r $path
                                 }
                             }
 			}
 		    }
 		    if {$nodir} {
-			return [Http NotFound $r "<p>No Such Directory.</p>"]
+			tailcall Http NotFound $r "<p>No Such Directory.</p>"
 		    } else {
 			# no index file - generate a directory listing
 			set r [my dir $r $path]
-			return [Http CacheableContent [Http Cache $r [dict get $r -expiry] $crealm] [clock seconds]]
+			tailcall Http CacheableContent [Http Cache $r [dict get $r -expiry] $crealm] [clock seconds]
 		    }
 		}
 
 		default {
 		    set r [Http Cache $r [dict get $r -expiry] $crealm]
-		    return [Http NotFound $r "<p>File '$suffix' is of illegal type [file type $path]</p>"]
+		    tailcall Http NotFound $r "<p>File '$suffix' is of illegal type [file type $path]</p>"
 		}
 	    }
 	}
 
-	return [Http NotFound $r "<p>File '$suffix' doesn't resolve to a file.</p>"]
+	tailcall Http NotFound $r "<p>File '$suffix' doesn't resolve to a file.</p>"
+    }
+
+    method do {r} {
+	# calculate the suffix of the URL relative to $mount
+	lassign [Url urlsuffix $r $mount] result r suffix
+	if {!$result} {
+	    return $r	;# the URL isn't in our domain
+	}
+	tailcall my get $r $suffix
     }
 
     variable root indexfile mount hide redirdir redirindex expires dateformat dirparams nodir stream followextlinks sortparam crealm
