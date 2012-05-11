@@ -33,11 +33,8 @@ oo::class create ::CacheClass {
 	}
 	set since [Http DateInSeconds [dict get $req if-modified-since]]
 	set mtime [file mtime [dict get $cached -file]]
-	if {$since ne $mtime} {
-	    return 1
-	} else {
-	    return 0
-	}
+	Debug.cache {filemodified? $since $mtime ergo: [expr {$since ne $mtime}]}
+	return [expr {$since > $mtime}]
     }
 
     method counter {cached field} {
