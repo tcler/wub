@@ -345,6 +345,9 @@ oo::class create Config {
 	if {[info exists config]} {
 	    my parse $config	;# parse any literal config passed in
 	}
+	if {[info exists section]} {
+	    my parse_section "" $section
+	}
     }
 }
 
