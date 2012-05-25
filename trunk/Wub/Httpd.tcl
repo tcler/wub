@@ -232,16 +232,6 @@ namespace eval ::watchdog {
 
 # Httpd - an object for each Httpd connection
 oo::class create ::Httpd {
-    # timestamp - record a uS timestamp in the r-dict
-    method timestamp {r which {when 0}} {
-	if {![Debug level? stamp]} {return $r}	;# only accumulate this stuff if Debug.stamp is on
-	if {$when == 0} {
-	    set when [clock microseconds]
-	}
-	dict set r -time $which [expr {$when - [dict get $r -time connected]}]
-	return $r
-    }
-
     # timing - make a nice little table of uS times of state transitions for request dict
     method timing {r} {
 	set timings [dict get $r -time]
@@ -437,7 +427,7 @@ oo::class create ::Httpd {
 	# reset socket to header config, having read the entity or failed
 	chan configure $socket -encoding binary -translation {crlf binary}
 
-	set r [my timestamp $r fcindone]
+	set r [::Httpd timestamp $r fcindone]
 	if {[set gone [catch {chan eof $socket} eof]] || $eof} {
 	    # detect socket closure ASAP in sending
 	    Debug.entity {[info coroutine] Lost connection on fcin}
@@ -613,8 +603,8 @@ oo::class create ::Httpd {
 
 	# record some timings
 	variable start;
-	set r [my timestamp $r headerstart $hstart]
-	set r [my timestamp $r headerdone]
+	set r [::Httpd timestamp $r headerstart $hstart]
+	set r [::Httpd timestamp $r headerdone]
 
 	# record the header
 	set lines [lassign $lines header]
@@ -649,82 +639,13 @@ oo::class create ::Httpd {
 	return $lines
     }
 
-    # make GET/HEAD conditional
-    # this will transform a request if there's a conditional which
-    # applies to it.
-    method Conditional {r} {
-	set etag [dict get? $r etag]
-	# Check if-none-match
-	if {[Http any-match $r $etag]} {
-	    # rfc2616 14.26 If-None-Match
-	    # If any of the entity tags match the entity tag of the entity
-	    # that would have been returned in the response to a similar
-	    # GET request (without the If-None-Match header) on that
-	    # resource, or if "*" is given and any current entity exists
-	    # for that resource, then the server MUST NOT perform the
-	    # requested method, unless required to do so because the
-	    # resource's modification date fails to match that
-	    # supplied in an If-Modified-Since header field in the request.
-	    if {[string toupper [dict get $r -method]] in {"GET" "HEAD"}} {
-		# if the request method was GET or HEAD, the server
-		# SHOULD respond with a 304 (Not Modified) response, including
-		# the cache-related header fields (particularly ETag) of one
-		# of the entities that matched.
-		Debug.cache {unmodified [dict get $r -uri]}
-		#counter $cached -unmod	;# count unmod hits
-		return [Http NotModified $r]
-		# NB: the expires field is set in $r
-	    } else {
-		# For all other request methods, the server MUST respond with
-		# a status of 412 (Precondition Failed).
-		#return [Http PreconditionFailed $r]
-	    }
-	} elseif {![Http if-match $r $etag]} {
-	    #return [Http PreconditionFailed $r]
-	} elseif {![Http if-range $r $etag]} {
-	    catch {dict unset r range}
-	    # 14.27 If-Range
-	    # If the entity tag given in the If-Range header matches the current
-	    # entity tag for the entity, then the server SHOULD provide the
-	    # specified sub-range of the entity using a 206 (Partial content)
-	    # response. If the entity tag does not match, then the server SHOULD
-	    # return the entire entity using a 200 (OK) response.
-	}
-	return $r
-    }
-
-    # close? - should we close this connection?
-    method close? {r} {
-	# don't honour 1.0 keep-alives - why?
-	set close [expr {[dict get $r -version] < 1.1}]
-	Debug.httpdlow {version [dict get $r -version] implies close=$close}
-
-	# handle 'connection: close' request from client
-	foreach ct [split [dict get? $r connection] ,] {
-	    if {[string tolower [string trim $ct]] eq "close"} {
-		Debug.httpdlow {Tagging close at connection:close request}
-		set close 1
-		break	;# don't need to keep going
-	    }
-	}
-
-	if {$close} {
-	    # we're not accepting more input but defer actually closing the socket
-	    # until all pending transmission's complete
-	    catch {chan close $socket read}	;# close the read direction of socket
-	    variable reading 0			;# we are no longer open for input
-	}
-
-	return $close
-    }
-
     # fcopy: our outbound fcopy has completed
     method fcopy {fd bytes next r written {error ""}} {
 	variable replies
 	variable socket
 
 	Debug.httpd {[info coroutine] fcopy: $fd $bytes $written '$error'}
-	set r [my timestamp $r fcopydone]
+	set r [::Httpd timestamp $r fcopydone]
 	Debug.stamp {[info coroutine] [my timing $r]}
 
 	::watchdog stroke [self]
@@ -850,7 +771,7 @@ oo::class create ::Httpd {
 	    # remove this response from the pending response structure
 	    lassign [dict get $replies $next] req cache head content file close empty range
 	    dict unset replies $next		;# consume next response
-	    set req [my timestamp $req txstart]
+	    set req [::Httpd timestamp $req txstart]
 
 	    # connection close after transmission required?
 	    # NB: we only consider closing if all pending requests
@@ -870,7 +791,7 @@ oo::class create ::Httpd {
                 Debug.httpdlow {[info coroutine] flushed $socket} 4
             }
 
-	    set req [my timestamp $req txcontent]
+	    set req [::Httpd timestamp $req txcontent]
 
 	    # send the content/entity (if any)
 	    # note: we must *not* send a trailing newline, as this
@@ -881,7 +802,7 @@ oo::class create ::Httpd {
 		if {$file ne ""} {
 		    # send content of file descriptor using fcopy
 		    set fd [open $file r]
-		    variable files; dict set files $fd 1 ;# remember fd
+		    variable files; dict set files $fd 1 ;# remember fd for closing later
 		    set bytes [file size $file]
 
 		    chan configure $socket -translation binary
@@ -898,6 +819,7 @@ oo::class create ::Httpd {
 			Debug.httpd {[info coroutine] FCOPY RANGE: '$file' bytes $from-$to/$bytes} 8
 			chan copy $fd $socket -command [list [info coroutine] fcopy $fd $bytes $next $req]
 		    } else {
+			# send entire file
 			Debug.httpd {[info coroutine] FCOPY ENTITY: '$file'/$fd $bytes bytes} 8
 			chan copy $fd $socket -command [list [info coroutine] fcopy $fd $bytes $next $req]
 		    }
@@ -907,13 +829,13 @@ oo::class create ::Httpd {
 		    # send literal content range
 		    lassign $range from to
 		    chan puts -nonewline $socket [string range $content $from $to]
-		    set req [my timestamp $req txrangesent]
+		    set req [::Httpd timestamp $req txrangesent]
 		    Debug.stamp {[info coroutine] [my timing $req]}
 		    Debug.httpd {[info coroutine] SENT RANGE: bytes $from-$to/[string length $content] bytes} 8
 		} else {
                     # send literal content
 		    chan puts -nonewline $socket $content	;# send the content
-		    set req [my timestamp $req txsent]
+		    set req [::Httpd timestamp $req txsent]
 		    Debug.stamp {[info coroutine] [my timing $req]}
 		    Debug.httpd {[info coroutine] SENT ENTITY: [string length $content] bytes} 8
 		}
@@ -950,311 +872,6 @@ oo::class create ::Httpd {
 	return 0
     }
 
-    # CE - find and effect appropriate content encoding
-    method CE {reply args} {
-	# default to identity encoding
-	set content [dict get $reply -content]
-	variable ce_encodings	;# what encodings do we support?
-	Debug.httpd {CE -encoding: $ce_encodings}
-	if {![dict exists $reply -gzip]
-	    && ("gzip" in $ce_encodings)
-	    && ![string match image/* [dict get? $reply content-type]]
-	} {
-	    # prepend a minimal gzip file header:
-	    # signature, deflate compression, no flags, mtime,
-	    # xfl=0, os=3
-	    set content [dict get $reply -content]
-	    set gztype [expr {[string match text/* [dict get $reply content-type]]?"text":"binary"}]
-	    set gzip [::zlib gzip $content -header [list crc 0 time [clock seconds] type $gztype]]
-
-	    dict set reply -gzip $gzip
-            Debug.httpd {gzipping: [string length $gzip]/[string length $content]}
-	}
-
-	# choose content encoding - but not for MSIE
-	if {[dict exists $reply accept-encoding]
-	    && ![dict exists $reply content-encoding]
-	} {
-	    foreach en [split [dict get $reply accept-encoding] ","] {
-		lassign [split $en ";"] en pref
-		set en [string trim $en]
-		if {$en in $ce_encodings} {
-		    switch $en {
-			"gzip" { # substitute the gzipped form
-			    if {[dict exists $reply -gzip]} {
-                                Debug.httpd {gzip acceptable}
-				set content [dict get $reply -gzip]
-				dict set reply content-encoding gzip
-				#set reply [Http Vary $reply Accept-Encoding User-Agent]
-				break
-			    }
-			}
-		    }
-		}
-	    }
-	}
-	return [list $reply $content]
-    }
-
-    # Charset - ensure correctly encoded content in response
-    method Charset {reply} {
-	if {[dict exists $reply -chconverted]} {
-	    return $reply	;# don't re-encode by charset
-	}
-
-	# handle charset for text/* types
-	lassign [split [dict get? $reply content-type] {;}] ct
-	if {[string match text/* $ct] || [string match */*xml $ct]} {
-	    if {[dict exists $reply -charset]} {
-		set charset [dict get $reply -charset]
-	    } else {
-		set charset [encoding system]	;# default charset (utf-8)
-                dict set reply -charset $charset
-	    }
-            # ensure content is converted to correct charset,
-            # flag conversion in response, to avoid double conversion
-	    dict set reply -chconverted $charset
-	    dict set reply content-type "$ct; charset=$charset"
-	    dict set reply -content [encoding convertto $charset [dict get $reply -content]]
-	}
-	return $reply
-    }
-
-    # Format - format up a reply for sending.
-    method Format {reply cache} {
-	Debug.httpd {Format (cache: $cache) ([dict merge $reply {-content <ELIDED>}])}
-
-	set file ""
-	if {[catch {
-	    # unpack and consume the reply from replies queue
-	    if {![dict exists $reply -code]} {
-		set code 200	;# presume it's ok
-	    } else {
-		set code [dict get $reply -code]
-	    }
-
-	    if {$code < 4} {
-		# this was a tcl error code, not an HTTP code
-		set code 500
-	    }
-
-	    # make reply conditional if requested
-	    if {$code eq 200} {
-		# non-OK responses aren't conditional (?)
-		set reply [my Conditional $reply]
-		set code [dict get $reply -code]
-	    }
-
-	    # Deal with content data by response type
-	    set range {}	;# default no range
-	    switch -glob -- $code {
-		204 - 304 - 1* {
-		    # 1xx (informational),
-		    # 204 (no content),
-		    # and 304 (not modified)
-		    # responses MUST NOT include a message-body
-		    Debug.httpdlow {Format: code is $code}
-		    set reply [Http expunge $reply]	;#remove metadata from reply dict
-		    set content ""
-		    catch {dict unset reply -content}
-		    catch {dict unset reply -file}
-		    set cache 0	;# can't cache these
-		    set empty 1	;# this is explicitly empty - no entity in reply
-		}
-
-		default {
-		    # responses may include a message-body
-		    set empty 0		;# assume non-empty
-		    if {[dict exists $reply -content]} {
-			# correctly charset-encode content
-			set reply [my Charset $reply]
-
-			#Debug.httpdlow {pre-CE content length [string length [dict get $reply -content]]}
-			# also gzip content so cache can store that.
-			# this is happening too soon ... what if there's a range?
-			lassign [my CE $reply] reply content
-			set file ""	;# this is not a file
-
-			# ensure content-length is correct
-			dict set reply content-length [string length $content]
-			#Debug.httpdlow {post-CE content length [string length $content]}
-		    } elseif {[dict exists $reply -file]} {
-			# the app has returned the pathname of a file instead of content
-			set file [dict get $reply -file]
-			dict set reply content-length [file size $file]
-			set content ""
-		    } else {
-			Debug.error {Format: contentless - response empty - no content in reply ($reply)}
-			set content ""	;# there is no content
-			set file ""	;# this is not a file
-			set empty 1	;# it's empty
-			dict set reply content-length 0
-			#puts stderr "NOCACHE empty $code: $cache"
-			set cache 0	;# can't cache no content
-		    }
-
-		    if {!$empty && [string match 2* $code] && $code ne 204} {
-			# handle range for 200
-			set ranges [dict get? $reply range]
-			if {$ranges ne ""} {
-			    Debug.httpd {ranges: $ranges}
-			    set ranges [lindex [lassign [split $ranges =] unit] 0]
-			    set ranges [split $ranges ,]
-			    set ranges [lindex $ranges 0]	;# only handle one range
-			    foreach rr $ranges {
-				lassign [split $rr -] from to
-				lassign [split $to] to
-				set size [dict get $reply content-length]
-				if {$from eq ""} {
-				    set from [expr {$size-$to+1}]
-				    set to $size
-				} elseif {$to > $size || $to eq ""} {
-				    set to [expr {$size-1}]
-				}
-
-				lappend range $from $to	;# remember range to send
-			    }
-
-			    # send appropriate content range and length fields
-			    set code 206	;# partial content
-			    dict set reply content-range "bytes $from-$to/$size"
-			    dict set reply content-length [expr {$to-$from+1}]
-
-			    Debug.httpd {range: [dict get $reply content-range] of length [dict get $reply content-length]}
-			}
-		    }
-		}
-	    }
-
-	    # set the informational header error message
-	    if {[dict exists $reply -error]} {
-		set errmsg [dict get $reply -error]
-	    }
-	    if {![info exists errmsg] || ($errmsg eq "")} {
-		set errmsg [Http ErrorMsg $code]
-	    }
-
-	    # format header
-	    set header "HTTP/1.1 $code $errmsg\r\n"	;# note - needs prefix
-
-	    # format up the headers
-	    if {$code != 100} {
-		append header "Date: [Http Now]" \r\n
-		set si [dict get? $reply -server_id]
-		if {$si eq ""} {
-		    variable server_id
-		    set si $server_id
-		}
-		append header "Server: $si" \r\n
-	    }
-
-	    # add in cookies already formatted up
-	    foreach hdr {set-cookie} {
-		if {[dict exists $reply set-cookie]} {
-		    append header $hdr: " " [dict get $reply $hdr] \r\n
-		}
-	    }
-
-	    # format up and send each cookie
-	    if {[dict exists $reply -cookies]} {
-		Debug.cookies {Http processing: [dict get $reply -cookies]}
-		set c [dict get $reply -cookies]
-		foreach cookie [Cookies format4server $c] {
-		    Debug.cookies {Http set: '$cookie'}
-		    append header "set-cookie: $cookie" \r\n
-		}
-	    } else {
-		Debug.cookies {Http processing: no cookies}
-	    }
-
-	    # handle Vary field and -vary dict
-	    dict set reply -vary Accept-Encoding 1
-	    if {[dict exists $reply -vary]} {
-		if {[dict exists $reply -vary *]} {
-		    dict set reply vary *
-		} else {
-		    dict set reply vary [join [dict keys [dict get $reply -vary]] ,]
-		}
-		dict unset reply -vary
-	    }
-
-	    # now attend to caching generated content.
-	    if {$empty
-                || [dict exists $reply content-range]
-                || [dict get $reply content-length] == 0} {
-		set cache 0	;# don't cache no content or range
-	    } elseif {$cache} {
-		# use -dynamic flag to avoid caching even if it was requested
-		set cache [expr {![dict exists $reply -dynamic]
-				 || ![dict get $reply -dynamic] }]
-
-		if {$cache && [dict exists $reply cache-control]} {
-		    set cacheable [split [dict get $reply cache-control] ,]
-		    foreach directive $cacheable {
-			set body [string trim [join [lassign [split $directive =] d] =]]
-			set d [string tolower [string trim $d]]
-			if {$d in {no-cache private}} {
-			    set cache 0
-			    break
-			}
-		    }
-		}
-	    }
-
-	    # add in Auth header elements - TODO
-	    foreach challenge [dict get? $reply -auth] {
-		append header "WWW-Authenticate: $challenge" \r\n
-	    }
-
-	    if {[dict get $reply -method] eq "HEAD"} {
-		# All responses to the HEAD request method MUST NOT
-		# include a message-body but may contain all the content
-		# header fields.
-		set empty 1
-		set content ""
-	    }
-
-	    if {$code >= 500} {
-		# Errors are completely dynamic - no caching!
-		set cache 0
-	    }
-
-	    # strip http fields which don't have relevance in response
-	    dict for {n v} $reply {
-		set nl [string tolower $n]
-		if {[string match x-* $nl]} {
-		    append header "$n: $v" \r\n
-		} elseif {$nl ni {server date}
-			  && [info exists ::Http::headers($nl)]
-			  && $::Http::headers($nl) ne "rq"
-		      } {
-		    append header "$n: $v" \r\n
-		}
-	    }
-	} e eo]} {
-	    if {![info exists code] || $code >= 500} {
-		# Errors are completely dynamic - no caching!
-		set cache 0
-	    }
-
-	    Debug.error {Sending Error: '$e' ($eo) Sending Error}
-	} else {
-	    Debug.httpdlow {Format: ($header)}
-	}
-
-	set reply [my timestamp $reply replied]
-	return [list $reply $cache $header $content $file [my close? $reply] $empty $range]
-	# response ready for [response] to blast it out the socket:
-	# reply - reply modified by Format
-	# cache - cache the response?
-	# header - fully serialized header
-	# content - string content or ""
-	# file - name of file to transmit or ""
-	# close - has the client requested close? have we decided to close?
-	# empty - is the reply empty of content/file?
-	# range - what content ranges have been requested?
-    }
-
     # send --
     #	queue up responses for delivery in-sequence
     #
@@ -1270,7 +887,7 @@ oo::class create ::Httpd {
 
 	# process suspension at lowest level
 	if {[dict exists $r -suspend]} {
-	    set r [my timestamp $r suspended]
+	    set r [::Httpd timestamp $r suspended]
 	    return	;# this reply has been suspended - we haven't got it yet
 	    # so we simply return.  The lack of a response for the corresponding
 	    # pipelined request has the effect of suspending the pipeline until
@@ -1278,7 +895,7 @@ oo::class create ::Httpd {
 	    # requests will still be processed while the pipeline's suspended,
 	    # but their responses will only be returned in strict and close order.
 	}
-	set r [my timestamp $r sent]
+	set r [::Httpd timestamp $r sent]
 
 	# if this isn't a browser - do not cache!
 	variable ua
@@ -1326,7 +943,9 @@ oo::class create ::Httpd {
 	# empty? - is there actually no content, as distinct from 0-length content?
 	variable replies
 	if {[dict get $r -code] != 100} {
-	    set response [my Format $r $cache]
+	    set response [::Httpd Format $r $cache]
+	    set response [::Httpd timestamp $response replied]
+
 	    dict set replies $trx $response
 	    dict set satisfied $trx 1	;# record satisfaction of transaction
 	    Debug.httpd {[info coroutine] ADD TRANS: ([dict keys $replies])}
@@ -1336,7 +955,7 @@ oo::class create ::Httpd {
 	    if {$cache} {
 		# handle caching (under no circumstances cache bot replies)
 		set r [Cache put $r]	;# cache it before it's sent
-		set r [my timestamp $r cached]
+		set r [::Httpd timestamp $r cached]
 	    } else {
 		Debug.httpd {Do Not Cache put: ([Httpd dump $r]) cache:$cache}
 	    }
@@ -1345,7 +964,7 @@ oo::class create ::Httpd {
 	    if {[chan pending output $socket] > $outbuffer} {
 		# the client hasn't consumed our output yet
 		# stop reading input until he does
-		set r [my timestamp $r unreadable]
+		set r [::Httpd timestamp $r unreadable]
 		my unreadable
 	    } else {
 		# there's space for more output, so accept more input
@@ -1353,7 +972,10 @@ oo::class create ::Httpd {
 	    }
 	} elseif {![my close? $r]} {
 	    # special case 100-continue ...
-	    dict set replies $trx [my Format $r $cache]
+	    set r [::Httpd Format $r $cache]
+	    set r [::Httpd timestamp $r replied]
+
+	    dict set replies $trx $r
 	    Debug.httpd {[info coroutine] ADD CONTINUATION: ([dict keys $replies])}
 	    # this is a continuation - we expect more
 	    my readable
@@ -1593,7 +1215,7 @@ oo::class create ::Httpd {
     method Entity {} {
 	variable istate ENTITY
 	upvar 1 r r
-	set r [my timestamp $r entitystart]
+	set r [::Httpd timestamp $r entitystart]
 	variable socket
 
 	# rfc2616 4.3
@@ -1786,7 +1408,7 @@ oo::class create ::Httpd {
 
 	# reset socket to header config, having read the entity
 	chan configure $socket -encoding binary -translation {crlf binary}
-	set r [my timestamp $r entityend]
+	set r [::Httpd timestamp $r entityend]
 
 	# now we postprocess/decode the entity
 	Debug.entity {entity read complete - '[dict get? $r -te]'}
@@ -1818,7 +1440,7 @@ oo::class create ::Httpd {
 
 	    # clean up timestamp
 	    dict set cached -time [dict get $r -time]
-	    set cached [my timestamp $cached fromcache]
+	    set cached [::Httpd timestamp $cached fromcache]
 
 	    Debug.httpd {[info coroutine] sending cached [dict get $r -uri] ([Httpd dump $cached])}
 	    set fail [catch {
@@ -1852,11 +1474,11 @@ oo::class create ::Httpd {
 	variable istate DISPATCH
 	catch {
 	    set r1 [::Dispatcher pre $r]
-	    set r1 [my timestamp $r1 dispatch]
+	    set r1 [::Httpd timestamp $r1 dispatch]
 	    ::Dispatcher do REQUEST $r1
 	} rsp eo	;# process the request
 	set istate POSTPROCESS
-	set rsp [my timestamp $rsp postprocess]
+	set rsp [::Httpd timestamp $rsp postprocess]
 
 	# handle response code from processing request
 	set done 0
@@ -1956,6 +1578,17 @@ oo::class create ::Httpd {
 	dict unset files $fd
     }
 
+    # enthread - entangle connection with thread
+    method entangle {resource} {
+	variable resources
+	dict set resources $resource 1
+    }
+    method detangle {resource} {
+	variable resources
+	dict unset resources $resource
+    }
+
+    # coro - the coroutine which processes incoming requests
     method coro {args} {
 	Debug.httpd {create reader [info coroutine] - $args}
 
@@ -1965,6 +1598,7 @@ oo::class create ::Httpd {
 	variable transaction 0	;# count of incoming requests
 	variable socket
 	variable files; dict set files $socket SOCKET	;# police socket
+	variable threads {}	;# police threads
 	variable unsatisfied	;# reader queues up unsatisfied requests
 	variable proto; dict set proto -send [info coroutine]	;# remember coroutine as sender
 
@@ -2106,6 +1740,12 @@ oo::class create ::Httpd {
 	    catch {$client del [self]}
 	}
 
+	# release any associated resources
+	variable resources
+	foreach {resource .} $resources {
+	    catch {{*}$resource}
+	}
+
 	# close any open files
 	variable files
 	foreach {f name} $files {
@@ -2132,7 +1772,6 @@ oo::class create ::Httpd {
 	variable websockets 0	;# want to support websockets?
 	variable log ""		;# log off by default
 	variable todisk 0	;# don't save entities to disk
-	variable ce_encodings {gzip}	;# support these char encodings
         variable def_charset [encoding system]
 	variable {*}[Site var? Httpd]	;# allow .config file to modify defaults
 	variable {*}$args
@@ -2152,6 +1791,7 @@ oo::class create ::Httpd {
 	variable writing 0	;# we're not writing yet
 	variable events {}	;# readable/writable
 	variable files {}	;# files open to this connection
+	variable resources {}	;# resources entangled with this connection
 	variable client [::HttpdClient add $ip [self]]
 	variable outbuffer 40960 ;# amount of output we are prepared to buffer
 	variable start [clock microseconds]
@@ -2173,6 +1813,402 @@ namespace eval ::Httpd::coros {}
 
 # format something to suspend this packet
 oo::objdefine ::Httpd {
+    # close? - should we close this connection?
+    method close? {r} {
+	# don't honour 1.0 keep-alives - why?
+	set close [expr {[dict get $r -version] < 1.1}]
+	Debug.httpdlow {version [dict get $r -version] implies close=$close}
+
+	# handle 'connection: close' request from client
+	foreach ct [split [dict get? $r connection] ,] {
+	    if {[string tolower [string trim $ct]] eq "close"} {
+		Debug.httpdlow {Tagging close at connection:close request}
+		set close 1
+		break	;# don't need to keep going
+	    }
+	}
+
+	if {$close} {
+	    # we're not accepting more input but defer actually closing the socket
+	    # until all pending transmission's complete
+	    catch {chan close $socket read}	;# close the read direction of socket
+	    variable reading 0			;# we are no longer open for input
+	}
+
+	return $close
+    }
+    export close?
+
+    # make GET/HEAD conditional
+    # this will transform a request if there's a conditional which
+    # applies to it.
+    method Conditional {r} {
+	set etag [dict get? $r etag]
+	# Check if-none-match
+	if {[Http any-match $r $etag]} {
+	    # rfc2616 14.26 If-None-Match
+	    # If any of the entity tags match the entity tag of the entity
+	    # that would have been returned in the response to a similar
+	    # GET request (without the If-None-Match header) on that
+	    # resource, or if "*" is given and any current entity exists
+	    # for that resource, then the server MUST NOT perform the
+	    # requested method, unless required to do so because the
+	    # resource's modification date fails to match that
+	    # supplied in an If-Modified-Since header field in the request.
+	    if {[string toupper [dict get $r -method]] in {"GET" "HEAD"}} {
+		# if the request method was GET or HEAD, the server
+		# SHOULD respond with a 304 (Not Modified) response, including
+		# the cache-related header fields (particularly ETag) of one
+		# of the entities that matched.
+		Debug.cache {unmodified [dict get $r -uri]}
+		#counter $cached -unmod	;# count unmod hits
+		return [Http NotModified $r]
+		# NB: the expires field is set in $r
+	    } else {
+		# For all other request methods, the server MUST respond with
+		# a status of 412 (Precondition Failed).
+		#return [Http PreconditionFailed $r]
+	    }
+	} elseif {![Http if-match $r $etag]} {
+	    #return [Http PreconditionFailed $r]
+	} elseif {![Http if-range $r $etag]} {
+	    catch {dict unset r range}
+	    # 14.27 If-Range
+	    # If the entity tag given in the If-Range header matches the current
+	    # entity tag for the entity, then the server SHOULD provide the
+	    # specified sub-range of the entity using a 206 (Partial content)
+	    # response. If the entity tag does not match, then the server SHOULD
+	    # return the entire entity using a 200 (OK) response.
+	}
+	return $r
+    }
+
+    # CE - find and effect appropriate content encoding
+    method CE {reply args} {
+	# default to identity encoding
+	set content [dict get $reply -content]
+	variable ce_encodings	;# what encodings do we support?
+	if {![info exists ce_encodings]} {
+	    set ce_encodings {gzip}	;# support these char encodings
+	}
+
+	Debug.httpd {CE -encoding: $ce_encodings}
+	set ct [dict get? $reply content-type]
+	if {![dict exists $reply -gzip]
+	    && ("gzip" in $ce_encodings)
+	    && ![string match image/* $ct]
+	    && ![string match binary/* $ct]
+	} {
+	    # prepend a minimal gzip file header:
+	    # signature, deflate compression, no flags, mtime,
+	    # xfl=0, os=3
+	    set gztype [expr {[string match text/* [dict get $reply content-type]]?"text":"binary"}]
+	    set gzip [::zlib gzip $content -header [list crc 0 time [clock seconds] type $gztype]]
+
+	    dict set reply -gzip $gzip
+            Debug.httpd {gzipping: [string length $gzip]/[string length $content]}
+	}
+
+	# choose content encoding - but not for MSIE
+	if {[dict exists $reply accept-encoding]
+	    && ![dict exists $reply content-encoding]
+	} {
+	    foreach en [split [dict get $reply accept-encoding] ","] {
+		lassign [split $en ";"] en pref
+		set en [string trim $en]
+		if {$en in $ce_encodings} {
+		    switch $en {
+			"gzip" { # substitute the gzipped form
+			    if {[dict exists $reply -gzip]} {
+                                Debug.httpd {gzip acceptable}
+				set content [dict get $reply -gzip]
+				dict set reply content-encoding gzip
+				#set reply [Http Vary $reply Accept-Encoding User-Agent]
+				break
+			    }
+			}
+		    }
+		}
+	    }
+	}
+
+	return [list $reply $content]
+    }
+
+    # Charset - ensure correctly encoded content in response
+    method Charset {reply} {
+	if {[dict exists $reply -chconverted]} {
+	    return $reply	;# don't re-encode by charset
+	}
+
+	# handle charset for text/* types
+	lassign [split [dict get? $reply content-type] {;}] ct
+	if {[string match text/* $ct] || [string match */*xml $ct]} {
+	    if {[dict exists $reply -charset]} {
+		set charset [dict get $reply -charset]
+	    } else {
+		set charset [encoding system]	;# default charset (utf-8)
+                dict set reply -charset $charset
+	    }
+            # ensure content is converted to correct charset,
+            # flag conversion in response, to avoid double conversion
+	    dict set reply -chconverted $charset
+	    dict set reply content-type "$ct; charset=$charset"
+	    dict set reply -content [encoding convertto $charset [dict get $reply -content]]
+	}
+	return $reply
+    }
+
+    # Format - format up a reply for sending.
+    method Format {reply cache} {
+	Debug.httpd {Format (cache: $cache) ([dict merge $reply {-content <ELIDED>}])}
+
+	set file ""
+	if {[catch {
+	    # unpack and consume the reply from replies queue
+	    if {![dict exists $reply -code]} {
+		set code 200	;# presume it's ok
+	    } else {
+		set code [dict get $reply -code]
+	    }
+
+	    if {$code < 4} {
+		# this was a tcl error code, not an HTTP code
+		set code 500
+	    }
+	    dict set reply -code $code
+
+	    # make reply conditional if requested
+	    if {$code eq 200} {
+		# non-OK responses aren't conditional (?)
+		set reply [my Conditional $reply]
+		set code [dict get $reply -code]
+	    }
+
+	    # Deal with content data by response type
+	    set range {}	;# default no range
+	    switch -glob -- $code {
+		204 - 304 - 1* {
+		    # 1xx (informational),
+		    # 204 (no content),
+		    # and 304 (not modified)
+		    # responses MUST NOT include a message-body
+		    Debug.httpdlow {Format: code is $code}
+		    set reply [Http expunge $reply]	;#remove metadata from reply dict
+		    set content ""
+		    catch {dict unset reply -content}
+		    catch {dict unset reply -file}
+		    set cache 0	;# can't cache these
+		    set empty 1	;# this is explicitly empty - no entity in reply
+		}
+
+		default {
+		    # responses may include a message-body
+		    set empty 0		;# assume non-empty
+		    if {[dict exists $reply -content]} {
+			# correctly charset-encode content
+			set reply [my Charset $reply]
+
+			#Debug.httpdlow {pre-CE content length [string length [dict get $reply -content]]}
+			# also gzip content so cache can store that.
+			# this is happening too soon ... what if there's a range?
+			lassign [my CE $reply] reply content
+			set file ""	;# this is not a file
+
+			# ensure content-length is correct
+			dict set reply content-length [string length $content]
+			#Debug.httpdlow {post-CE content length [string length $content]}
+		    } elseif {[dict exists $reply -file]} {
+			# the app has returned the pathname of a file instead of content
+			set file [dict get $reply -file]
+			dict set reply content-length [file size $file]
+			set content ""
+		    } else {
+			Debug.error {Format: contentless - response empty - no content in reply ($reply)}
+			set content ""	;# there is no content
+			set file ""	;# this is not a file
+			set empty 1	;# it's empty
+			dict set reply content-length 0
+			#puts stderr "NOCACHE empty $code: $cache"
+			set cache 0	;# can't cache no content
+		    }
+
+		    if {!$empty && [string match 2* $code] && $code ne 204} {
+			# handle range for 200
+			set ranges [dict get? $reply range]
+			if {$ranges ne ""} {
+			    Debug.httpd {ranges: $ranges}
+			    set ranges [lindex [lassign [split $ranges =] unit] 0]
+			    set ranges [split $ranges ,]
+			    set ranges [lindex $ranges 0]	;# only handle one range
+			    foreach rr $ranges {
+				lassign [split $rr -] from to
+				lassign [split $to] to
+				set size [dict get $reply content-length]
+				if {$from eq ""} {
+				    set from [expr {$size-$to+1}]
+				    set to $size
+				} elseif {$to > $size || $to eq ""} {
+				    set to [expr {$size-1}]
+				}
+
+				lappend range $from $to	;# remember range to send
+			    }
+
+			    # send appropriate content range and length fields
+			    set code 206	;# partial content
+			    dict set reply content-range "bytes $from-$to/$size"
+			    dict set reply content-length [expr {$to-$from+1}]
+
+			    Debug.httpd {range: [dict get $reply content-range] of length [dict get $reply content-length]}
+			}
+		    }
+		}
+	    }
+
+	    # set the informational header error message
+	    if {[dict exists $reply -error]} {
+		set errmsg [dict get $reply -error]
+	    }
+	    if {![info exists errmsg] || ($errmsg eq "")} {
+		set errmsg [Http ErrorMsg $code]
+	    }
+
+	    # format header
+	    set header "HTTP/1.1 $code $errmsg\r\n"	;# note - needs prefix
+
+	    # format up the headers
+	    if {$code != 100} {
+		append header "Date: [Http Now]" \r\n
+		set si [dict get? $reply -server_id]
+		if {$si eq ""} {
+		    variable server_id
+		    if {![info exists server_id]} {
+			set server_id "Wub [package present Httpd]"
+		    }
+		    set si $server_id
+		}
+		append header "Server: $si" \r\n
+	    }
+
+	    # add in cookies already formatted up
+	    foreach hdr {set-cookie} {
+		if {[dict exists $reply set-cookie]} {
+		    append header $hdr: " " [dict get $reply $hdr] \r\n
+		}
+	    }
+
+	    # format up and send each cookie
+	    if {[dict exists $reply -cookies]} {
+		Debug.cookies {Http processing: [dict get $reply -cookies]}
+		set c [dict get $reply -cookies]
+		foreach cookie [Cookies format4server $c] {
+		    Debug.cookies {Http set: '$cookie'}
+		    append header "set-cookie: $cookie" \r\n
+		}
+	    } else {
+		Debug.cookies {Http processing: no cookies}
+	    }
+
+	    # handle Vary field and -vary dict
+	    dict set reply -vary Accept-Encoding 1
+	    if {[dict exists $reply -vary]} {
+		if {[dict exists $reply -vary *]} {
+		    dict set reply vary *
+		} else {
+		    dict set reply vary [join [dict keys [dict get $reply -vary]] ,]
+		}
+		dict unset reply -vary
+	    }
+
+	    # now attend to caching generated content.
+	    if {$empty
+                || [dict exists $reply content-range]
+                || [dict get $reply content-length] == 0} {
+		set cache 0	;# don't cache no content or range
+	    } elseif {$cache} {
+		# use -dynamic flag to avoid caching even if it was requested
+		set cache [expr {![dict exists $reply -dynamic]
+				 || ![dict get $reply -dynamic] }]
+
+		if {$cache && [dict exists $reply cache-control]} {
+		    set cacheable [split [dict get $reply cache-control] ,]
+		    foreach directive $cacheable {
+			set body [string trim [join [lassign [split $directive =] d] =]]
+			set d [string tolower [string trim $d]]
+			if {$d in {no-cache private}} {
+			    set cache 0
+			    break
+			}
+		    }
+		}
+	    }
+
+	    # add in Auth header elements - TODO
+	    foreach challenge [dict get? $reply -auth] {
+		append header "WWW-Authenticate: $challenge" \r\n
+	    }
+
+	    if {[dict get $reply -method] eq "HEAD"} {
+		# All responses to the HEAD request method MUST NOT
+		# include a message-body but may contain all the content
+		# header fields.
+		set empty 1
+		set content ""
+	    }
+
+	    if {$code >= 500} {
+		# Errors are completely dynamic - no caching!
+		set cache 0
+	    }
+
+	    # strip http fields which don't have relevance in response
+	    dict for {n v} $reply {
+		set nl [string tolower $n]
+		if {[string match x-* $nl]} {
+		    append header "$n: $v" \r\n
+		} elseif {$nl ni {server date}
+			  && [info exists ::Http::headers($nl)]
+			  && $::Http::headers($nl) ne "rq"
+		      } {
+		    append header "$n: $v" \r\n
+		}
+	    }
+	} e eo]} {
+	    if {![info exists code] || $code >= 500} {
+		# Errors are completely dynamic - no caching!
+		set cache 0
+	    }
+
+	    Debug.error {Sending Error: '$e' ($eo) Sending Error}
+	} else {
+	    Debug.httpdlow {Format: ($header)}
+	}
+
+	return [list $reply $cache $header $content $file [my close? $reply] $empty $range]
+	# response ready for [response] to blast it out the socket:
+	# reply - reply modified by Format
+	# cache - cache the response?
+	# header - fully serialized header
+	# content - string content or ""
+	# file - name of file to transmit or ""
+	# close - has the client requested close? have we decided to close?
+	# empty - is the reply empty of content/file?
+	# range - what content ranges have been requested?
+    }
+    export Format
+
+    # timestamp - record a uS timestamp in the r-dict
+    method timestamp {r which {when 0}} {
+	if {![Debug level? stamp]} {return $r}	;# only accumulate this stuff if Debug.stamp is on
+	if {$when == 0} {
+	    set when [clock microseconds]
+	}
+	dict set r -time $which [expr {$when - [dict get $r -time connected]}]
+	return $r
+    }
+    export timestamp
+
     # dump - return a stripped request for printing
     method dump {req} {
         if {[string length [dict get? $req -content]] > 80} {
@@ -2252,6 +2288,19 @@ oo::objdefine ::Httpd {
 	return [list $code $e $eo]
     }
     export Resume
+
+    # active? is this request still active?
+    method active? {r} {
+	return [llength [info commands [dict get? $r -cid]]]
+    }
+    export active?
+
+    # pipeline - return the -cid associated with this request
+    # it will remain constant for each pipeline/connection
+    method pipeline {r} {
+	return [dict get? $r -cid]
+    }
+    export thread
 
     method addSock {sock what} {
 	variable s2h
