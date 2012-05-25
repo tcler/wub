@@ -31,7 +31,6 @@ package ifneeded passgen 1.0 [list source [file join $dir passgen.tcl]]
 package ifneeded spiders 1.0 [list source [file join $dir spiders.tcl]]
 package ifneeded Sitemap 1.0 [list source [file join $dir Sitemap.tcl]]
 package ifneeded Sylk 1.0 [list source [file join $dir Sylk.tcl]]
-package ifneeded Sscgi 1.0 [list source [file join $dir Sscgi.tcl]]
 
 package ifneeded stx 1.1 [list source [file join $dir stx stx.tcl]]
 package ifneeded stx2html 1.1 [list source [file join $dir stx stx2html.tcl]]
