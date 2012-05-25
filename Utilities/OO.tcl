@@ -41,7 +41,7 @@ proc ::oo::define::classmethod {name {args {}} {body {}}} {
     set my [info object namespace $cls]::my
     
     # Make the connection by forwarding
-    tailcall forward $name  $my $name
+    tailcall forward $name $my $name
 }
 
 proc oo::define::Variable args {
