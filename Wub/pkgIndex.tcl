@@ -1,5 +1,6 @@
 package ifneeded Listener 2.0 [list source [file join $dir Listener.tcl]]
 package ifneeded Httpd 6.0 [list source [file join $dir Httpd.tcl]]
+package ifneeded Sscgi 2.0 [list source [file join $dir Sscgi.tcl]]
 package ifneeded Cache 2.0 [list source [file join $dir Cache.tcl]]
 package ifneeded Varnish 1.0 [list source [file join $dir Varnish.tcl]]
 package ifneeded Block 2.0 [list source [file join $dir Block.tcl]]
