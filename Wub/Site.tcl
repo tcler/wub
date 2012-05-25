@@ -245,7 +245,7 @@ namespace eval ::Site {
 	    # SCGI Listener configuration
 	    -port 8088			;# what port does SCGI run on
 	    -port 0			;# disable SCGI - comment to enable
-	    -scgi_send {::scgi Send}	;# how does SCGI communicate incoming?
+	    -httpd "::SscgiI connect"
 	}
 
 	Varnish {
@@ -756,7 +756,7 @@ namespace eval ::Site {
 	    && [config get Sscgi -port] > 0
 	} {
 	    package require Sscgi
-	    Listener new sscgi {*}[config section Sscgi] -httpd Sscgi
+	    Listener new -httpd ::Sscgi {*}[config section Sscgi]
 	}
 	#puts stderr "DEBUG2: [Debug 2array]"
     }
