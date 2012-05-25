@@ -243,9 +243,8 @@ namespace eval ::Site {
 
 	Sscgi {
 	    # SCGI Listener configuration
-	    -port 8088			;# what port does SCGI run on
 	    -port 0			;# disable SCGI - comment to enable
-	    -httpd "::SscgiI connect"
+	    -httpd "::SscgiI connect"	;# assumes Sscgi has made the object
 	}
 
 	Varnish {
