@@ -270,7 +270,7 @@ oo::class create ::Sscgi {
 if {[info exists argv0] && ($argv0 eq [info script])} {
 }
 
-Sscgi create ::SscgiI	;# create an instance
+::Sscgi create ::SscgiI	;# create an instance
 
 #### Wub Listener interface
 # Listener listen -host $host -port $listener_port -httpd Scgi -dispatch {Backend Incoming}
