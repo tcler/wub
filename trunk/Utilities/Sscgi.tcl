@@ -9,7 +9,7 @@ package provide Sscgi 1.0
 package require Debug
 package require Url
 
-Debug define scgi 10
+Debug define sscgi 10
 
 set ::API(Utilities/Scgi) {
     {
@@ -17,64 +17,27 @@ set ::API(Utilities/Scgi) {
     }
 }
 
-
-namespace eval ::Scgi {
+namespace eval ::Sscgi {
 
     # listen - handle incoming connections
     proc listen {port} {
 	socket -server [namespace code Connect] $port
     }
 
-    # Connect - a client has connected
-    proc Connect {sock ip port args} {
-	Debug.scgi {Connect $sock $ip $port $args}
-	fconfigure $sock -blocking 0 -translation {binary crlf}
-	fileevent $sock readable [namespace code [list read_length $sock -sock $sock -ipaddr $ip -rport $port {*}$args]]
-    }
-
     proc Disconnect {id error {eo ""}} {
     }
 
-    proc read_length {sock args} {
-	set length {}
-	while {1} {
-	    set c [read $sock 1]
-	    if {[eof $sock]} {
-		close $sock
-		return
-	    }
-	    if {$c eq ":"} {
-		fileevent $sock readable [namespace code [list read_headers $sock $length {} {*}$args]]
-		return
-	    }
-	    append length $c
-	}
-    }
-
-    proc read_headers {sock length read_data args} {
-	append read_data [read $sock]
-	
-	if {[string length $read_data] < $length+1} {
-	    # we don't have the complete headers yet, wait for more
-	    fileevent $sock readable [namespace code [list read_headers $sock $length $read_data] {*}$args]
-	    return
-	} else {
-	    set headers [string range $read_data 0 $length-1]
-	    set headers [lrange [split $headers \0] 0 end-1]
-	    set body [string range $read_data $length+1 end]
-	    set content_length [dict get $headers CONTENT_LENGTH]
-	    read_body $sock $headers $content_length $body {*}$args
-	}
-    }
-    
     proc read_body {sock headers content_length body args} {
+	Debug.sscgi {read_body $sock headers:($headers) content_length:$content_length body:($body) args($args)}
+
 	append body [read $sock]
 	if {[string length $body] < $content_length} {
 	    # we don't have the complete body yet, wait for more
 	    fileevent $sock readable [namespace code [list read_body $sock $headers $content_length $body {*}$args]]
 	    return
 	}
-	Debug.scgi {SCGI $sock: $headers ($args)}
+
+	Debug.sscgi {SCGI body read sock:$sock: headers:($headers) body:($body) args:($args)}
 
 	if {[dict exists $args -dispatch]} {
 	    # perform some translations of various fields
@@ -89,6 +52,47 @@ namespace eval ::Scgi {
 	} else {
 	    handle_request $sock $headers $body
 	}
+    }
+
+    proc read_headers {sock length read_data args} {
+	append read_data [read $sock]
+	
+	if {[string length $read_data] < $length+1} {
+	    # we don't have the complete headers yet, wait for more
+	    fileevent $sock readable [namespace code [list read_headers $sock $length $read_data] {*}$args]
+	    Debug.sscgi {read_headers $sock $length $args ($read_data)}
+	    return
+	} else {
+	    set headers [string range $read_data 0 $length-1]
+	    set headers [lrange [split $headers \0] 0 end-1]
+	    set body [string range $read_data $length+1 end]
+	    set content_length [dict get $headers CONTENT_LENGTH]
+	    read_body $sock $headers $content_length $body {*}$args
+	}
+    }
+    
+    proc read_length {sock args} {
+	set length {}
+	while {1} {
+	    set c [read $sock 1]
+	    if {[eof $sock]} {
+		close $sock
+		return
+	    }
+	    if {$c eq ":"} {
+		fileevent $sock readable [namespace code [list read_headers $sock $length {} {*}$args]]
+		Debug.sscgi {read_length $sock $args -> $length}
+		return
+	    }
+	    append length $c
+	}
+    }
+
+    # Connect - a client has connected
+    proc connect {sock ip port args} {
+	Debug.sscgi {Connect $sock $ip $port $args}
+	fconfigure $sock -blocking 0 -translation {binary crlf}
+	fileevent $sock readable [namespace code [list read_length $sock -sock $sock -ipaddr $ip -rport $port {*}$args]]
     }
 
     variable trans	;# translation map
@@ -165,42 +169,11 @@ namespace eval ::Scgi {
 	}
     }
 
-    # handle_request - generate some test responses
+    # handle_request - DEFAULT generate some test responses
     proc handle_request {sock headers body} {
 	package require html
 	array set Headers $headers
 	
-	#parray Headers
-	puts $sock "Status: 200 OK"
-	puts $sock "Content-Type: text/html"
-	puts $sock ""
-	puts $sock "<HTML>"
-	puts $sock "<BODY>"
-	puts $sock [::html::tableFromArray Headers]
-	puts $sock "</BODY>"
-	puts $sock "<H3>Body</H3>"
-	puts $sock "<PRE>$body</PRE>"
-	if {$Headers(REQUEST_METHOD) eq "GET"} {
-	    puts $sock {<FORM METHOD="post" ACTION="/scgi">}
-	    foreach pair [split $Headers(QUERY_STRING) &] {
-		lassign [split $pair =] key val
-		puts $sock "$key: [::html::textInput $key $val]<BR>"
-	    }
-	    puts $sock "<BR>"
-	    puts $sock {<INPUT TYPE="submit" VALUE="Try POST">}
-	} else {
-	    puts $sock {<FORM METHOD="get" ACTION="/scgi">}
-	    foreach pair [split $body &] {
-		lassign [split $pair =] key val
-		puts $sock "$key: [::html::textInput $key $val]<BR>"
-	    }
-	    puts $sock "<BR>"
-	    puts $sock {<INPUT TYPE="submit" VALUE="Try GET">}
-	}
-	
-	puts $sock "</FORM>"
-	puts $sock "</HTML>"
-	close $sock
     }
 
     namespace export -clear *
