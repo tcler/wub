@@ -1,25 +1,23 @@
-# Sscgi - Simple Common Gateway Interface Server
+# Scgi - Simple Common Gateway Interface Server
 # Derived from http://wiki.tcl.tk/19670 by Mark Janssen (http://wiki.tcl.tk/14766)
 
 if {[info exists argv0] && ($argv0 eq [info script])} {
     lappend auto_path [file dirname [info script]]
 }
 
-package provide Sscgi 1.0
+package provide Scgi 1.0
 package require Debug
-package require Url
-
 Debug define scgi 10
 
-set ::API(Utilities/Sscgi) {
+package require Url
+
+set ::API(Utilities/Scgi) {
     {
 	Implements the SCGI interface.
     }
 }
 
-
-namespace eval ::Sscgi {
-
+namespace eval ::Scgi {
     # listen - handle incoming connections
     proc listen {port} {
 	socket -server [namespace code Connect] $port
@@ -211,9 +209,11 @@ namespace eval ::Sscgi {
 if {[info exists argv0] && ($argv0 eq [info script])} {
     ### Stand-alone configuration
     puts stderr "Listening"
-    Sscgi::listen 8088
+    Scgi::listen 8088
     vwait forever
 }
+
+Debug.scgi "Loaded [info commands ::Scgi]"
 
 #### Wub Listener interface
 # Listener listen -host $host -port $listener_port -httpd Scgi -dispatch {Backend Incoming}
