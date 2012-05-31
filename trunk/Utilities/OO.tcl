@@ -1,5 +1,6 @@
 # OO.tcl - helpers for tclOO
 package require TclOO
+
 namespace import oo::*
 
 package provide OO 1.0
@@ -13,9 +14,12 @@ set ::API(Utilities/OO) {
 proc ::oo::Helpers::classvar {name args} {
     set self [uplevel 1 self]
     set ns [info object namespace [info object class $self]]
+    set result {}
     foreach v [list $name {*}$args] {
 	uplevel 1 [list namespace upvar $ns $v $v]
+	lappend result ${ns}::$v
     }
+    return $result
 }
 
 proc ::oo::Helpers::next? {args} {
