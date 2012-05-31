@@ -240,6 +240,9 @@ oo::class create Config {
 	# evaluate any changes in raw
 	variable extracted
 	if {![my eval]} {
+	    if {![info exists extracted]} {
+		set extracted {}
+	    }
 	    return $extracted
 	}
 
