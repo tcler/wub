@@ -1,6 +1,14 @@
 # Async - asynchronous thread wrapper
+#
+# Example:
+#
+# -- asynchronously calls the '::thread::id' command in the thread, prints the result
+# Async create async
+# async call ::thread::id puts
+# async destroy
+
 if {0 && [info exists argv0] && $argv0 eq [info script]} {
-    lappend ::auto_path .
+    lappend ::auto_path .	;# for unit tests (at end)
 }
 
 package require Thread
@@ -10,43 +18,39 @@ package require Thread
 oo::class create ::Async {
     # response - process response from next call
     method response {var count op} {
-	if {[catch {
-	    upvar 1 $var result
-	    variable id 
+	upvar 1 $var result
+	variable id 
 
-	    # get the async response
-	    lassign $result($count) code e eo
-	    unset result($count)
+	# get the async response
+	lassign $result($count) code e eo
+	unset result($count)
 
-	    # get the scripts associated with this response (by $count)
-	    variable responder
-	    variable next
-	    lassign $responder([incr next]) response error
-	    unset responder($next)
+	# get the scripts associated with this response (by $count)
+	variable responder
+	variable next
+	lassign $responder([incr next]) response error
+	unset responder($next)
 
-	    #Debug.async {response $next: $var $op -> code:$code e:$e eo:($eo)}
+	#Debug.async {response $next: $var $op -> code:$code e:$e eo:($eo)}
 
-	    # invoke the appropriate script to process result
-	    switch -- $code {
-		return - 2 -
-		ok - 0 {
-		    if {$response ne ""} {
-			#Debug.async {DO: $response $e}
-			{*}$response $e
-		    } else {
-			#Debug.async {DO EMPTY}
-		    }
-		}
-		default {
-		    if {$error eq ""} {
-			::return -code $code -options $eo $e
-		    } else {
-			{*}$error $code $e $eo
-		    }
+	# invoke the appropriate script to process result
+	switch -- $code {
+	    return - 2 -
+	    ok - 0 {
+		if {$response ne ""} {
+		    #Debug.async {DO: $response $e}
+		    {*}$response $e
+		} else {
+		    # discard result
 		}
 	    }
-	} e eo]} {
-	    puts stderr "ERR: $e $eo"
+	    default {
+		if {$error eq ""} {
+		    ::return -code $code -options $eo $e	;# fall through to [interp bgerror]
+		} else {
+		    {*}$error $code $e $eo
+		}
+	    }
 	}
     }
 
@@ -116,15 +120,19 @@ if {[info exists argv0] && $argv0 eq [info script]} {
 	    proc terror {args} {
 		puts stderr [::thread::id]:$args
 	    }
-	    ::thread::errorproc terror
-	    interp bgerror "" terror
+	    #::thread::errorproc terror
+	    #interp bgerror "" terror
 	}]
     }
-    interp bgerror "" output
+    interp bgerror "" {output BGERROR}
 
     proc output {args} {
 	puts stderr $args
     }
+
+    # test error handling
+    $thread(0) call {expr {1/0}} output {output ERROR:}
+    $thread(0) call {expr {2/0}} output	;# this one gets picked up by bgerror
 
     after idle {
 	time {
@@ -133,7 +141,6 @@ if {[info exists argv0] && $argv0 eq [info script]} {
 	} 100
     }
 
-    while {1} {
-	vwait forever
-    }
+    vwait forever
+
 }
