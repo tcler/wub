@@ -8,8 +8,6 @@ Step 1:  Download the code (which you've probably done already)
 
      svn checkout http://wub.googlecode.com/svn/trunk/ wub
 
-     Alternatively: download and run http://wub.googlecode.com/svn/trunk/Install.tcl in a clean directory which will become your Wub home directory.  Install.tcl will download the latest version of Wub, and install it in the directory from which it is run.
-
 Step 2: Change into the Wub directory:
      cd wub
 
