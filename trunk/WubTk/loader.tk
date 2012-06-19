@@ -1,0 +1,5 @@
+# example script to illustrate sourcing a tk file given by a 'source' query element in the URL
+package require Tk
+package require Query
+
+source WubTk/[dict get [Query flatten [wm query]] source]
