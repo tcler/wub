@@ -13,6 +13,8 @@ package require functional
 package require Url
 package require Direct
 
+package require Config	;# handle configuration
+
 package provide Nub 1.0
 package provide Rewrite 1.0	;# to satisfy synthetic requirement of codegen
 
