@@ -456,7 +456,7 @@ class create ::FormClass {
 	}]
     }
 
-    method <fbutton> {name args} {
+    method <button> {name args} {
 	if {[llength $args]%2} {
 	    set content [lindex $args end]
 	    set args [lrange $args 0 end-1]
