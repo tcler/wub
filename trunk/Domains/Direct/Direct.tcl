@@ -151,6 +151,7 @@ class create ::Direct {
 	}
 
 	Debug.direct {calling $cmd [string range $argl 0 80]... [dict keys $argll]} 2
+	return [dict merge $rsp [$cmd $rsp {*}$argl {*}$argll]]
 	if {[catch {
 	    dict merge $rsp [$cmd $rsp {*}$argl {*}$argll]
 	} result eo]} {
@@ -260,6 +261,7 @@ class create ::Direct {
 	}
 
 	Debug.direct {calling method $cmd [string range $argl 0 80]... [dict keys $argll]} 2
+	return [dict merge $rsp [$object $cmd $rsp {*}$argl {*}$argll]]
 	if {[catch {
 	    dict merge $rsp [$object $cmd $rsp {*}$argl {*}$argll]
 	} result eo]} {
@@ -310,10 +312,31 @@ class create ::Direct {
 	dict set r -dynamic 1
 	catch {dict unset r -content}
 
-	if {[info exists object]} {
-	    return [my do_obj $r]
+	# perform the requested operation
+	variable catch
+	if {!$catch} {
+	    # caller will handle errors
+	    if {[info exists object]} {
+		my do_obj $r
+	    } else {
+		my do_ns $r
+	    }
 	} else {
-	    return [my do_ns $r]
+	    # catch errors and convert to 500 response
+	    if {[set code [catch {
+		if {[info exists object]} {
+		    my do_obj $r
+		} else {
+		    my do_ns $r
+		}
+	    } r eo]]} {
+		# an error occurred
+		Debug.direct {error: $r ($eo)}
+		return [Http ServerError $rsp $result $eo]	;# handle error
+	    } else {
+		Debug.direct {Content: [dict get $result -code] '[string range [dict get? $result -content] 0 80]...'} 2
+		return $r
+	    }
 	}
     }
 
@@ -327,7 +350,7 @@ class create ::Direct {
 	variable mount "/"
 	variable wildcard /
 	variable correct 1	;# insist on trailing /
-
+	variable catch 1	;# catch all processing errors - turn into 500 responses
 	variable {*}[Site var? Direct] {*}$args	;# allow .ini file to modify defaults
 
         if {[info exists package]} {
