@@ -3,6 +3,7 @@ package require Debug
 Debug define wubwidgets 10
 Debug define wubwinterp 10
 Debug define wubwstyle 10
+Debug define wubprod 10
 
 package provide WubWidgets 1.0
 
@@ -84,7 +85,7 @@ namespace eval ::WubWidgets {
 	method prod {what {why ""}} {
 	    variable _parent
 	    if {$_parent ne ""} {
-		Debug.wubwidgets {prod '$_parent' with '$what'}
+		Debug.wubprod {prod '$_parent' with '$what'}
 		my parent prod [self] $what-$why	;# prod connection to push out changes
 	    }
 	}
@@ -435,8 +436,8 @@ namespace eval ::WubWidgets {
 
 	    if {$cmd ne ""} {
 		set cmd [string map [list %W .[my widget]] $cmd]
-		Debug.wubwidgets {[namespace tail [self]] calling command ($cmd $args)}
 		variable interp
+		Debug.wubwidgets {[namespace tail [self]] calling command ($cmd $args) via ($interp)}
 		return [{*}$interp $cmd {*}$args]
 	    }
 	    return ""
@@ -1190,8 +1191,14 @@ namespace eval ::WubWidgets {
 	    }]
 	}
 
+	# script - return original script to [wm query]
 	method script {args} {
 	    return [my connection script]
+	}
+
+	# query - return original query to [wm query]
+	method query {args} {
+	    return [my connection query]
 	}
 
 	constructor {args} {
@@ -1386,6 +1393,14 @@ namespace eval ::WubWidgets {
 	    }
 
 	    return [list $r {*}$changes]	;# return the dict of changes by id
+	}
+
+	method unknown {name args} {
+	    Debug.wubwidgets {gridC unknown $name $args}
+	    if {[string match .* $name]} {
+		if {[dict exists $args -in]} {
+		}
+	    }
 	}
 
 	method changed? {} {return 1}
