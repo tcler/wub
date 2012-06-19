@@ -167,6 +167,12 @@ class create ::WubTkI {
 	return $script
     }
 
+    # return query to widget
+    method query {} {
+	variable query
+	return $query
+    }
+
     # set redirect for widget
     method redirect {args} {
 	variable redirect
@@ -966,6 +972,7 @@ class create ::WubTkI {
 	Debug.wubtk {[info coroutine] INTERP $interp}
 	Interp eval [list set ::auto_path $::auto_path]
 	Interp eval [list set ::suffix $suffix]
+	Interp eval [list set ::tk_version 8.6]
 
 	# create per-coro namespace commands
 	namespace eval [namespace current] {
@@ -1127,10 +1134,12 @@ class create ::WubTk {
     }
 
     method new_wubapp {r wubapp suffix} {
+	set query [Query parse $r]	;# parse up our query for [wm query]
+
         # collect options to pass to coro
         set options {}
-        foreach v {comet icons theme spinner_style spinner_size css stylesheet cookiepath theme_switcher fontsize limit} {
-            variable $v
+        foreach v {comet icons theme spinner_style spinner_size css stylesheet cookiepath theme_switcher fontsize limit query} {
+            catch {variable $v}
             if {[info exists $v]} {
                 lappend options $v [set $v]
             }
