@@ -262,7 +262,7 @@ namespace eval ::Site {
 	    load 0		;# want human by default
 	}
 
-	Ua {
+	UA {
 	    load 1		;# want user agent classification by default
 	}
 
