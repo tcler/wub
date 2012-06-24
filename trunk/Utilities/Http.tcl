@@ -1094,7 +1094,7 @@ namespace eval ::Http {
 	return [expr {$ip eq ""
 		      || $ip eq "unknown"
 		      || [catch {::ip::type $ip} type]
-		      || $type ne "normal"
+		      || $type ni "normal unicast"
 		  }]
     }
 
