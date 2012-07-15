@@ -48,6 +48,7 @@ class create ::File {
 	    }
 
 	    set title [<a> href $name $name]
+	    variable dateformat
 	    catch {dict set files $name [list name $title modified [clock format [file mtime $file] -format $dateformat] size [file size $file] type $type]}
 	}
 
@@ -55,10 +56,12 @@ class create ::File {
 	set doctitle [string trimright $suffix /]
 	append content [<h1> $doctitle] \n
 
+	variable dirparams
 	append content [Report html $files {*}$dirparams headers {name type modified size}] \n
 
 	dict set req -content $content
 	dict set req content-type x-text/html-fragment
+	variable sortparam
 	set req [jQ tablesorter $req .sortable {*}$sortparam]
 
 	return $req
@@ -67,8 +70,9 @@ class create ::File {
     # get - given a request and suffix, construct a response
     method get {r suffix} {
 	set ext [file extension $suffix]
+	variable root
 	set path [file join $root [string trimleft $suffix /]]
-
+	variable mount
 	Debug.file {file: root:'$root' mount:'$mount' suffix:'$suffix' ext:'$ext' path:'$path' -path:'[dict get $r -path]'}
 
 	if {($ext ne "")
@@ -98,6 +102,7 @@ class create ::File {
 
 	# allow client caching
 	if {![dict exists $r -expiry]} {
+	    variable expires
 	    dict set r -expiry $expires
 	}
 
@@ -109,13 +114,16 @@ class create ::File {
 		link {
 		    set lpath $path
 		    set path [file readlink $path]
+		    variable followextlinks
 		    if {([file pathtype $path] eq "relative") || $followextlinks} {
 			set path [file normalize [file join [file dirname $lpath] $path]]
 		    }
 		}
 
 		file {
+		    variable crealm
 		    set r [Http Cache $r [dict get $r -expiry] $crealm]
+		    variable stream
 		    if {[file size $path] > $stream} {
 			# this is a large file - stream it using fcopy
 			tailcall Http File $r $path
@@ -129,6 +137,7 @@ class create ::File {
 		    # if a directory reference doesn't end in /, redirect.
 		    Debug.file {redirecting path:$path, suffix:$suffix, -path:[dict get $r -path]}
 		    set rpath [dict get $r -path]
+		    variable redirdir
 		    if {$redirdir && ([string index $rpath end] ne "/")} {
 			dict set r -path "$rpath/"
 			tailcall Http Redirect $r [Url uri $r]
@@ -137,16 +146,20 @@ class create ::File {
 		    }
 
 		    # try to return an index file's contents in lieue of the directory
+		    variable indexfile
 		    if {$indexfile ne ""} {
 			set indices [glob -nocomplain -tails -directory $path $indexfile]
 			if {[llength $indices]} {
 			    dict set r -path [file join [dict get $r -path] [lindex $indices 0]]
+			    variable redirindex
                             if {$redirindex} {
                                 tailcall Http Redirect $r [Url uri $r]
                             } else {
                                 set path [file join $path [lindex $indices 0]]
                                 # allow client caching
+				variable crealm
                                 set r [Http Cache $r [dict get $r -expiry] $crealm]
+				variable stream
                                 if {[file size $path] > $stream} {
                                     # this is a large file - stream it using fcopy
                                     tailcall Http File $r $path
@@ -157,16 +170,19 @@ class create ::File {
                             }
 			}
 		    }
+		    variable nodir
 		    if {$nodir} {
 			tailcall Http NotFound $r "<p>No Such Directory.</p>"
 		    } else {
 			# no index file - generate a directory listing
 			set r [my dir $r $path]
+			variable crealm
 			tailcall Http CacheableContent [Http Cache $r [dict get $r -expiry] $crealm] [clock seconds]
 		    }
 		}
 
 		default {
+		    variable crealm
 		    set r [Http Cache $r [dict get $r -expiry] $crealm]
 		    tailcall Http NotFound $r "<p>File '$suffix' is of illegal type [file type $path]</p>"
 		}
@@ -178,26 +194,32 @@ class create ::File {
 
     method do {r} {
 	# calculate the suffix of the URL relative to $mount
+	variable mount
 	lassign [Url urlsuffix $r $mount] result r suffix
 	if {!$result} {
 	    return $r	;# the URL isn't in our domain
 	}
-	tailcall my get $r $suffix
+
+	variable lambda
+	if {[info exists lambda]} {
+	    set r [my get $r $suffix]
+	    tailcall ::apply $lambda $r
+	} else {
+	    tailcall my get $r $suffix
+	}
     }
 
-    variable root indexfile mount hide redirdir redirindex expires dateformat dirparams nodir stream followextlinks sortparam crealm
-
     constructor {args} {
-	set indexfile "index.*"
-	set nodir 0
-	set mount /
-	set hide {^([.].*)|(.*~)|(\#.*)$}
-	set redirdir 1	;# redirect dir to dir/
-	set redirindex 1	;# redirect dir/ to dir/index.html
-	set expires 0	;# add an expiry to each response
-	set crealm ""	;# optionally make files 'public'
-	set dateformat "%Y %b %d %T"
-	set dirparams {
+	variable indexfile "index.*"
+	variable nodir 0
+	variable mount /
+	variable hide {^([.].*)|(.*~)|(\#.*)$}
+	variable redirdir 1	;# redirect dir to dir/
+	variable redirindex 1	;# redirect dir/ to dir/index.html
+	variable expires 0	;# add an expiry to each response
+	variable crealm ""	;# optionally make files 'public'
+	variable dateformat "%Y %b %d %T"
+	variable dirparams {
 	    sortable 1
 	    evenodd 0
 	    class table
@@ -214,14 +236,10 @@ class create ::File {
 	    footer {}
 	}
 	#set stream [expr {100 * 1024 * 1024}]	;# default streaming 100Mb
-	set stream [expr {1024 * 1024}]	;# default streaming 1Mb
- 	set followextlinks no
- 	set sortparam {}
-	variable {*}[Site var? File]	;# allow .ini file to modify defaults
-
-	foreach {n v} $args {
-	    set [string trimleft $n -] $v
-	}
+	variable stream [expr {1024 * 1024}]	;# default streaming 1Mb
+ 	variable followextlinks no
+ 	variable sortparam {}
+	variable {*}[Site var? File] {*}$args	;# allow .ini file to modify defaults
     }
     destructor {}
  }
