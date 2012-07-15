@@ -156,7 +156,7 @@ namespace eval ::Http {
 	server vary www-authenticate content-disposition content-range
         access-control-allow-origin access-control-allow-methods
         access-control-max-age access-control-allow-headers
-
+	access-control-allow-credentials
     }
     foreach n $rs_headers {
 	set headers($n) rs
