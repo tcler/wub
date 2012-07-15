@@ -580,7 +580,7 @@ know {[string match <*> [lindex $args 0]]} {
 	}
     }]
 
-    return [{*}$args]
+    return [uplevel 1 $args]
 }
 
 # Some command equivalents which use subst instead of eval
