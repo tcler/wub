@@ -110,6 +110,7 @@ oo::class create OpenSSL {
     }
 
     constructor {args} {
+	Debug.ca {[self] construct CA}
 	variable openssl ""
 	variable sslopts {}
 	variable inbuf ""
