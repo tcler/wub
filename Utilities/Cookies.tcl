@@ -97,7 +97,7 @@ namespace eval ::Cookies {
 	
 	# add the cookie
 	set cdict [add $cdict -path $mount -name $cookie -value $value {*}$expiresC]
-	Debug.wapp {created wapp cookie ($cdict) from cookie:$cookie path:$mount}
+	Debug.cookies {created new cookie ($cdict) from cookie:$cookie path:$mount}
 	
 	dict set r -cookies $cdict
 
