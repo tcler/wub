@@ -76,7 +76,7 @@ class create ::Listener {
 
     method accept {opts sock ipaddr rport} {
 	Debug.listener {accepted: $sock $ipaddr $rport}
-
+	set scheme http
 	if {[dict exists $opts -tls]} {
 	    variable defaults
 	    if {[catch {
@@ -90,13 +90,14 @@ class create ::Listener {
 	    }
 	    Debug.listener {TLS status local: [::tls::status -local $sock] remote: [::tls::status $sock]}
 	    dict set opts -client_certificate [::tls::status $sock] -server_certificate [::tls::status -local $sock]
+	    set scheme https
 	}
 
 	if {[catch {
 	    # select an Http object to handle incoming
 	    set server [chan configure $sock -sockname]
 	    Debug.listener {connect: [dict get $opts -httpd] $sock $ipaddr $rport {*}$opts -server $server}
-	    {*}[dict get $opts -httpd] $sock $ipaddr $rport {*}$opts -server $server
+	    {*}[dict get $opts -httpd] $sock $ipaddr $rport {*}$opts -server $server -scheme $scheme
 	} result eo]} {
 	    Debug.error {accept: $eo}
 	}
