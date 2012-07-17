@@ -252,6 +252,8 @@ namespace eval ::Url {
 	    }
 	}
 
+	Debug.url {Url parse $url -> [array get x]}
+
         if {[info exists x(-host)]} {
             # clean up host - check its validity?
             set x(-host) [string tolower $x(-host)]
