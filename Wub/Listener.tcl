@@ -84,7 +84,7 @@ class create ::Listener {
 		tls::import $sock -server 1 {*}[dict in [dict opts.-tls] [dict keys $defaults]] -command [list [self] progress] -password [list [self] password]
 		tls::handshake $sock
 	    } e eo]} {
-		Debug.error {Error accepting HTTPS connection: '$e' ($eo)}
+		Debug.error {Error accepting HTTPS connection: '$e' ($eo) (ipaddr:$ipaddr rport:$rport)}
 		catch {close $sock}
 		return
 	    }
