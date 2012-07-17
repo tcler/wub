@@ -1081,7 +1081,7 @@ oo::class create ::Httpd {
 	    switch -- [dict get $r -ua_class] {
 		blank {
 		    # anonymous by user-agent
-		    if {[dict get $r -uri] ne "/robots.txt"} {
+		    if {[dict get? $r -uri] ne "/robots.txt"} {
 			set istate SPIDER
 			my handle [Http NotImplemented $r "Possible Spider Service - set your User-Agent"] "Spider"
 			return -code break
@@ -1089,6 +1089,7 @@ oo::class create ::Httpd {
 			# allow anonymous people to collect robots.txt
 		    }
 		}
+
 		spammer {
 		    # known spider user-agent
 		    set istate SPAMMER
@@ -1798,6 +1799,7 @@ oo::class create ::Httpd {
 	variable proto [list -sock $socket -cid [self] -ipaddr $ipaddr -rport $rport -received_seconds [clock seconds]]
 	dict set proto -server_id $server_id
 	set proto [dict merge $args $proto]
+	Debug.httpd {proto: $proto}
 
 	::Httpd addSock $sock [self]
 
