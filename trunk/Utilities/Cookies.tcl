@@ -73,6 +73,7 @@ namespace eval ::Cookies {
 	# add a cookie to reply
 	if {[dict exists $r -cookies]} {
 	    set cdict [dict get $r -cookies]
+	    set cdict [remove $cdict -name $cookie]	;# remove old cookies with this name.
 	} else {
 	    set cdict [dict create]
 	}
@@ -659,6 +660,7 @@ namespace eval ::Cookies {
 	foreach n [match $cookies $args] {
 	    dict unset cookies $n
 	}
+	Debug.cookies {Cookie removed ($cookies) $args}
 	return $cookies
     }
 
