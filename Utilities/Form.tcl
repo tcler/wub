@@ -915,9 +915,9 @@ class create ::FormClass {
         next? {*}$args
 
 	if {$scripting} {
-	    variable coreA {id class style title}
+	    variable coreA {id class style title placeholder}
 	} else {
-	    variable coreA {id class title}
+	    variable coreA {id class title placeholder}
 	}
 	variable i18nA {lang dir}
 
