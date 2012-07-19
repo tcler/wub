@@ -210,8 +210,9 @@ namespace eval ::Site {
 	    config ./site.config	;# configuration file
 	    globaldocroot 1		;# do we use Wub's docroot, or caller's
 	    application ""		;# package to require as application
-	    local local.tcl	;# post-init localism
-	    password ""		;# account (and general) root password
+	    local local.tcl		;# post-init localism
+	    local_config 1		;# use ${home}/local.config too
+	    password ""			;# account (and general) root password
 	    # topdir	;# Where to look for Wub libs - don't change
 	    # docroot	;# Where to look for document root.
 	}
@@ -338,6 +339,15 @@ namespace eval ::Site {
 
 	config merge_section Wub [list home $home {*}$args]
 
+	# args to Site::init override initial variable values
+	set phase "Site args configuration 1"	;# move to site config files phase
+	foreach {n v} $args {
+	    if {[string match {[A-Z]*} $n]} {
+		config merge_section [string totitle $n] $v
+		dict unset args $n
+	    }
+	}
+
 	# read Wub.config configuration file
 	set C [config extract]
 	if {[dict exists $C Wub config]} {
@@ -351,7 +361,16 @@ namespace eval ::Site {
 	    }
 	}
 
+	if {[file exists [file join [dict get $C Wub home] local.config]]} {
+	    puts stderr "Local Config"
+	    set phase "Site local configuration"	;# merge in local.config
+	    config aggregate [Config create local_config file [file join [dict get $C Wub home] local.config]]
+	    set C [config extract]	;# extract configuration values
+	    local_config destroy
+	}
+
 	# args to Site::init override initial variable values
+	set phase "Site args configuration 2"	;# move to site config files phase
 	foreach {n v} $args {
 	    if {[string match {[A-Z]*} $n]} {
 		config merge_section [string totitle $n] $v
@@ -678,6 +697,8 @@ namespace eval ::Site {
 	    if {[file exists $local]} {
 		if {[catch {source $local} r eo]} {
 		    Debug.error {Site LOCAL ($local) error: '$r' ($eo)}
+		} else {
+		    Debug.site {Loaded local script '$local'}
 		}
 	    }
 	}
