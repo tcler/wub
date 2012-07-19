@@ -605,14 +605,14 @@ namespace eval ::Site {
 	    package require Varnish
 	    if {![catch {
 		Varnish init {*}[config section Varnish]
-		Debug.site {Module Varnish: YES}
+		#Debug.site {Module Varnish: YES}
 	    } r eo]} {
 		Debug.error {varnish: $r ($eo)}
 		package forget Varnish
 		catch {unset cache}
 	    }
 	} else {
-	    Debug.site {Module Varnish: NO}
+	    #Debug.site {Module Varnish: NO}
 	}
 
 	#### Load STX Module - rich text conversion
@@ -625,9 +625,9 @@ namespace eval ::Site {
 
 	    ::variable stx_scripting
 	    stx2html init script [config get STX scripting] {*}[config section STX]
-	    Debug.site {Module STX: YES}
+	    #Debug.site {Module STX: YES}
 	} else {
-	    Debug.site {Module STX: NO}
+	    #Debug.site {Module STX: NO}
 	}
 
 	#### Console init
@@ -721,33 +721,36 @@ namespace eval ::Site {
 	::variable docroot
 
 	#### start Listeners
-	set lconf [config section Listener]
-	if {[dict get? $lconf -myaddr] eq ""} {
-	    Listener new {*}[config section Listener]
-	} else {
-	    foreach p [dict get? $lconf -myaddr] {
-		Listener new {*}[config section Listener] -myaddr $p
+	foreach listener [config sections Listener*] {
+	    set lconf [config section $listener]
+	    if {[dict get? $lconf -myaddr] eq ""} {
+		Listener new {*}[config section $listener]
+	    } else {
+		foreach p [dict get? $lconf -myaddr] {
+		    Listener new {*}[config section $listener] -myaddr $p
+		}
 	    }
 	}
 
 	#### start HTTPS Listener
-	if {[config exists Https -port]
-	    && ([config get Https -port] > 0)
-	} {
-	    Debug.site {Loading HTTPS listener}
-	    if {[catch {
-		package require tls
-	    } e eo]} {
-		Debug.error {Failed to load tls package for Https.  '$e' ($eo)}
-	    } else {
-		#### Simplistic Certificate Authority
-		#package require CA
-		#CA init dir $home/CA host $host port [dict get $https -port]
-		#dict lappend https -tls -cafile [CA cafile] -certfile [CA certificate $host]
-		Listener new {*}[config section Https] -tls 1
+	foreach listener [config sections Https*] {
+	    if {[config exists $listener -port]
+		&& ([config get $listener -port] > 0)
+	    } {
+		Debug.site {Loading HTTPS listener $listener}
+		if {[catch {
+		    package require tls
+		} e eo]} {
+		    Debug.error {Failed to load tls package for Https $listener. '$e' ($eo)}
+		    break
+		} else {
+		    #### Simplistic Certificate Authority
+		    #package require CA
+		    #CA init dir $home/CA host $host port [dict get $https -port]
+		    #dict lappend https -tls -cafile [CA cafile] -certfile [CA certificate $host]
+		    Listener new {*}[config section $listener] -tls 1
+		}
 	    }
-	} else {
-	    Debug.site {Not loading HTTPS listener}
 	}
 
 	#### start scgi Listener
