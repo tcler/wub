@@ -260,6 +260,17 @@ oo::class create CA {
 	}
 	$config assign CA_default policy policy
 
+	# add server altnames to certificate
+	variable altnames
+	set an {}
+	foreach n $altnames {
+	    lappend an DNS:$n
+	}
+	set an [join $an ,]
+	if {$an ne ""} {
+	    $config assign v3_server subjectAltName $an
+	}
+
 	# write config for generate and GenCA
 	variable ca_config
 	my write_config $ca_config $config
@@ -718,13 +729,14 @@ oo::class create CA {
 
     catch {superclass Direct}
     constructor {args} {
+	Debug.ca {CA construct ($args)}
 	# initialize the Certificate Authority
 	variable dir [file join $::CA_dir CA] ;# directory for CA information
 	# nb: this must be outside any web-accessible directory
 	variable openssl ""		;# your openssl executable
 	variable host [info hostname]	;# host for fetching our certificates
 	variable port 8080		;# port for fetching our certificates
-
+	variable altnames {}		;# server altnames
 	variable keybits 2048	;# default certificate key size
 	variable days 180
 
