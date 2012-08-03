@@ -474,9 +474,9 @@ class create ::SMTP {
 	    ::mime::setheader $msg message-id [::mime::uniqueID] -mode write
 	}
 
-	# If there's no message-id header construct one
+	# If there's no content-type header construct one
 	if {[catch {::mime::getheader $msg content-type}]} {
-	    ::mime::setheader $msg message-id text/plain -mode write
+	    ::mime::setheader $msg content-type text/plain -mode write
 	}
 
 	Debug.smtp {sendmessage headers:([::mime::getheader $msg]) smtp:($smtp)}
