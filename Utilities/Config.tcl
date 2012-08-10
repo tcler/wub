@@ -177,6 +177,11 @@ oo::class create Config {
     method eval_section {section} {
 	variable raw
 	set ss {}
+	namespace eval _C::$section [string map [list %S% [self]] {
+	    proc my {args} {
+		uplevel 1 [list %S% {*}$args]
+	    }
+	}]
 	Debug.config {evaling section '$section'}
 	dict for {n v} [dict get $raw $section] {
 	    set sv [my VarSub $v]
