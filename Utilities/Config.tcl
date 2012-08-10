@@ -337,6 +337,9 @@ oo::class create Config {
     method file {} {
 	variable file; return $file
     }
+    method configdir {} {
+	variable file; return [file dirname $file]
+    }
 
     constructor {args} {
 	Debug.config {Creating Config [self] $args}
