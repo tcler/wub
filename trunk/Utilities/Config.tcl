@@ -329,6 +329,10 @@ oo::class create Config {
 	variable clean 1
     }
 
+    method file {} {
+	variable file; return $file
+    }
+
     constructor {args} {
 	Debug.config {Creating Config [self] $args}
 	if {[llength $args]%2} {
@@ -342,6 +346,7 @@ oo::class create Config {
 	my clear	;# start with a clean slate
 
 	if {[info exists file]} {
+	    set file [file normalize $file]
 	    my load $file	;# parse any file passed in
 	}
 
