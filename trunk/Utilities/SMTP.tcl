@@ -129,8 +129,12 @@ class create ::SMTP {
 	Debug.smtp {Sending Data [string length $msg]}
 
 	my timer $timeout
-	set msg [string map {\n. \n..} $msg]
-	puts $socket "${msg}\n."
+	set msg [string map {\r\n. \r\n..} $msg]
+	chan configure $socket -encoding binary -translation {binary binary}
+	puts -nonewline $socket $msg
+	puts -nonewline $socket \r\n.\r\n
+
+	chan configure $socket -encoding ascii -translation {crlf crlf}
 	set result [my response $socket]
 	my cancel
 
@@ -319,7 +323,7 @@ class create ::SMTP {
 	    if {[catch {
 		# try connecting to next server
 		set socket [socket -async {*}[lrange [list {*}$server 25] 0 1]]
-		fconfigure $socket -buffering line -translation {auto crlf}
+		fconfigure $socket -buffering line -translation {crlf crlf} -encoding ascii
 
 		set result [my protocol $socket $message $smtp]
 		set done [dict get $result success]
@@ -476,7 +480,7 @@ class create ::SMTP {
 
 	# If there's no content-type header construct one
 	if {[catch {::mime::getheader $msg content-type}]} {
-	    ::mime::setheader $msg content-type text/plain -mode write
+	    catch {::mime::setheader $msg content-type text/plain -mode write}
 	}
 
 	Debug.smtp {sendmessage headers:([::mime::getheader $msg]) smtp:($smtp)}
