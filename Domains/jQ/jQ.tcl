@@ -83,21 +83,24 @@ namespace eval ::jQ {
     variable expires "next week"
     variable google 0
 
-    variable version 1.4.4
+    variable version 1.8.2
     variable uiversion 1.8.2
     variable min 1
 
     proc script {r script args} {
 	variable version; variable min
+	variable uiversion
 	if {$script eq "jquery.js"} {
 	    # get the currently supported jquery
 	    set script jquery-${version}[expr {$min?".min":""}].js
-	}
-
-	variable uiversion
-	if {$script eq "jquery.ui.js"} {
+	} elseif {[string match {jquery[-.]ui.*} $script]
+		  || [string match jquery.effects.* $script]
+	      } {
 	    # get the currently supported jquery UI
-	    set script jquery-ui-${uiversion}[expr {$min?".min":""}].js
+	    if {$min} {
+		set script "minified/$script"
+	    }
+	    set script jquery-ui-${uiversion}/ui/$script
 	}
 
 	variable mount
