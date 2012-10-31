@@ -1151,7 +1151,7 @@ class create ::WubTk {
         my reload
         variable lambda
         set o [::WubTkI create [namespace current]::Coros::O_$wubapp {*}$options]
-        set coron [namespace current]::Coros::$wubapp
+        set coron [namespace current]::Coros::O_$wubapp
         set r [::Coroutine $coron $o coro $r $lambda]
         $coron started
 
