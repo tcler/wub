@@ -1621,11 +1621,13 @@ oo::class create ::Httpd {
 	    # read the header and unpack the header line
 	    # parse and merge header lines into request dict
 	    my Parse [my Headers]
-	    set request $r
-	    my Protocol			;# process request protocol
-	    set request $r
+	    set request $r	;# record current request dict as $request corovar
 
-	    # remember request as unsatisfied
+	    my Protocol		;# process request protocol - manipulates $r
+	    # (Protocol may break out of this loop to handle errors/spiders/etc.)
+
+	    # record request as unsatisfied and in $request corovar
+	    set request $r
 	    dict set unsatisfied [dict get $r -transaction] $r
 
 	    # intercept websockets request, process it
