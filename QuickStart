@@ -11,12 +11,15 @@ Step 1:  Download the code (which you've probably done already)
 Step 2: Change into the Wub directory:
      cd wub
 
-Step 3: edit site.config to your taste
-
-Step 4: Run the demo application:
+Step 3: Run the demo application:
 
      tclsh8.6 Wub.tcl
 
+Step 4: Connect and Go.
+
+     the server should now be listening on port 8080.  Try it.
+
 Step 5: For later
 
-     customise the site.config
+     edit site.config to your taste
+
