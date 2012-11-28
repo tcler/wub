@@ -1041,11 +1041,18 @@ oo::class create ::NubClass {
     # code processed domains into a big switch
     method code_domains {processed} {
 	upvar 1 domains domains
+	set names {}
 	set switch ""
 	foreach {u d} $processed {
 	    set url [join [lassign $u host] /]
 	    Debug.nub {code_domains: $u ($d)}
 	    dict with d {
+		if {[dict exists $names $host,$url]} {
+		    error "Domain $name (referenced in $section) is a duplicate."
+		    continue;
+		}
+		dict set names $host,$url 1
+
 		switch -- [string tolower $domain] {
 		    literal {
 			# literal nub
