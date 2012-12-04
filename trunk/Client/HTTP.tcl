@@ -476,9 +476,10 @@ oo::class create HTTP {
 			    error "Unknown transfer encoding"
 			}
 		    }
-		} elseif {[string toupper [dict get $r -version]] eq "HTTP/1.0"} {
+		} else {
+		    chan configure $socket -encoding binary -translation {binary binary}
 		    dict set r -content [my read]	;# read to EOF
-		}
+ 		}
 	    }
 
 	    # reset to header config
