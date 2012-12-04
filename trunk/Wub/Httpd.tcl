@@ -2208,7 +2208,7 @@ oo::objdefine ::Httpd {
 	if {$when == 0} {
 	    set when [clock microseconds]
 	}
-	puts stderr "TIMESTAMP $which ($r)"
+
 	if {![dict exists $r -time connected]} {
 	    dict set r -time connected [clock microseconds]
 	}
