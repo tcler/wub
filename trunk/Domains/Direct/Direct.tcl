@@ -329,13 +329,13 @@ class create ::Direct {
 		} else {
 		    my do_ns $r
 		}
-	    } r eo]]} {
+	    } rsp eo]]} {
 		# an error occurred
-		Debug.direct {error: $r ($eo)}
-		return [Http ServerError $rsp $result $eo]	;# handle error
+		Debug.direct {error: $rsp ($eo)}
+		return [Http ServerError $r $result $eo]	;# handle error
 	    } else {
 		Debug.direct {Content: [dict get $result -code] '[string range [dict get? $result -content] 0 80]...'} 2
-		return $r
+		return $rsp
 	    }
 	}
     }
