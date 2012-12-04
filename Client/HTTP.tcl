@@ -67,8 +67,19 @@ package require Tcl 8.6	;# minimum version of tcl required
 package require TclOO
 
 # use the new coro functionality
-namespace eval tcl::unsupported namespace export yieldm
-namespace import tcl::unsupported::yieldm
+# temporary compatibility shim for coroutines
+# handle new coro interface
+if {[llength [info command ::yieldm]]} {
+} elseif {[llength [info command ::tcl::unsupported::yieldm]]} {
+    namespace eval tcl::unsupported namespace export yieldm
+    namespace import tcl::unsupported::yieldm
+    interp alias {} ::Coroutine {} ::coroutine
+} elseif {[llength [info command ::yieldto]]} {
+    # this is the new 8.6b3 yield system - yield takes arbitrary args
+    interp alias {} ::Coroutine {} ::coroutine
+    #interp alias {} ::yieldm {} ::yieldto return -level 0
+    proc ::yieldm {args} { yieldto return -level 0 {*}$args }
+}
 
 # import the relevant commands from Wub Http package
 if {[catch {package require Http}]} {
