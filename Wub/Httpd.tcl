@@ -6,7 +6,7 @@ Debug define httpdthread 10
 Debug define watchdog 10
 Debug define reaper 10
 Debug define stamp 0
-
+Debug define httpd-resume 0
 Debug define entity 10
 
 package require Listener
@@ -1479,7 +1479,6 @@ oo::class create ::Httpd {
 	    ::Dispatcher do REQUEST $r1
 	} rsp eo	;# process the request
 	set istate POSTPROCESS
-	set rsp [::Httpd timestamp $rsp postprocess]
 
 	# handle response code from processing request
 	set done 0
@@ -1487,6 +1486,7 @@ oo::class create ::Httpd {
 	    0 -
 	    2 {
 		# does application want to suspend?
+		set rsp [::Httpd timestamp $rsp postprocess]
 		if {[dict size $rsp] == 0 || [dict exists $rsp -suspend]} {
 		    if {[dict size $rsp] == 0} {
 			set duration 0
@@ -2208,6 +2208,10 @@ oo::objdefine ::Httpd {
 	if {$when == 0} {
 	    set when [clock microseconds]
 	}
+	puts stderr "TIMESTAMP $which ($r)"
+	if {![dict exists $r -time connected]} {
+	    dict set r -time connected [clock microseconds]
+	}
 	dict set r -time $which [expr {$when - [dict get $r -time connected]}]
 	return $r
     }
@@ -2276,6 +2280,7 @@ oo::objdefine ::Httpd {
 
     # Resume this request
     method Resume {r} {
+	Debug.httpd-resume {[Debug on httpd]}
 	Debug.httpd {Resuming [Httpd dump $r]}
         # ask socket coro to send the response for us
 	# inject the SEND event into the coro so Resume may be called from any
@@ -2283,12 +2288,15 @@ oo::objdefine ::Httpd {
 	catch {dict remove r -suspend}
 	set r [Http timestamp $r resumed]
 	set r [::Dispatcher post $r]
+	Debug.httpd {Resuming to [dict get $r -send] send}
 	set code [catch {{*}[dict get $r -send] send $r} e eo]
 	if {$code != 0} {
-	    Debug.httpd {Failed Resumption $code '$e' ($eo)}
+	    Debug.error {Failed Resume '$e' ($eo)}
 	} else {
-	    Debug.httpd {Resumption $code '$e' ($eo)}
+	    Debug.httpd {Resume '$e' ($eo)}
 	}
+	Debug.httpd-resume {Resume done - $code $e ($eo)}
+	Debug.httpd-resume {Debug off httpd}
 	return [list $code $e $eo]
     }
     export Resume
