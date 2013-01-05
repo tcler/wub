@@ -2295,8 +2295,7 @@ oo::objdefine ::Httpd {
 	} else {
 	    Debug.httpd {Resume '$e' ($eo)}
 	}
-	Debug.httpd-resume {Resume done - $code $e ($eo)}
-	Debug.httpd-resume {Debug off httpd}
+	Debug.httpd {Resume done - $code $e ($eo)}
 	return [list $code $e $eo]
     }
     export Resume
