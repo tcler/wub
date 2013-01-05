@@ -297,26 +297,26 @@ oo::class create ::Httpd {
     }
 
     # control the writable state of $socket
-    method unwritable {} {
+    method Unwritable {} {
 	variable socket
 	variable events
 	chan event $socket writable ""
 	dict unset events writable
     }
-    method writable {{what respond}} {
+    method Writable {{what respond}} {
 	variable socket
 	variable events
 	dict set events writable $what
     }
 
     # control the readable state of $socket
-    method unreadable {} {
+    method Unreadable {} {
 	variable socket
 	variable events
 	catch {chan event $socket readable ""}
 	catch {dict unset events readable}
     }
-    method readable {{what READ}} {
+    method Readable {{what READ}} {
 	variable socket
 	variable events
 	dict set events readable $what
@@ -365,14 +365,14 @@ oo::class create ::Httpd {
 	# this will repeat until we get a READ indication
 	variable live 1
 	while {$live} {
-	    Debug.httpdlow {coro [info coroutine] yielding in [self]}
+	    Debug.httpdlow {coro [info coroutine] yielding in [self] over socket $socket}
 
 	    # turn on selected events for this connection
 	    dict for {k v} $events {
 		if {[catch {chan event $socket $k [list [info coroutine] {*}$v]} e eo]} {
-		    Debug.httpdlow {coro [info coroutine] chan $k $v FAIL $e ($eo)}
+		    Debug.error {coro [info coroutine] 'chan event $k $v' FAIL $e ($eo)}
 		} else {
-		    #Debug.httpdlow {coro [info coroutine] chan $k $v}
+		    Debug.httpdlow {coro [info coroutine] 'chan event $k $v'}
 		}
 	    }
 
@@ -396,7 +396,7 @@ oo::class create ::Httpd {
 			|| [chan eof $socket]
 		    } {
 			Debug.httpd {[info coroutine] eof detected from yield ([dict size $unsatisfied] replies remaining)}
-			my unreadable	;# turn off reader
+			my Unreadable	;# turn off reader
 
 			# determine whether there's anything pending
 			if {![dict size $unsatisfied]} {
@@ -417,6 +417,7 @@ oo::class create ::Httpd {
 
 	    Debug.httpdlow {coro [info coroutine] processed '$op' in [self]}
 	}
+
 	return -level [expr {[info level]-1}]	;# destroy the coro
     }
 
@@ -449,13 +450,13 @@ oo::class create ::Httpd {
 	    # only when the client has consumed our output do we
 	    # restart reading input
 	    Debug.entity {[info coroutine] fcin: restarting reader}
-	    my readable	;# this will restart the reading loop
+	    my Readable	;# this will restart the reading loop
 	} else {
 	    Debug.entity {[info coroutine] fcin: suspending reader [chan pending output $socket]}
 	}
 
 	# see if the writer needs service
-	my writable
+	my Writable
 
 	# at this point we have a complete entity in $entity file, it's already been ungzipped
 	# we need to process it somehow
@@ -517,13 +518,13 @@ oo::class create ::Httpd {
 	    # only when the client has consumed our output do we
 	    # restart reading input
 	    Debug.entity {[info coroutine] fchunk: restarting reader}
-	    my readable	;# this will restart the reading loop
+	    my Readable	;# this will restart the reading loop
 	} else {
 	    Debug.entity {[info coroutine] fchunk: suspending reader [chan pending output $socket]}
 	}
 
 	# see if the writer needs service
-	my writable
+	my Writable
 
 	Debug.entity {got chunked entity in $entity}
 
@@ -674,7 +675,7 @@ oo::class create ::Httpd {
 	    # only when the client has consumed our output do we
 	    # restart reading input
 	    Debug.httpdlow {[info coroutine] fcopy: restarting reader}
-	    my readable
+	    my Readable
 	} else {
 	    Debug.httpdlow {[info coroutine] fcopy: suspending reader [chan pending output $socket]}
 	}
@@ -684,7 +685,7 @@ oo::class create ::Httpd {
 	dict unset unsatisfied $next	;# satisfied this
 
 	# see if the writer needs service
-	my writable
+	my Writable
     }
 
     # respond - to client with as many consecutive responses as it can consume
@@ -712,7 +713,7 @@ oo::class create ::Httpd {
 	variable replies
 	if {![dict size $replies]} {
 	    set ostate EMPTY
-	    my unwritable	;# no point in trying to write
+	    my Unwritable	;# no point in trying to write
 	}
 
 	# send all responses in sequence from the next expected to the last available
@@ -723,8 +724,8 @@ oo::class create ::Httpd {
 	    if {[chan pending output $socket] > $outbuffer} {
 		# the client hasn't consumed our output yet
 		# stop communicating for 10mS then retry
-		my unwritable	;# stop writing
-		my unreadable	;# stop reading
+		my Unwritable	;# stop writing
+		my Unreadable	;# stop reading
 		set ostate PENDING
 		after 10 [list [info coroutine] respond] ;# restart in 10mS
 		return 0
@@ -747,16 +748,16 @@ oo::class create ::Httpd {
 		# we must therefore wait until all the preceding transactions
 		# have something to send
 		Debug.httpd {[info coroutine] no pending or $next doesn't follow $response}
-		my unwritable	;# no point in trying to write
+		my Unwritable	;# no point in trying to write
 
 		if {[chan pending output $socket] > $outbuffer} {
 		    # the client hasn't consumed our output yet
 		    # stop reading input until he does
-		    my unreadable
+		    my Unreadable
 		    set ostate OOS_UNREADABLE
 		} else {
 		    # there's space for more output, so accept more input
-		    my readable
+		    my Readable
 		    set ostate OOS_READABLE
 		}
 
@@ -807,8 +808,8 @@ oo::class create ::Httpd {
 
 		    chan configure $socket -translation binary
 		    chan configure $fd -translation binary
-		    my unreadable	;# stop reading input while fcopying
-		    my unwritable	;# stop writing while fcopying
+		    my Unreadable	;# stop reading input while fcopying
+		    my Unwritable	;# stop writing while fcopying
 		    ::watchdog grace [self] -1	;# stop the watchdog resetting the link
 
 		    if {[llength $range]} {
@@ -863,10 +864,10 @@ oo::class create ::Httpd {
 	if {[chan pending output $socket] > $outbuffer} {
 	    # the client hasn't consumed our output yet
 	    # stop reading input until he does
-	    my unreadable
+	    my Unreadable
 	} else {
 	    # there's space for more output, so accept more input
-	    my readable
+	    my Readable
 	}
 
 	return 0
@@ -965,10 +966,10 @@ oo::class create ::Httpd {
 		# the client hasn't consumed our output yet
 		# stop reading input until he does
 		set r [::Httpd timestamp $r unreadable]
-		my unreadable
+		my Unreadable
 	    } else {
 		# there's space for more output, so accept more input
-		my readable
+		my Readable
 	    }
 	} elseif {![my close? $r]} {
 	    # special case 100-continue ...
@@ -978,7 +979,7 @@ oo::class create ::Httpd {
 	    dict set replies $trx $r
 	    Debug.httpd {[info coroutine] ADD CONTINUATION: ([dict keys $replies])}
 	    # this is a continuation - we expect more
-	    my readable
+	    my Readable
 	}
 
 	# generate a log line
@@ -990,7 +991,7 @@ oo::class create ::Httpd {
 	    Debug.error {log error: $le ($leo)}
 	}
 
-	my writable
+	my Writable
     }
 
     # proxy - send content as an undifferentiated blob
@@ -1320,8 +1321,8 @@ oo::class create ::Httpd {
 		}
 
 		# prepare the socket for fchunk
-		my unreadable	;# stop reading input while fcopying
-		my unwritable	;# stop writing while fcopying
+		my Unreadable	;# stop reading input while fcopying
+		my Unwritable	;# stop writing while fcopying
 		::watchdog grace [self] 120000	;# prevent the watchdog resetting the link
 
 		# start the entity fcopy
@@ -1370,8 +1371,8 @@ oo::class create ::Httpd {
 		}
 
 		# prepare the socket for fcin
-		my unreadable	;# stop reading input while fcopying
-		my unwritable	;# stop writing while fcopying
+		my Unreadable	;# stop reading input while fcopying
+		my Unwritable	;# stop writing while fcopying
 		::watchdog grace [self] 120000	;# stop the watchdog resetting the link
 
 		Debug.entity {[info coroutine] FCIN: starting with $left writing to '$entitypath'} 8
@@ -1593,7 +1594,7 @@ oo::class create ::Httpd {
     method coro {args} {
 	Debug.httpd {create reader [info coroutine] - $args}
 
-	my readable	;# kick off the readable event
+	my Readable	;# kick off the readable event
 
 	dict with args {}	;# instantiate $args alist as corovars
 	variable transaction 0	;# count of incoming requests
@@ -1636,7 +1637,7 @@ oo::class create ::Httpd {
 		&& [string tolower [dict r.connection?]] eq "upgrade"
 	    } {
 		# initiate WebSockets connection
-		my unreadable; my unwritable	;# turn off socket processing
+		my Unreadable; my Unwritable	;# turn off socket processing
 		my destroy	;# destroy us
 		tailcall [WebSockets create] handshake $r ;# hand over to WebSockets
 	    }
