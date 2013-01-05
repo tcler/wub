@@ -1809,7 +1809,7 @@ oo::class create ::Httpd {
 	#variable coro [info object namespace [self]]::coro
 	set corocnt [incr ::Httpd::coros::count]
 	dict set proto -pipeline $corocnt	;# keep track of pipelines
-	variable coro ::Httpd::coros::coro$corocnt
+	variable coro ::Httpd::coros::coro-[namespace tail [self]]
 	::coroutine $coro [self] reader
     }
 }
