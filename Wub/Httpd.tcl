@@ -901,7 +901,7 @@ oo::class create ::Httpd {
 	# if this isn't a browser - do not cache!
 	variable ua
 	if {$ua && [dict get? $r -ua_class] ni {browser unknown}} {
-	    Debug.httpd {not a browser - do not cache [dict get $r -uri]}
+	    Debug.httpd {not a browser - do not cache [dict get? $r -uri]}
 	    set cache 0
 	}
 
