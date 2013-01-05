@@ -497,7 +497,7 @@ oo::class create ::CacheClass {
 	    my fetch $req
 	} cached eo]} {
 	    # it's gotta be there!
-	    Debug.error {cache inconsistency '$cached' ($eo) - can't fetch existing entry for url:'$uri'/[exists? $uri] etag:'$etag'/[exists? $etag]}
+	    Debug.error {cache inconsistency '$cached' ($eo) - can't fetch existing entry for url:'$uri'/[my exists? $uri] etag:'$etag'/[my exists? $etag]}
 	    return {}
 	}
 	if {$cached eq {}} {
