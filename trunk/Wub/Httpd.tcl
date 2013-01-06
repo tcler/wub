@@ -698,10 +698,9 @@ oo::class create ::Httpd {
 	variable ostate
 	variable unsatisfied
 
-	if {[chan pending input $socket] < 0
-	    && ![dict size $unsatisfied]
+	if {[chan eof $socket] && ![dict size $unsatisfied]
 	} {
-	    # we have no more requests to satisfy and no more input
+	    # we have no more requests to satisfy and no more input will come
 	    Debug.httpd {[info coroutine] closing as there's nothing pending}
 	    set ostate CLOSED
 	    my terminate "finally close in responder"
@@ -1809,7 +1808,7 @@ oo::class create ::Httpd {
 	#variable coro [info object namespace [self]]::coro
 	set corocnt [incr ::Httpd::coros::count]
 	dict set proto -pipeline $corocnt	;# keep track of pipelines
-	variable coro ::Httpd::coros::coro-[namespace tail [self]]
+	variable coro ::Httpd::coros::[string tolower [namespace tail [self]]]
 	::coroutine $coro [self] reader
     }
 }
