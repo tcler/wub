@@ -139,7 +139,7 @@ oo::class create FossilProxy {
 		    "Set-Cookie:*" {
 			# Pass on cookies, make sure to fix the path by adding prefix
 			set cdict [lindex [Cookies parse4client [string trim [string range $l 11 end]]] 1]
-			set r [Cookies Add $r -path $prefix[dict get? $cdict -Path] -name [dict get? $cdict -name] -value [dict get? $cdict -value] -expires "next month"]
+			set r [Cookies Add $r -path [dict get? $cdict -Path] -name [dict get? $cdict -name] -value [dict get? $cdict -value] -expires "next month"]
 		    }
 		}
 	    }
