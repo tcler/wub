@@ -1,7 +1,6 @@
 package require OO
 package require Cookies
 package require Query
-package require jQ
 
 package provide FossilProxy 1.0
 
@@ -77,26 +76,35 @@ oo::class create FossilProxy {
 	    package require Cookies
 	    package require Dict
 
+	    # Save request to a file so it can be redirect to the fossil http command
 	    set qfnm Q$fnmid
 	    set f [open $qfnm w]
 	    fconfigure $f -encoding binary -translation binary
 	    puts -nonewline $f $fr
 	    close $f
 
+	    # Create base url
+	    set ud [Url parse [dict get $r -url]]
+	    if {[string length $prefix]} {
+		set idx 2
+	    } else {
+		set idx 1
+	    }
+	    dict set ud -path [file join {*}[lrange [file split [dict get $ud -path]] 0 $idx]]
+
 	    # Call fossil
 	    set fnm R$fnmid
 	    set f [open $fnm w]
 	    fconfigure $f -encoding binary -translation binary
-	    if {[catch {exec $fossil_command http $fossil_dir >@ $f < $qfnm} R]} {
+	    if {[catch {exec $fossil_command http --baseurl [Url uri $ud] $fossil_dir >@ $f < $qfnm} R]} {
 		error $R
 	    }
 	    close $f
 
+	    # Response of fossil http was redirected to file
 	    set f [open $fnm r]
 	    fconfigure $f -encoding binary -translation binary
 	    set R [read $f]
-	    puts "Request=\n$fr\n=Request"
-	    puts "Response=\n$R\n=Response"
 	    close $f
 
 	    file delete $qfnm
@@ -142,24 +150,13 @@ oo::class create FossilProxy {
 		set C [string range $R end-[expr {$content_length-1}] end]
 	    }
 
-	    # Fix up prefixes if not mounted in /
- 	    if {[string length $prefix] && [string match "text/html*" $content_type]} {
- 		regsub -all { href=\"\/} $C " href=\"$prefix/" C
- 		regsub -all { href=\'\/} $C " href='$prefix/" C
- 		regsub -all { src=\"\/} $C " src=\"$prefix/" C
- 		regsub -all { src=\'\/} $C " src='$prefix/" C
- 	    }
-
 	    # Send responses
 	    switch -exact -- $response {
 		200 {
 		    return [Http NoCache [Http Ok $r $C $content_type]]
 		}
 		302 {
-		    # Make sure to fix the path by adding prefix
-		    set d [Url parse $location]
-		    dict set d -path $prefix[dict get $d -path]
-		    return [Http Redirect $r [Url uri $d]]
+		    return [Http Redirect $r $location]
 		}
 		404 {
 		    return [Http NotFound $r]
