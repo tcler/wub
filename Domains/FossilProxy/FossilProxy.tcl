@@ -27,107 +27,7 @@ oo::class create FossilProxy {
 	return $path
     }
 
-    method /direct/user/togglepriv/post {r R U P} {
- 	variable fossil_dir
- 	variable fossil_command
- 	if {[catch {exec $fossil_command user capabilities $U -R [file join $fossil_dir $R]} Res]} {
- 	    error $Res
- 	}
- 	set idx [string first $P $Res]
- 	if {$idx >= 0} {
- 	    set Res [string replace $Res $idx $idx]
- 	    set msg "Revoked $P from user $U for repository $R: $Res"
- 	} else {
- 	    append Res $P
- 	    set msg "Granted $P to user $U for repository $R: $Res"
- 	}
- 	if {[catch {exec $fossil_command user capabilities $U $Res -R [file join $fossil_dir $R]} Res]} {
- 	    error $Res
- 	}
- 	return [Http NoCache [Http Ok $r $msg]]
-    }
-
-    method /direct/user/create/post {r R U C P} {
- 	variable fossil_dir
- 	variable fossil_command
- 	if {[catch {exec $fossil_command user new $U $C $P -R [file join $fossil_dir $R]} Res]} {
- 	    error $Res
- 	}
- 	return [Http NoCache [Http Ok $r $Res]]
-    }
-
-    method /direct/user/password/post { r R U P} {
- 	variable fossil_dir
- 	variable fossil_command
- 	if {[catch {exec $fossil_command user password $U $P -R [file join $fossil_dir $R]} Res]} {
- 	    error $Res
- 	}
- 	return [Http NoCache [Http Ok $r $Res]]
-    }
-
-    method /direct/privs {r} {
-	variable prefix
-	variable fossil_dir
-	variable fossil_command
-	set uidl {}
-	set C ""
-	set repoid 0
-	set privid 0
-	set fnml [lsort -dictionary [glob -nocomplain -tails -dir $fossil_dir *.fossil]]
-	foreach fnm $fnml {
-	    append C [<a> name repo$repoid [<h2> [file rootname $fnm]]]
-	    set rnm [file join $fossil_dir $fnm]
-	    if {[catch {exec $fossil_command user list -R $rnm} R]} {
-		error $R
-	    }
-	    unset -nocomplain kprivs
-	    unset -nocomplain privs
-	    unset -nocomplain uidl
-	    foreach l [split $R \n] {
-		set idx [string first " " $l]
-		set uid [string trim [string range $l 0 $idx]]
-		set contact [string trim [string range $l $idx end]]
-		lappend uidl [list $uid $contact]
-		if {[catch {exec $fossil_command user capabilities -R $rnm $uid} P]} {
-		    error $P
-		}
-		foreach p [split $P {}] {
-		    set kprivs($p) 1
-		    set privs($uid,$p) 1
-		}
-	    }
-	    set data {}
-	    foreach l $uidl {
-		lassign $l uid contact
-		set l [list uid $uid contact $contact]
-		foreach p [lsort -dictionary [array names kprivs]] {
-		    #lappend l $p "<input id='$privid' type='checkbox' OnClick='FossilProxy.togglepriv($privid, \"$fnm\", \"$uid\", \"$p\")' [expr {[info exists privs($uid,$p)]?"checked":""}]>"
-		    lappend l $p [expr {[info exists privs($uid,$p)]?"X":"-"}]
-		    incr privid
-		}
-		lappend data [incr i] $l
-		append C "  </tr>\n"
-	    }
-	    append C [Report html $data headers [list uid contact {*}[lsort -dictionary [array names kprivs]]] class tablesorter sortable 0 evenodd 0 htitle ""]
-	    incr repoid
-	}
-	set T [<h1> "Repository privileges"]\n
-	append T <ul>\n
-	set repoid 0
-	foreach fnm $fnml {
-	    append T [<li> [<a> href #repo$repoid [file rootname $fnm]]]\n
-	    incr repoid
-	}
-	append T </ul>\n
-	append T $C
-	set r [jQ tablesorter $r table]
-	dict set r -content $T
-	dict set r content-type x-text/html-fragment
-	dict set r -title "Repository privileges"
-	return [Http NoCache [Http Ok $r]]
-    }
-
-    method list_repos {r} {
+   method list_repos {r} {
 	variable prefix
 	variable fossil_dir
 	variable repositories_list_body
@@ -273,14 +173,7 @@ oo::class create FossilProxy {
     }
 
     method do {r} {
-	variable prefix
-	set path [dict get $r -path]
-	if {[string match "$prefix/direct/privs*" $path] ||
-	    [string match "$prefix/direct/user*" $path]} {
-	    return [next $r]
-	} else {
-	    return [my fossil_http $r]
-	}
+	return [my fossil_http $r]
     }
 
     constructor {args} {
