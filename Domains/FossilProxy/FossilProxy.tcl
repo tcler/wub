@@ -139,7 +139,7 @@ oo::class create FossilProxy {
 	return [Http NoCache [Http Ok $r [regsub {%REPOS%} $repositories_list_body $C]]]
     }
 
-    method fossil_http { r } { 
+    method fossil_http { r } {
 
 	variable fnmid
 	variable prefix
@@ -170,7 +170,7 @@ oo::class create FossilProxy {
 	if {[dict exists $r -entity]} {
 	    append fr \n[dict get $r -entity]
 	}
-	
+
 	# Use a thread to process the request to avoid blocking on long running calls
 	return [Httpd Thread {
 
@@ -195,6 +195,8 @@ oo::class create FossilProxy {
 	    set f [open $fnm r]
 	    fconfigure $f -encoding binary -translation binary
 	    set R [read $f]
+	    puts "Request=\n$fr\n=Request"
+	    puts "Response=\n$R\n=Response"
 	    close $f
 
 	    file delete $qfnm
@@ -233,13 +235,13 @@ oo::class create FossilProxy {
 		    }
 		}
 	    }
-	    
+
 	    # Extract contents from response
 	    set C ""
 	    if {$content_length >= 0} {
 		set C [string range $R end-[expr {$content_length-1}] end]
 	    }
-	    
+
 	    # Fix up prefixes if not mounted in /
  	    if {[string length $prefix] && [string match "text/html*" $content_type]} {
  		regsub -all { href=\"\/} $C " href=\"$prefix/" C
@@ -255,7 +257,9 @@ oo::class create FossilProxy {
 		}
 		302 {
 		    # Make sure to fix the path by adding prefix
-		    return [Http Redirect $r $prefix$location]
+		    set d [Url parse $location]
+		    dict set d -path $prefix[dict get $d -path]
+		    return [Http Redirect $r [Url uri $d]]
 		}
 		404 {
 		    return [Http NotFound $r]
@@ -271,7 +275,7 @@ oo::class create FossilProxy {
     method do {r} {
 	variable prefix
 	set path [dict get $r -path]
-	if {[string match "$prefix/direct/privs*" $path] || 
+	if {[string match "$prefix/direct/privs*" $path] ||
 	    [string match "$prefix/direct/user*" $path]} {
 	    return [next $r]
 	} else {
