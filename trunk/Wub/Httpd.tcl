@@ -1677,13 +1677,18 @@ oo::class create ::Httpd {
 
     # thread_response - turn a threaded processing response into
     # an Http response, and resume it.
-    method thread_response {r thread private code rs eo} {
+    method thread_response {r thread type code rs eo} {
 	Debug.httpdthread {thread_response: $code ($eo) ([Httpd dump $r]) -> ([Httpd dump $rs])}
 
-	if {!$private} {
-	    # put thread back on available queue
-	    set cns [info object namespace ::Httpd]
-	    lappend ${cns}::threads $thread
+	if {[set live [expr {$thread in [::thread::names]}]]} {
+	    ::thread::release $thread	;# release the thread
+	}
+
+	if {$live && $type ne ""
+	    && ![string match tid0x* $type]
+	} {
+	    # put idle thread back on available queue
+	    dict lappend [info object namespace ::Httpd]::threads $type $thread
 	}
 
 	if {$code} {
@@ -1694,17 +1699,23 @@ oo::class create ::Httpd {
 
     # thread - run the given script in the given thread,
     # suspending while processing, resuming when complete
-    method thread {thread private script rvar r args} {
+    method thread {thread type script rvar r args} {
 	# collect thread args
 	dict set r -thread [::thread::id]
 	set vars [list $rvar {*}[dict keys $args]]
 	set vals [list $r {*}[dict values $args]]
 
 	# generate thread script
-	set sscript [string map [list %S% [list $script] %V% [list $vars] %A% $vals %ME% [::thread::id] %R% [list $r] %O% [self] %P% $private] {
+	if {$type eq ""} {
+	    set terminate "incr ::forever"
+	} else {
+	    set terminate ""
+	}
+	set sscript [string map [list %S% [list $script] %V% [list $vars] %A% $vals %ME% [::thread::id] %R% [list $r] %O% [self] %TYPE% $type %TERM% $terminate] {
 	    #puts stderr "Thread Running: [::thread::id]"
 	    set code [catch {::apply [list %V% %S%] %A%} rs eo]
-	    ::thread::send -async %ME% [list %O% thread_response %R% [::thread::id] %P% $code $rs $eo]
+	    ::thread::send -async %ME% [list %O% thread_response %R% [::thread::id] %TYPE% $code $rs $eo]
+	    %TERM%
 	}]
 	Debug.httpdthread {thread: $thread sscript: '$sscript'}
 
@@ -2242,32 +2253,62 @@ oo::objdefine ::Httpd {
 	    # last arg is the thread to run.  What a complex API
 	    set thread [lindex $args end]
 	    set args [lrange $args 0 end-1]
-	    set private 1
-	} else {
-	    # pick a thread from available queue
-	    set cns [info object namespace ::Httpd]
-	    set thread ""
-	    if {![info exists ${cns}::threads]} {
-		set ${cns}::threads {}
+	    if {[string match tid0x* [lindex $thread 0]]} {
+		if {$thread ni [::thread::names]} {
+		    error "Httpd Thread invocation of app-managed $thread, which doesn't exist."
+		}
+		set type $thread	;# this is an app-managed thread
 	    } else {
-		set ${cns}::threads [lassign [set ${cns}::threads] thread]
-	    }
-	    set private 0
-	}
+		lassign $thread type init
 
-	if {$thread eq ""} {
-	    # create a new thread
+		# pick a thread from available queue
+		set cns [info object namespace ::Httpd]
+		set thread ""
+
+		if {![info exists ${cns}::threads]} {
+		    set ${cns}::threads {}	;# set up empty idle threads by type dict
+		}
+
+		# loop through idle threads of this type
+		while {1} {
+		    set threads [dict get? [set ${cns}::threads] $type]
+		    if {![llength $threads]} break	;# no idle threads of this type
+		    dict set ${cns}::threads $type [lassign $threads thread]
+		    if {$thread in [::thread::names]} break	;# found a running thread
+		    # if defunct threads are in the thread type dict, then elide them
+		    # and keep looping around looking for an idle thread
+		}
+
+		if {$thread eq ""} {
+		    # create a new thread of type $type with $init initialization and refcount 1
+		    set thread [::thread::create -preserved [string map [list %AP% [list $::auto_path] %INIT% $init] {
+			set auto_path %AP%
+			#package require Thread
+			package require Http
+			proc ::terminate {} {incr ::forever}
+			%INIT%	;# thread type specific initialization
+			set ::forever 0; vwait ::forever	;# enter event loop, wait for requests
+		    }]]
+		}
+	    }
+	} else {
+	    # default - one-shot anonymous thread
+	    # create a new thread with a refcount of 0
 	    set thread [::thread::create [string map [list %AP% [list $::auto_path]] {
 		set auto_path %AP%
 		#package require Thread
 		package require Http
-		set forever 0; vwait forever
+		set ::forever 0; vwait ::forever	;# enter event loop, wait for request
 	    }]]
+	    set type ""	;# a thread of type "" is not managed by ::Httpd::Thread
 	}
 
+	::thread::preserve $thread	;# ensure thread persists until we've run [my thread]
+
 	# call the request's supervisor object to perform actual work
-	return [[dict get $r -cid] thread $thread $private $script $rvar $r {*}$args]
+	return [[dict get $r -cid] thread $thread $type $script $rvar $r {*}$args]
     }
+
     export Thread
 
     # Suspend server-processing of this request
