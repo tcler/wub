@@ -1701,16 +1701,23 @@ oo::class create ::Httpd {
     # suspending while processing, resuming when complete
     method thread {thread type script rvar r args} {
 	# collect thread args
-	dict set r -thread [::thread::id]
+	dict set r -thread [::thread::id]	;# remember the currently running thread
 	set vars [list $rvar {*}[dict keys $args]]
 	set vals [list $r {*}[dict values $args]]
 
-	# generate thread script
+	# if this is a one-shot script, we need termination script
 	if {$type eq ""} {
-	    set terminate "incr ::forever"
+	    set terminate "incr ::forever"	;# kick the one-shot out of event loop
 	} else {
-	    set terminate ""
+	    set terminate ""		;# nothing needs doing for other thread types
 	}
+
+	# generate script to send to child thread
+	# child thread evaluation uses [::apply] to collect all results of evaluation of $script
+	# Result is passed back to calling thread/object by means of [my thread_response]
+	# $script return value is a response dict or error
+	# thread_response is given the original request dict, response dict, error dict, code
+	# and thread type, which determines the disposition of the running thread.
 	set sscript [string map [list %S% [list $script] %V% [list $vars] %A% $vals %ME% [::thread::id] %R% [list $r] %O% [self] %TYPE% $type %TERM% $terminate] {
 	    #puts stderr "Thread Running: [::thread::id]"
 	    set code [catch {::apply [list %V% %S%] %A%} rs eo]
@@ -1719,13 +1726,13 @@ oo::class create ::Httpd {
 	}]
 	Debug.httpdthread {thread: $thread sscript: '$sscript'}
 
-	::thread::send -async $thread $sscript	;# kick off the thread
+	::thread::send -async $thread $sscript	;# kick off the thread by passing it our script
 
-	# Thread's running - Suspend self
+	# Thread's now running - Suspend [self] pending response from child thread
 	if {[dict exists $r -grace]} {
 	    set grace [dict get $r -grace]	;# caller specified grace
 	} else {
-	    set grace -1
+	    set grace -1	;# wait forever for the child to respond
 	}
 
 	return [Httpd Suspend $r $grace]
@@ -2253,15 +2260,17 @@ oo::objdefine ::Httpd {
 	    # last arg is the thread to run.  What a complex API
 	    set thread [lindex $args end]
 	    set args [lrange $args 0 end-1]
+
 	    if {[string match tid0x* [lindex $thread 0]]} {
+		# passed in a TID - use that thread as an app-managed thread
 		if {$thread ni [::thread::names]} {
 		    error "Httpd Thread invocation of app-managed $thread, which doesn't exist."
 		}
 		set type $thread	;# this is an app-managed thread
 	    } else {
-		lassign $thread type init
+		lassign $thread type init	;# get the thread type and creation code
 
-		# pick a thread from available queue
+		# pick a thread from idle queue of thread $type
 		set cns [info object namespace ::Httpd]
 		set thread ""
 
@@ -2280,7 +2289,8 @@ oo::objdefine ::Httpd {
 		}
 
 		if {$thread eq ""} {
-		    # create a new thread of type $type with $init initialization and refcount 1
+		    # no idle threads of this type.
+		    # create a new thread with $init initialization and refcount 1
 		    set thread [::thread::create -preserved [string map [list %AP% [list $::auto_path] %INIT% $init] {
 			set auto_path %AP%
 			#package require Thread
