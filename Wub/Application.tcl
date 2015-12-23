@@ -10,7 +10,13 @@ set auto_path [list [pwd] {*}$auto_path]
 package require Site
 
 # Initialize Site
-Site init home [file normalize [file dirname [info script]]] config site.config debug 10 {*}$argv
+set siteconf site.config
+set conffile [lindex $argv 0]
+if {[file exists $conffile]} {
+	set siteconf $conffile
+	set argv [lrange $argv 1 end]
+}
+Site init home [file normalize [file dirname [info script]]] config $siteconf debug 10 {*}$argv
 
 # Start Site Server(s)
 Site start 
